@@ -1,12 +1,12 @@
 {
   "name": "aurorawolf",
   "version": "2.0.0",
-  "description": "REVONTULET · Aurora Wolf — 3D open-world wolf simulator in a single self-contained HTML file",
+  "description": "REVONTULET \u00b7 Aurora Wolf \u2014 3D open-world wolf simulator in a single self-contained HTML file",
   "private": true,
   "scripts": {
     "build": "python3 build.py",
     "publish": "bash publish.sh github \"Game update\"",
-    "test": "for t in smoke.mjs layout.test.mjs landscape.test.mjs wolf.test.mjs pose.check.mjs ui2.test.mjs features.test.mjs enemies.test.mjs; do printf '%-20s ' $t; node test/$t >/dev/null 2>&1 && echo PASS || echo FAIL; done",
+    "test": "for t in smoke.mjs layout.test.mjs landscape.test.mjs wolf.test.mjs pose.check.mjs ui2.test.mjs features.test.mjs enemies.test.mjs world.test.mjs heading.check.mjs; do printf '%-20s ' $t; node test/$t >/dev/null 2>&1 && echo PASS || echo FAIL; done",
     "apk": "bash android/build_apk.sh"
   },
   "devDependencies": {
