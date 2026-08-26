@@ -75,8 +75,10 @@ body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
 @keyframes warnPulse { from { box-shadow: 0 0 12px rgba(255, 60, 30, 0.35); } to { box-shadow: 0 0 26px rgba(255, 60, 30, 0.8); } }
 #threatArrow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: 0; height: 0; display: none; z-index: 39; pointer-events: none; }
-#threatArrow .ta-arrow { position: absolute; left: -15px; top: -152px; font-size: 30px; color: #ff4030;
-  text-shadow: 0 0 14px rgba(255, 50, 20, 0.95), 0 0 30px rgba(255, 50, 20, 0.6);
+#threatArrow .ta-arrow { position: absolute; left: -16px; top: -154px; width: 32px; height: 34px;
+  background: #ff4030;
+  clip-path: polygon(50% 0%, 100% 76%, 50% 56%, 0% 76%);
+  filter: drop-shadow(0 0 10px rgba(255, 50, 20, 0.95)) drop-shadow(0 0 24px rgba(255, 50, 20, 0.6));
   animation: taPulse 0.5s infinite alternate; }
 #threatArrow .ta-ring { position: absolute; left: -56px; top: -56px; width: 112px; height: 112px;
   border: 2px dashed rgba(255, 70, 40, 0.4); border-radius: 50%; animation: taSpin 9s linear infinite; }
@@ -266,7 +268,7 @@ body.touch #tPause { display: block; }
     </div>
   </div>
   <div id="vignette"></div>
-  <div id="threatArrow"><div class="ta-ring"></div><div class="ta-arrow">▲</div></div>
+  <div id="threatArrow"><div class="ta-ring"></div><div class="ta-arrow"></div></div>
   <div id="threatWarn">⚠️ Territory</div>
   <div id="deathOv"><div id="deathMsg"></div></div>
   <div id="flyTimer">✨ Flight 10s</div>
