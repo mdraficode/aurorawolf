@@ -6,7 +6,7 @@
   "scripts": {
     "build": "python3 build.py",
     "publish": "bash publish.sh github \"Game update\"",
-    "test": "for t in smoke.mjs layout.test.mjs landscape.test.mjs wolf.test.mjs pose.check.mjs ui2.test.mjs features.test.mjs enemies.test.mjs world.test.mjs heading.check.mjs; do printf '%-20s ' $t; node test/$t >/dev/null 2>&1 && echo PASS || echo FAIL; done",
+    "test": "for t in smoke.mjs layout.test.mjs landscape.test.mjs wolf.test.mjs pose.check.mjs ui2.test.mjs features.test.mjs enemies.test.mjs world.test.mjs heading.check.mjs; do printf '%-20s ' $t; node test/$t >/dev/null 2>&1 && echo PASS || echo FAIL; done && node test/ecosystem.test.mjs",
     "apk": "bash android/build_apk.sh"
   },
   "devDependencies": {
