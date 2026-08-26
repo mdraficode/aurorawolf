@@ -43,6 +43,12 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
   background: rgba(30, 16, 56, 0.55); border: 1px solid rgba(176, 122, 255, 0.45);
   text-shadow: 0 0 12px rgba(176, 122, 255, 0.9);
 }
+#minimap {
+  position: absolute; top: 56px; right: 16px; width: 140px; height: 140px; z-index: 8;
+  border-radius: 50%; background: rgba(8, 14, 22, 0.55); pointer-events: none;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, .45), inset 0 0 24px rgba(0, 0, 0, .35);
+}
+body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
 #hpWrap { position: absolute; top: 74px; left: 50%; transform: translateX(-50%);
   width: 190px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
   border: 1px solid rgba(255, 120, 100, 0.35); overflow: hidden; }
@@ -238,8 +244,9 @@ body.touch #tPause { display: block; }
   <div id="controls">
     <b>WASD</b> move · <b>Shift</b> sprint · <b>Space</b> jump · <b>F</b> attack<br>
     <b>E</b> gather · <b>Q</b> wolf sense · <b>H</b> howl · <b>Drag</b> look · <b>Wheel</b> zoom<br>
-    <b>C</b> camera · <b>T</b> time ×8 · <b>M</b> sound · <b>P</b> pause
+    <b>C</b> camera · <b>T</b> time ×8 · <b>M</b> sound · <b>N</b> map · <b>P</b> pause
   </div>
+  <canvas id="minimap" width="168" height="168"></canvas>
   <div id="vignette"></div>
   <div id="threatArrow"><div class="ta-ring"></div><div class="ta-arrow">➤</div></div>
   <div id="threatWarn">⚠️ Territory</div>
@@ -412,17 +419,35 @@ const nT    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // temperature
 const nO    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // moisture
 const nF    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // forest clumping
 const nVar  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // ground variation
+const nRiver = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // river bands
+const nMagic = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // enchanted grove fields
 
 /* ---------------- terrain shape ---------------- */
 const CHUNK = 64, SEG = 32, VIEW_R = 3;
 const WATER_Y = 0;
 
+function riverBandAt(x, z) {
+  // contour lines of a warped noise field = naturally winding, connected channels
+  const warp = fbm(nD, x * 0.003 + 91.3, z * 0.003 - 44.1, 2);
+  const v = Math.abs(fbm(nRiver, x * 0.0016 + warp * 0.7, z * 0.0016 - warp * 0.6, 3) - 0.5);
+  return 1 - ss(0.012, 0.052, v);   // 1 inside the channel, fading to 0
+}
 function heightAt(x, z) {
   const c     = fbm(nH, x * 0.0013, z * 0.0013, 4);
   const hills = fbm(nD, x * 0.009,  z * 0.009,  3);
   const mm    = ss(0.02, 0.5, fbm(nM, x * 0.0015 + 37.7, z * 0.0015 - 11.3, 3));
   const r     = ridged(nR, x * 0.0042, z * 0.0042, 4);
-  return 8 + c * 13 + hills * 3.2 + mm * r * r * 56;
+  let h = 8 + c * 13 + hills * 3.2 + mm * r * r * 56;
+  // rivers: carve only through lowlands so mountains stay intact
+  const low = ss(14, 8, h) * ss(-1.5, 0.8, h);
+  if (low > 0.001 && h < 14) {
+    const riv = riverBandAt(x, z) * low;
+    if (riv > 0.001) {
+      const bed = WATER_Y - 1.4 - nVar(x * 0.04, z * 0.04) * 1.1;
+      h = h * (1 - riv) + bed * riv;
+    }
+  }
+  return h;
 }
 function climateAt(x, z, h) {
   const temp  = fbm(nT, x * 0.00062, z * 0.00062, 3) - Math.max(0, h - 25) * 0.016;
@@ -436,6 +461,8 @@ const BIOME_INFO = {
   grove:    { name: 'Autumn Grove',     icon: '🍁' },
   meadow:   { name: 'Flower Meadows',   icon: '🌸' },
   mountain: { name: 'Frostpeak Mountains', icon: '⛰️' },
+  swamp:    { name: 'Murky Swamp',      icon: '🪵' },
+  enchanted:{ name: 'Enchanted Grove',   icon: '✨' },
   shore:    { name: 'Wild Shoreline',   icon: '🌊' }
 };
 function biomeWeights(x, z, h, temp, moist) {
@@ -447,8 +474,17 @@ function biomeWeights(x, z, h, temp, moist) {
   let forest = mid * wet, grove = warm * wet;
   let meadow = mid * (1 - wet) * 0.85 + warm * (1 - wet);
   const mt = ss(27, 38, h);
+  // swamp — saturated lowlands: murky pools, mist, dead trees
+  let swamp = ss(0.55, 0.8, moist) * ss(6.8, 3.0, h) * ss(0.35, 0.6, wet) * (1 - mt);
+  swamp = Math.max(0, swamp - mt);
+  // enchanted grove — rare mystical fields carved out of woodland
+  const magicN = fbm(nMagic, x * 0.00085 + 91.7, z * 0.00085 - 45.2, 3);
+  let enchanted = ss(0.60, 0.70, magicN) * wet * ss(1.2, 2.6, h) * (1 - mt);
+  enchanted *= enchanted > 0 ? (0.55 + 0.45 * ss(0.2, 0.5, forest + grove)) : 1;
+  if (swamp > 0) { const k = 1 - swamp * 0.8; forest *= k; grove *= k; taiga *= k; meadow *= k; }
+  if (enchanted > 0) { const k = 1 - enchanted; forest *= k; grove *= k; swamp *= 1 - enchanted; }
   if (mt > 0) { const k = 1 - mt; tundra *= k; taiga *= k; forest *= k; grove *= k; meadow *= k; }
-  return { tundra, taiga, forest, grove, meadow, mountain: mt };
+  return { tundra, taiga, forest, grove, meadow, mountain: mt, swamp, enchanted };
 }
 function biomeInfoAt(x, z, h) {
   if (h === undefined) h = heightAt(x, z);
@@ -957,6 +993,113 @@ function makeInstanced(geom, mat, items, shadow) {
 /* ================================================================
    Part 3 — the wolf & the animals
    ================================================================ */
+/* ============================================================
+   LANDMARKS — rare points of interest. Fully data-driven:
+   each entry: { label, icon, biomes: {weight map}, resources(pusher, rng, x, z), build(rng) }
+   ============================================================ */
+function lmRock(w, h, d, col, x, y, z, ry) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), matColor(col));
+  m.position.set(x, y, z); if (ry) m.rotation.y = ry;
+  m.castShadow = true; return m;
+}
+const LANDMARKS = {
+  ancientTree: {
+    label: 'Elder Tree', icon: '🌳', biomes: { forest: 0.6, grove: 0.25, taiga: 0.15 },
+    resources(pk, rng, x, z) {
+      for (let i = 0; i < 3; i++) { const a = rng() * 6.28, r = 3 + rng() * 4; pk.magicShroom.push({ x: x + Math.sin(a) * r, y: heightAt(x + Math.sin(a) * r, z + Math.cos(a) * r) - 0.04, z: z + Math.cos(a) * r, ry: rng() * 6.28, s: 1.1 }); }
+    },
+    build(rng) {
+      const g = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.9, 17, 7), matColor(0x5a4530));
+      trunk.position.y = 8.5; trunk.castShadow = true; g.add(trunk);
+      for (let i = 0; i < 6; i++) { // roots
+        const rt = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.62, 3.4, 5), matColor(0x52402c));
+        const a = i / 6 * 6.28;
+        rt.position.set(Math.sin(a) * 1.9, 0.9, Math.cos(a) * 1.9); rt.rotation.set(Math.cos(a) * 0.7, 0, -Math.sin(a) * 0.7);
+        rt.castShadow = true; g.add(rt);
+      }
+      for (let i = 0; i < 5; i++) { // vast canopy
+        const r = 4.2 + rng() * 2.6;
+        const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), matColor(i % 2 ? 0x2e4d2a : 0x35592e));
+        c.position.set((rng() - 0.5) * 5.5, 15.5 + rng() * 3.5, (rng() - 0.5) * 5.5);
+        c.castShadow = true; g.add(c);
+      }
+      return g;
+    }
+  },
+  stoneCircle: {
+    label: 'Stone Circle', icon: '🪨', biomes: { meadow: 0.5, tundra: 0.3, mountain: 0.2 },
+    resources(pk, rng, x, z) {
+      pk.stoneP.push({ x: x + 2, y: heightAt(x + 2, z) - 0.04, z, ry: rng() * 6.28, s: 1.1 });
+      pk.bone && pk.bone.push({ x: x - 2.5, y: heightAt(x - 2.5, z + 1) - 0.04, z: z + 1, ry: 0, s: 1 });
+    },
+    build(rng) {
+      const g = new THREE.Group();
+      for (let i = 0; i < 9; i++) {
+        const a = i / 9 * 6.28, R = 7;
+        const hgt = 2.6 + rng() * 1.4;
+        const st = lmRock(1.1 + rng() * 0.4, hgt, 0.7, 0x7e838a, Math.sin(a) * R, hgt / 2 - 0.3, Math.cos(a) * R, a + (rng() - 0.5) * 0.4);
+        g.add(st);
+      }
+      const altar = lmRock(1.8, 0.75, 1.8, 0x8a8f96, 0, 0.25, 0, 0.3);
+      g.add(altar);
+      return g;
+    }
+  },
+  cave: {
+    label: 'Cave Mouth', icon: '🕳️', biomes: { mountain: 0.65, taiga: 0.2, tundra: 0.15 },
+    resources(pk, rng, x, z) { for (let i = 0; i < 3; i++) pk.stoneP.push({ x: x + (rng() - 0.5) * 6, y: heightAt(x, z) - 0.04, z: z + (rng() - 0.5) * 6, ry: rng() * 6.28, s: 1 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      const mound = new THREE.Mesh(new THREE.IcosahedronGeometry(3.6, 1), matColor(0x6d7076));
+      mound.position.y = 0.6; mound.scale.y = 0.8; mound.castShadow = true; g.add(mound);
+      const lP = lmRock(1.1, 3.2, 1.1, 0x74777d, -1.25, 1.6, 1.4, 0.1);
+      const rP = lmRock(1.1, 3.2, 1.1, 0x74777d, 1.25, 1.6, 1.4, -0.1);
+      const lintel = lmRock(3.8, 0.9, 1.2, 0x6a6d73, 0, 3.4, 1.4, 0);
+      g.add(lP); g.add(rP); g.add(lintel);
+      const mouth = new THREE.Mesh(new THREE.CircleGeometry(1.15, 12), new THREE.MeshBasicMaterial({ color: 0x05070a }));
+      mouth.position.set(0, 1.35, 2.02); g.add(mouth);
+      return g;
+    }
+  },
+  shrine: {
+    label: 'Ruined Shrine', icon: '⛩️', biomes: { grove: 0.4, enchanted: 0.35, forest: 0.25 },
+    resources(pk, rng, x, z) {
+      pk.magicShroom.push({ x: x + 1.6, y: heightAt(x + 1.6, z - 1.2) - 0.04, z: z - 1.2, ry: rng() * 6.28, s: 1.2 });
+      pk.herb.push({ x: x - 1.8, y: heightAt(x - 1.8, z + 1) - 0.04, z: z + 1, ry: 0, s: 1 });
+    },
+    build(rng) {
+      const g = new THREE.Group();
+      [[-2.2, 1.6], [2.2, 1.6], [-2.2, -1.6], [2.2, -1.6]].forEach(([px, pz], i) => {
+        const hgt = [2.8, 1.4, 2.2, 0.9][i];
+        const pl = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, hgt, 6), matColor(0x9a948a));
+        pl.position.set(px, hgt / 2, pz); pl.rotation.z = (rng() - 0.5) * 0.12; pl.castShadow = true; g.add(pl);
+      });
+      const altar = lmRock(2.1, 0.9, 1.2, 0x8b857b, 0, 0.45, 0, 0);
+      g.add(altar);
+      const ember = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: 0xffcf7a }));
+      ember.position.set(0, 1.05, 0); g.add(ember);
+      g.userData.ember = ember;
+      return g;
+    }
+  },
+  logBridge: {
+    label: 'Fallen Log Bridge', icon: '🪵', biomes: { any: 1 }, needsWater: true,
+    resources() {},
+    build(rng) {
+      const g = new THREE.Group();
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.9, 15, 8), matColor(0x6a5238));
+      log.rotation.z = Math.PI / 2; log.position.y = 0.55; log.castShadow = true; g.add(log);
+      for (let i = 0; i < 4; i++) { // moss patches
+        const moss = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.8), matColor(0x4a6b3a));
+        moss.position.set((rng() - 0.5) * 10, 1.32, (rng() - 0.5) * 0.8); g.add(moss);
+      }
+      return g;
+    }
+  }
+};
+let landmarkList = [];   // { type, x, z, model, chunkKey } — for minimap & compass
+
 function furMat(hex) {
   return new THREE.MeshStandardMaterial({
     color: hex, map: furTex, bumpMap: furTex, bumpScale: 0.012, roughness: 0.95, metalness: 0
@@ -1173,7 +1316,8 @@ class Wolf {
     if (sprint) {
       this.stamina -= 15 * dt;
       if (this.stamina <= 0) { this.stamina = 0; this.exhausted = true; sprint = false; }
-    } else {
+    } else if (!this.swimming) {
+      // no regen while swimming — the swim block drains it instead
       this.stamina = Math.min(100, this.stamina + 11 * dt);
       if (this.exhausted && this.stamina > 26) this.exhausted = false;
     }
@@ -1252,6 +1396,24 @@ class Wolf {
       this.pos.y += (WATER_Y - 0.42 - this.pos.y) * Math.min(1, dt * 6);
       this.vy = 0; this.grounded = false;
       if (this.speed > 1 && Math.random() < dt * 6) pool.burst(this.pos, 3, 0x9fc3e0, 1.0, 2.2, 1.6);
+      // continuous stamina drain; exhaustion in deep water eats health
+      this.stamina -= 8 * dt;
+      if (this.stamina <= 0) {
+        this.stamina = 0; this.exhausted = true;
+        this.hp = Math.max(0, this.hp - 3 * dt);
+        this.lastHurt = Math.max(this.lastHurt, tSec - 5.9);   // keep regen offline
+        setVignette(0.35);
+        this.drownToastT = (this.drownToastT || 0) - dt;
+        if (this.drownToastT <= 0) { this.drownToastT = 6; toast('⚠️ Exhausted in deep water — swim to shore!'); }
+        if (this.hp <= 0 && this.deadT <= 0) wolfDie('the deep water', '🌊');
+      }
+      // climb-out assist: paddling toward a low bank pops the wolf onto land
+      const ax = this.pos.x + Math.sin(this.yaw) * 1.7, az = this.pos.z + Math.cos(this.yaw) * 1.7;
+      const ah = heightAt(ax, az);
+      if ((moving || input.jump) && ah > WATER_Y - 0.35 && ah < WATER_Y + 1.8) {
+        this.swimming = false; this.vy = 6.4; this.grounded = false;
+        this.pos.y = Math.max(this.pos.y, WATER_Y - 0.1);
+      }
     } else {
       this.vy -= 26 * dt;
       this.pos.y += this.vy * dt;
@@ -1853,9 +2015,34 @@ const GROUND = {
   tundra: new THREE.Color(0xdfe8ee), taiga: new THREE.Color(0x49624c),
   forest: new THREE.Color(0x4e7a40), grove: new THREE.Color(0x7d8a45),
   meadow: new THREE.Color(0x86a94f), mountain: new THREE.Color(0x8b8e93),
+  swamp: new THREE.Color(0x4c5c38), enchanted: new THREE.Color(0x3f7a5c),
   sand: new THREE.Color(0xd2c39a), snow: new THREE.Color(0xf3f6f9),
   bed: new THREE.Color(0x8c8468)
 };
+/* ============================================================
+   BIOME_CONFIG — data-driven biome tuning.
+   weather: biases applied when this biome dominates at the wolf;
+   magic: magic-mushroom spawn multiplier; treeDens/grassDens: density
+   scaling; fog: fog-distance multiplier; tint: ambient ground tint.
+   ============================================================ */
+const BIOME_CONFIG = {
+  taiga:     { weather: { snow: 0.45 }, magic: 0.35, treeDens: 1.0, grassDens: 0.8, fog: 1.0 },
+  tundra:    { weather: { snow: 0.75 }, magic: 0,    treeDens: 0.5, grassDens: 0.35, fog: 1.05 },
+  forest:    { weather: { rain: 0.15 }, magic: 0.45, treeDens: 1.0, grassDens: 1.0, fog: 1.0 },
+  grove:     { weather: { rain: 0.1 },  magic: 0.45, treeDens: 0.9, grassDens: 1.0, fog: 1.0 },
+  meadow:    { weather: { clear: 0.4 }, magic: 0.1,  treeDens: 0.25, grassDens: 1.4, fog: 1.1 },
+  mountain:  { weather: { snow: 0.5 },  magic: 0,    treeDens: 0.4, grassDens: 0.3, fog: 0.95 },
+  swamp:     { weather: { fog: 0.6, rain: 0.35 }, magic: 0.3, treeDens: 0.55, grassDens: 1.15, fog: 0.62, tint: 0x5a6b4a },
+  enchanted: { weather: { mist: 0.8 },  magic: 5.0, treeDens: 1.05, grassDens: 1.1, fog: 0.7, tint: 0x8a7ad0 }
+};
+function dominantBiomeAt(x, z) {
+  const h = heightAt(x, z);
+  const cl = climateAt(x, z, h);
+  const w = biomeWeights(x, z, h, cl.temp, cl.moist);
+  let best = 'forest', bv = -1;
+  for (const k in w) if (w[k] > bv) { bv = w[k]; best = k; }
+  return { key: best, w, h };
+}
 const _c1 = new THREE.Color(), _c2 = new THREE.Color(), _c3 = new THREE.Color();
 function groundColor(out, x, z, h, w, temp, grade) {
   out.setRGB(0, 0, 0);
@@ -1946,7 +2133,7 @@ function genChunk(cx, cz) {
   terrain.receiveShadow = true;
   group.add(terrain);
 
-  const chunk = { key, cx, cz, group, geo, instanced: [], pickups: [], animals: [], predators: [] };
+  const chunk = { key, cx, cz, group, geo, instanced: [], pickups: [], animals: [], predators: [], landmarks: [] };
 
   /* ---- placement ---- */
   const rng = mulberry32(hash2(cx, cz, SEED));
@@ -1995,6 +2182,19 @@ function genChunk(cx, cz) {
       p = 0.13;
       const t = rng() < 0.5 ? 'deadTree' : 'dwarfPine';
       treeSets[t].push(item); placed = item;
+    } else if (biome === 'swamp') {
+      p = 0.34 + 0.3 * dens;
+      const r = rng();
+      const t = r < 0.45 ? 'deadTree' : r < 0.7 ? 'dwarfPine' : 'birch';
+      treeSets[t].push(item); placed = item;
+      if (t === 'birch') item.tint.multiplyScalar(0.82);
+    } else if (biome === 'enchanted') {
+      p = 0.16 + 0.8 * dens;
+      const r = rng();
+      const t = r < 0.6 ? 'birch' : r < 0.85 ? 'rowan' : 'spruce';
+      treeSets[t].push(item); placed = item;
+      // mystical teal-violet canopy tint
+      item.tint.setRGB(0.62 + rng() * 0.25, 0.58 + rng() * 0.2, 0.85 + rng() * 0.3);
     } else if (biome === 'mountain') {
       p = s.h < 40 ? 0.08 + 0.34 * dens : 0.015;
       const t = s.cl.temp < -0.25 && rng() < 0.6 ? 'snowSpruce' : 'spruce';
@@ -2071,12 +2271,61 @@ function genChunk(cx, cz) {
     }
   }
 
-  // rare magic mushrooms — only in deep woodland
-  for (let i = 0; i < 2; i++) {
+  /* ---- landmarks: rare, spaced, data-driven ---- */
+  if (hash2(cx, cz, SEED ^ 0x5bd1) % 5 === 0) {
+    const types = Object.keys(LANDMARKS);
+    let type = types[hash2(cx, cz, SEED ^ 0x9e37) % types.length];
+    const def = LANDMARKS[type];
+    const cS = sample(cx * CHUNK + CHUNK / 2, cz * CHUNK + CHUNK / 2);
+    // biome gate — pickWeighted over def.biomes vs chunk weights (logBridge takes any)
+    let okBiome = def.biomes.any === 1;
+    if (!okBiome) {
+      const bset = Object.entries(def.biomes);
+      const bw = bset.reduce((t, [k, wt]) => t + wt * (cS.w[k] || 0), 0);
+      okBiome = bw > 0.22;
+    }
+    if (okBiome) {
+      const lx = cx * CHUNK + 14 + rng() * (CHUNK - 28), lz = cz * CHUNK + 14 + rng() * (CHUNK - 28);
+      const ls = sample(lx, lz);
+      if (ls.h > 1.1) {
+        let model = def.build(rng), ry = rng() * 6.28;
+        if (def.needsWater) {
+          // find water in this chunk; lay the log along the shoreline contour (across the water)
+          let found = false;
+          for (let t2 = 0; t2 < 12 && !found; t2++) {
+            const wx = cx * CHUNK + 8 + rng() * (CHUNK - 16), wz = cz * CHUNK + 8 + rng() * (CHUNK - 16);
+            if (heightAt(wx, wz) < WATER_Y - 0.4) {
+              const gx = heightAt(wx + 2, wz) - heightAt(wx - 2, wz), gz = heightAt(wx, wz + 2) - heightAt(wx, wz - 2);
+              ry = Math.atan2(gx, gz) + Math.PI / 2;   // perpendicular to the bank gradient
+              model.position.set(wx, WATER_Y + 0.25, wz);
+              model.rotation.y = ry; found = true;
+            }
+          }
+          if (!found) { model = null; }
+        }
+        if (model) {
+          if (!def.needsWater) { model.position.set(lx, ls.h - 0.25, lz); model.rotation.y = ry; }
+          scene.add(model);
+          const lm = { type, x: model.position.x, z: model.position.z, model, chunkKey: key, ember: model.userData.ember || null };
+          landmarkList.push(lm);
+          chunk.landmarks = chunk.landmarks || [];
+          chunk.landmarks.push(lm);
+          def.resources(pkSets, rng, lm.x, lm.z);   // special nearby resources
+        }
+      }
+    }
+  }
+
+  // magic mushrooms — common in the Enchanted Grove, rare elsewhere
+  const ench = sample(cx * CHUNK + CHUNK / 2, cz * CHUNK + CHUNK / 2).w.enchanted || 0;
+  const tries = 2 + (ench > 0.3 ? 3 : 0);
+  for (let i = 0; i < tries; i++) {
     const x = cx * CHUNK + rng() * CHUNK, z = cz * CHUNK + rng() * CHUNK;
     const s3 = sample(x, z);
     if (s3.h < 1.0) continue;
-    if (rng() < 0.045 * (s3.w.forest + s3.w.grove + s3.w.taiga)) {
+    let pMg = 0.30 * s3.w.enchanted;
+    for (const bk in BIOME_CONFIG) pMg += 0.045 * (s3.w[bk] || 0) * BIOME_CONFIG[bk].magic;
+    if (rng() < pMg) {
       pkSets.magicShroom.push({ x, y: s3.h - 0.04, z, ry: rng() * 6.28, s: 1.0 + rng() * 0.4 });
     }
   }
@@ -2133,6 +2382,8 @@ function disposeChunk(chunk) {
   chunk.animals.length = 0;
   for (const pr of chunk.predators) pr.dispose();
   chunk.predators.length = 0;
+  for (const lm of chunk.landmarks) { scene.remove(lm.model); const i = landmarkList.indexOf(lm); if (i >= 0) landmarkList.splice(i, 1); }
+  chunk.landmarks.length = 0;
   chunks.delete(chunk.key);
 }
 
@@ -2234,7 +2485,15 @@ let lightningT = 6, flash = 0;
 function pickWeather() {
   const h = heightAt(wolf.pos.x, wolf.pos.z);
   const cl = climateAt(wolf.pos.x, wolf.pos.z, h);
-  const cold = cl.temp < -0.18;
+  let cold = cl.temp < -0.18;
+  // biome weather bias (BIOME_CONFIG.weather at the dominant biome)
+  const dom = dominantBiomeAt(wolf.pos.x, wolf.pos.z);
+  const bw = BIOME_CONFIG[dom.key] && BIOME_CONFIG[dom.key].weather;
+  if (bw) {
+    if (bw.snow && (dom.w.tundra + dom.w.taiga + dom.w.mountain) > 0.45) cold = true;
+    if (bw.fog && Math.random() < bw.fog) weatherT.mistBias = 1; else weatherT.mistBias = 0;
+    if (bw.clear && Math.random() < bw.clear) weatherT.cloud = Math.min(weatherT.cloud, 0.25);
+  } else weatherT.mistBias = 0;
   const r = Math.random();
   let st;
   if (r < 0.26) st = 'clear';
@@ -2284,7 +2543,19 @@ const SKY = {
   waterNight: new THREE.Color(0x16324a), waterStorm: new THREE.Color(0x5a6a72)
 };
 const _sky = new THREE.Color();
+let _biomeTint = new THREE.Color();
 function updateAtmosphere(dt) {
+  // biome ambience: fog distance + tint from local biome weights
+  let fogMul = 1, tintAmt = 0;
+  const h0 = heightAt(wolf.pos.x, wolf.pos.z);
+  const cl0 = climateAt(wolf.pos.x, wolf.pos.z, h0);
+  const w0 = biomeWeights(wolf.pos.x, wolf.pos.z, h0, cl0.temp, cl0.moist);
+  for (const bk in BIOME_CONFIG) {
+    const cfg = BIOME_CONFIG[bk];
+    if (cfg.fog !== 1) fogMul *= 1 - (1 - cfg.fog) * (w0[bk] || 0);
+    if (cfg.tint) { _biomeTint.setHex(cfg.tint); tintAmt = Math.max(tintAmt, (w0[bk] || 0) * 0.5); }
+  }
+  window.__biomeFogMul = fogMul; window.__biomeTintAmt = tintAmt;
   const prev = tDay;
   tDay = (tDay + dt * timeScale / DAY_LEN) % 1;
   if (tDay < prev) dayCount++;
@@ -2301,10 +2572,11 @@ function updateAtmosphere(dt) {
   _sky.lerp(SKY.white, flash * 0.55);
   scene.background.copy(_sky);
   scene.fog.color.copy(_sky).lerp(SKY.white, 0.05);
+  if (window.__biomeTintAmt > 0) scene.fog.color.lerp(_biomeTint, window.__biomeTintAmt);
 
   let far = 168 * (1 - 0.32 * weather.rain - 0.42 * weather.snow - 0.16 * weather.cloud) * (1 - 0.12 * (1 - dayF));
   far = Math.max(85, far);
-  scene.fog.far += (far - scene.fog.far) * Math.min(1, dt * 2);
+  scene.fog.far += (far * (window.__biomeFogMul || 1) - scene.fog.far) * Math.min(1, dt * 2);
   scene.fog.near = scene.fog.far * 0.42;
 
   hemi.intensity = 0.2 + 0.62 * dayF * (1 - 0.5 * weather.cloud) + flash * 1.5;
@@ -2581,6 +2853,10 @@ let lastBiomeKey = null, biomeToastT = 0, curBiomeKey = 'forest';
 let hudT = 0, fpsAcc = 0, fpsN = 0, fpsShow = 60;
 let shroomGlowT = 0;
 function updateMagicGlow(dt) {
+  // shrine embers pulse
+  for (const lm of landmarkList) {
+    if (lm.ember) lm.ember.material.color.setHSL(0.1, 0.9, 0.55 + Math.sin(tSec * 3 + lm.x) * 0.2);
+  }
   shroomGlowT -= dt;
   if (shroomGlowT > 0) return;
   shroomGlowT = 0.4;
@@ -2598,6 +2874,15 @@ function updateMagicGlow(dt) {
 }
 /* ---------------- combat: wolf health & threat UI ---------------- */
 let vignetteA = 0, warnBannerT = 0;
+function setVignette(a) { vignetteA = Math.max(vignetteA, a); }
+function wolfDie(label, icon) {
+  wolf.hp = 0;
+  wolf.deadT = 2.6;
+  wolf.killerPos = null;
+  const ov = el('deathOv');
+  if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… you wake far away, alive.</span>`; ov.classList.add('show'); }
+  vignetteA = 0.9;
+}
 function wolfTakeDamage(dmg, fromPos, label, icon) {
   if (state !== 'play' || wolf.deadT > 0 || wolf.invulnT > 0 || wolf.flyT > 0) return;
   wolf.hp -= dmg;
@@ -2610,14 +2895,7 @@ function wolfTakeDamage(dmg, fromPos, label, icon) {
   const l = Math.hypot(dx, dz) || 1;
   const nx = wolf.pos.x + dx / l * 1.1, nz = wolf.pos.z + dz / l * 1.1;
   if (heightAt(nx, nz) > WATER_Y + 0.2) { wolf.pos.x = nx; wolf.pos.z = nz; }
-  if (wolf.hp <= 0) {
-    wolf.hp = 0;
-    wolf.deadT = 2.6;
-    wolf.killerPos = fromPos ? { x: fromPos.x, z: fromPos.z } : null;
-    const ov = el('deathOv');
-    if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by the ${label || 'wild'}</b><br><span style="font-size:14px;opacity:.85">The ${label || 'predator'} stands over you… you wake far away, alive.</span>`; ov.classList.add('show'); }
-    vignetteA = 0.9;
-  }
+  if (wolf.hp <= 0) wolfDie(`the ${label || 'wild'}`, icon);
 }
 function wolfRespawn() {
   let ang = Math.random() * Math.PI * 2;
@@ -2663,6 +2941,109 @@ function updateThreatArrow() {
   arrow.style.transform = `translate(-50%,-50%) rotate(${deg}deg)`;
 }
 
+/* ---------------- minimap ---------------- */
+const MM = { size: 168, px: 50, range: 230, ready: false, t: 0, lastX: 1e9, lastZ: 1e9, on: true };
+const mmBase = document.createElement('canvas'); mmBase.width = MM.px; mmBase.height = MM.px;
+const mmBaseCtx = mmBase.getContext('2d');
+const MM_GROUND = {};
+for (const k in GROUND) MM_GROUND[k] = '#' + GROUND[k].getHexString();
+function updateMinimap(dt) {
+  const cv = el('minimap');
+  if (!cv) return;
+  if (!MM.on || state !== 'play') { cv.style.display = 'none'; return; }
+  cv.style.display = 'block';
+  MM.t -= dt;
+  if (MM.t > 0 && Math.hypot(wolf.pos.x - MM.lastX, wolf.pos.z - MM.lastZ) < 6) { drawMinimapOverlay(); return; }
+  MM.t = 0.8; MM.lastX = wolf.pos.x; MM.lastZ = wolf.pos.z;
+  // terrain pass — small offscreen ImageData, scaled up by the GPU
+  const img = mmBaseCtx.createImageData(MM.px, MM.px);
+  const step = MM.range * 2 / MM.px;
+  for (let j = 0; j < MM.px; j++) {
+    for (let i = 0; i < MM.px; i++) {
+      const wx = wolf.pos.x + (i - MM.px / 2) * step, wz = wolf.pos.z + (j - MM.px / 2) * step;
+      const h = heightAt(wx, wz);
+      const o = (j * MM.px + i) * 4;
+      let r = 0, g = 0, b = 0, sum = 0;
+      if (h < WATER_Y - 0.15) {           // water: depth-shaded blue
+        const d = Math.min(1, (WATER_Y - h) / 5);
+        r = 40 + (1 - d) * 40; g = 90 + (1 - d) * 60; b = 150 + (1 - d) * 50;
+      } else {
+        const cl = climateAt(wx, wz, h);
+        const w = biomeWeights(wx, wz, h, cl.temp, cl.moist);
+        for (const k in w) {
+          const c = GROUND[k]; if (!c) continue;
+          r += c.r * w[k]; g += c.g * w[k]; b += c.b * w[k]; sum += w[k];
+        }
+        if (sum > 0) { r /= sum; g /= sum; b /= sum; }
+        const sh = 0.75 + Math.min(0.45, h / 60) * 0.5;   // height shading
+        r = Math.min(255, r * 255 * sh); g = Math.min(255, g * 255 * sh); b = Math.min(255, b * 255 * sh);
+      }
+      img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255;
+    }
+  }
+  mmBaseCtx.putImageData(img, 0, 0);
+  drawMinimapOverlay();
+}
+function drawMinimapOverlay() {
+  const cv = el('minimap');
+  const ctx = cv.getContext('2d');
+  const S = cv.width, half = S / 2;
+  ctx.clearRect(0, 0, S, S);
+  ctx.imageSmoothingEnabled = true;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(half, half, half - 2, 0, 6.29); ctx.clip();
+  ctx.drawImage(mmBase, 0, 0, MM.px, MM.px, 0, 0, S, S);
+  const toMap = (wx, wz) => [half + (wx - wolf.pos.x) / (MM.range * 2) * S, half + (wz - wolf.pos.z) / (MM.range * 2) * S];
+  // landmarks — gold markers with icon
+  ctx.font = '11px system-ui';
+  for (const lm of landmarkList) {
+    const [mx, my] = toMap(lm.x, lm.z);
+    if (mx < 6 || mx > S - 6 || my < 6 || my > S - 6) continue;
+    ctx.fillStyle = '#ffd76a';
+    ctx.beginPath(); ctx.arc(mx, my, 3.2, 0, 6.29); ctx.fill();
+    ctx.strokeStyle = 'rgba(40,28,0,.8)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#3a2c08'; ctx.fillText(LANDMARKS[lm.type].icon, mx + 5, my + 3);
+  }
+  // threatening predators — red pulses
+  for (const ch of chunks.values())
+    for (const pr of ch.predators) {
+      if (pr.dead || !pr.threatening) continue;
+      const [mx, my] = toMap(pr.pos.x, pr.pos.z);
+      ctx.fillStyle = 'rgba(255,64,40,.9)';
+      ctx.beginPath(); ctx.arc(mx, my, 3.4, 0, 6.29); ctx.fill();
+    }
+  // nearby magic mushrooms — violet specks
+  const ccx = Math.floor(wolf.pos.x / CHUNK), ccz = Math.floor(wolf.pos.z / CHUNK);
+  ctx.fillStyle = 'rgba(190,140,255,.95)';
+  for (let dz = -1; dz <= 1; dz++)
+    for (let dx = -1; dx <= 1; dx++) {
+      const ch = chunks.get(ck(ccx + dx, ccz + dz));
+      if (!ch) continue;
+      for (const pk2 of ch.pickups) {
+        if (pk2.gathered || pk2.type !== 'magicShroom') continue;
+        const [mx, my] = toMap(pk2.x, pk2.z);
+        ctx.fillRect(mx - 1.4, my - 1.4, 2.8, 2.8);
+      }
+    }
+  // player arrow
+  ctx.save();
+  ctx.translate(half, half);
+  ctx.rotate(-camYaw + Math.PI);
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(4.6, 5.4); ctx.lineTo(0, 2.8); ctx.lineTo(-4.6, 5.4); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(20,30,40,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+  // ring + cardinal points
+  ctx.strokeStyle = 'rgba(200,225,255,.55)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(half, half, half - 2, 0, 6.29); ctx.stroke();
+  ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#eef4ff';
+  ctx.fillText('N', half, 12); ctx.fillText('S', half, S - 5);
+  ctx.fillText('W', 10, half + 4); ctx.fillText('E', S - 10, half + 4);
+  ctx.textAlign = 'start';
+}
+
 function updateHUD(dt) {
   // landscape-first: if a touch device is portrait, the rotate gate covers the
   // screen — pause the world until it's turned back to landscape
@@ -2701,6 +3082,7 @@ function updateHUD(dt) {
     }
   }
   updateThreatArrow();
+  updateMinimap(dt);
   ui.stam.style.width = wolf.stamina.toFixed(0) + '%';
   ui.stam.style.background = wolf.exhausted ? '#c95b4a' : 'linear-gradient(90deg,#7ef0c0,#4db8e8)';
   hudT -= dt; fpsAcc += dt; fpsN++;
@@ -2728,9 +3110,13 @@ function updateHUD(dt) {
     }
     lastBiomeKey = curBiomeKey;
   }
+  if (drinkCd > 0) drinkCd -= 0.25;
   const p = nearestPickup();
   if (p && state === 'play') {
     ui.prompt.textContent = `E — ${PICKUP_DEF[p.type].label}`;
+    ui.prompt.classList.add('on');
+  } else if (state === 'play' && drinkCd <= 0 && !wolf.swimming && wolf.grounded && nearWaterEdge()) {
+    ui.prompt.textContent = 'E — 💧 Drink water';
     ui.prompt.classList.add('on');
   } else {
     ui.prompt.classList.remove('on');
@@ -2805,9 +3191,25 @@ function inputClear() {
   touch.sprint = false;
   for (const k in keys) keys[k] = false;
 }
+let drinkCd = 0;
+function nearWaterEdge() {
+  for (let a = 0; a < 6.28; a += 0.62) {
+    const wx = wolf.pos.x + Math.sin(a) * 2.4, wz = wolf.pos.z + Math.cos(a) * 2.4;
+    if (heightAt(wx, wz) < WATER_Y - 0.15) return true;
+  }
+  return false;
+}
 function doGather() {
   const p = nearestPickup();
-  if (p) gather(p);
+  if (p) { gather(p); return; }
+  if (drinkCd <= 0 && !wolf.swimming && wolf.grounded && wolf.flyT <= 0 && nearWaterEdge()) {
+    drinkCd = 6;
+    wolf.stamina = 100; wolf.exhausted = false;
+    wolf.hp = Math.min(wolf.maxHp, wolf.hp + 6);
+    audio.chime();
+    toast('💧 You drink the cold water — stamina restored');
+    pool.burst(V3(wolf.pos.x, WATER_Y + 0.2, wolf.pos.z), 8, 0x9fd4e8, 0.4, 1.2, 1.2);
+  }
 }
 addEventListener('keydown', e => {
   if (e.repeat) {
@@ -2826,6 +3228,7 @@ addEventListener('keydown', e => {
       case 'KeyC': camYaw = wolf.yaw + Math.PI; break;
       case 'KeyT': timeScale = timeScale === 1 ? 8 : 1; toast(timeScale > 1 ? '⏩ Time flows ×8' : '⏱ Time flows normally'); break;
       case 'KeyM': toast(audio.toggleMute() ? '🔇 Muted' : '🔊 Sound on'); break;
+      case 'KeyN': MM.on = !MM.on; toast(MM.on ? '🗺️ Minimap on' : '🗺️ Minimap off'); break;
       case 'KeyP': case 'Escape': setState('pause'); break;
     }
   } else if (state === 'pause' && (e.code === 'KeyP' || e.code === 'Escape')) {
