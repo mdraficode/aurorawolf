@@ -1559,7 +1559,9 @@ class Wolf {
     toast('🐺 You howl into the wind…');
     for (const ch of chunks.values()) {
       for (const a of ch.animals) {
-        if (a.pos.distanceTo(this.pos) < 65) a.startFlee(this.pos);
+        const d = a.pos.distanceTo(this.pos);
+        if (d < 65) a.startFlee(this.pos);
+        else if (d < 130 && a.stats && !a.asleep && Math.random() < a.stats.curiosity * 0.4) a.investigate(this.pos);
       }
     }
     return true;
@@ -1599,9 +1601,9 @@ const SPECIES_TABLE = {
 
 /* ---- territorial predators: rare, dangerous, rich bounty ---- */
 const PREDATORS = {
-  bear:  { name: 'bear',   label: 'Brown Bear',   icon: '🐻', scale: 1.9,  hp: 8, dmg: 15, walk: 2.2, run: 11.8, reach: 3.9, atkCd: 1.45,
+  bear:  { name: 'bear',   label: 'Brown Bear',   icon: '🐻', scale: 1.9,  hp: 8, dmg: 15, walk: 2.2, run: 11.8, reach: 3.9, atkCd: 1.45, huntsWolf: 1,
            body: 0x5d4128, belly: 0x7a5c3c, legs: 0x4a3520, head: 0x5d4128, meat: 6, pelt: 2, bone: 3, build: 'bear' },
-  tiger: { name: 'tiger',  label: 'Tiger',        icon: '🐯', scale: 1.45, hp: 6, dmg: 11, walk: 2.6, run: 13.0, reach: 3.6, atkCd: 1.15,
+  tiger: { name: 'tiger',  label: 'Tiger',        icon: '🐯', scale: 1.45, hp: 6, dmg: 11, walk: 2.6, run: 13.0, reach: 3.6, atkCd: 1.15, huntsWolf: 1,
            body: 0xc26a1e, belly: 0xe8dcc4, legs: 0xa85716, head: 0xc26a1e, meat: 5, pelt: 2, bone: 2, build: 'cat', stripes: 0x3a2410 },
   snowLeopard: { name: 'snowLeopard', label: 'Snow Leopard', icon: '🐆', scale: 1.3, hp: 5, dmg: 9, walk: 2.5, run: 12.6, reach: 3.4, atkCd: 1.0,
            body: 0xcfd6dd, belly: 0xeef2f5, legs: 0xb8c2cb, head: 0xcfd6dd, meat: 4, pelt: 2, bone: 2, build: 'cat', spots: 0x4a5158 }
@@ -1747,123 +1749,489 @@ function buildPredator(sp) {
 }
 let animalTotal = 0;
 let predatorTotal = 0;
+/* ============================================================
+   LIVING ECOSYSTEM — modular animal AI
+   Systems: AnimalStats · AnimalNeeds · AnimalDetection · AnimalAIController ·
+   AnimalFlocking · AnimalCombat · AnimalLoot · AnimalAnimation · AnimalLOD · AnimalSpawner (in p4)
+   States: idle · wander · graze · seekFood · drink · flee · sleep · rest ·
+   alert · investigate · follow · protect   (Predator adds lurk/warn/chase/attack/hunt/return)
+   ============================================================ */
+const ECO = {   // species ecology & personality baselines (variance per individual in AnimalStats)
+  rabbit:    { fear: .85, aggr: .02, int: .3,  herd: 3, yng: .3 },
+  hare:      { fear: .9,  aggr: .02, int: .45, herd: 2, yng: .2, nocturnal: 1, snow: 1 },
+  fox:       { fear: .5,  aggr: .15, int: .8,  herd: 1, nocturnal: 1, curious: .8 },
+  arcticFox: { fear: .5,  aggr: .15, int: .75, herd: 1, nocturnal: 1, curious: .7, snow: 1 },
+  goat:      { fear: .3,  aggr: .75, int: .5,  herd: 3, charge: 7 },
+  deer:      { fear: .8,  aggr: .12, int: .6,  herd: 4, yng: .25 },
+  reindeer:  { fear: .75, aggr: .15, int: .55, herd: 5, yng: .25, snow: 1 },
+  elk:       { fear: .55, aggr: .55, int: .55, herd: 2, charge: 11 }
+};
+function ecoNight() { return dayF < 0.3; }
+
+const AnimalStats = {
+  make(name, rng) {
+    const sp = Object.assign({}, SPECIES[name], ECO[name] || {});
+    const v = (a, f) => a * (1 + (rng() * 2 - 1) * f);
+    return {
+      sp,
+      speedMul: 1 + (rng() * 2 - 1) * 0.15,
+      detectMul: Math.max(0.6, 1 + (rng() * 2 - 1) * 0.2),
+      fear: Math.max(0.1, v(sp.fear ?? 0.5, 0.3)),
+      aggression: Math.max(0, v(sp.aggr ?? 0.1, 0.25)),
+      intelligence: Math.min(1, Math.max(0.1, v(sp.int ?? 0.5, 0.2))),
+      curiosity: Math.min(1, Math.max(0.05, v(sp.curious ?? 0.3, 0.25))),
+      stamRun: Math.max(1.5, v(sp.stamRun ?? 4, 0.3)),
+      social: sp.herd > 1 ? 1 : 0.15
+    };
+  }
+};
+
+const AnimalNeeds = {
+  init(a) { a.hunger = 15 + Math.random() * 45; a.thirst = 15 + Math.random() * 45; a.energy = 65 + Math.random() * 35; a.safety = 85 + Math.random() * 15; },
+  update(a, dt, moving) {
+    a.hunger = Math.min(100, a.hunger + dt * 0.4);
+    a.thirst = Math.min(100, a.thirst + dt * 0.35);
+    a.energy = Math.max(0, Math.min(100, a.energy + (moving ? -dt * 1.5 : dt * (a.asleep ? 5 : 2.4))));
+    const danger = (a.aware >= 0.5 ? 2.2 : a.aware > 0 ? 0.7 : 0)
+      + (a.wildD != null && a.wildD < 40 ? 1.6 : 0)
+      + ((weather.rain > 0.45 || weather.snow > 0.45) ? 0.5 : 0);
+    a.safety = clamp(a.safety + dt * (danger ? -danger : (a.cover > 0.3 ? 3.2 : 1.5)), 0, 100);
+  },
+  dominant(a) {
+    if (a.thirst > 78 && a.findWater(false)) return 'drink';
+    if (a.hunger > 72) return 'seekFood';
+    if (a.safety < 24 && a.aware < 0.5) return 'seekCover';
+    if (a.energy < 22) return (ecoNight() !== !!a.sp.nocturnal) && a.cover > 0.3 ? 'sleep' : 'rest';
+    return null;
+  }
+};
+
+function coverAt(x, z) {   // vegetation density — blocks sight, offers shelter
+  const h = heightAt(x, z);
+  const cl = climateAt(x, z, h);
+  const w = biomeWeights(x, z, h, cl.temp, cl.moist);
+  return clamp((w.forest || 0) + (w.taiga || 0) + (w.grove || 0) + (w.enchanted || 0), 0, 1);
+}
+let _losT = -9, _losV = 0;
+function wolfCover() {     // cached a quarter-second: where the wolf hides
+  if (tSec - _losT > 0.25) { _losT = tSec; _losV = coverAt(wolf.pos.x, wolf.pos.z); }
+  return _losV;
+}
+const AnimalDetection = {
+  threat(a) {          // 0 unaware · 0.25 uneasy · 0.5 alert · 1 critical
+    const d = a.pos.distanceTo(wolf.pos);
+    let range = a.sp.detect * a.stats.detectMul;
+    range *= wolf.speed > 6 ? 1.3 : wolf.speed > 3 ? 0.85 : 0.55;   // wolf speed = noise
+    range *= ecoNight() ? (a.sp.nocturnal ? 1.15 : 0.8) : (a.sp.nocturnal ? 0.8 : 1);
+    if (weather.rain > 0.3 || weather.snow > 0.3) range *= 0.82;    // heavy weather masks
+    if (wolf.swimming) range *= 0.7;
+    if (a.asleep) range *= 0.45;
+    let band;
+    if (d > range * 1.6) band = 0;
+    else if (d > range) band = 0.25;
+    else if (d > range * 0.55) band = 0.5;
+    else return 1;
+    // line-of-sight: thick vegetation around the wolf masks it at anything but lunging range
+    if (band >= 0.5 && wolfCover() > 0.5) band -= 0.25;
+    return band;
+  },
+  nearestWildPredator(a) {   // bears/tigers hunting independently of the player
+    let best = null, bd = 46;
+    for (const ch of chunks.values()) {
+      for (const pr of ch.predators) {
+        if (pr.dead) continue;
+        const d = pr.pos.distanceTo(a.pos);
+        if (d < bd) { bd = d; best = pr; }
+      }
+    }
+    return best ? { pr: best, d: bd } : null;
+  }
+};
+
+const AnimalFlocking = {
+  steer(a) {           // returns heading pull toward herd + separation, or null
+    if (!a.herd) return null;
+    let cx = 0, cz = 0, n = 0, sx = 0, sz = 0;
+    for (const m of a.herd.members) {
+      if (m === a || m.dead) continue;
+      const dx = m.pos.x - a.pos.x, dz = m.pos.z - a.pos.z, d = Math.hypot(dx, dz);
+      if (d > 42) continue;
+      n++; cx += m.pos.x; cz += m.pos.z;
+      if (d < 2.4 && d > 0.01) { sx -= dx / d; sz -= dz / d; }
+    }
+    if (!n) return null;
+    const pull = (a.young ? 1.7 : 1) * a.stats.social * 0.5;
+    let tx = (cx / n - a.pos.x) * pull + sx * 1.3;
+    let tz = (cz / n - a.pos.z) * pull + sz * 1.3;
+    const l = Math.hypot(tx, tz);
+    return l > 0.05 ? Math.atan2(tx, tz) : null;
+  }
+};
+
+const AnimalCombat = {
+  retaliate(a) {       // cornered beasts fight back; mothers protect young
+    if (a.dead || !a.sp.charge) return false;
+    if (a.stats.aggression > 0.25 && Math.random() < a.stats.aggression) { a.setState('protect'); return true; }
+    return false;
+  },
+  protectTick(a, dt) { // charge the wolf, strike once, then bolt
+    a.heading = angLerp(a.heading, Math.atan2(wolf.pos.x - a.pos.x, wolf.pos.z - a.pos.z), Math.min(1, dt * 7));
+    const d = a.pos.distanceTo(wolf.pos);
+    if (d < 2.4 + a.sp.scale * 0.6) {
+      wolfTakeDamage(a.sp.charge, a.pos, a.sp.label, '🦌');
+      pool.burst(a.pos, 10, 0xffb090, 1.2, 2.2, 2.4);
+      a.startFlee(wolf.pos);
+      return;
+    }
+    if (a.stateT > 4) a.startFlee(wolf.pos);
+  }
+};
+
+const AnimalLoot = {
+  grant(a) {
+    let msg = `⚔️ Took down a ${a.sp.label}! +${a.sp.meat} 🥩`;
+    inv.meat += a.sp.meat;
+    if (a.sp.pelt) { inv.pelt += a.sp.pelt; msg += ` +${a.sp.pelt} 🧥`; }
+    if (a.sp.bone) { inv.bone += a.sp.bone; msg += ` +${a.sp.bone} 🦴`; }
+    stats.caught++;
+    toast(msg);
+    updateInv();
+  }
+};
+
+const AnimalAnimation = {
+  pose(a, dt, tSec, speed) {
+    a.phase += dt * (2 + speed * 1.6);
+    const amp = clamp(speed * 0.12, 0, 0.6);
+    if (a.asleep) {   // lying low, head tucked
+      a.model.position.y = a.pos.y - a.sp.scale * 0.16;
+      a.legs.forEach(l => { l.rotation.x = lerp(l.rotation.x, 0.5, dt * 4); });
+      a.head.rotation.x = lerp(a.head.rotation.x, 0.55, dt * 3);
+      return;
+    }
+    a.model.position.copy(a.pos);
+    if (a.sp.anim === 'hop') {
+      if (speed > 0.5) {
+        const hop = Math.abs(Math.sin(a.phase * 1.4));
+        a.model.position.y += hop * 0.28;
+        a.legs[0].rotation.x = a.legs[1].rotation.x = hop * 0.7 - 0.3;
+        a.legs[2].rotation.x = a.legs[3].rotation.x = -hop * 0.5;
+      } else {
+        a.legs.forEach(l => { l.rotation.x = lerp(l.rotation.x, 0, dt * 6); });
+        a.head.rotation.x = Math.sin(tSec * 0.7 + a.phase) * 0.5;
+      }
+    } else {
+      a.legs[0].rotation.x = Math.sin(a.phase) * amp;
+      a.legs[1].rotation.x = Math.sin(a.phase + Math.PI) * amp;
+      a.legs[2].rotation.x = Math.sin(a.phase + Math.PI) * amp;
+      a.legs[3].rotation.x = Math.sin(a.phase) * amp;
+      if (a.state === 'graze' || a.state === 'drink') a.head.rotation.x = lerp(a.head.rotation.x, 0.55, dt * 3);
+      else if (a.state === 'alert' || a.state === 'investigate' || a.state === 'protect') a.head.rotation.x = lerp(a.head.rotation.x, -0.22, dt * 4);
+      else if (speed < 0.3) a.head.rotation.x = Math.sin(tSec * 0.5 + a.phase) * 0.45;
+      else a.head.rotation.x = lerp(a.head.rotation.x, 0, dt * 3);
+    }
+  }
+};
+
+const AnimalAIController = {
+  STATES: ['idle', 'wander', 'graze', 'seekFood', 'drink', 'flee', 'sleep', 'rest', 'alert', 'investigate', 'follow', 'protect', 'seekCover'],
+  perceive(a) {          // awareness of the wolf: distance · speed · direction · night · weather · cover
+    a.aware = AnimalDetection.threat(a);
+    return a.aware;
+  },
+  reactWild(a) {         // react to wild predators independent of the player
+    const wild = AnimalDetection.nearestWildPredator(a);
+    a.wildD = wild ? wild.d : null;
+    if (wild && wild.d < a.sp.detect * a.stats.detectMul * 0.8 && a.state !== 'flee' && a.state !== 'protect') {
+      if (a.sp.charge && a.stats.aggression > 0.6 && wild.d < 10) a.setState('protect');
+      else a.startFlee(wild.pr.pos);
+      return true;
+    }
+    return false;
+  }
+};
+
+const AnimalLOD = { NEAR: 85, FAR: 170, STEP: 0.22 };
+
+const AnimalSpawner = {
+  spawnChunk(chunk, cx, cz, rng, sample, pickW) {
+    const centerS = sample(cx * CHUNK + CHUNK / 2, cz * CHUNK + CHUNK / 2);
+    const entries = Object.entries(centerS.w).filter(e => e[1] > 0.05);
+    const centerBiome = pickW(rng, entries);
+    const table = SPECIES_TABLE[centerBiome];
+    if (!table) return;
+    const night = ecoNight();
+    // nocturnal species dominate the night shift, diurnal the day
+    const wtable = table.map(([k, w]) => {
+      const eco = ECO[k];
+      if (eco && eco.nocturnal) w *= night ? 1.9 : 0.55;
+      else w *= night ? 0.65 : 1.2;
+      if (eco && eco.snow && weather.snow > 0.4) w *= 1.35;   // snowfall: winter coats come out
+      return [k, w];
+    });
+    const groups = 1 + (rng() < 0.3 ? 1 : 0);
+    for (let g = 0; g < groups; g++) {
+      if (animalTotal >= 46) break;
+      const kind = pickW(rng, wtable);
+      const gx = cx * CHUNK + 10 + rng() * (CHUNK - 20), gz = cz * CHUNK + 10 + rng() * (CHUNK - 20);
+      if (heightAt(gx, gz) < 0.9) continue;
+      if (Math.hypot(gx - wolf.pos.x, gz - wolf.pos.z) < 34) continue;   // never spawn beside the player
+      const herdN = Math.max(1, ((ECO[kind] && ECO[kind].herd) || 1) + (rng() < 0.4 ? 1 : 0) - (rng() < 0.5 ? 1 : 0));
+      const herd = herdN > 1 ? { members: [] } : null;
+      for (let m = 0; m < herdN; m++) {
+        if (animalTotal >= 46) break;
+        const ax = gx + (rng() - 0.5) * 8, az = gz + (rng() - 0.5) * 8;
+        if (heightAt(ax, az) < 0.8) continue;
+        const a = new Animal(kind, ax, az, { herd, leader: m === 0, adult: m === 0 || rng() < 0.6 });
+        if (herd) herd.members.push(a);
+        chunk.animals.push(a);
+      }
+    }
+  }
+};
+
 class Animal {
-  constructor(speciesName, x, z) {
-    this.sp = SPECIES[speciesName];
+  constructor(speciesName, x, z, opts) {
+    opts = opts || {};
     this.name = speciesName;
+    this.stats = AnimalStats.make(speciesName, Math.random);
+    this.sp = this.stats.sp;
+    this.young = !opts.adult && this.sp.yng && Math.random() < this.sp.yng;
     const built = buildAnimal(this.sp);
     this.model = built.group;
     this.legs = built.legs; this.head = built.head;
+    if (this.young) { this.sp = Object.assign({}, this.sp, { label: 'Young ' + this.sp.label, hp: 1, meat: Math.max(1, this.sp.meat - 1), pelt: 0, scale: this.sp.scale * 0.55 }); this.model.scale.setScalar(this.sp.scale); }
     scene.add(this.model);
     this.pos = V3(x, heightAt(x, z), z);
     this.heading = Math.random() * Math.PI * 2;
     this.state = 'graze';
+    this.stateT = 0;
     this.timer = 1 + Math.random() * 4;
     this.phase = Math.random() * 9;
     this.fleeT = 0;
+    this.runT = 0;            // sprint stamina while fleeing
     this.target = null;
     this.dead = false;
     this.hp = this.sp.hp || 1;
     this.flinchT = 0;
+    this.asleep = false;
+    this.herd = opts.herd || null;
+    this.herdLeader = !!opts.leader;
+    this.lodT = 0;
+    this.aware = 0;
+    AnimalNeeds.init(this);
+    const w = biomeWeights(x, z, this.pos.y, climateAt(x, z, this.pos.y).temp, climateAt(x, z, this.pos.y).moist);
+    this.cover = clamp((w.forest || 0) + (w.taiga || 0) + (w.grove || 0) + (w.enchanted || 0), 0, 1);
     animalTotal++;
+  }
+  setState(st) { if (this.state !== st) { this.state = st; this.stateT = 0; } this.asleep = st === 'sleep'; }
+  findWater(remember) {     // scan for a nearby shore; cached per animal
+    if (this._waterT && tSec < this._waterT) return this.waterSpot || null;
+    this._waterT = tSec + 6;
+    for (let i = 0; i < 10; i++) {
+      const a = i / 10 * 6.28, r = 14 + i * 3.4;
+      const wx = this.pos.x + Math.sin(a) * r, wz = this.pos.z + Math.cos(a) * r;
+      if (heightAt(wx, wz) < WATER_Y - 0.2) {
+        // walk back to the bank
+        for (let k = 1; k <= 4; k++) { const bx = this.pos.x + Math.sin(a) * (r - k * 2), bz = this.pos.z + Math.cos(a) * (r - k * 2); if (heightAt(bx, bz) > WATER_Y + 0.1) { this.waterSpot = { x: bx, z: bz }; return this.waterSpot; } }
+      }
+    }
+    this.waterSpot = null;
+    return null;
   }
   hit() {
     if (this.dead) return;
-    this.hp--;
+    const ambush = this.aware < 0.5;         // stealth strikes bite deeper
+    this.hp -= ambush ? 2 : 1;
     this.flinchT = 0.32;
     pool.burst(this.pos, 12, 0xffb3a0, 1.1, 2.2, 2.6);
     const dx = this.pos.x - wolf.pos.x, dz = this.pos.z - wolf.pos.z;
     const l = Math.hypot(dx, dz) || 1;
     const nx = this.pos.x + dx / l * 2.2, nz = this.pos.z + dz / l * 2.2;
-    if (heightAt(nx, nz) > WATER_Y + 0.2) {
-      this.pos.x = nx; this.pos.z = nz;
-      this.pos.y = heightAt(nx, nz);
-    }
+    if (heightAt(nx, nz) > WATER_Y + 0.2) { this.pos.x = nx; this.pos.z = nz; this.pos.y = heightAt(nx, nz); }
+    // panic ripples through the herd
+    if (this.herd) for (const m of this.herd.members) if (m !== this && !m.dead && m.pos.distanceTo(this.pos) < 30) m.startFlee(wolf.pos);
     if (this.hp <= 0) this.caught();
-    else this.startFlee(wolf.pos);
+    else if (!AnimalCombat.retaliate(this)) this.startFlee(wolf.pos);
+  }
+  dieSilently() {           // taken by a wild predator — no loot, herd panics
+    if (this.dead) return;
+    this.dead = true; animalTotal--;
+    pool.burst(this.pos, 18, 0xd84a3a, 1.5, 2.6, 3);
+    if (this.herd) for (const m of this.herd.members) if (!m.dead) m.startFlee(this.pos);
+    scene.remove(this.model);
+  }
+  seekCoverDir() {        // sniff out the nearest denser patch of forest
+    let best = this.cover, dir = null;
+    for (let k = 0; k < 6; k++) {
+      const ang = (k / 6) * Math.PI * 2;
+      const c = coverAt(this.pos.x + Math.sin(ang) * 14, this.pos.z + Math.cos(ang) * 14);
+      if (c > best + 0.05) { best = c; dir = ang; }
+    }
+    return dir;
   }
   startFlee(from) {
     if (this.dead) return;
-    this.state = 'flee';
+    this.setState('flee');
     this.fleeT = 4 + Math.random() * 2.5;
+    this.runT = this.stats.stamRun;
     this.heading = Math.atan2(this.pos.x - from.x, this.pos.z - from.z) + (Math.random() - 0.5) * 0.8;
+    this.aware = 1;
   }
+  investigate(pt) { if (this.dead || this.asleep) return; this.target = { x: pt.x, z: pt.z }; this.setState('investigate'); }
   update(dt, tSec) {
     if (this.dead) return;
     const dWolf = this.pos.distanceTo(wolf.pos);
-    if (dWolf > 230) { this.model.visible = false; return; }
+    if (dWolf > AnimalLOD.FAR) { this.model.visible = false; return; }   // far: population-only (frozen, invisible)
     this.model.visible = true;
-    const detect = this.sp.detect * (wolf.speed > 6 ? 1.25 : wolf.speed > 3 ? 0.8 : 0.55);
-    if (dWolf < detect && this.state !== 'flee' && (wolf.speed > 3 || dWolf < detect * 0.45)) {
-      this.startFlee(wolf.pos);
-    }
+    // ---- LOD: mid-distance animals think in bursts ----
+    if (dWolf > AnimalLOD.NEAR) { this.lodT += dt; if (this.lodT < AnimalLOD.STEP) return; dt = this.lodT; this.lodT = 0; }
+    this.stateT += dt;
     let speed = 0;
-    if (this.state === 'flee') {
-      this.fleeT -= dt;
-      speed = this.sp.run * (this.fleeT < 0 ? 0.55 : 1);
-      if (this.fleeT < -3) { this.state = 'graze'; this.timer = 2; }
-    } else if (this.state === 'wander') {
-      speed = this.sp.walk;
-      const dl = Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z);
-      if (dl < 1.5) { this.state = 'graze'; this.timer = 2 + Math.random() * 5; }
-      else this.heading = angLerp(this.heading, Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), Math.min(1, dt * 3));
-    } else {
-      this.timer -= dt;
-      if (this.timer <= 0) {
-        const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 16;
-        const tx = this.pos.x + Math.sin(a) * r, tz = this.pos.z + Math.cos(a) * r;
-        if (heightAt(tx, tz) > WATER_Y + 0.4) { this.target = { x: tx, z: tz }; this.state = 'wander'; }
-        else this.timer = 1;
+    // ---- perception (AI controller) ----
+    if (!this.asleep || this.stateT > 1) AnimalAIController.perceive(this);
+    const need = this.asleep ? null : AnimalNeeds.dominant(this);
+    // ---- AI state machine ----
+    if (this.flinchT > 0) {
+      this.flinchT -= dt;
+      this.model.scale.setScalar(this.sp.scale * (1 + Math.max(0, this.flinchT) / 0.32 * 0.22));
+      AnimalAnimation.pose(this, dt, tSec, 0);
+      return;
+    } else this.model.scale.setScalar(this.sp.scale);
+    switch (this.state) {
+      case 'flee': {
+        this.fleeT -= dt;
+        const tired = this.runT <= 0;
+        if (!tired) this.runT -= dt;
+        speed = this.sp.run * this.stats.speedMul * (tired ? 0.55 : 1);
+        // smart prey jukes when the wolf lunges close
+        if (this.stats.intelligence > 0.6 && dWolf < 6.5 && wolf.atkT > 0 && Math.random() < dt * 2.2)
+          this.heading += (Math.random() < 0.5 ? 1 : -1) * (0.9 + Math.random());
+        if (this.fleeT < -3 && dWolf > this.sp.detect * 1.4) { this.setState('idle'); this.timer = 1; }
+        break;
+      }
+      case 'protect': AnimalCombat.protectTick(this, dt); speed = this.sp.run * 0.9; break;
+      case 'seekCover': {
+        if (this.cover > 0.32 || this.stateT > 7) { this.setState('rest'); this.timer = 2; break; }
+        const dir = this.seekCoverDir();
+        if (dir !== null) { this.heading = angLerp(this.heading, dir, Math.min(1, dt * 3)); speed = this.sp.walk; }
+        else { this.setState('rest'); this.timer = 2; }
+        break;
+      }
+      case 'sleep': {
+        const wsl = AnimalDetection.nearestWildPredator(this);
+        if (this.aware >= 0.5 || (wsl && wsl.d < 12)) { this.setState('alert'); break; }
+        if (!ecoNight() && !this.sp.nocturnal) { this.setState('idle'); this.timer = 1; }
+        break;
+      }
+      case 'rest': {
+        if (this.aware >= 0.5) { this.setState('alert'); break; }
+        if (this.energy > 55 || (need !== 'rest' && this.stateT > 8)) { this.setState('idle'); this.timer = 0.5; }
+        break;
+      }
+      case 'alert': {
+        this.heading = angLerp(this.heading, Math.atan2(this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z), Math.min(1, dt * 4));
+        if (this.aware >= 1) this.startFlee(wolf.pos);
+        else if (this.aware <= 0.25) { need ? this.pursue(need) : this.setState('graze'); }
+        else if (this.stateT > 2.2 && this.aware < 0.75 && this.stats.curiosity > 0.55 && dWolf > 9) { this.investigate(wolf.pos); }
+        break;
+      }
+      case 'investigate': {
+        const dl = this.target ? Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z) : 99;
+        if (this.aware >= 0.75) { this.startFlee(wolf.pos); break; }
+        if (dl > 3) { speed = this.sp.walk; this.heading = angLerp(this.heading, Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), Math.min(1, dt * 3)); }
+        else { this.setState('idle'); this.timer = 2; }
+        break;
+      }
+      case 'seekFood': {
+        if (!this.target || this.stateT > 10) {
+          const a = Math.random() * 6.28, r = 4 + Math.random() * 10;
+          this.target = { x: this.pos.x + Math.sin(a) * r, z: this.pos.z + Math.cos(a) * r };
+        }
+        const dl = Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z);
+        if (dl > 1.5) { speed = this.sp.walk; this.heading = angLerp(this.heading, Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), Math.min(1, dt * 2.5)); }
+        else { this.hunger = Math.max(0, this.hunger - 30); this.setState('graze'); }
+        break;
+      }
+      case 'drink': {
+        const wsp = this.waterSpot;
+        if (!wsp) { this.thirst = Math.max(0, this.thirst - 10); this.setState('idle'); break; }
+        const dl = Math.hypot(wsp.x - this.pos.x, wsp.z - this.pos.z);
+        if (dl > 1.6) { speed = this.sp.walk; this.heading = angLerp(this.heading, Math.atan2(wsp.x - this.pos.x, wsp.z - this.pos.z), Math.min(1, dt * 2.5)); }
+        else { this.thirst = Math.max(0, this.thirst - 55); if (Math.random() < dt * 3) pool.burst(V3(wsp.x, WATER_Y + 0.2, wsp.z), 2, 0x9fd4e8, 0.3, 1, 1); if (this.thirst < 25) { this.setState('idle'); this.timer = 2; } }
+        break;
+      }
+      case 'follow': {
+        const pull = AnimalFlocking.steer(this);
+        if (pull !== null) { speed = this.sp.walk * 1.15; this.heading = angLerp(this.heading, pull, Math.min(1, dt * 2.5)); }
+        if (this.stateT > 3) this.setState('graze');
+        break;
+      }
+      case 'wander': {
+        speed = this.sp.walk;
+        const dl = this.target ? Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z) : 0;
+        if (dl < 1.5) { this.setState('graze'); this.timer = 2 + Math.random() * 5; }
+        else this.heading = angLerp(this.heading, Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), Math.min(1, dt * 3));
+        break;
+      }
+      case 'idle': {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+          if (need) this.pursue(need);
+          else if (ecoNight() && !this.sp.nocturnal && this.energy < 75 && this.cover > 0.3 && dWolf > 25) this.setState('sleep');
+          else if ((this.sp.nocturnal ? !ecoNight() : ecoNight()) && this.energy < 40) this.setState('rest');
+          else if ((weather.rain > 0.3 || weather.snow > 0.3) && Math.random() < 0.45) { this.setState('rest'); this.timer = 3 + Math.random() * 4; }   // stormy: hunker down
+          else { const a = Math.random() * 6.28, r = 6 + Math.random() * 16; const tx = this.pos.x + Math.sin(a) * r, tz = this.pos.z + Math.cos(a) * r; if (heightAt(tx, tz) > WATER_Y + 0.4) { this.target = { x: tx, z: tz }; this.setState('wander'); } else this.timer = 1; }
+        }
+        break;
+      }
+      default: { // graze
+        this.timer -= dt;
+        if (this.aware >= 0.5) { this.setState('alert'); break; }
+        if (this.timer <= 0) {
+          if (need) this.pursue(need);
+          else if (this.herd && !this.herdLeader && Math.random() < 0.5) this.setState('follow');
+          else { this.setState('idle'); this.timer = 1; }
+        }
+        break;
       }
     }
+    // ---- herd cohesion while moving ----
+    if (this.herd && speed > 0 && this.state !== 'flee' && this.state !== 'protect') {
+      const pull = AnimalFlocking.steer(this);
+      if (pull !== null) this.heading = angLerp(this.heading, pull, Math.min(1, dt * (this.young ? 2.2 : 0.9)));
+    }
+    // ---- wild predators scare prey independent of the player ----
+    AnimalAIController.reactWild(this);
+    // ---- terrain-aware movement ----
     const nx = this.pos.x + Math.sin(this.heading) * 2.5, nz = this.pos.z + Math.cos(this.heading) * 2.5;
     if (heightAt(nx, nz) < WATER_Y + 0.3) this.heading += dt * 2.4;
     if (speed > 0) {
-      this.pos.x += Math.sin(this.heading) * speed * dt;
-      this.pos.z += Math.cos(this.heading) * speed * dt;
+      let spd2 = speed;
+      if (weather.snow > 0.4 && !this.sp.snow) spd2 *= 0.88;   // plowing through powder
+      this.pos.x += Math.sin(this.heading) * spd2 * dt;
+      this.pos.z += Math.cos(this.heading) * spd2 * dt;
       this.pos.y = heightAt(this.pos.x, this.pos.z);
     }
     this.model.position.copy(this.pos);
     this.model.rotation.y = this.heading;
-    if (this.flinchT > 0) {
-      this.flinchT -= dt;
-      this.model.scale.setScalar(this.sp.scale * (1 + Math.max(0, this.flinchT) / 0.32 * 0.22));
-    } else {
-      this.model.scale.setScalar(this.sp.scale);
-    }
-    this.phase += dt * (2 + speed * 1.6);
-    const amp = clamp(speed * 0.12, 0, 0.6);
-    if (this.sp.anim === 'hop') {
-      if (speed > 0.5) {
-        const hop = Math.abs(Math.sin(this.phase * 1.4));
-        this.model.position.y += hop * 0.28;
-        this.legs[0].rotation.x = this.legs[1].rotation.x = hop * 0.7 - 0.3;
-        this.legs[2].rotation.x = this.legs[3].rotation.x = -hop * 0.5;
-      } else {
-        this.legs.forEach(l => { l.rotation.x = lerp(l.rotation.x, 0, dt * 6); });
-        this.head.rotation.x = Math.sin(tSec * 0.7 + this.phase) * 0.5;
-      }
-    } else {
-      this.legs[0].rotation.x = Math.sin(this.phase) * amp;
-      this.legs[1].rotation.x = Math.sin(this.phase + Math.PI) * amp;
-      this.legs[2].rotation.x = Math.sin(this.phase + Math.PI) * amp;
-      this.legs[3].rotation.x = Math.sin(this.phase) * amp;
-      if (speed < 0.3) this.head.rotation.x = Math.sin(tSec * 0.5 + this.phase) * 0.45;
-      else this.head.rotation.x = lerp(this.head.rotation.x, 0, dt * 3);
-    }
+    AnimalNeeds.update(this, dt, speed > 0.3);
+    AnimalAnimation.pose(this, dt, tSec, speed);
+  }
+  pursue(need) {
+    if (need === 'seekCover') { this.setState(this.cover > 0.32 ? 'rest' : 'seekCover'); return; }
+    if (need === 'drink' && this.findWater(true)) { this.setState('drink'); return; }
+    if (need === 'seekFood') { this.setState('seekFood'); return; }
+    if (need === 'sleep') { this.setState('sleep'); return; }
+    if (need === 'rest') { this.setState('rest'); return; }
+    this.setState('wander');
   }
   caught() {
     if (this.dead) return;
     this.dead = true;
     animalTotal--;
     pool.burst(this.pos, 26, 0xffe0a8, 1.8, 3.4, 3.6);
-    let msg = `⚔️ Took down a ${this.sp.label}! +${this.sp.meat} 🥩`;
-    inv.meat += this.sp.meat;
-    if (this.sp.pelt) { inv.pelt += this.sp.pelt; msg += ` +${this.sp.pelt} 🧥`; }
-    if (this.sp.bone) { inv.bone += this.sp.bone; msg += ` +${this.sp.bone} 🦴`; }
-    stats.caught++;
-    toast(msg);
-    updateInv();
+    AnimalLoot.grant(this);
     scene.remove(this.model);
   }
   dispose() {
@@ -1900,6 +2268,10 @@ class Predator {
     this.dead = false;
     this.threatening = false;
     this.reArmed = true;        // re-arm warning after player leaves
+    this.hunger = 30 + Math.random() * 40;
+    this.huntTarget = null;
+    this.lodT = 0;
+    this.nocturnal = (kind === 'tiger' || kind === 'snowLeopard');
     predatorTotal++;
   }
   startFlee() { /* predators don't spook — they hold their ground */ }
@@ -1952,6 +2324,13 @@ class Predator {
     const dWolfHome = Math.hypot(wolf.pos.x - this.home.x, wolf.pos.z - this.home.z);
     let speed = 0;
     this.threatening = false;
+    this.hunger = Math.min(100, this.hunger + dt * 0.5);
+    // LOD: idle-distance predators think in bursts; combat states stay full-rate
+    if ((this.state === 'lurk' || this.state === 'return' || this.state === 'sleep') && dWolf > 85) {
+      this.lodT += dt;
+      if (this.lodT < 0.25) return;
+      dt = this.lodT; this.lodT = 0;
+    }
     if (this.state === 'lurk') {
       if (dWolfHome < this.territory && this.reArmed && state === 'play' && wolf.deadT <= 0) {
         this.state = 'warn'; this.warnT = 3;
@@ -1959,6 +2338,25 @@ class Predator {
         showTerritoryWarning(this.sp);
         audio.growl();
         this.heading = Math.atan2(dxw, dzw);
+      } else if (this.sp.huntsWolf && this.hunger > 88 && dWolf < 42 && state === 'play' && wolf.deadT <= 0) {
+        // starving apex predator: the wolf is on tonight's menu
+        this.state = 'warn'; this.warnT = 2.5; this.reArmed = false;
+        showTerritoryWarning(this.sp); audio.growl();
+        this.heading = Math.atan2(dxw, dzw);
+      } else if (this.hunger > 65 && dWolfHome > this.territory) {
+        // hungry and unprovoked: hunt wild prey (ecosystem lives without the player)
+        let prey = null, pd = 55;
+        for (const ch of chunks.values()) {
+          for (const an of ch.animals) {
+            if (an.dead || an.sp.charge) continue;      // avoids goats & elk
+            const d = an.pos.distanceTo(this.pos);
+            if (d < pd) { pd = d; prey = an; }
+          }
+        }
+        if (prey) { this.huntTarget = prey; this.state = 'hunt'; }
+        else this.hunger = 50;
+      } else if (!this.nocturnal && ecoNight() && dWolfHome > this.territory * 0.8 && Math.random() < dt * 0.05) {
+        this.state = 'sleep';
       } else {
         if (dWolfHome > this.territory * 1.6) this.reArmed = true;
         this.timer -= dt;
@@ -1997,6 +2395,20 @@ class Predator {
         pool.burst(V3(this.pos.x + dxw / (dWolf || 1) * 1.2, this.pos.y + 1, this.pos.z + dzw / (dWolf || 1) * 1.2), 8, 0xff5040, 0.8, 1.6, 2.2);
         if (dWolf < this.sp.reach) wolfTakeDamage(this.sp.dmg, this.pos, this.sp.label, this.sp.icon);
       }
+    } else if (this.state === 'hunt') {
+      const prey = this.huntTarget;
+      if (!prey || prey.dead) { this.huntTarget = null; this.state = 'return'; }
+      else {
+        const pd2 = prey.pos.distanceTo(this.pos);
+        this.heading = angLerp(this.heading, Math.atan2(prey.pos.x - this.pos.x, prey.pos.z - this.pos.z), Math.min(1, dt * 5));
+        speed = this.sp.run * (this.nocturnal && ecoNight() ? 1.1 : 1);
+        if (pd2 < 2.3) { prey.dieSilently(); this.hunger = 0; this.huntTarget = null; this.state = 'return'; }
+        else if (pd2 > 75) { this.huntTarget = null; this.state = 'return'; }
+      }
+    } else if (this.state === 'sleep') {
+      this.heading += (Math.random() - 0.5) * dt;   // restless slumber
+      if (dWolfHome < this.territory * 0.85) { this.state = 'warn'; this.warnT = 3; showTerritoryWarning(this.sp); audio.growl(); }
+      else if (!ecoNight() && Math.random() < dt * 0.1) { this.state = 'lurk'; this.timer = 2; }
     } else if (this.state === 'return') {
       const dl = Math.hypot(this.home.x - this.pos.x, this.home.z - this.pos.z);
       this.heading = angLerp(this.heading, Math.atan2(this.home.x - this.pos.x, this.home.z - this.pos.z), Math.min(1, dt * 4));
@@ -2019,6 +2431,7 @@ class Predator {
     this.legs[1].rotation.x = Math.sin(this.phase + Math.PI) * amp;
     this.legs[2].rotation.x = Math.sin(this.phase + Math.PI) * amp;
     this.legs[3].rotation.x = Math.sin(this.phase) * amp;
+    if (this.state === 'sleep') { this.legs.forEach(l => { l.rotation.x = lerp(l.rotation.x, 0.5, dt * 3); }); this.head.rotation.x = 0.5; return; }
     if (this.biteT > 0) { this.biteT -= dt; this.head.rotation.x = 0.55; }
     else this.head.rotation.x = this.state === 'attack' || this.state === 'chase' ? 0.18 : Math.sin(tSec * 0.5 + this.phase) * 0.25;
   }
@@ -2368,19 +2781,10 @@ function genChunk(cx, cz) {
     pkSets[type].forEach((it, i) => chunk.pickups.push({ type, mesh: m, idx: i, x: it.x, y: it.y, z: it.z, gathered: false }));
   }
 
-  /* ---- animals ---- */
+  /* ---- animals: herds, ecology, spawn-zone rules ---- */
   const centerS = sample(cx * CHUNK + CHUNK / 2, cz * CHUNK + CHUNK / 2);
   const centerBiome = pickWeighted(rng, Object.entries(centerS.w).filter(e => e[1] > 0.05));
-  const table = SPECIES_TABLE[centerBiome];
-  if (table) {
-    const n = 1 + (rng() < 0.35 ? 1 : 0);
-    for (let i = 0; i < n; i++) {
-      if (animalTotal >= 46) break;
-      const x = cx * CHUNK + 8 + rng() * (CHUNK - 16), z = cz * CHUNK + 8 + rng() * (CHUNK - 16);
-      if (heightAt(x, z) < 0.9) continue;
-      chunk.animals.push(new Animal(pickWeighted(rng, table), x, z));
-    }
-  }
+  AnimalSpawner.spawnChunk(chunk, cx, cz, rng, sample, pickWeighted);
 
   /* ---- territorial predators: at most one per chunk, rare, biome-fit ---- */
   if (predatorTotal < 5) {
