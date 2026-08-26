@@ -45,9 +45,20 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 }
 #minimap {
   position: absolute; top: 56px; right: 16px; width: 140px; height: 140px; z-index: 8;
-  border-radius: 50%; background: rgba(8, 14, 22, 0.55); pointer-events: none;
+  border-radius: 50%; background: rgba(8, 14, 22, 0.55); pointer-events: auto; cursor: pointer;
   box-shadow: 0 2px 14px rgba(0, 0, 0, .45), inset 0 0 24px rgba(0, 0, 0, .35);
 }
+#bigmapWrap { position: absolute; inset: 0; z-index: 55; display: none; align-items: center;
+  justify-content: center; background: rgba(6, 10, 16, 0.62); backdrop-filter: blur(2px); }
+#bigmapWrap.show { display: flex; }
+#bigmapBox { background: rgba(14, 22, 32, 0.92); border: 1px solid rgba(150, 190, 230, 0.3);
+  border-radius: 16px; padding: 12px 14px 10px; box-shadow: 0 12px 48px rgba(0, 0, 0, .6); }
+#bigmapHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+#bigmapTitle { font-size: 14px; letter-spacing: .05em; color: #dce9f6; }
+#bigmapClose { background: none; border: 1px solid rgba(180, 210, 240, .35); color: #dce9f6;
+  border-radius: 8px; width: 28px; height: 28px; font-size: 14px; cursor: pointer; }
+#bigmap { width: min(62vmin, 460px); height: min(62vmin, 460px); border-radius: 10px; display: block; }
+#bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
 body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
 #hpWrap { position: absolute; top: 74px; left: 50%; transform: translateX(-50%);
   width: 190px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
@@ -244,9 +255,16 @@ body.touch #tPause { display: block; }
   <div id="controls">
     <b>WASD</b> move · <b>Shift</b> sprint · <b>Space</b> jump · <b>F</b> attack<br>
     <b>E</b> gather · <b>Q</b> wolf sense · <b>H</b> howl · <b>Drag</b> look · <b>Wheel</b> zoom<br>
-    <b>C</b> camera · <b>T</b> time ×8 · <b>M</b> sound · <b>N</b> map · <b>P</b> pause
+    <b>C</b> camera · <b>T</b> time ×8 · <b>M</b> map · <b>K</b> sound · <b>P</b> pause
   </div>
-  <canvas id="minimap" width="168" height="168"></canvas>
+  <canvas id="minimap" width="168" height="168" title="Open map (M)"></canvas>
+  <div id="bigmapWrap">
+    <div id="bigmapBox">
+      <div id="bigmapHead"><span id="bigmapTitle">🗺️ Revontulet — the wild around you</span><button id="bigmapClose">✕</button></div>
+      <canvas id="bigmap" width="460" height="460"></canvas>
+      <div id="bigmapLegend">🟡 landmark · 🟣 magic mushroom · 🔴 hunting predator · ⭕ dashed = its territory<br>gold chevron points to the nearest landmark · white arrow = you (M / Esc closes)</div>
+    </div>
+  </div>
   <div id="vignette"></div>
   <div id="threatArrow"><div class="ta-ring"></div><div class="ta-arrow">➤</div></div>
   <div id="threatWarn">⚠️ Territory</div>
@@ -2937,110 +2955,210 @@ function updateThreatArrow() {
   if (!best || wolf.flyT > 0) { arrow.style.display = 'none'; return; }
   arrow.style.display = 'block';
   const a = Math.atan2(best.pos.x - wolf.pos.x, best.pos.z - wolf.pos.z);
-  const deg = (camYaw - a) * 180 / Math.PI;
+  // screen-forward is camYaw + PI (camera sits at +camYaw behind the wolf)
+  const deg = (camYaw + Math.PI - a) * 180 / Math.PI;
   arrow.style.transform = `translate(-50%,-50%) rotate(${deg}deg)`;
 }
 
 /* ---------------- minimap ---------------- */
-const MM = { size: 168, px: 50, range: 230, ready: false, t: 0, lastX: 1e9, lastZ: 1e9, on: true };
+const MM = { size: 168, px: 50, range: 230, t: 0, lastX: 1e9, lastZ: 1e9, on: true };
+addEventListener('pointerdown', e => { if (e.target && e.target.id === 'minimap') { e.stopPropagation(); toggleBigMap(true); } }, true);
 const mmBase = document.createElement('canvas'); mmBase.width = MM.px; mmBase.height = MM.px;
 const mmBaseCtx = mmBase.getContext('2d');
-const MM_GROUND = {};
-for (const k in GROUND) MM_GROUND[k] = '#' + GROUND[k].getHexString();
-function updateMinimap(dt) {
-  const cv = el('minimap');
-  if (!cv) return;
-  if (!MM.on || state !== 'play') { cv.style.display = 'none'; return; }
-  cv.style.display = 'block';
-  MM.t -= dt;
-  if (MM.t > 0 && Math.hypot(wolf.pos.x - MM.lastX, wolf.pos.z - MM.lastZ) < 6) { drawMinimapOverlay(); return; }
-  MM.t = 0.8; MM.lastX = wolf.pos.x; MM.lastZ = wolf.pos.z;
-  // terrain pass — small offscreen ImageData, scaled up by the GPU
-  const img = mmBaseCtx.createImageData(MM.px, MM.px);
-  const step = MM.range * 2 / MM.px;
-  for (let j = 0; j < MM.px; j++) {
-    for (let i = 0; i < MM.px; i++) {
-      const wx = wolf.pos.x + (i - MM.px / 2) * step, wz = wolf.pos.z + (j - MM.px / 2) * step;
+const MM_RES_DOT = {};
+for (const k in PICKUP_DEF) MM_RES_DOT[k] = '#' + new THREE.Color(PICKUP_DEF[k].color).getHexString();
+function mapTerrainPass(ctx, px, range, cx, cz) {
+  const img = ctx.createImageData(px, px);
+  const step = range * 2 / px;
+  for (let j = 0; j < px; j++) {
+    for (let i = 0; i < px; i++) {
+      const wx = cx + (i - px / 2) * step, wz = cz + (j - px / 2) * step;
       const h = heightAt(wx, wz);
-      const o = (j * MM.px + i) * 4;
-      let r = 0, g = 0, b = 0, sum = 0;
-      if (h < WATER_Y - 0.15) {           // water: depth-shaded blue
-        const d = Math.min(1, (WATER_Y - h) / 5);
-        r = 40 + (1 - d) * 40; g = 90 + (1 - d) * 60; b = 150 + (1 - d) * 50;
+      const o = (j * px + i) * 4;
+      let r = 0, g = 0, b = 0;
+      if (h < WATER_Y - 0.15) {              // clear blue water marks, depth-shaded
+        const d = Math.min(1, (WATER_Y - h) / 4.5);
+        r = 46 + (1 - d) * 60; g = 120 + (1 - d) * 70; b = 210 + (1 - d) * 40;
       } else {
         const cl = climateAt(wx, wz, h);
         const w = biomeWeights(wx, wz, h, cl.temp, cl.moist);
+        let sum = 0;
         for (const k in w) {
           const c = GROUND[k]; if (!c) continue;
           r += c.r * w[k]; g += c.g * w[k]; b += c.b * w[k]; sum += w[k];
         }
         if (sum > 0) { r /= sum; g /= sum; b /= sum; }
-        const sh = 0.75 + Math.min(0.45, h / 60) * 0.5;   // height shading
+        const sh = 0.75 + Math.min(0.45, h / 60) * 0.5;
         r = Math.min(255, r * 255 * sh); g = Math.min(255, g * 255 * sh); b = Math.min(255, b * 255 * sh);
       }
       img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b; img.data[o + 3] = 255;
     }
   }
-  mmBaseCtx.putImageData(img, 0, 0);
-  drawMinimapOverlay();
+  ctx.putImageData(img, 0, 0);
 }
-function drawMinimapOverlay() {
-  const cv = el('minimap');
-  const ctx = cv.getContext('2d');
-  const S = cv.width, half = S / 2;
-  ctx.clearRect(0, 0, S, S);
-  ctx.imageSmoothingEnabled = true;
+function drawMapOverlays(ctx, S, range, opts) {
+  const half = S / 2;
+  const toMap = (wx, wz) => [half + (wx - wolf.pos.x) / (range * 2) * S, half + (wz - wolf.pos.z) / (range * 2) * S];
+  // ---- predator territory rings ----
   ctx.save();
-  ctx.beginPath(); ctx.arc(half, half, half - 2, 0, 6.29); ctx.clip();
-  ctx.drawImage(mmBase, 0, 0, MM.px, MM.px, 0, 0, S, S);
-  const toMap = (wx, wz) => [half + (wx - wolf.pos.x) / (MM.range * 2) * S, half + (wz - wolf.pos.z) / (MM.range * 2) * S];
-  // landmarks — gold markers with icon
-  ctx.font = '11px system-ui';
+  ctx.setLineDash([5, 4]);
+  for (const ch of chunks.values()) {
+    for (const pr of ch.predators) {
+      if (pr.dead) continue;
+      const [hx, hy] = toMap(pr.home.x, pr.home.z);
+      const rr = pr.territory / (range * 2) * S;
+      if (hx + rr < 0 || hx - rr > S || hy + rr < 0 || hy - rr > S) continue;
+      ctx.strokeStyle = pr.threatening ? 'rgba(255,60,40,.95)' : 'rgba(255,90,60,.55)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(hx, hy, rr, 0, 6.29); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  // ---- resource dots ----
+  const ccx = Math.floor(wolf.pos.x / CHUNK), ccz = Math.floor(wolf.pos.z / CHUNK);
+  const resR = opts.big ? 6 : 3;   // search radius in chunks
+  for (let dz = -resR; dz <= resR; dz++)
+    for (let dx = -resR; dx <= resR; dx++) {
+      const ch = chunks.get(ck(ccx + dx, ccz + dz));
+      if (!ch) continue;
+      for (const pk2 of ch.pickups) {
+        if (pk2.gathered) continue;
+        const [mx, my] = toMap(pk2.x, pk2.z);
+        if (mx < -2 || mx > S + 2 || my < -2 || my > S + 2) continue;
+        if (pk2.type === 'magicShroom') {
+          ctx.fillStyle = '#c88fff';
+          ctx.beginPath(); ctx.arc(mx, my, opts.big ? 2.6 : 2.2, 0, 6.29); ctx.fill();
+        } else if (!opts.big) {           // keep the big map uncluttered
+          ctx.fillStyle = MM_RES_DOT[pk2.type] || '#ddd';
+          ctx.beginPath(); ctx.arc(mx, my, 1.7, 0, 6.29); ctx.fill();
+        }
+      }
+    }
+  // ---- landmarks ----
+  ctx.font = (opts.big ? 13 : 11) + 'px system-ui';
   for (const lm of landmarkList) {
     const [mx, my] = toMap(lm.x, lm.z);
-    if (mx < 6 || mx > S - 6 || my < 6 || my > S - 6) continue;
+    if (mx < -10 || mx > S + 10 || my < -10 || my > S + 10) continue;
     ctx.fillStyle = '#ffd76a';
-    ctx.beginPath(); ctx.arc(mx, my, 3.2, 0, 6.29); ctx.fill();
-    ctx.strokeStyle = 'rgba(40,28,0,.8)'; ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = '#3a2c08'; ctx.fillText(LANDMARKS[lm.type].icon, mx + 5, my + 3);
+    ctx.beginPath(); ctx.arc(mx, my, opts.big ? 4.4 : 3.2, 0, 6.29); ctx.fill();
+    ctx.strokeStyle = 'rgba(40,28,0,.85)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = '#3a2c08';
+    ctx.fillText(LANDMARKS[lm.type].icon, mx + 6, my + 3);
+    if (opts.big) { ctx.fillStyle = '#ffe9b0'; ctx.font = '10px system-ui'; ctx.fillText(LANDMARKS[lm.type].label, mx + 7, my + 14); ctx.font = '13px system-ui'; }
   }
-  // threatening predators — red pulses
+  // ---- hunting predators ----
   for (const ch of chunks.values())
     for (const pr of ch.predators) {
       if (pr.dead || !pr.threatening) continue;
       const [mx, my] = toMap(pr.pos.x, pr.pos.z);
-      ctx.fillStyle = 'rgba(255,64,40,.9)';
-      ctx.beginPath(); ctx.arc(mx, my, 3.4, 0, 6.29); ctx.fill();
+      ctx.fillStyle = 'rgba(255,64,40,.95)';
+      ctx.beginPath(); ctx.arc(mx, my, opts.big ? 4 : 3.4, 0, 6.29); ctx.fill();
     }
-  // nearby magic mushrooms — violet specks
-  const ccx = Math.floor(wolf.pos.x / CHUNK), ccz = Math.floor(wolf.pos.z / CHUNK);
-  ctx.fillStyle = 'rgba(190,140,255,.95)';
-  for (let dz = -1; dz <= 1; dz++)
-    for (let dx = -1; dx <= 1; dx++) {
-      const ch = chunks.get(ck(ccx + dx, ccz + dz));
-      if (!ch) continue;
-      for (const pk2 of ch.pickups) {
-        if (pk2.gathered || pk2.type !== 'magicShroom') continue;
-        const [mx, my] = toMap(pk2.x, pk2.z);
-        ctx.fillRect(mx - 1.4, my - 1.4, 2.8, 2.8);
-      }
-    }
-  // player arrow
+  // ---- landmark guidance chevron (nearest within 340 m) ----
+  let guide = null, gd = 340;
+  for (const lm of landmarkList) {
+    const d2 = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
+    if (d2 < gd) { gd = d2; guide = lm; }
+  }
+  if (guide) {
+    const ang = Math.atan2(guide.z - wolf.pos.z, guide.x - wolf.pos.x);   // canvas-space angle
+    const gr = half - 12;
+    const gx = half + Math.cos(ang) * gr, gy = half + Math.sin(ang) * gr;
+    ctx.save();
+    ctx.translate(gx, gy); ctx.rotate(ang);
+    ctx.fillStyle = 'rgba(255,215,106,.95)';
+    ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -5.5); ctx.lineTo(-1, 0); ctx.lineTo(-4, 5.5); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(60,40,0,.9)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+    const tx = half + Math.cos(ang) * (gr - 24), ty = half + Math.sin(ang) * (gr - 24);
+    ctx.fillStyle = '#ffe9b0'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(gd.toFixed(0) + 'm', tx, ty + 3);
+    ctx.textAlign = 'start';
+  }
+  // ---- player arrow (screen-forward = camYaw + PI) ----
   ctx.save();
   ctx.translate(half, half);
-  ctx.rotate(-camYaw + Math.PI);
+  ctx.rotate(camYaw + Math.PI);
   ctx.fillStyle = '#ffffff';
   ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(4.6, 5.4); ctx.lineTo(0, 2.8); ctx.lineTo(-4.6, 5.4); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(20,30,40,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
   ctx.restore();
+}
+function drawMinimapOverlay() {
+  const cv = el('minimap');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const S = cv.width, half = S / 2;
+  ctx.clearRect(0, 0, S, S);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(half, half, half - 2, 0, 6.29); ctx.clip();
+  // base scrolls with the player between terrain refreshes — always accurate
+  const offX = (MM.lastX - wolf.pos.x) / (MM.range * 2) * S;
+  const offY = (MM.lastZ - wolf.pos.z) / (MM.range * 2) * S;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(mmBase, 0, 0, MM.px, MM.px, offX, offY, S, S);
+  drawMapOverlays(ctx, S, MM.range, { big: false });
   ctx.restore();
-  // ring + cardinal points
   ctx.strokeStyle = 'rgba(200,225,255,.55)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(half, half, half - 2, 0, 6.29); ctx.stroke();
   ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
   ctx.fillStyle = '#eef4ff';
   ctx.fillText('N', half, 12); ctx.fillText('S', half, S - 5);
   ctx.fillText('W', 10, half + 4); ctx.fillText('E', S - 10, half + 4);
+  ctx.textAlign = 'start';
+}
+function updateMinimap(dt) {
+  const cv = el('minimap');
+  if (!cv) return;
+  if (!MM.on || state !== 'play') { cv.style.display = 'none'; return; }
+  cv.style.display = 'block';
+  MM.t -= dt;
+  if (MM.t > 0 && Math.hypot(wolf.pos.x - MM.lastX, wolf.pos.z - MM.lastZ) < 4) { drawMinimapOverlay(); return; }
+  MM.t = 0.7; MM.lastX = wolf.pos.x; MM.lastZ = wolf.pos.z;
+  mapTerrainPass(mmBaseCtx, MM.px, MM.range, wolf.pos.x, wolf.pos.z);
+  drawMinimapOverlay();
+}
+
+/* ---------------- big centered map (M / click minimap) ---------------- */
+const BIG = { open: false, px: 112, range: 1100, t: 0, lastX: 1e9, lastZ: 1e9 };
+const bigBase = document.createElement('canvas'); bigBase.width = BIG.px; bigBase.height = BIG.px;
+const bigBaseCtx = bigBase.getContext('2d');
+function toggleBigMap(force) {
+  BIG.open = force !== undefined ? force : !BIG.open;
+  const w = el('bigmapWrap');
+  if (w) { w.classList.toggle('show', BIG.open); if (BIG.open) { BIG.t = 0; BIG.lastX = 1e9; updateBigMap(0); } }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const bc = document.getElementById('bigmapClose');
+  if (bc) bc.addEventListener('click', () => toggleBigMap(false));
+  const bw = document.getElementById('bigmapWrap');
+  if (bw) bw.addEventListener('pointerdown', e => { if (e.target === bw) toggleBigMap(false); });
+});
+function updateBigMap(dt) {
+  const cv = el('bigmap');
+  if (!cv || !BIG.open) return;
+  BIG.t -= dt;
+  const moved = Math.hypot(wolf.pos.x - BIG.lastX, wolf.pos.z - BIG.lastZ);
+  if (BIG.t > 0 && moved < 14) { drawBigMap(); return; }
+  BIG.t = 0.6; BIG.lastX = wolf.pos.x; BIG.lastZ = wolf.pos.z;
+  mapTerrainPass(bigBaseCtx, BIG.px, BIG.range, wolf.pos.x, wolf.pos.z);
+  drawBigMap();
+}
+function drawBigMap() {
+  const cv = el('bigmap');
+  const ctx = cv.getContext('2d');
+  const S = cv.width;
+  ctx.clearRect(0, 0, S, S);
+  const offX = (BIG.lastX - wolf.pos.x) / (BIG.range * 2) * S;
+  const offY = (BIG.lastZ - wolf.pos.z) / (BIG.range * 2) * S;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(bigBase, 0, 0, BIG.px, BIG.px, offX, offY, S, S);
+  drawMapOverlays(ctx, S, BIG.range, { big: true });
+  ctx.strokeStyle = 'rgba(200,225,255,.5)'; ctx.lineWidth = 3;
+  ctx.strokeRect(2, 2, S - 4, S - 4);
+  ctx.font = 'bold 16px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#eef4ff';
+  ctx.fillText('N', S / 2, 24); ctx.fillText('S', S / 2, S - 12);
+  ctx.fillText('W', 16, S / 2 + 5); ctx.fillText('E', S - 16, S / 2 + 5);
   ctx.textAlign = 'start';
 }
 
@@ -3083,6 +3201,7 @@ function updateHUD(dt) {
   }
   updateThreatArrow();
   updateMinimap(dt);
+  if (BIG.open) updateBigMap(dt);
   ui.stam.style.width = wolf.stamina.toFixed(0) + '%';
   ui.stam.style.background = wolf.exhausted ? '#c95b4a' : 'linear-gradient(90deg,#7ef0c0,#4db8e8)';
   hudT -= dt; fpsAcc += dt; fpsN++;
@@ -3227,9 +3346,11 @@ addEventListener('keydown', e => {
       case 'KeyQ': wolf.wolfSense(); break;
       case 'KeyC': camYaw = wolf.yaw + Math.PI; break;
       case 'KeyT': timeScale = timeScale === 1 ? 8 : 1; toast(timeScale > 1 ? '⏩ Time flows ×8' : '⏱ Time flows normally'); break;
-      case 'KeyM': toast(audio.toggleMute() ? '🔇 Muted' : '🔊 Sound on'); break;
+      case 'KeyM': toggleBigMap(); break;
+      case 'KeyK': toast(audio.toggleMute() ? '🔇 Muted' : '🔊 Sound on'); break;
       case 'KeyN': MM.on = !MM.on; toast(MM.on ? '🗺️ Minimap on' : '🗺️ Minimap off'); break;
-      case 'KeyP': case 'Escape': setState('pause'); break;
+      case 'KeyP': setState('pause'); break;
+      case 'Escape': if (BIG.open) toggleBigMap(false); else setState('pause'); break;
     }
   } else if (state === 'pause' && (e.code === 'KeyP' || e.code === 'Escape')) {
     setState('play');
