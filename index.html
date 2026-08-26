@@ -3085,7 +3085,7 @@ function drawMapOverlays(ctx, S, range, opts) {
   // ---- player arrow (screen-forward = camYaw + PI) ----
   ctx.save();
   ctx.translate(half, half);
-  ctx.rotate(-camYaw);          // north-up map: camera forward = -(sin camYaw, cos camYaw)
+  ctx.rotate(Math.PI - wolf.yaw);   // north-up map: wolf faces (sin yaw, cos yaw); arrow tracks the PLAYER, not the camera
   ctx.fillStyle = '#ffffff';
   ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(4.6, 5.4); ctx.lineTo(0, 2.8); ctx.lineTo(-4.6, 5.4); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(20,30,40,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
