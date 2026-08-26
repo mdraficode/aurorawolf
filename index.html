@@ -1933,6 +1933,37 @@ const AnimalAnimation = {
   }
 };
 
+const AnimalHealthBar = {
+  // hidden until the player draws first blood; green → amber → pulsing red at death's door
+  show(a) {
+    if (!a.bar) {
+      a.barCv = document.createElement('canvas'); a.barCv.width = 64; a.barCv.height = 10;
+      a.barTex = new THREE.CanvasTexture(a.barCv);
+      a.barTex.minFilter = THREE.LinearFilter; a.barTex.magFilter = THREE.LinearFilter;
+      a.bar = new THREE.Sprite(new THREE.SpriteMaterial({ map: a.barTex, transparent: true, depthWrite: false }));
+      a.bar.scale.set(1.5, 0.22, 1);
+      const b = new THREE.Box3().setFromObject(a.model);   // seat it just above the head
+      a.bar.position.y = (b.isEmpty() ? 1.6 : b.max.y - a.model.position.y) + 0.35;
+      a.model.add(a.bar);
+    }
+    this.draw(a);
+  },
+  draw(a) {
+    const ctx = a.barCv.getContext('2d');
+    const f = Math.max(0, Math.min(1, a.hp / a.maxHp));
+    a.barCol = f > 0.5 ? '#7ec84a' : f > 0.25 ? '#e8b53a' : '#e04328';
+    ctx.clearRect(0, 0, 64, 10);
+    ctx.fillStyle = 'rgba(12,10,8,0.85)'; ctx.fillRect(0, 0, 64, 10);
+    ctx.fillStyle = '#241d16'; ctx.fillRect(1, 1, 62, 8);
+    ctx.fillStyle = a.barCol; ctx.fillRect(1, 1, Math.round(62 * f), 8);
+    a.barTex.needsUpdate = true;
+  },
+  tick(a) {
+    if (!a.bar) return;
+    a.bar.material.opacity = a.hp / a.maxHp <= 0.25 ? 0.62 + 0.38 * Math.sin(tSec * 9) : 1;   // critical: pulse
+  }
+};
+
 const AnimalAIController = {
   STATES: ['idle', 'wander', 'graze', 'seekFood', 'drink', 'flee', 'sleep', 'rest', 'alert', 'investigate', 'follow', 'protect', 'seekCover'],
   perceive(a) {          // awareness of the wolf: distance · speed · direction · night · weather · cover
@@ -2013,6 +2044,7 @@ class Animal {
     this.target = null;
     this.dead = false;
     this.hp = this.sp.hp || 1;
+    this.maxHp = this.hp;
     this.flinchT = 0;
     this.asleep = false;
     this.herd = opts.herd || null;
@@ -2043,6 +2075,7 @@ class Animal {
     if (this.dead) return;
     const ambush = this.aware < 0.5;         // stealth strikes bite deeper
     this.hp -= ambush ? 2 : 1;
+    AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.32;
     pool.burst(this.pos, 12, 0xffb3a0, 1.1, 2.2, 2.6);
     const dx = this.pos.x - wolf.pos.x, dz = this.pos.z - wolf.pos.z;
@@ -2216,6 +2249,7 @@ class Animal {
     this.model.position.copy(this.pos);
     this.model.rotation.y = this.heading;
     AnimalNeeds.update(this, dt, speed > 0.3);
+    AnimalHealthBar.tick(this);
     AnimalAnimation.pose(this, dt, tSec, speed);
   }
   pursue(need) {
@@ -2261,6 +2295,7 @@ class Predator {
     this.timer = 2 + Math.random() * 4;
     this.target = null;
     this.hp = this.sp.hp;
+    this.maxHp = this.hp;
     this.flinchT = 0;
     this.atkCd = 0;
     this.biteT = 0;
@@ -2278,6 +2313,7 @@ class Predator {
   hit() {
     if (this.dead) return;
     this.hp--;
+    AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.38;
     pool.burst(this.pos, 14, 0xffb3a0, 1.2, 2.4, 2.8);
     // heavy: only a slight stagger, barely pushed
@@ -2321,6 +2357,7 @@ class Predator {
       return;                       // staggered by the blow
     }
     this.model.scale.setScalar(this.sp.scale);
+    AnimalHealthBar.tick(this);
     const dWolfHome = Math.hypot(wolf.pos.x - this.home.x, wolf.pos.z - this.home.z);
     let speed = 0;
     this.threatening = false;
