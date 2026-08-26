@@ -38,11 +38,38 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #controls b { color: #cfe8ff; font-weight: 600; }
 
 #flyTimer {
-  position: absolute; top: 74px; left: 50%; transform: translateX(-50%); display: none;
+  position: absolute; top: 96px; left: 50%; transform: translateX(-50%); display: none;
   font-size: 15px; letter-spacing: .08em; color: #e2d4ff; padding: 4px 14px; border-radius: 10px;
   background: rgba(30, 16, 56, 0.55); border: 1px solid rgba(176, 122, 255, 0.45);
   text-shadow: 0 0 12px rgba(176, 122, 255, 0.9);
 }
+#hpWrap { position: absolute; top: 74px; left: 50%; transform: translateX(-50%);
+  width: 190px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
+  border: 1px solid rgba(255, 120, 100, 0.35); overflow: hidden; }
+#hpFill { height: 100%; width: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #ff8a7a, #d8442f); transition: width 0.2s; }
+#vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0; z-index: 40;
+  background: radial-gradient(ellipse at center, rgba(200, 20, 10, 0) 46%, rgba(190, 15, 8, 0.55) 100%); }
+#threatWarn { position: absolute; top: 108px; left: 50%; transform: translateX(-50%); display: none;
+  z-index: 41; white-space: nowrap; font-size: 17px; letter-spacing: .06em; color: #ffd9d2;
+  padding: 7px 18px; border-radius: 12px; background: rgba(58, 10, 6, 0.72);
+  border: 1px solid rgba(255, 90, 60, 0.65); text-shadow: 0 0 10px rgba(255, 60, 30, 0.8);
+  animation: warnPulse 0.7s infinite alternate; }
+@keyframes warnPulse { from { box-shadow: 0 0 12px rgba(255, 60, 30, 0.35); } to { box-shadow: 0 0 26px rgba(255, 60, 30, 0.8); } }
+#threatArrow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 0; height: 0; display: none; z-index: 39; pointer-events: none; }
+#threatArrow .ta-arrow { position: absolute; left: -14px; top: -150px; font-size: 28px; color: #ff4030;
+  text-shadow: 0 0 14px rgba(255, 50, 20, 0.95), 0 0 30px rgba(255, 50, 20, 0.6);
+  animation: taPulse 0.5s infinite alternate; }
+#threatArrow .ta-ring { position: absolute; left: -56px; top: -56px; width: 112px; height: 112px;
+  border: 2px dashed rgba(255, 70, 40, 0.4); border-radius: 50%; animation: taSpin 9s linear infinite; }
+@keyframes taPulse { from { opacity: 0.65; transform: scale(0.92); } to { opacity: 1; transform: scale(1.12); } }
+@keyframes taSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+#deathOv { position: absolute; inset: 0; z-index: 60; pointer-events: none; display: flex;
+  align-items: center; justify-content: center; text-align: center;
+  background: radial-gradient(ellipse at center, rgba(30, 4, 2, 0.25) 20%, rgba(15, 2, 1, 0.92) 100%);
+  opacity: 0; transition: opacity 0.7s; color: #f2c9c0; font-size: 22px; letter-spacing: .04em; }
+#deathOv.show { opacity: 1; }
 #stamWrap { position: absolute; top: 58px; left: 50%; transform: translateX(-50%); width: 210px; height: 8px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(180, 220, 255, 0.16); overflow: hidden; }
 #stamFill { height: 100%; width: 100%; border-radius: 6px; background: linear-gradient(90deg, #7ef0c0, #4db8e8); transition: background .3s; }
 
@@ -213,7 +240,12 @@ body.touch #tPause { display: block; }
     <b>E</b> gather · <b>Q</b> wolf sense · <b>H</b> howl · <b>Drag</b> look · <b>Wheel</b> zoom<br>
     <b>C</b> camera · <b>T</b> time ×8 · <b>M</b> sound · <b>P</b> pause
   </div>
+  <div id="vignette"></div>
+  <div id="threatArrow"><div class="ta-ring"></div><div class="ta-arrow">➤</div></div>
+  <div id="threatWarn">⚠️ Territory</div>
+  <div id="deathOv"><div id="deathMsg"></div></div>
   <div id="flyTimer">✨ Flight 10s</div>
+  <div id="hpWrap"><div id="hpFill"></div></div>
   <div id="stamWrap"><div id="stamFill"></div></div>
   <div id="prompt">E — Gather</div>
   <div id="toasts"></div>
@@ -258,7 +290,7 @@ body.touch #tPause { display: block; }
     <span><b>Drag mouse</b> — look · <b>wheel</b> — zoom</span>
     <span><b>E</b> — gather berries, mushrooms, herbs…</span>
     <span><b>F</b> / ⚔️ — attack! bite & claw nearby prey</span>
-    <span><b>Q</b> — wolf sense · <b>H</b> — howl at the moon</span>
+    <span><b>Q</b> — wolf sense · <b>H</b> — howl · <b>F</b> — attack</span>
     <span><b>T</b> — speed up time · <b>P</b> — pause</span>
   </div>
   <div class="progress"><i id="bootBar"></i></div>
@@ -266,6 +298,7 @@ body.touch #tPause { display: block; }
   <div style="margin-top:26px"><button class="btn" id="btnStart" disabled>SUMMONING THE WILD…</button></div>
   <div class="ov-tip">Every world is unique — endless terrain, weather and auroras.<br>
   Hunt with <b>F</b>: small prey falls in one bite, elk take four — bigger prey, bigger bounty.<br>
+  🐻 Beware <b>territorial predators</b> — bear, tiger, snow leopard. Heed the red warning and the threat arrow; fight back or flee!<br>
   ✨ Rare <b>magic mushrooms</b> grant 10 seconds of flight. Hold jump to climb, look down to dive.<br>
   <span style="opacity:.75">If the world stays dark, your viewer may block WebGL — download the file and open it in a browser.</span></div>
 </template>
@@ -1101,6 +1134,11 @@ class Wolf {
     this.atkCd = 0;
     this.atkT = 0;
     this.flyT = 0;
+    this.hp = 100; this.maxHp = 100;
+    this.lastHurt = -99;
+    this.invulnT = 0;
+    this.deadT = 0;
+    this.killerPos = null;
     this.flyDirY = 0;
     this.trailAcc = 0;
     this.stepAcc = 0;
@@ -1122,6 +1160,11 @@ class Wolf {
     this.model.rotation.y = this.yaw;
   }
   update(dt, input, camYaw, camPitch) {
+    if (this.deadT > 0) {          // slain — respawn handled by updateHUD
+      this.animate(dt, false);
+      return;
+    }
+    if (this.invulnT > 0) this.invulnT -= dt;
     const mvF = clamp((input.f ? 1 : 0) - (input.b ? 1 : 0) + input.my, -1, 1);
     const mvS = clamp((input.r ? 1 : 0) - (input.l ? 1 : 0) + input.mx, -1, 1);
     const mag = Math.hypot(mvF, mvS);
@@ -1312,7 +1355,8 @@ class Wolf {
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     let best = null, bestD = 99;
     for (const ch of chunks.values()) {
-      for (const a of ch.animals) {
+      const targets = ch.animals.concat(ch.predators);
+      for (const a of targets) {
         if (a.dead) continue;
         const dx = a.pos.x - this.pos.x, dz = a.pos.z - this.pos.z;
         const d = Math.hypot(dx, dz);
@@ -1351,16 +1395,16 @@ const wolf = new Wolf();
 /* ---------------- animals ---------------- */
 const SPECIES = {
   // tier 1 — easy: slow, notices late, one bite
-  rabbit:     { label: 'Rabbit',      scale: 0.42, body: 0xa89484, belly: 0xcfc4b4, legs: 0x8d7b6c, head: 0xa89484, ear: 0.34, earW: 0.09, legH: 0.28, bodyLen: 0.52, bodyH: 0.4, snout: 0, tail: 'puff', antler: 0, walk: 2.0, run: 6.2, detect: 8,  hp: 1, meat: 1, anim: 'hop' },
-  hare:       { label: 'Snow Hare',   scale: 0.44, body: 0xeef1f4, belly: 0xffffff, legs: 0xd9dee3, head: 0xeef1f4, ear: 0.38, earW: 0.09, legH: 0.3, bodyLen: 0.54, bodyH: 0.4, snout: 0, tail: 'puff', antler: 0, walk: 2.2, run: 6.6, detect: 8,  hp: 1, meat: 1, anim: 'hop' },
+  rabbit:     { label: 'Rabbit',      scale: 0.58, body: 0xa89484, belly: 0xcfc4b4, legs: 0x8d7b6c, head: 0xa89484, ear: 0.34, earW: 0.09, legH: 0.28, bodyLen: 0.52, bodyH: 0.4, snout: 0, tail: 'puff', antler: 0, walk: 2.0, run: 6.2, detect: 8,  hp: 1, meat: 1, anim: 'hop' },
+  hare:       { label: 'Snow Hare',   scale: 0.60, body: 0xeef1f4, belly: 0xffffff, legs: 0xd9dee3, head: 0xeef1f4, ear: 0.38, earW: 0.09, legH: 0.3, bodyLen: 0.54, bodyH: 0.4, snout: 0, tail: 'puff', antler: 0, walk: 2.2, run: 6.6, detect: 8,  hp: 1, meat: 1, anim: 'hop' },
   // tier 2 — moderate: quick but catchable, small bounty
-  fox:        { label: 'Fox',         scale: 0.5,  body: 0xc96a2f, belly: 0xe8ddca, legs: 0x4a382c, head: 0xc96a2f, ear: 0.16, earW: 0.07, legH: 0.34, bodyLen: 0.62, bodyH: 0.36, snout: 1, tail: 'bushy', antler: 0, walk: 2.4, run: 8.0, detect: 12, hp: 2, meat: 1, pelt: 1 },
-  arcticFox:  { label: 'Arctic Fox',  scale: 0.48, body: 0xe8ecef, belly: 0xffffff, legs: 0xcfd6da, head: 0xe8ecef, ear: 0.15, earW: 0.07, legH: 0.32, bodyLen: 0.6, bodyH: 0.36, snout: 1, tail: 'bushy', antler: 0, walk: 2.3, run: 8.2, detect: 12, hp: 2, meat: 1, pelt: 1 },
-  goat:       { label: 'Mountain Goat', scale: 0.85, body: 0xd8dbe0, belly: 0xf0f2f4, legs: 0xc2c7cd, head: 0xd8dbe0, ear: 0.14, earW: 0.07, legH: 0.66, bodyLen: 0.9, bodyH: 0.5, snout: 1, tail: 'short', antler: 0, horns: 1, walk: 2.0, run: 8.6, detect: 11, hp: 2, meat: 2, pelt: 1, bone: 1 },
+  fox:        { label: 'Fox',         scale: 0.70, body: 0xc96a2f, belly: 0xe8ddca, legs: 0x4a382c, head: 0xc96a2f, ear: 0.16, earW: 0.07, legH: 0.34, bodyLen: 0.62, bodyH: 0.36, snout: 1, tail: 'bushy', antler: 0, walk: 2.4, run: 8.0, detect: 12, hp: 2, meat: 1, pelt: 1 },
+  arcticFox:  { label: 'Arctic Fox',  scale: 0.68, body: 0xe8ecef, belly: 0xffffff, legs: 0xcfd6da, head: 0xe8ecef, ear: 0.15, earW: 0.07, legH: 0.32, bodyLen: 0.6, bodyH: 0.36, snout: 1, tail: 'bushy', antler: 0, walk: 2.3, run: 8.2, detect: 12, hp: 2, meat: 1, pelt: 1 },
+  goat:       { label: 'Mountain Goat', scale: 1.15, body: 0xd8dbe0, belly: 0xf0f2f4, legs: 0xc2c7cd, head: 0xd8dbe0, ear: 0.14, earW: 0.07, legH: 0.66, bodyLen: 0.9, bodyH: 0.5, snout: 1, tail: 'short', antler: 0, horns: 1, walk: 2.0, run: 8.6, detect: 11, hp: 2, meat: 2, pelt: 1, bone: 1 },
   // tier 3 — hard: fast, wary, tough, rich bounty
-  deer:       { label: 'Deer',        scale: 0.9,  body: 0xa5713f, belly: 0xd8c2a4, legs: 0x8a5c34, head: 0xa5713f, ear: 0.2, earW: 0.07, legH: 0.72, bodyLen: 1.05, bodyH: 0.52, snout: 1, tail: 'short', antler: 1, walk: 2.2, run: 10.0, detect: 17, hp: 3, meat: 2, pelt: 1, bone: 1 },
-  reindeer:   { label: 'Reindeer',    scale: 1.0,  body: 0x7d6b58, belly: 0xc9bcae, legs: 0x64513f, head: 0x7d6b58, ear: 0.2, earW: 0.08, legH: 0.78, bodyLen: 1.15, bodyH: 0.56, snout: 1, tail: 'short', antler: 2, walk: 2.1, run: 10.4, detect: 16, hp: 3, meat: 3, pelt: 1, bone: 1 },
-  elk:        { label: 'Elk',         scale: 1.25, body: 0x5d4a3a, belly: 0x9a8a76, legs: 0x4c3c2f, head: 0x5d4a3a, ear: 0.18, earW: 0.09, legH: 0.95, bodyLen: 1.35, bodyH: 0.66, snout: 1, tail: 'short', antler: 2, walk: 1.9, run: 10.8, detect: 15, hp: 4, meat: 4, pelt: 1, bone: 2 }
+  deer:       { label: 'Deer',        scale: 1.25, body: 0xa5713f, belly: 0xd8c2a4, legs: 0x8a5c34, head: 0xa5713f, ear: 0.2, earW: 0.07, legH: 0.72, bodyLen: 1.05, bodyH: 0.52, snout: 1, tail: 'short', antler: 1, walk: 2.2, run: 10.0, detect: 17, hp: 3, meat: 2, pelt: 1, bone: 1 },
+  reindeer:   { label: 'Reindeer',    scale: 1.35, body: 0x7d6b58, belly: 0xc9bcae, legs: 0x64513f, head: 0x7d6b58, ear: 0.2, earW: 0.08, legH: 0.78, bodyLen: 1.15, bodyH: 0.56, snout: 1, tail: 'short', antler: 2, walk: 2.1, run: 10.4, detect: 16, hp: 3, meat: 3, pelt: 1, bone: 1 },
+  elk:        { label: 'Elk',         scale: 1.60, body: 0x5d4a3a, belly: 0x9a8a76, legs: 0x4c3c2f, head: 0x5d4a3a, ear: 0.18, earW: 0.09, legH: 0.95, bodyLen: 1.35, bodyH: 0.66, snout: 1, tail: 'short', antler: 2, walk: 1.9, run: 10.8, detect: 15, hp: 4, meat: 4, pelt: 1, bone: 2 }
 };
 const SPECIES_TABLE = {
   taiga:    [['elk', 0.25], ['hare', 0.45], ['arcticFox', 0.3]],
@@ -1369,6 +1413,20 @@ const SPECIES_TABLE = {
   grove:    [['deer', 0.3], ['rabbit', 0.45], ['fox', 0.25]],
   meadow:   [['rabbit', 0.6], ['deer', 0.25], ['fox', 0.15]],
   mountain: [['goat', 1]]
+};
+
+/* ---- territorial predators: rare, dangerous, rich bounty ---- */
+const PREDATORS = {
+  bear:  { name: 'bear',   label: 'Brown Bear',   icon: '🐻', scale: 1.9,  hp: 8, dmg: 15, walk: 2.2, run: 11.8, reach: 3.9, atkCd: 1.45,
+           body: 0x5d4128, belly: 0x7a5c3c, legs: 0x4a3520, head: 0x5d4128, meat: 6, pelt: 2, bone: 3, build: 'bear' },
+  tiger: { name: 'tiger',  label: 'Tiger',        icon: '🐯', scale: 1.45, hp: 6, dmg: 11, walk: 2.6, run: 13.0, reach: 3.6, atkCd: 1.15,
+           body: 0xc26a1e, belly: 0xe8dcc4, legs: 0xa85716, head: 0xc26a1e, meat: 5, pelt: 2, bone: 2, build: 'cat', stripes: 0x3a2410 },
+  snowLeopard: { name: 'snowLeopard', label: 'Snow Leopard', icon: '🐆', scale: 1.3, hp: 5, dmg: 9, walk: 2.5, run: 12.6, reach: 3.4, atkCd: 1.0,
+           body: 0xcfd6dd, belly: 0xeef2f5, legs: 0xb8c2cb, head: 0xcfd6dd, meat: 4, pelt: 2, bone: 2, build: 'cat', spots: 0x4a5158 }
+};
+const PREDATOR_TABLE = {
+  taiga: [['bear', 1]], forest: [['bear', 0.6], ['tiger', 0.4]],
+  grove: [['tiger', 0.7], ['bear', 0.3]], mountain: [['snowLeopard', 1]], tundra: [['snowLeopard', 0.65], ['bear', 0.35]]
 };
 
 function buildAnimal(sp) {
@@ -1438,7 +1496,75 @@ function buildAnimal(sp) {
   return { group: g, legs, head };
 }
 
+function buildPredator(sp) {
+  const g = new THREE.Group();
+  const mB = matColor(sp.body), mBe = matColor(sp.belly), mL = matColor(sp.legs), mH = matColor(sp.head);
+  const bear = sp.build === 'bear';
+  const lh = bear ? 0.62 : 0.55, bh = bear ? 0.78 : 0.5, bl = bear ? 1.3 : 1.15;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.72, bh, bl), mB);
+  body.position.y = lh + bh / 2; g.add(body);
+  const belly = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.58, bh * 0.34, bl * 0.88), mBe);
+  belly.position.y = lh + bh * 0.2; g.add(belly);
+  if (bear) { // shoulder hump
+    const hump = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.6, bh * 0.34, bl * 0.3), mB);
+    hump.position.set(0, lh + bh * 1.02, -bl * 0.18); g.add(hump);
+  }
+  if (sp.stripes) { // tiger stripes
+    const mS = matColor(sp.stripes);
+    for (let i = 0; i < 6; i++) {
+      const zz = -bl * 0.38 + i * (bl * 0.15);
+      [[1], [-1]].forEach(([side]) => {
+        const st = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.05, bh * 0.62, bl * 0.055), mS);
+        st.position.set(side * bh * 0.365, lh + bh * 0.55, zz);
+        st.rotation.z = side * 0.12; g.add(st);
+      });
+    }
+  }
+  if (sp.spots) { // leopard rosettes
+    const mS = matColor(sp.spots);
+    for (let i = 0; i < 10; i++) {
+      const spt = new THREE.Mesh(new THREE.IcosahedronGeometry(bh * 0.05, 0), mS);
+      spt.position.set((i % 2 ? 1 : -1) * bh * 0.37, lh + bh * (0.45 + 0.1 * (i % 4)), -bl * 0.4 + i * (bl * 0.09));
+      g.add(spt);
+    }
+  }
+  const head = new THREE.Group();
+  head.position.set(0, lh + bh * 1.12, bl * 0.52); g.add(head);
+  const skull = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.56, bh * 0.5, bh * 0.6), mH); head.add(skull);
+  const snout = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.3, bh * 0.24, bh * 0.34), mBe);
+  snout.position.set(0, -bh * 0.1, bh * 0.42); head.add(snout);
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.14, bh * 0.08, bh * 0.06), matColor(0x1c1414));
+  nose.position.set(0, -bh * 0.03, bh * 0.6); head.add(nose);
+  const earGeo = new THREE.IcosahedronGeometry(bh * 0.11, 0);
+  const eL = new THREE.Mesh(earGeo, mH); eL.position.set(bh * 0.2, bh * 0.34, -bh * 0.08); head.add(eL);
+  const eR = new THREE.Mesh(earGeo, mH); eR.position.set(-bh * 0.2, bh * 0.34, -bh * 0.08); head.add(eR);
+  [[bh * 0.1], [-bh * 0.1]].forEach(([xx]) => { // eyes — warning glow
+    const eye = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.07, bh * 0.05, bh * 0.03), matColor(0xffb020));
+    eye.material = eye.material.clone(); eye.material.emissive = new THREE.Color(bear ? 0xff4010 : 0xffb020);
+    eye.position.set(xx, bh * 0.08, bh * 0.3); head.add(eye);
+  });
+  // fangs
+  if (!bear) { // long cat tail
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.1, bh * 0.1, bl * 0.55), mB);
+    tail.position.set(0, lh + bh * 0.85, -bl * 0.75); tail.rotation.x = 0.55; g.add(tail);
+  } else {
+    const tail = new THREE.Mesh(new THREE.IcosahedronGeometry(bh * 0.09, 0), mB);
+    tail.position.set(0, lh + bh * 0.8, -bl * 0.56); g.add(tail);
+  }
+  const legGeo = new THREE.BoxGeometry(bh * 0.19, lh, bh * 0.2);
+  const legs = [];
+  const lx = bh * 0.32, lz = bl * 0.4;
+  [[lx, lz], [-lx, lz], [lx, -lz], [-lx, -lz]].forEach(([x, z]) => {
+    const pivot = new THREE.Group(); pivot.position.set(x, lh, z);
+    const leg = new THREE.Mesh(legGeo, mL); leg.position.y = -lh / 2;
+    pivot.add(leg); g.add(pivot); legs.push(pivot);
+  });
+  g.scale.setScalar(sp.scale);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return { group: g, legs, head };
+}
 let animalTotal = 0;
+let predatorTotal = 0;
 class Animal {
   constructor(speciesName, x, z) {
     this.sp = SPECIES[speciesName];
@@ -1483,7 +1609,7 @@ class Animal {
   update(dt, tSec) {
     if (this.dead) return;
     const dWolf = this.pos.distanceTo(wolf.pos);
-    if (dWolf > 170) { this.model.visible = false; return; }
+    if (dWolf > 230) { this.model.visible = false; return; }
     this.model.visible = true;
     const detect = this.sp.detect * (wolf.speed > 6 ? 1.25 : wolf.speed > 3 ? 0.8 : 0.55);
     if (dWolf < detect && this.state !== 'flee' && (wolf.speed > 3 || dWolf < detect * 0.45)) {
@@ -1564,6 +1690,162 @@ class Animal {
   }
 }
 
+/* ============================================================
+   Territorial predator — patrols its home range; if the wolf
+   steps in, it warns (3 s), then charges. Can be fought and
+   killed for a rich bounty.
+   ============================================================ */
+class Predator {
+  constructor(kind, x, z) {
+    this.sp = PREDATORS[kind];
+    const built = buildPredator(this.sp);
+    this.model = built.group;
+    this.legs = built.legs; this.head = built.head;
+    scene.add(this.model);
+    this.pos = V3(x, heightAt(x, z), z);
+    this.home = { x, z };
+    this.territory = 38;
+    this.heading = Math.random() * Math.PI * 2;
+    this.state = 'lurk';        // lurk → warn → chase → attack → return
+    this.warnT = 0;
+    this.timer = 2 + Math.random() * 4;
+    this.target = null;
+    this.hp = this.sp.hp;
+    this.flinchT = 0;
+    this.atkCd = 0;
+    this.biteT = 0;
+    this.phase = Math.random() * 9;
+    this.dead = false;
+    this.threatening = false;
+    this.reArmed = true;        // re-arm warning after player leaves
+    predatorTotal++;
+  }
+  startFlee() { /* predators don't spook — they hold their ground */ }
+  hit() {
+    if (this.dead) return;
+    this.hp--;
+    this.flinchT = 0.38;
+    pool.burst(this.pos, 14, 0xffb3a0, 1.2, 2.4, 2.8);
+    // heavy: only a slight stagger, barely pushed
+    const dx = this.pos.x - wolf.pos.x, dz = this.pos.z - wolf.pos.z;
+    const l = Math.hypot(dx, dz) || 1;
+    const nx = this.pos.x + dx / l * 0.8, nz = this.pos.z + dz / l * 0.8;
+    if (heightAt(nx, nz) > WATER_Y + 0.2) {
+      this.pos.x = nx; this.pos.z = nz; this.pos.y = heightAt(nx, nz);
+    }
+    if (this.hp <= 0) this.die();
+    else if (this.state === 'lurk' || this.state === 'warn' || this.state === 'return') {
+      this.state = 'chase';       // provoked!
+      audio.growl();
+    }
+  }
+  die() {
+    if (this.dead) return;
+    this.dead = true;
+    this.threatening = false;
+    predatorTotal--;
+    pool.burst(this.pos, 34, 0xffd9a8, 2.2, 4.0, 4.2);
+    let msg = `${this.sp.icon} You slew the ${this.sp.label}! +${this.sp.meat} 🥩`;
+    inv.meat += this.sp.meat;
+    if (this.sp.pelt) { inv.pelt += this.sp.pelt; msg += ` +${this.sp.pelt} 🧥`; }
+    if (this.sp.bone) { inv.bone += this.sp.bone; msg += ` +${this.sp.bone} 🦴`; }
+    stats.slain++;
+    toast(msg, true);
+    updateInv();
+    scene.remove(this.model);
+  }
+  update(dt, tSec) {
+    if (this.dead) return;
+    const dxw = wolf.pos.x - this.pos.x, dzw = wolf.pos.z - this.pos.z;
+    const dWolf = Math.hypot(dxw, dzw);
+    if (dWolf > 200) { this.model.visible = false; this.threatening = false; return; }
+    this.model.visible = true;
+    if (this.flinchT > 0) {
+      this.flinchT -= dt;
+      this.model.scale.setScalar(this.sp.scale * (1 + Math.max(0, this.flinchT) / 0.38 * 0.18));
+      this.threatening = true;
+      return;                       // staggered by the blow
+    }
+    this.model.scale.setScalar(this.sp.scale);
+    const dWolfHome = Math.hypot(wolf.pos.x - this.home.x, wolf.pos.z - this.home.z);
+    let speed = 0;
+    this.threatening = false;
+    if (this.state === 'lurk') {
+      if (dWolfHome < this.territory && this.reArmed && state === 'play' && wolf.deadT <= 0) {
+        this.state = 'warn'; this.warnT = 3;
+        this.reArmed = false;
+        showTerritoryWarning(this.sp);
+        audio.growl();
+        this.heading = Math.atan2(dxw, dzw);
+      } else {
+        if (dWolfHome > this.territory * 1.6) this.reArmed = true;
+        this.timer -= dt;
+        if (this.timer <= 0) {
+          const a = Math.random() * Math.PI * 2, r = Math.random() * 12;
+          this.target = { x: this.home.x + Math.sin(a) * r, z: this.home.z + Math.cos(a) * r };
+          this.timer = 3 + Math.random() * 5;
+        }
+        if (this.target) {
+          const dl = Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z);
+          if (dl > 1.5) { speed = this.sp.walk; this.heading = angLerp(this.heading, Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), Math.min(1, dt * 2.5)); }
+        }
+      }
+    } else if (this.state === 'warn') {
+      // 3-second stare-down: stalks toward the player, preparing to charge
+      this.threatening = true;
+      this.warnT -= dt;
+      this.heading = angLerp(this.heading, Math.atan2(dxw, dzw), Math.min(1, dt * 6));
+      speed = this.sp.walk * 1.5;
+      if (this.warnT <= 0) { this.state = 'chase'; audio.growl(); }
+    } else if (this.state === 'chase') {
+      this.threatening = true;
+      this.heading = angLerp(this.heading, Math.atan2(dxw, dzw), Math.min(1, dt * 5));
+      speed = this.sp.run;
+      if (dWolf < this.sp.reach * 0.8) { this.state = 'attack'; this.atkCd = 0.3; }
+      else if (dWolfHome > this.territory * 1.5) this.state = 'return';  // lost you at the edge of its range
+    } else if (this.state === 'attack') {
+      this.threatening = true;
+      this.heading = angLerp(this.heading, Math.atan2(dxw, dzw), Math.min(1, dt * 7));
+      this.atkCd -= dt;
+      if (dWolf > this.sp.reach * 1.35) {
+        this.state = dWolfHome > this.territory * 1.5 ? 'return' : 'chase';
+      } else if (this.atkCd <= 0) {
+        this.atkCd = this.sp.atkCd;
+        this.biteT = 0.32;
+        pool.burst(V3(this.pos.x + dxw / (dWolf || 1) * 1.2, this.pos.y + 1, this.pos.z + dzw / (dWolf || 1) * 1.2), 8, 0xff5040, 0.8, 1.6, 2.2);
+        if (dWolf < this.sp.reach) wolfTakeDamage(this.sp.dmg, this.pos, this.sp.label, this.sp.icon);
+      }
+    } else if (this.state === 'return') {
+      const dl = Math.hypot(this.home.x - this.pos.x, this.home.z - this.pos.z);
+      this.heading = angLerp(this.heading, Math.atan2(this.home.x - this.pos.x, this.home.z - this.pos.z), Math.min(1, dt * 4));
+      speed = this.sp.walk * 2.2;
+      if (dl < 3) { this.state = 'lurk'; this.timer = 2; }
+    }
+    // terrain-aware movement
+    const nx = this.pos.x + Math.sin(this.heading) * 2.5, nz = this.pos.z + Math.cos(this.heading) * 2.5;
+    if (heightAt(nx, nz) < WATER_Y + 0.3) this.heading += dt * 2.2;
+    if (speed > 0) {
+      this.pos.x += Math.sin(this.heading) * speed * dt;
+      this.pos.z += Math.cos(this.heading) * speed * dt;
+      this.pos.y = heightAt(this.pos.x, this.pos.z);
+    }
+    this.model.position.copy(this.pos);
+    this.model.rotation.y = this.heading;
+    this.phase += dt * (2 + speed * 1.7);
+    const amp = clamp(speed * 0.12, 0, 0.62);
+    this.legs[0].rotation.x = Math.sin(this.phase) * amp;
+    this.legs[1].rotation.x = Math.sin(this.phase + Math.PI) * amp;
+    this.legs[2].rotation.x = Math.sin(this.phase + Math.PI) * amp;
+    this.legs[3].rotation.x = Math.sin(this.phase) * amp;
+    if (this.biteT > 0) { this.biteT -= dt; this.head.rotation.x = 0.55; }
+    else this.head.rotation.x = this.state === 'attack' || this.state === 'chase' ? 0.18 : Math.sin(tSec * 0.5 + this.phase) * 0.25;
+  }
+  dispose() {
+    if (!this.dead) { this.dead = true; predatorTotal--; }
+    scene.remove(this.model);
+  }
+}
+
 /* ================================================================
    Part 4 — chunks, weather, day/night, audio, UI, main loop
    ================================================================ */
@@ -1605,7 +1887,7 @@ const PICKUP_DEF = {
 };
 const PICKUP_GEO = { berryBush: G.berryBush, mushroom: G.mushroom, herb: G.herb, stick: G.stick, stoneP: G.stoneP, magicShroom: G.magicShroom };
 const inv = { berry: 0, mushroom: 0, herb: 0, wood: 0, stone: 0, meat: 0, pelt: 0, bone: 0 };
-const stats = { gathered: 0, caught: 0, biomes: new Set(), playT: 0 };
+const stats = { gathered: 0, caught: 0, slain: 0, biomes: new Set(), playT: 0 };
 const zeroM = new THREE.Matrix4().makeScale(0.0001, 0.0001, 0.0001);
 
 /* ---------------- chunks ---------------- */
@@ -1664,7 +1946,7 @@ function genChunk(cx, cz) {
   terrain.receiveShadow = true;
   group.add(terrain);
 
-  const chunk = { key, cx, cz, group, geo, instanced: [], pickups: [], animals: [] };
+  const chunk = { key, cx, cz, group, geo, instanced: [], pickups: [], animals: [], predators: [] };
 
   /* ---- placement ---- */
   const rng = mulberry32(hash2(cx, cz, SEED));
@@ -1830,6 +2112,16 @@ function genChunk(cx, cz) {
       chunk.animals.push(new Animal(pickWeighted(rng, table), x, z));
     }
   }
+
+  /* ---- territorial predators: at most one per chunk, rare, biome-fit ---- */
+  if (predatorTotal < 5) {
+    const pTable = PREDATOR_TABLE[centerBiome];
+    if (pTable && rng() < 0.13) {
+      const px = cx * CHUNK + 10 + rng() * (CHUNK - 20), pz = cz * CHUNK + 10 + rng() * (CHUNK - 20);
+      if (heightAt(px, pz) > 1.2)
+        chunk.predators.push(new Predator(pickWeighted(rng, pTable), px, pz));
+    }
+  }
   chunks.set(key, chunk);
 }
 
@@ -1839,6 +2131,8 @@ function disposeChunk(chunk) {
   for (const m of chunk.instanced) { if (m.dispose) m.dispose(); }
   for (const a of chunk.animals) a.dispose();
   chunk.animals.length = 0;
+  for (const pr of chunk.predators) pr.dispose();
+  chunk.predators.length = 0;
   chunks.delete(chunk.key);
 }
 
@@ -1918,6 +2212,9 @@ function updateSense(dt) {
     }
     for (const a of ch.animals) {
       if (!a.dead && a.pos.distanceTo(wolf.pos) < 40) pool.burst(a.pos, 2, 0xff6a4a, 0.8, 1.2, 0.6);
+    }
+    for (const pr of ch.predators) {
+      if (!pr.dead && pr.pos.distanceTo(wolf.pos) < 46) pool.burst(pr.pos, 3, 0xff2020, 1.0, 1.4, 0.7);
     }
   }
 }
@@ -2174,6 +2471,44 @@ const audio = {
     o.connect(og); og.connect(this.master);
     o.start(t); o.stop(t + 0.2);
   },
+  growl() {
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(72, t);
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.8);
+    const f = this.ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 300; f.Q.value = 4;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.4, t + 0.12);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.95);
+    const lfo = this.ctx.createOscillator(); lfo.frequency.value = 11;
+    const lg = this.ctx.createGain(); lg.gain.value = 0.14;
+    lfo.connect(lg); lg.connect(g.gain);
+    o.connect(f); f.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + 1); lfo.start(t); lfo.stop(t + 1);
+  },
+  thud() {
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(110, t);
+    o.frequency.exponentialRampToValueAtTime(40, t + 0.22);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + 0.3);
+    const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf;
+    const nf = this.ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 500;
+    const ng = this.ctx.createGain();
+    ng.gain.setValueAtTime(0.3, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    src.connect(nf); nf.connect(ng); ng.connect(this.master);
+    src.start(t); src.stop(t + 0.14);
+  },
   chime() {
     if (!this.ready) return;
     const t0 = this.ctx.currentTime;
@@ -2261,6 +2596,73 @@ function updateMagicGlow(dt) {
       }
     }
 }
+/* ---------------- combat: wolf health & threat UI ---------------- */
+let vignetteA = 0, warnBannerT = 0;
+function wolfTakeDamage(dmg, fromPos, label, icon) {
+  if (state !== 'play' || wolf.deadT > 0 || wolf.invulnT > 0 || wolf.flyT > 0) return;
+  wolf.hp -= dmg;
+  wolf.lastHurt = tSec;
+  wolf.invulnT = 0.6;
+  vignetteA = Math.min(0.85, vignetteA + 0.45);
+  audio.thud();
+  // knocked back a step
+  const dx = wolf.pos.x - fromPos.x, dz = wolf.pos.z - fromPos.z;
+  const l = Math.hypot(dx, dz) || 1;
+  const nx = wolf.pos.x + dx / l * 1.1, nz = wolf.pos.z + dz / l * 1.1;
+  if (heightAt(nx, nz) > WATER_Y + 0.2) { wolf.pos.x = nx; wolf.pos.z = nz; }
+  if (wolf.hp <= 0) {
+    wolf.hp = 0;
+    wolf.deadT = 2.6;
+    wolf.killerPos = fromPos ? { x: fromPos.x, z: fromPos.z } : null;
+    const ov = el('deathOv');
+    if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by the ${label || 'wild'}</b><br><span style="font-size:14px;opacity:.85">The ${label || 'predator'} stands over you… you wake far away, alive.</span>`; ov.classList.add('show'); }
+    vignetteA = 0.9;
+  }
+}
+function wolfRespawn() {
+  let ang = Math.random() * Math.PI * 2;
+  if (wolf.killerPos) ang = Math.atan2(wolf.pos.x - wolf.killerPos.x, wolf.pos.z - wolf.killerPos.z); // run away from the killer
+  let rx = wolf.pos.x, rz = wolf.pos.z;
+  for (let i = 0; i < 14; i++) {
+    const a2 = ang + (i % 2 ? 1 : -1) * i * 0.35;
+    const tx = wolf.pos.x + Math.sin(a2) * 95, tz = wolf.pos.z + Math.cos(a2) * 95;
+    if (heightAt(tx, tz) > WATER_Y + 0.8) { rx = tx; rz = tz; break; }
+  }
+  wolf.pos.x = rx; wolf.pos.z = rz; wolf.pos.y = heightAt(rx, rz) + 0.2;
+  wolf.hp = wolf.maxHp;
+  wolf.invulnT = 3;
+  wolf.deadT = 0;
+  wolf.stamina = 100; wolf.exhausted = false;
+  const ov = el('deathOv');
+  if (ov) ov.classList.remove('show');
+  vignetteA = 0;
+  toast('🐾 You awaken, shaken but alive — your bounty is safe', true);
+}
+function showTerritoryWarning(sp) {
+  const w = el('threatWarn');
+  if (!w) return;
+  warnBannerT = 3;
+  w.innerHTML = `⚠️ ${sp.icon} <b>${sp.label.toUpperCase()} TERRITORY</b> — it has seen you! — 3.0s`;
+  w.style.display = 'block';
+}
+function updateThreatArrow() {
+  const arrow = el('threatArrow');
+  if (!arrow) return;
+  let best = null, bestD = 130;
+  for (const ch of chunks.values()) {
+    for (const pr of ch.predators) {
+      if (pr.dead || !pr.threatening) continue;
+      const d = pr.pos.distanceTo(wolf.pos);
+      if (d < bestD) { bestD = d; best = pr; }
+    }
+  }
+  if (!best || wolf.flyT > 0) { arrow.style.display = 'none'; return; }
+  arrow.style.display = 'block';
+  const a = Math.atan2(best.pos.x - wolf.pos.x, best.pos.z - wolf.pos.z);
+  const deg = (camYaw - a) * 180 / Math.PI;
+  arrow.style.transform = `translate(-50%,-50%) rotate(${deg}deg)`;
+}
+
 function updateHUD(dt) {
   // landscape-first: if a touch device is portrait, the rotate gate covers the
   // screen — pause the world until it's turned back to landscape
@@ -2274,6 +2676,31 @@ function updateHUD(dt) {
       flyEl.textContent = `✨ Flight ${wolf.flyT.toFixed(1)}s`;
     } else flyEl.style.display = 'none';
   }
+  // health
+  if (wolf.hp < wolf.maxHp && tSec - wolf.lastHurt > 6 && wolf.deadT <= 0)
+    wolf.hp = Math.min(wolf.maxHp, wolf.hp + 3 * dt);
+  const hpEl = el('hpFill');
+  if (hpEl) {
+    hpEl.style.width = (wolf.hp / wolf.maxHp * 100).toFixed(0) + '%';
+    hpEl.style.background = wolf.hp < 30 ? '#e0483a' : wolf.hp < 60 ? '#e08a3a' : 'linear-gradient(90deg,#ff8a7a,#d8442f)';
+  }
+  const vg = el('vignette');
+  if (vg) {
+    vignetteA = Math.max(0, vignetteA - dt * 0.55);
+    vg.style.opacity = vignetteA.toFixed(3);
+  }
+  if (wolf.deadT > 0) { if (wolf.deadT - dt <= 0) wolfRespawn(); else wolf.deadT -= dt; }
+  const tw = el('threatWarn');
+  if (tw) {
+    warnBannerT -= dt;
+    if (warnBannerT <= 0) tw.style.display = 'none';
+    else {
+      let wt = 0;
+      for (const ch of chunks.values()) for (const pr of ch.predators) if (!pr.dead && pr.state === 'warn') wt = Math.max(wt, pr.warnT);
+      if (wt > 0) tw.innerHTML = tw.innerHTML.replace(/— \d+(\.\d+)?s/, `— ${wt.toFixed(1)}s`);
+    }
+  }
+  updateThreatArrow();
   ui.stam.style.width = wolf.stamina.toFixed(0) + '%';
   ui.stam.style.background = wolf.exhausted ? '#c95b4a' : 'linear-gradient(90deg,#7ef0c0,#4db8e8)';
   hudT -= dt; fpsAcc += dt; fpsN++;
@@ -2321,7 +2748,8 @@ function showOverlay(mode) {
     ui.ovBody.innerHTML = document.getElementById('tplPause').innerHTML;
     el('pStats').innerHTML =
       `Days survived: <b>${dayCount}</b> · Distance: <b>${(wolf.distance / 1000).toFixed(2)} km</b><br>` +
-      `Gathered: <b>${stats.gathered}</b> · Caught: <b>${stats.caught}</b> · Pelts <b>${inv.pelt}</b> · Bones <b>${inv.bone}</b><br>` +
+      `Gathered: <b>${stats.gathered}</b> · Caught: <b>${stats.caught}</b> · Predators slain <b>${stats.slain || 0}</b><br>` +
+      `Pelts <b>${inv.pelt}</b> · Bones <b>${inv.bone}</b><br>` +
       `Biomes found: <b>${stats.biomes.size}/6</b><br>` +
       `World seed: <b>${SEED}</b>`;
     el('btnResume').onclick = () => setState('play');
@@ -2634,8 +3062,10 @@ function tick() {
   maintainChunks(rdt);
   if (state !== 'pause') {
     const adt = Math.max(dt, 0.0001);
-    for (const ch of chunks.values())
+    for (const ch of chunks.values()) {
       for (const a of ch.animals) a.update(adt, tSec);
+      for (const pr of ch.predators) pr.update(adt, tSec);
+    }
   }
   updateWeather(dt);
   updateAtmosphere(dt);
