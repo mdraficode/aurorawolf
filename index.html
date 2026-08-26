@@ -75,7 +75,7 @@ body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
 @keyframes warnPulse { from { box-shadow: 0 0 12px rgba(255, 60, 30, 0.35); } to { box-shadow: 0 0 26px rgba(255, 60, 30, 0.8); } }
 #threatArrow { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: 0; height: 0; display: none; z-index: 39; pointer-events: none; }
-#threatArrow .ta-arrow { position: absolute; left: -14px; top: -150px; font-size: 28px; color: #ff4030;
+#threatArrow .ta-arrow { position: absolute; left: -15px; top: -152px; font-size: 30px; color: #ff4030;
   text-shadow: 0 0 14px rgba(255, 50, 20, 0.95), 0 0 30px rgba(255, 50, 20, 0.6);
   animation: taPulse 0.5s infinite alternate; }
 #threatArrow .ta-ring { position: absolute; left: -56px; top: -56px; width: 112px; height: 112px;
@@ -262,11 +262,11 @@ body.touch #tPause { display: block; }
     <div id="bigmapBox">
       <div id="bigmapHead"><span id="bigmapTitle">🗺️ Revontulet — the wild around you</span><button id="bigmapClose">✕</button></div>
       <canvas id="bigmap" width="460" height="460"></canvas>
-      <div id="bigmapLegend">🟡 landmark · 🟣 magic mushroom · 🔴 hunting predator · ⭕ dashed = its territory<br>gold chevron points to the nearest landmark · white arrow = you (M / Esc closes)</div>
+      <div id="bigmapLegend">🟡 landmark · 🟣 magic mushroom · 🔴 hunting predator · ⭕ dashed = its territory<br>gold chevron = nearest landmark · white arrow = you · tiny dots = nearby resources (M / Esc closes)</div>
     </div>
   </div>
   <div id="vignette"></div>
-  <div id="threatArrow"><div class="ta-ring"></div><div class="ta-arrow">➤</div></div>
+  <div id="threatArrow"><div class="ta-ring"></div><div class="ta-arrow">▲</div></div>
   <div id="threatWarn">⚠️ Territory</div>
   <div id="deathOv"><div id="deathMsg"></div></div>
   <div id="flyTimer">✨ Flight 10s</div>
@@ -2961,7 +2961,7 @@ function updateThreatArrow() {
 }
 
 /* ---------------- minimap ---------------- */
-const MM = { size: 168, px: 50, range: 230, t: 0, lastX: 1e9, lastZ: 1e9, on: true };
+const MM = { size: 168, px: 64, range: 150, t: 0, lastX: 1e9, lastZ: 1e9, on: true };
 addEventListener('pointerdown', e => { if (e.target && e.target.id === 'minimap') { e.stopPropagation(); toggleBigMap(true); } }, true);
 const mmBase = document.createElement('canvas'); mmBase.width = MM.px; mmBase.height = MM.px;
 const mmBaseCtx = mmBase.getContext('2d');
@@ -3025,12 +3025,17 @@ function drawMapOverlays(ctx, S, range, opts) {
         if (pk2.gathered) continue;
         const [mx, my] = toMap(pk2.x, pk2.z);
         if (mx < -2 || mx > S + 2 || my < -2 || my > S + 2) continue;
+        const dRes = Math.hypot(pk2.x - wolf.pos.x, pk2.z - wolf.pos.z);
         if (pk2.type === 'magicShroom') {
+          if (dRes > range * 0.85) continue;                    // special: generous reach, modest size
           ctx.fillStyle = '#c88fff';
-          ctx.beginPath(); ctx.arc(mx, my, opts.big ? 2.6 : 2.2, 0, 6.29); ctx.fill();
-        } else if (!opts.big) {           // keep the big map uncluttered
+          ctx.beginPath(); ctx.arc(mx, my, opts.big ? 2.4 : 2.6, 0, 6.29); ctx.fill();
+        } else if (!opts.big) {                                 // normal: tiny, only truly nearby
+          if (dRes > 70) continue;
+          ctx.globalAlpha = 0.55 + 0.45 * (1 - dRes / 70);
           ctx.fillStyle = MM_RES_DOT[pk2.type] || '#ddd';
-          ctx.beginPath(); ctx.arc(mx, my, 1.7, 0, 6.29); ctx.fill();
+          ctx.beginPath(); ctx.arc(mx, my, 1.15, 0, 6.29); ctx.fill();
+          ctx.globalAlpha = 1;
         }
       }
     }
@@ -3078,7 +3083,7 @@ function drawMapOverlays(ctx, S, range, opts) {
   // ---- player arrow (screen-forward = camYaw + PI) ----
   ctx.save();
   ctx.translate(half, half);
-  ctx.rotate(camYaw + Math.PI);
+  ctx.rotate(-camYaw);          // north-up map: camera forward = -(sin camYaw, cos camYaw)
   ctx.fillStyle = '#ffffff';
   ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(4.6, 5.4); ctx.lineTo(0, 2.8); ctx.lineTo(-4.6, 5.4); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(20,30,40,.9)'; ctx.lineWidth = 1.2; ctx.stroke();
@@ -3120,7 +3125,7 @@ function updateMinimap(dt) {
 }
 
 /* ---------------- big centered map (M / click minimap) ---------------- */
-const BIG = { open: false, px: 112, range: 1100, t: 0, lastX: 1e9, lastZ: 1e9 };
+const BIG = { open: false, px: 120, range: 450, t: 0, lastX: 1e9, lastZ: 1e9 };
 const bigBase = document.createElement('canvas'); bigBase.width = BIG.px; bigBase.height = BIG.px;
 const bigBaseCtx = bigBase.getContext('2d');
 function toggleBigMap(force) {
