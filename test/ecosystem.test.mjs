@@ -8,7 +8,7 @@ await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play
 await page.waitForTimeout(2000);
 const R = await page.evaluate(() => {
   const R = {}; const dt = 1 / 30;
-  R.modules = ['AnimalStats','AnimalNeeds','AnimalDetection','AnimalAIController','AnimalFlocking','AnimalCombat','AnimalLoot','AnimalAnimation','AnimalLOD','AnimalSpawner','ECO'].map(m => [m, typeof eval(m) !== 'undefined']);
+  R.modules = ['AnimalStats','AnimalNeeds','AnimalDetection','AnimalAIController','AnimalFlocking','AnimalCombat','AnimalLoot','AnimalHealthBar','AnimalAnimation','AnimalLOD','AnimalSpawner','ECO'].map(m => [m, typeof eval(m) !== 'undefined']);
   // herd spawn from real chunks
   let herds = 0, young = 0, total = 0;
   for (const ch of chunks.values()) for (const a of ch.animals) { total++; if (a.herd && a.herd.members.length >= 2 && a.herdLeader) herds++; if (a.young) young++; }
@@ -64,6 +64,20 @@ const R = await page.evaluate(() => {
   let guard = 0;
   while (goat.state === 'protect' && guard++ < 120) { wolf.pos.x = goat.pos.x + 3; wolf.pos.z = goat.pos.z; wolf.pos.y = goat.pos.y; wolf.invulnT = 0; goat.update(dt, tSec); }
   R.goatChargeHit = wolf.hp < hp0 || wolf.invulnT > 0;
+
+  // health bar: revealed on first player strike; turns red near the end
+  const hba = new Animal('elk', wolf.pos.x + 55, wolf.pos.z, { adult: true });
+  hba.aware = 1; hba.hit();                                  // aware hit: 1 dmg, elk 4 → 3
+  R.barRevealed = !!hba.bar && hba.bar.parent === hba.model && !!hba.barCol;
+  R.barHealthy = hba.barCol === '#7ec84a';
+  hba.hp = 1; AnimalHealthBar.show(hba);                     // f = 0.25 → death's door
+  R.barCritical = hba.barCol === '#e04328';
+  hba.hp = 2; AnimalHealthBar.show(hba);
+  R.barHurt = hba.barCol === '#e8b53a';
+  hba.dispose();
+  const pb = new Predator('bear', wolf.pos.x + 45, wolf.pos.z); pb.hit();
+  R.predBar = !!pb.bar && pb.bar.parent === pb.model;
+  pb.dispose();
 
   // sleep at night (diurnal deer), wake on threat
   dayF = 0.1;                                  // night
@@ -186,6 +200,8 @@ if (!R.alertOrFlee || !R.fleesClose) F.push('alert/flee');
 if (!R.preyTires) F.push('prey stamina');
 if (!R.herdPanic) F.push('herd panic');
 if (!R.goatRetaliates || !R.goatChargeHit) F.push('goat retaliation');
+if (!R.barRevealed || !R.predBar) F.push('health bar reveal');
+if (!R.barHealthy || !R.barHurt || !R.barCritical) F.push('health bar colours');
 if (!R.sleepsAtNight || !R.wakesOnThreat) F.push('sleep');
 if (!R.rainMasks || !R.nocturnalKeen) F.push('detection mods');
 if (!R.predatorHunts) F.push('predator hunt');
