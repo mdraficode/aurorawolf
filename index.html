@@ -447,7 +447,7 @@ const nPath  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // winding animal 
 const nVol   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // volcanic fields
 
 /* ---------------- terrain shape ---------------- */
-const CHUNK = 64, SEG = 32, VIEW_R = 3;
+const CHUNK = 64, SEG = 32, VIEW_R = 3;   // 7×7 standing (mobile-kind); ridges unroll 9×9
 const WATER_Y = 0;
 
 function riverBandAt(x, z) {
@@ -3648,6 +3648,12 @@ function genChunk(cx, cz) {
     for (const t of treeSets[k]) chunk.solids.push({ x: t.x, z: t.z, r: br * (t.sx || 1) });
   }
   for (const rk of rocks) if (rk.s >= 1.0) chunk.solids.push({ x: rk.x, z: rk.z, r: 0.8 * rk.s });
+  for (const t of (treeSets.fallenTree || [])) {   // a log is a wall of circles laid end to end
+    const L = 8.5 * (t.s || 1), r = 0.5 * (t.s || 1);
+    const ax = Math.sin(t.ry || 0), az = Math.cos(t.ry || 0);
+    for (let k = -2; k <= 2; k++) chunk.solids.push({ x: t.x + ax * k * L * 0.19, z: t.z + az * k * L * 0.19, r });
+  }
+  for (const t of (treeSets.stump || [])) chunk.solids.push({ x: t.x, z: t.z, r: 0.52 * (t.s || 1) });
   chunk.floorItems = { grass, bushes, ferns, leafPatches, branches, flowers, glowFlowers };
   const dC0 = Math.hypot(cx * CHUNK + 32 - wolf.pos.x, cz * CHUNK + 32 - wolf.pos.z);
   buildChunkVeg(chunk, dC0 > 124);
@@ -3721,7 +3727,7 @@ function maintainChunks(dt) {
     for (let i = 0; i < lodWanted.length && n2 < 3; i++) if (lodWanted[i][2] === 'near') { buildChunkVeg(lodWanted[i][1], false); n2++; }   // closest first: visual pop-in
     for (let i = lodWanted.length - 1; i >= 0 && n2 < 5; i--) if (lodWanted[i][2] === 'far') { buildChunkVeg(lodWanted[i][1], true); n2++; }        // farthest first: perf
   }
-  let budget = 1;
+  let budget = 2;
   while (budget-- > 0 && genQueue.length) {
     const c = genQueue.shift();
     genChunk(c.cx, c.cz);
@@ -4816,8 +4822,9 @@ function updateAtmosphere(dt) {
   scene.fog.color.copy(_sky).lerp(SKY.white, 0.05);
   if (window.__biomeTintAmt > 0) scene.fog.color.lerp(_biomeTint, window.__biomeTintAmt);
 
-  let far = 184 * (1 - 0.32 * weather.rain - 0.42 * weather.snow - 0.16 * weather.cloud) * (1 - 0.12 * (1 - dayF));
-  far = Math.max(85, far);
+  let far = 260 * (1 - 0.32 * weather.rain - 0.42 * weather.snow - 0.16 * weather.cloud) * (1 - 0.12 * (1 - dayF));
+  far = Math.max(110, far);
+  if (wolf.pos.y > 34) far *= 1.38;   // from a ridge, the land unrolls to the haze
   if (WORLD_EVENTS.name === 'blizzard') far *= 0.5;
   scene.fog.far += (far * (window.__biomeFogMul || 1) - scene.fog.far) * Math.min(1, dt * 2);
   if (caveState.in) {                 // the underground dark
