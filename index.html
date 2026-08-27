@@ -1079,12 +1079,65 @@ const G = {};
     [cyl(0.03, 0.05, 0.85), 0x7d5b3a, T(0, 0.07, 0, 0, 0.4, 1.45)]
   ]);
   G.stoneP = bakeParts([[dod(0.24), 0x9a9da2, T(0, 0.14, 0, 0.3, 0.5, 0.2, 1)]]);
+  G.impConifer = crossQuads(0.6, 1);
+  G.impBroad = crossQuads(0.85, 1);
+  G.impDead = crossQuads(0.55, 1);
 })();
 
 const TREE_BASE_H = {
   spruceTall: 26.3, pineTall: 25, fir: 14.1, birchTall: 16.4, oakTall: 15, deadPine: 17,
   youngConifer: 3.7, youngBroad: 3.4, fallenTree: 9, stump: 1.05,
   spruce: 7.1, snowSpruce: 7.1, pine: 7.2, birch: 6.05, autumnBirch: 6.05, rowan: 4.9, oak: 5.8, deadTree: 3.6, dwarfPine: 2.2
+};
+/* ---------------- distant-tree impostors: crossed quads with baked silhouettes ---------------- */
+function impTexture(draw) {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256;
+  draw(cv.getContext('2d'));
+  const tx = new THREE.CanvasTexture(cv);
+  tx.minFilter = THREE.LinearFilter; tx.magFilter = THREE.LinearFilter;
+  return tx;
+}
+function crossQuads(w, h) {          // two intersecting quads — reads as a tree from any side, zero billboarding cost
+  const a = new THREE.PlaneGeometry(w, h).toNonIndexed();
+  const b = new THREE.PlaneGeometry(w, h).toNonIndexed(); b.rotateY(Math.PI / 2);
+  const g = new THREE.BufferGeometry();
+  for (const attr of [['position', 3], ['normal', 3], ['uv', 2]]) {
+    const A = a.attributes[attr[0]].array, B = b.attributes[attr[0]].array;
+    g.setAttribute(attr[0], new THREE.Float32BufferAttribute([...A, ...B], attr[1]));
+  }
+  const n = g.attributes.position.count, cols = new Float32Array(n * 3).fill(1);   // white base: instance tint does the work
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  a.dispose(); b.dispose();
+  return g;
+}
+const impTexConifer = impTexture(ctx => {
+  ctx.fillStyle = '#b3a48c'; ctx.fillRect(58, 208, 12, 48);            // trunk
+  for (let i = 0; i < 7; i++) {                                         // stacked foliage tiers
+    const y0 = 40 + i * 24, half = 14 + i * 7.5;
+    ctx.fillStyle = i % 2 ? '#dae6d0' : '#cfe0c4';
+    ctx.beginPath(); ctx.moveTo(64, y0 - 16); ctx.lineTo(64 - half, y0 + 22); ctx.lineTo(64 + half, y0 + 22); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'destination-out';                     // ragged edges
+  for (let i = 0; i < 26; i++) { ctx.beginPath(); ctx.arc(12 + Math.random() * 104, 40 + Math.random() * 180, 1.2 + Math.random() * 1.8, 0, 7); ctx.fill(); }
+});
+const impTexBroad = impTexture(ctx => {
+  ctx.fillStyle = '#b3a48c'; ctx.fillRect(60, 170, 8, 86);
+  const blobs = [[64, 92, 46], [34, 118, 30], [94, 116, 30], [50, 62, 28], [82, 66, 27], [64, 132, 30]];
+  for (const [x, y, r] of blobs) { ctx.fillStyle = '#d6e2ca'; ctx.beginPath(); ctx.ellipse(x, y, r * 1.05, r * 0.92, 0, 0, 7); ctx.fill(); }
+  ctx.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 70; i++) { ctx.beginPath(); ctx.arc(8 + Math.random() * 112, 20 + Math.random() * 170, 1.5 + Math.random() * 3, 0, 7); ctx.fill(); }
+});
+const impTexDead = impTexture(ctx => {
+  ctx.strokeStyle = '#c9c2b6'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(64, 256); ctx.lineTo(64, 40); ctx.stroke();      // trunk
+  ctx.lineWidth = 4;
+  const branches = [[64, 90, 20, 50], [64, 120, 108, 76], [64, 150, 24, 108], [64, 170, 104, 140], [64, 200, 30, 172]];
+  for (const [x1, y1, x2, y2] of branches) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+});
+const matImp = {
+  conifer: new THREE.MeshStandardMaterial({ map: impTexConifer, vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1, metalness: 0 }),
+  broad:   new THREE.MeshStandardMaterial({ map: impTexBroad,   vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1, metalness: 0 }),
+  dead:    new THREE.MeshStandardMaterial({ map: impTexDead,    vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1, metalness: 0 })
 };
 function makeInstanced(geom, mat, items, shadow, cull) {
   if (!items.length) return null;
@@ -1572,6 +1625,14 @@ class Wolf {
       if (this.stepAcc > 0.12) {
         this.stepAcc = 0;
         pool.burst(this.pos, 2, 0xb9ae94, 0.8, 1.0, 1.4);
+      }
+    }
+    // footsteps: cadence follows gait, timbre follows the ground
+    if (this.grounded && this.speed > 0.6) {
+      this.stepDist = (this.stepDist || 0) + this.speed * dt;
+      if (this.stepDist > (sprint ? 1.9 : 1.25)) {
+        this.stepDist = 0;
+        audio.step(groundStepType(this.pos.x, this.pos.z));
       }
     }
     this.animate(dt, sprint);
@@ -2825,6 +2886,16 @@ const FOREST = {
       branches.push({ x, y: s.h - 0.02, z, ry: rng() * 6.283, s: 0.8 + rng() * 1.1 });
       stats.floor++;
     }
+    const MOSS_TINTS = [0x4a5f33, 0x55682f, 0x3f5a3a];
+    for (let i = 0, n = Math.round(12 * Q); i < n; i++) {   // moss: shady, damp northern ground
+      const x = x0 + rng() * CHUNK, z = z0 + rng() * CHUNK;
+      const s = sample(x, z);
+      if (s.h < 1.2) continue;
+      const p = 0.34 * ((s.w.taiga || 0) + (s.w.swamp || 0) * 0.9 + (s.w.forest || 0) * 0.5 + (s.w.mountain || 0) * 0.25);
+      if (rng() > p) continue;
+      leafPatches.push({ x, y: s.h - 0.015, z, ry: rng() * 6.283, s: 0.6 + rng() * 0.9, tint: _c2.setHex(MOSS_TINTS[(rng() * MOSS_TINTS.length) | 0]).clone() });
+      stats.floor++;
+    }
     // ---- windfall: fallen trunks & stumps where the stand is old ----
     for (let i = 0; i < 3; i++) {
       const x = x0 + 6 + rng() * (CHUNK - 12), z = z0 + 6 + rng() * (CHUNK - 12);
@@ -2837,6 +2908,61 @@ const FOREST = {
     return stats;
   }
 };
+
+const IMP_CLASS = {
+  spruceTall: 'conifer', spruce: 'conifer', snowSpruce: 'conifer', pineTall: 'conifer', pine: 'conifer', fir: 'conifer', youngConifer: 'conifer', dwarfPine: 'conifer',
+  birchTall: 'broad', birch: 'broad', autumnBirch: 'broad', rowan: 'broad', oakTall: 'broad', oak: 'broad', youngBroad: 'broad',
+  deadPine: 'dead', deadTree: 'dead'
+};
+/* builds (and rebuilds) a chunk's vegetation: full geometry up close,
+   3 crossed-quad impostor meshes + no floor detail when far */
+function buildChunkVeg(chunk, far) {
+  for (const m of chunk.vegMeshes) {
+    chunk.group.remove(m);
+    if (m.userData.ownGeo) m.userData.ownGeo.dispose();
+    if (m.dispose) m.dispose();
+  }
+  chunk.vegMeshes.length = 0;
+  const items = chunk.vegItems, floor = chunk.floorItems;
+  if (far) {
+    const byCls = { conifer: [], broad: [], dead: [] };
+    for (const k in items.trees) for (const it of items.trees[k]) {
+      const cls = IMP_CLASS[k]; if (!cls) continue;
+      const h = it.sy * (TREE_BASE_H[k] || 7);
+      const w = h * (cls === 'broad' ? 0.85 : cls === 'dead' ? 0.55 : 0.6);
+      byCls[cls].push({ x: it.x, y: it.y + h * 0.5 - 0.5, z: it.z, ry: it.ry || 0, sx: w, sy: h, sz: w, tint: it.tint });
+    }
+    for (const cls in byCls) {
+      if (!byCls[cls].length) continue;
+      const m = makeInstanced(G['imp' + cls[0].toUpperCase() + cls.slice(1)], matImp[cls], byCls[cls], false, true);
+      if (m) { m.userData.impostor = true; chunk.group.add(m); chunk.vegMeshes.push(m); }
+    }
+    chunk.lod = 'far';
+  } else {
+    for (const k in items.trees) {
+      if (!items.trees[k].length) continue;
+      const m = makeInstanced(G[k], matVeg, items.trees[k], true, true);
+      if (m) { chunk.group.add(m); chunk.vegMeshes.push(m); }
+    }
+    const FLOOR_GEO = { grass: G.grassTuft, bushes: G.bush, ferns: G.fern, leafPatches: G.leafPatch, branches: G.branch, flowers: G.flower };
+    for (const key in FLOOR_GEO) {
+      const arr = floor[key]; if (!arr || !arr.length) continue;
+      const m = makeInstanced(FLOOR_GEO[key], matVeg, arr, false, true);
+      if (m) { m.userData.floor = true; chunk.group.add(m); chunk.vegMeshes.push(m); }
+    }
+    chunk.lod = 'near';
+  }
+}
+function groundStepType(x, z) {      // footstep timbre by ground cover
+  const h = heightAt(x, z);
+  if (h < WATER_Y + 0.3) return 'water';
+  const cl = climateAt(x, z, h);
+  if (weather.snow > 0.25 || cl.temp < -0.45) return 'snow';
+  const w = biomeWeights(x, z, h, cl.temp, cl.moist);
+  if ((w.mountain || 0) > 0.45) return 'rock';
+  if (coverAt(x, z) > 0.35 || (w.taiga || 0) > 0.4) return 'forest';
+  return 'meadow';
+}
 
 function genChunk(cx, cz) {
   const key = ck(cx, cz);
@@ -2881,7 +3007,7 @@ function genChunk(cx, cz) {
   terrain.receiveShadow = true;
   group.add(terrain);
 
-  const chunk = { key, cx, cz, group, geo, instanced: [], pickups: [], animals: [], predators: [], landmarks: [] };
+  const chunk = { key, cx, cz, group, geo, instanced: [], vegMeshes: [], lod: 'near', vegItems: null, floorItems: null, pickups: [], animals: [], predators: [], landmarks: [] };
 
   /* ---- placement ---- */
   const rng = mulberry32(hash2(cx, cz, SEED));
@@ -3020,19 +3146,12 @@ function genChunk(cx, cz) {
     if (chunk.veg) chunk.veg.trees = clearOf(chunk.veg.trees);   // keep the census honest
   }
 
-  /* ---- instantiate ---- */
-  for (const t in treeSets) {
-    if (!treeSets[t].length) continue;
-    const m = makeInstanced(G[t], matVeg, treeSets[t], true, true);
-    if (m) { group.add(m); chunk.instanced.push(m); }
-  }
+  /* ---- instantiate: full meshes near, impostors far ---- */
+  chunk.vegItems = { trees: treeSets };
+  chunk.floorItems = { grass, bushes, ferns, leafPatches, branches, flowers };
+  const dC0 = Math.hypot(cx * CHUNK + 32 - wolf.pos.x, cz * CHUNK + 32 - wolf.pos.z);
+  buildChunkVeg(chunk, dC0 > 124);
   if (rocks.length) { const m = makeInstanced(G.rock, matVeg, rocks, true, true); if (m) { group.add(m); chunk.instanced.push(m); } }
-  if (grass.length) { const m = makeInstanced(G.grassTuft, matVeg, grass, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
-  if (flowers.length) { const m = makeInstanced(G.flower, matVeg, flowers, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
-  if (bushes.length) { const m = makeInstanced(G.bush, matVeg, bushes, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
-  if (ferns.length) { const m = makeInstanced(G.fern, matVeg, ferns, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
-  if (leafPatches.length) { const m = makeInstanced(G.leafPatch, matVeg, leafPatches, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
-  if (branches.length) { const m = makeInstanced(G.branch, matVeg, branches, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
   for (const type in pkSets) {
     if (!pkSets[type].length) continue;
     const m = makeInstanced(PICKUP_GEO[type], type === 'magicShroom' ? matMagic : matVeg, pkSets[type], true);
@@ -3062,6 +3181,7 @@ function disposeChunk(chunk) {
   scene.remove(chunk.group);
   chunk.geo.dispose();
   for (const m of chunk.instanced) { if (m.dispose) m.dispose(); if (m.userData && m.userData.ownGeo) m.userData.ownGeo.dispose(); }
+  for (const m of chunk.vegMeshes) { if (m.userData.ownGeo) m.userData.ownGeo.dispose(); if (m.dispose) m.dispose(); }
   for (const a of chunk.animals) a.dispose();
   chunk.animals.length = 0;
   for (const pr of chunk.predators) pr.dispose();
@@ -3086,6 +3206,17 @@ function maintainChunks(dt) {
     for (const chunk of Array.from(chunks.values())) {
       if (Math.max(Math.abs(chunk.cx - ccx), Math.abs(chunk.cz - ccz)) > VIEW_R + 1) disposeChunk(chunk);
     }
+    // vegetation LOD: near = full geometry, far = impostors (hysteresis 116-132 m); closest first
+    const lodWanted = [];
+    for (const chunk of chunks.values()) {
+      const d = Math.hypot(chunk.cx * CHUNK + 32 - wolf.pos.x, chunk.cz * CHUNK + 32 - wolf.pos.z);
+      const want = d > 132 ? 'far' : d < 116 ? 'near' : chunk.lod;
+      if (want !== chunk.lod) lodWanted.push([d, chunk, want]);
+    }
+    lodWanted.sort((a, b) => a[0] - b[0]);
+    let n2 = 0;
+    for (let i = 0; i < lodWanted.length && n2 < 3; i++) if (lodWanted[i][2] === 'near') { buildChunkVeg(lodWanted[i][1], false); n2++; }   // closest first: visual pop-in
+    for (let i = lodWanted.length - 1; i >= 0 && n2 < 5; i--) if (lodWanted[i][2] === 'far') { buildChunkVeg(lodWanted[i][1], true); n2++; }        // farthest first: perf
   }
   let budget = 1;
   while (budget-- > 0 && genQueue.length) {
@@ -3258,7 +3389,7 @@ function updateAtmosphere(dt) {
   scene.fog.color.copy(_sky).lerp(SKY.white, 0.05);
   if (window.__biomeTintAmt > 0) scene.fog.color.lerp(_biomeTint, window.__biomeTintAmt);
 
-  let far = 168 * (1 - 0.32 * weather.rain - 0.42 * weather.snow - 0.16 * weather.cloud) * (1 - 0.12 * (1 - dayF));
+  let far = 184 * (1 - 0.32 * weather.rain - 0.42 * weather.snow - 0.16 * weather.cloud) * (1 - 0.12 * (1 - dayF));
   far = Math.max(85, far);
   scene.fog.far += (far * (window.__biomeFogMul || 1) - scene.fog.far) * Math.min(1, dt * 2);
   scene.fog.near = scene.fog.far * 0.42;
@@ -3365,6 +3496,21 @@ const audio = {
   setForest(cover, wind) {   // denser canopy = louder rustling overhead
     if (!this.ready || !this.leafG) return;
     this.leafG.gain.setTargetAtTime((0.012 + wind * 0.055) * (0.35 + 0.65 * cover), this.ctx.currentTime, 1.0);
+  },
+  step(type) {               // footstep timbre by ground: soft moss, crunching snow, clicks on rock
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf;
+    src.playbackRate.value = 0.7 + Math.random() * 0.5;
+    const P = { forest: ['lowpass', 420, 0.055], meadow: ['lowpass', 640, 0.05], rock: ['bandpass', 1500, 0.05], snow: ['lowpass', 900, 0.065], water: ['bandpass', 700, 0.05] }[type] || ['lowpass', 500, 0.04];
+    const f = this.ctx.createBiquadFilter(); f.type = P[0]; f.frequency.value = P[1]; f.Q.value = 0.9;
+    const g = this.ctx.createGain();
+    const dur = type === 'snow' ? 0.14 : 0.09;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(P[2] * (0.8 + Math.random() * 0.4), t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(t); src.stop(t + dur + 0.02);
   },
   howl() {
     if (!this.ready) return;
