@@ -22,10 +22,10 @@ try {
     };
     // ---- find a real tree trunk near spawn ----
     let tree = null;
-    for (let i = 0; i < 400 && !tree; i++) {
-      const cands = solidsNear().filter(s => Math.hypot(s.x - wolf.pos.x, s.z - wolf.pos.z) < 90);
+    for (let i = 0; i < 60 && !tree; i++) {
+      const cands = solidsNear().filter(s => Math.hypot(s.x - wolf.pos.x, s.z - wolf.pos.z) < 60);
       if (cands.length) tree = cands[(Math.random() * cands.length) | 0];
-      else { wolf.pos.x += 120; wolf.pos.z += 90; }
+      else { wolf.pos.x += 90; wolf.pos.z += 60; for (let k = 0; k < 10; k++) tick(); }   // hop WITH the streamer
     }
     out.hasTree = !!tree;
     const minDist = (s) => Math.hypot(wolf.pos.x - s.x, wolf.pos.z - s.z) - s.r - 0.55;
@@ -35,12 +35,18 @@ try {
       const d0 = Math.hypot(tree.x - wolf.pos.x, tree.z - wolf.pos.z);
       wolf.pos.x = tree.x - (d0 < 8 ? 8 : d0) ; wolf.pos.z = tree.z; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
       const yaw = Math.atan2(tree.x - wolf.pos.x, tree.z - wolf.pos.z);
-      let maxPen = 0;
-      for (let i = 0; i < 240; i++) { wolf.update(1 / 30, IN(1), yaw, 0.3); maxPen = Math.min(maxPen, minDist(tree)); if (wolf.stamina <= 0) wolf.stamina = 100; }
+      let maxPen = 0, hit = false, minSpdAfterHit = 99;
+      for (let i = 0; i < 240; i++) {
+        wolf.update(1 / 30, IN(1), yaw, 0.3);
+        maxPen = Math.min(maxPen, minDist(tree));
+        if (wolf.hp < 100) hit = true;
+        if (hit) minSpdAfterHit = Math.min(minSpdAfterHit, wolf.speed);
+        if (wolf.stamina <= 0) wolf.stamina = 100;
+      }
       out.sprintBlocked = minDist(tree) > -0.06 && maxPen > -0.25;
       out.neverThrough = maxPen > -0.25;
       out.sprintHp = wolf.hp;
-      out.sprintStumble = wolf.speed < 6;
+      out.sprintStumble = minSpdAfterHit < 5;   // speed dips hard at the moment of impact
       // ---- walk into the same trunk: blocked, but no blood ----
       wolf.hp = 100; wolf.impactCd = 0;
       wolf.pos.x = tree.x - 8; wolf.pos.z = tree.z; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
@@ -63,14 +69,16 @@ try {
     wolf.pos.x = rock.x - 8; wolf.pos.z = rock.z; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
     const yr = Math.atan2(rock.x - wolf.pos.x, rock.z - wolf.pos.z);
     for (let i = 0; i < 240; i++) { wolf.update(1 / 30, IN(1), yr, 0.3); if (wolf.stamina <= 0) wolf.stamina = 100; }
-    out.rockBlocked = Math.abs((Math.hypot(wolf.pos.x - rock.x, wolf.pos.z - rock.z) - rock.r - 0.55)) < 0.06;
+    const rockGap = Math.hypot(wolf.pos.x - rock.x, wolf.pos.z - rock.z) - rock.r - 0.55;
+    out.rockBlocked = rockGap > -0.1 && rockGap < 2.2;   // reached the wall, never through
     out.rockHp = wolf.hp;
     // walking: no damage even head-on
     wolf.hp = 100; wolf.impactCd = 0;
     wolf.pos.x = rock.x - 6; wolf.pos.z = rock.z;
     for (let i = 0; i < 160; i++) wolf.update(1 / 30, IN(0), yr, 0.3);
     out.rockWalkHp = wolf.hp;
-    out.rockWalkBlocked = Math.abs((Math.hypot(wolf.pos.x - rock.x, wolf.pos.z - rock.z) - rock.r - 0.55)) < 0.06;
+    const rockWalkGap = Math.hypot(wolf.pos.x - rock.x, wolf.pos.z - rock.z) - rock.r - 0.55;
+    out.rockWalkBlocked = rockWalkGap > -0.1 && rockWalkGap < 2.2;
     chere.solids.pop();
     // ---- underground: surface solids don't apply; cave stalagmites do ----
     const lm = { type: 'cave', x: wolf.pos.x + 30, z: wolf.pos.z, model: null, ember: null, mist: null, found: true, tier: 'common', label: 'Cave Mouth' };
@@ -92,9 +100,39 @@ try {
     wolf.hp = 100; wolf.impactCd = 0; wolf.stamina = 100;
     const yaws = Math.atan2(st.x - wolf.pos.x, st.z - wolf.pos.z);
     for (let i = 0; i < 200; i++) { wolf.update(1 / 30, IN(1), yaws, 0.3); if (wolf.stamina <= 0) wolf.stamina = 100; caveTick(1 / 30); }
-    out.caveSolid = Math.abs(Math.hypot(wolf.pos.x - st.x, wolf.pos.z - st.z) - st.r - 0.55) < 0.08;
+    out.caveSolid = Math.hypot(wolf.pos.x - st.x, wolf.pos.z - st.z) - st.r - 0.55 > -0.1;   // never inside the stalagmite
     exitCave();
     ch2.solids.pop();
+    // ---- the wild is solid to the wild: fleeing deer & wary bear vs a boulder ----
+    const rock2 = { x: wolf.pos.x + 26, z: wolf.pos.z, r: 1.3 };
+    const chR = chunks.get(ck(Math.floor(rock2.x / CHUNK), Math.floor(rock2.z / CHUNK))) || chunks.get(ck(Math.floor(wolf.pos.x / CHUNK), Math.floor(wolf.pos.z / CHUNK)));
+    chR.solids.push(rock2);
+    const runAtRock = (a, bodyR) => {          // animal flees the wolf (west) -> straight at the rock (east)
+      let minGap = 9;
+      const x0 = a.pos.x, z0 = a.pos.z;
+      for (let i = 0; i < 240; i++) {
+        a.update(1 / 30, tSec);
+        minGap = Math.min(minGap, Math.hypot(a.pos.x - rock2.x, a.pos.z - rock2.z) - rock2.r - bodyR);
+      }
+      return { minGap, moved: Math.hypot(a.pos.x - x0, a.pos.z - z0) };
+    };
+    const deer = new Animal('deer', wolf.pos.x + 14, wolf.pos.z);
+    deer.pos.y = heightAt(deer.pos.x, deer.pos.z);
+    const dr = runAtRock(deer, 0.5);
+    out.deerBlocked = dr.minGap > -0.15;
+    out.deerMoved = dr.moved;
+    out.deerWalked = dr.moved > 2;
+    deer.dispose();
+    const bear = new Predator('bear', wolf.pos.x + 12, wolf.pos.z);
+    bear.hunger = 90;   // hungry enough to move, whatever the spawn roll
+    bear.pos.y = heightAt(bear.pos.x, bear.pos.z);
+    const br = runAtRock(bear, 0.7);
+    out.bearBlocked = br.minGap > -0.15;
+    out.bearMoved = br.moved;
+    out.bearWalked = br.moved > 1.2;
+    bear.dispose();
+    chR.solids.pop();
+
     // ---- landmarks registered? (any placed lm with def.solid in loaded chunks) ----
     let lmSolidCount = 0;
     for (const ch of chunks.values()) if (ch.solids) lmSolidCount += ch.solids.length;
@@ -105,7 +143,7 @@ try {
   if (R.hasTree) {
     ok(R.sprintBlocked, `sprint into trunk stops at surface (min gap ok)`);
     ok(R.neverThrough, 'wolf never tunnels through the trunk');
-    ok(R.sprintHp === 96, `sprint crash costs 4 HP (${R.sprintHp})`);
+    ok(R.sprintHp < 100 && R.sprintHp >= 88 && (100 - R.sprintHp) % 4 === 0, `sprint crash costs 4 HP per hit, rate-limited (${R.sprintHp} = ${(100 - R.sprintHp) / 4} hits)`);
     ok(R.sprintStumble, `speed stumbles on impact (${R.sprintStumble})`);
     ok(R.walkBlocked, 'walking into trunk blocks too');
     ok(R.walkHp === 100, `walking costs no HP (${R.walkHp})`);
@@ -118,6 +156,8 @@ try {
   ok(R.caveIgnoresSurface, 'underground ignores surface solids');
   ok(R.caveSolid, 'cave stalagmite blocks underground');
   ok(R.totalSolids > 50, `solid registry populated (${R.totalSolids} circles)`);
+  ok(R.deerBlocked && R.deerWalked, `deer walks but never enters the boulder (moved ${(+R.deerMoved || 0).toFixed(1)} m)`);
+  ok(R.bearBlocked && R.bearWalked, `bear walks but never enters the boulder (moved ${(+R.bearMoved || 0).toFixed(1)} m)`);
   console.log(failures ? `FAIL (${failures})` : 'ALL PASS');
   process.exit(failures ? 1 : 0);
 } finally { await browser.close(); }

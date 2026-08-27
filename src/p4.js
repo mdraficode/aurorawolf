@@ -1166,36 +1166,7 @@ const SOLID_TRUNK_R = {   // base trunk (bottom) radius per species, × instance
 const WOLF_BODY_R = 0.55;
 function collideSolids(w, dx, dz) {
   if (w.flyT > 0) return;                    // magic flight passes the trunks
-  const R = WOLF_BODY_R;
-  let worst = 0;                             // most head-on normal hit this frame
-  if (caveState.in) {
-    for (const so of caveState.solids) {
-      const ddx = w.pos.x - so.x; if (ddx > 3.2 || ddx < -3.2) continue;
-      const ddz = w.pos.z - so.z; if (ddz > 3.2 || ddz < -3.2) continue;
-      const rr = so.r + R, d2 = ddx * ddx + ddz * ddz;
-      if (d2 >= rr * rr) continue;
-      const d = Math.sqrt(d2) || 0.0001, nx = ddx / d, nz = ddz / d;
-      w.pos.x += nx * (rr - d); w.pos.z += nz * (rr - d);
-      const vn = dx * nx + dz * nz;
-      if (vn < worst) worst = vn;
-    }
-  } else {
-    const c0x = Math.floor(w.pos.x / CHUNK), c0z = Math.floor(w.pos.z / CHUNK);
-    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
-      const ch = chunks.get(ck(c0x + a, c0z + b));
-      if (!ch || !ch.solids) continue;
-      for (const so of ch.solids) {
-        const ddx = w.pos.x - so.x; if (ddx > 3.2 || ddx < -3.2) continue;
-        const ddz = w.pos.z - so.z; if (ddz > 3.2 || ddz < -3.2) continue;
-        const rr = so.r + R, d2 = ddx * ddx + ddz * ddz;
-        if (d2 >= rr * rr) continue;
-        const d = Math.sqrt(d2) || 0.0001, nx = ddx / d, nz = ddz / d;
-        w.pos.x += nx * (rr - d); w.pos.z += nz * (rr - d);
-        const vn = dx * nx + dz * nz;
-        if (vn < worst) worst = vn;
-      }
-    }
-  }
+  const worst = pushOutSolids(w, dx, dz);
   if (worst >= 0) return;                    // grazed nothing solid
   const spd0 = w.speed;
   if (worst < -0.8) w.speed *= 0.22;         // head-on: the world says no
@@ -1211,6 +1182,39 @@ function collideSolids(w, dx, dz) {
     pool.burst(w.pos, 9, 0xa89478, 1.2, 2, 1.8);
     if (tSec - (w.impactToastT || -9) > 8) { w.impactToastT = tSec; toast('💥 Crashed at full speed! −4 HP — watch the trees and rocks'); }
   }
+}
+function pushOutSolids(o, dx, dz) {          // circles push a body out; returns most head-on normal hit
+  const R = o.bodyR || WOLF_BODY_R;
+  let worst = 0;
+  if (caveState.in) {
+    for (const so of caveState.solids) {
+      const ddx = o.pos.x - so.x; if (ddx > 3.2 || ddx < -3.2) continue;
+      const ddz = o.pos.z - so.z; if (ddz > 3.2 || ddz < -3.2) continue;
+      const rr = so.r + R, d2 = ddx * ddx + ddz * ddz;
+      if (d2 >= rr * rr) continue;
+      const d = Math.sqrt(d2) || 0.0001, nx = ddx / d, nz = ddz / d;
+      o.pos.x += nx * (rr - d); o.pos.z += nz * (rr - d);
+      const vn = dx * nx + dz * nz;
+      if (vn < worst) worst = vn;
+    }
+  } else {
+    const c0x = Math.floor(o.pos.x / CHUNK), c0z = Math.floor(o.pos.z / CHUNK);
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      const ch = chunks.get(ck(c0x + a, c0z + b));
+      if (!ch || !ch.solids) continue;
+      for (const so of ch.solids) {
+        const ddx = o.pos.x - so.x; if (ddx > 3.2 || ddx < -3.2) continue;
+        const ddz = o.pos.z - so.z; if (ddz > 3.2 || ddz < -3.2) continue;
+        const rr = so.r + R, d2 = ddx * ddx + ddz * ddz;
+        if (d2 >= rr * rr) continue;
+        const d = Math.sqrt(d2) || 0.0001, nx = ddx / d, nz = ddz / d;
+        o.pos.x += nx * (rr - d); o.pos.z += nz * (rr - d);
+        const vn = dx * nx + dz * nz;
+        if (vn < worst) worst = vn;
+      }
+    }
+  }
+  return worst;
 }
 function groundWaterY() { return caveState.in ? -999 : waterYNow(); }
 function caveFloorAt(x, z) {

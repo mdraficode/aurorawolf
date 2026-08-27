@@ -873,6 +873,8 @@ class RivalWolf {
       this.pos.x += Math.sin(this.heading) * speed * dt;
       this.pos.z += Math.cos(this.heading) * speed * dt;
       this.pos.y = heightAt(this.pos.x, this.pos.z);
+      if (!this.bodyR) this.bodyR = 0.5 * (this.model.scale.x || 1);
+      if (pushOutSolids(this, Math.sin(this.heading), Math.cos(this.heading)) < -0.55) this.heading += (Math.random() < 0.5 ? 1 : -1) * 0.5;
     }
     this.model.position.copy(this.pos);
     this.model.rotation.y = this.heading;
@@ -1843,6 +1845,11 @@ class Predator {
       this.pos.x += Math.sin(this.heading) * speed * dt;
       this.pos.z += Math.cos(this.heading) * speed * dt;
       this.pos.y = heightAt(this.pos.x, this.pos.z);
+      if (dWolf < 120 && !caveState.in) {     // the wild is solid to the wild too (near field only: mobile cost)
+        if (!this.bodyR) this.bodyR = 0.42 * (this.model.scale.x || 1);
+        if (pushOutSolids(this, Math.sin(this.heading), Math.cos(this.heading)) < -0.55)
+          this.heading += (Math.random() < 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.5);   // bump → pick a way around
+      }
     }
     this.model.position.copy(this.pos);
     this.model.rotation.y = this.heading;
