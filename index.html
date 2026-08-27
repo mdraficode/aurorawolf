@@ -847,6 +847,7 @@ const furTex = (() => {
 const matTerrain  = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
 const matVeg      = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, side: THREE.DoubleSide });
 const matMagic = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0, emissive: 0x8a4fff, emissiveIntensity: 0.42 });
+const matGlow = new THREE.MeshStandardMaterial({ color: 0xbdf5e8, roughness: 0.6, metalness: 0, emissive: 0x38d8b0, emissiveIntensity: 0.55 });   // moon petals
 const matColorCache = {};
 function matColor(hex) {
   if (!matColorCache[hex]) matColorCache[hex] = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.92, metalness: 0, bumpMap: furTex, bumpScale: 0.008 });
@@ -1258,7 +1259,7 @@ const LANDMARKS = {
     }
   },
   cave: {
-    label: 'Cave Mouth', icon: '🕳️', biomes: { mountain: 0.65, taiga: 0.2, tundra: 0.15 },
+    label: 'Cave Mouth', icon: '🕳️', tier: 'common', biomes: { mountain: 0.65, taiga: 0.2, tundra: 0.15 }, enterable: true,
     resources(pk, rng, x, z) { for (let i = 0; i < 3; i++) pk.stoneP.push({ x: x + (rng() - 0.5) * 6, y: heightAt(x, z) - 0.04, z: z + (rng() - 0.5) * 6, ry: rng() * 6.28, s: 1 }); },
     build(rng) {
       const g = new THREE.Group();
@@ -1305,6 +1306,184 @@ const LANDMARKS = {
         const moss = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.8), matColor(0x4a6b3a));
         moss.position.set((rng() - 0.5) * 10, 1.32, (rng() - 0.5) * 0.8); g.add(moss);
       }
+      return g;
+    }
+  },
+
+  /* ---- rare discoveries (tier: 'rare') & epics (tier: 'epic') ---- */
+  cabin: {
+    label: 'Abandoned Cabin', icon: '🏚️', tier: 'rare', biomes: { forest: 0.45, taiga: 0.35, meadow: 0.2 },
+    resources(pk, rng, x, z) { pk.stick.push({ x: x + 2.5, y: heightAt(x + 2.5, z) - 0.04, z, ry: rng() * 6.28, s: 1.1 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      const wallMat = matColor(0x6b5236);
+      const mkWall = (w, h, d, px, py, pz, ry) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat); m.position.set(px, py, pz); m.rotation.y = ry; m.castShadow = true; g.add(m); return m; };
+      mkWall(6, 2.6, 0.3, 0, 1.3, -2.2, 0); mkWall(6, 2.6, 0.3, 0, 1.3, 2.2, 0);
+      mkWall(0.3, 2.6, 4.4, -2.9, 1.3, 0, 0); mkWall(0.3, 2.6, 4.4, 2.9, 1.3, 0, 0);
+      const doorway = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2, 0.34), matColor(0x14100c));
+      doorway.position.set(-1.6, 1, -2.2); g.add(doorway);   // dark doorway — long abandoned
+      const roofL = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.22, 5.2), matColor(0x4c3b28));
+      roofL.position.set(-1.55, 3.35, 0); roofL.rotation.z = 0.62; roofL.castShadow = true; g.add(roofL);
+      const roofR = roofL.clone(); roofR.position.x = 1.55; roofR.rotation.z = -0.62; g.add(roofR);
+      const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.8, 0.7), matColor(0x777c82));
+      chimney.position.set(1.7, 3.6, -0.8); g.add(chimney);
+      for (let i = 0; i < 3; i++) { // collapsed fence posts
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.2 + rng(), 5), matColor(0x5d4a33));
+        post.position.set(4 + i * 1.4, 0.7, 3.6 + (rng() - 0.5)); post.rotation.z = (rng() - 0.5) * 0.5; g.add(post);
+      }
+      return g;
+    }
+  },
+  ruins: {
+    label: 'Ancient Ruins', icon: '🏛️', tier: 'rare', biomes: { grove: 0.4, meadow: 0.3, forest: 0.3 },
+    resources(pk, rng, x, z) { pk.stoneP.push({ x: x - 3, y: heightAt(x - 3, z + 2) - 0.04, z: z + 2, ry: rng() * 6.28, s: 1.2 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      for (let i = 0; i < 6; i++) {   // broken colonnade
+        const a = i / 6 * 6.28, R = 5.5;
+        const hgt = 1 + rng() * 3.4;
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, hgt, 7), matColor(0x9b968b));
+        col.position.set(Math.sin(a) * R, hgt / 2 - 0.2, Math.cos(a) * R);
+        col.rotation.z = (rng() - 0.5) * 0.22; col.castShadow = true; g.add(col);
+      }
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.5, 2.6), matColor(0x8f8a80));
+      slab.position.set(0, 0.3, 0); slab.rotation.y = 0.4; g.add(slab);
+      const fallen = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 3.6, 7), matColor(0x948f84));
+      fallen.rotation.z = Math.PI / 2 - 0.1; fallen.position.set(2.2, 0.45, 3.4); g.add(fallen);
+      for (let i = 0; i < 4; i++) {  // reclaiming moss
+        const moss = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5 + rng() * 0.4, 0), matColor(0x4d7040));
+        moss.position.set((rng() - 0.5) * 8, 0.3, (rng() - 0.5) * 8); g.add(moss);
+      }
+      return g;
+    }
+  },
+  waterfall: {
+    label: 'Waterfall', icon: '🌊', tier: 'rare', biomes: { mountain: 0.55, highland: 0.3, taiga: 0.15 }, needsHigh: true,
+    resources(pk, rng, x, z) {},
+    build(rng) {
+      const g = new THREE.Group();
+      const cliff = lmRock(7, 9, 3.4, 0x7d8087, 0, 4.2, -1.4, 0.1);
+      g.add(cliff);
+      const fallMat = new THREE.MeshStandardMaterial({ color: 0xbfe4f2, transparent: true, opacity: 0.7, roughness: 0.25, metalness: 0 });
+      for (let i = 0; i < 3; i++) {   // cascading veils
+        const f = new THREE.Mesh(new THREE.PlaneGeometry(1.5 + i * 0.5, 8.6), fallMat);
+        f.position.set((i - 1) * 1.1, 4.6, 0.35 + i * 0.12);
+        g.add(f);
+      }
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(4.6, 18), new THREE.MeshStandardMaterial({ color: 0x5590b8, transparent: true, opacity: 0.85, roughness: 0.2 }));
+      pool.rotation.x = -Math.PI / 2; pool.position.y = 0.12; g.add(pool);
+      const rim1 = lmRock(1.2, 0.9, 1.1, 0x82858c, -3.6, 0.4, 1.8, 0.4);
+      const rim2 = lmRock(1.1, 0.8, 1.2, 0x82858c, 3.8, 0.35, 2.1, 1.1);
+      g.add(rim1); g.add(rim2);
+      g.userData.mist = { x: 0, z: 1.6 };   // spray particles tick below
+      return g;
+    }
+  },
+  frozenLake: {
+    label: 'Frozen Lake', icon: '🧊', tier: 'rare', biomes: { tundra: 0.6, taiga: 0.25, mountain: 0.15 }, needsWater: true,
+    resources(pk, rng, x, z) {},
+    build(rng) {
+      const g = new THREE.Group();
+      const ice = new THREE.Mesh(new THREE.CircleGeometry(7.5, 22), new THREE.MeshStandardMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0.92, roughness: 0.15, metalness: 0.05 }));
+      ice.rotation.x = -Math.PI / 2; ice.position.y = WATER_Y + 0.12; g.add(ice);
+      for (let i = 0; i < 5; i++) {   // pressure cracks
+        const crack = new THREE.Mesh(new THREE.BoxGeometry(2 + rng() * 4, 0.02, 0.08 + rng() * 0.08), matColor(0x9fc4d8));
+        const a = rng() * 6.28, r = rng() * 5;
+        crack.position.set(Math.sin(a) * r, WATER_Y + 0.14, Math.cos(a) * r); crack.rotation.y = rng() * 6.28; g.add(crack);
+      }
+      for (let i = 0; i < 4; i++) {   // banked snow
+        const snow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.8 + rng() * 0.9, 0), matColor(0xe8eff4));
+        const a = i / 4 * 6.28 + rng();
+        snow.position.set(Math.sin(a) * 7.2, 0.4, Math.cos(a) * 7.2); g.add(snow);
+      }
+      return g;
+    }
+  },
+  wolfShrine: {
+    label: 'Wolf Shrine', icon: '🐺', tier: 'rare', biomes: { forest: 0.4, taiga: 0.35, grove: 0.25 },
+    resources(pk, rng, x, z) { pk.magicShroom.push({ x: x + 2.2, y: heightAt(x + 2.2, z) - 0.04, z, ry: rng() * 6.28, s: 1 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      const cairn = lmRock(2.2, 1.1, 1.6, 0x84888e, 0, 0.5, 0, 0.2);
+      g.add(cairn);
+      const skull = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), matColor(0xe8e2d4));   // offering stone
+      skull.position.set(0, 1.2, 0.3); g.add(skull);
+      for (let i = 0; i < 2; i++) {   // antler totems
+        const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.09, 1.7, 5), matColor(0xd8cfc0));
+        ant.position.set(-0.9 + i * 1.8, 1.5, -0.4); ant.rotation.z = (i ? -1 : 1) * 0.45; g.add(ant);
+        for (let k = 0; k < 3; k++) {
+          const tine = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.6, 4), matColor(0xd8cfc0));
+          tine.position.set(-0.9 + i * 1.8 + (i ? 0.28 : -0.28), 1.5 + 0.35 + k * 0.4, -0.4);
+          tine.rotation.z = (i ? -0.9 : 0.9); g.add(tine);
+        }
+      }
+      const ember = new THREE.Mesh(new THREE.IcosahedronGeometry(0.15, 0), new THREE.MeshBasicMaterial({ color: 0x8fd8ff }));
+      ember.position.set(0, 1.62, 0.3); g.add(ember);
+      g.userData.ember = ember;      // pale blue watchfire
+      return g;
+    }
+  },
+  deposit: {
+    label: 'Rare Deposit', icon: '💎', tier: 'rare', biomes: { mountain: 0.5, highland: 0.3, volcanic: 0.2 },
+    resources(pk, rng, x, z) { for (let i = 0; i < 4; i++) pk.stoneP.push({ x: x + (rng() - 0.5) * 5, y: heightAt(x, z) - 0.04, z: z + (rng() - 0.5) * 5, ry: rng() * 6.28, s: 1.2 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      const base = lmRock(2.6, 1.2, 2.2, 0x6f7278, 0, 0.5, 0, 0.3);
+      g.add(base);
+      const gemMat = new THREE.MeshStandardMaterial({ color: 0x7fe8ff, emissive: 0x2a7f96, emissiveIntensity: 0.55, roughness: 0.3 });
+      for (let i = 0; i < 6; i++) {
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.28 + rng() * 0.4), gemMat);
+        const a = rng() * 6.28, r = rng() * 1.4;
+        gem.position.set(Math.sin(a) * r, 1 + rng() * 0.5, Math.cos(a) * r);
+        gem.rotation.set(rng() * 3, rng() * 3, rng() * 3); g.add(gem);
+      }
+      return g;
+    }
+  },
+  shroomForest: {
+    label: 'Mushroom Forest', icon: '🍄', tier: 'epic', biomes: { enchanted: 0.5, forest: 0.3, grove: 0.2 },
+    resources(pk, rng, x, z) { for (let i = 0; i < 2; i++) pk.magicShroom.push({ x: x + (rng() - 0.5) * 7, y: heightAt(x, z) - 0.04, z: z + (rng() - 0.5) * 7, ry: rng() * 6.28, s: 1.2 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      const capMat = new THREE.MeshStandardMaterial({ color: 0x9a5ee0, emissive: 0x5a2a8a, emissiveIntensity: 0.4, roughness: 0.6 });
+      const stemMat = matColor(0xe8ddf5);
+      for (let i = 0; i < 7; i++) {   // towering caps, 2-5 m tall
+        const a = i / 7 * 6.28 + rng() * 0.5, r = 2.5 + rng() * 5.5;
+        const hgt = 2 + rng() * 3, capR = 0.8 + rng() * 1.1;
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.34, hgt, 6), stemMat);
+        stem.position.set(Math.sin(a) * r, hgt / 2, Math.cos(a) * r); stem.castShadow = true; g.add(stem);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(capR, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), capMat);
+        cap.position.set(Math.sin(a) * r, hgt, Math.cos(a) * r); cap.castShadow = true; g.add(cap);
+        for (let k = 0; k < 3; k++) {
+          const dot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 5, 4), new THREE.MeshBasicMaterial({ color: 0x7ef0ff }));
+          dot.position.set(Math.sin(a) * r + (rng() - 0.5) * capR * 1.3, hgt + 0.1 + rng() * 0.25, Math.cos(a) * r + (rng() - 0.5) * capR * 1.3);
+          g.add(dot);
+        }
+      }
+      return g;
+    }
+  },
+  hiddenValley: {
+    label: 'Hidden Valley', icon: '🌼', tier: 'epic', biomes: { meadow: 0.5, forest: 0.3, grove: 0.2 },
+    resources(pk, rng, x, z) { pk.herb.push({ x: x + 1.5, y: heightAt(x + 1.5, z) - 0.04, z, ry: 0, s: 1.2 }); pk.berryBush.push({ x: x - 2, y: heightAt(x - 2, z) - 0.04, z, ry: rng() * 6.28, s: 1.2 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      // a secret ring of birches around a flower heart
+      for (let i = 0; i < 10; i++) {
+        const a = i / 10 * 6.28, r = 8 + rng() * 1.5;
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 5 + rng() * 3, 5), matColor(0xe6eaea));
+        trunk.position.set(Math.sin(a) * r, 3.5, Math.cos(a) * r); trunk.castShadow = true; g.add(trunk);
+        const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1 + rng() * 0.7), matColor(0x8fb757));
+        crown.position.set(Math.sin(a) * r, 6.5 + rng(), Math.cos(a) * r); g.add(crown);
+      }
+      for (let i = 0; i < 16; i++) {  // flower carpet
+        const a = rng() * 6.28, r = rng() * 6;
+        const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12 + rng() * 0.08, 0), matColor([0xf2a7c3, 0xf7e07a, 0xffffff, 0xb28ff2][(rng() * 4) | 0]));
+        fl.position.set(Math.sin(a) * r, 0.35, Math.cos(a) * r); g.add(fl);
+      }
+      const heart = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), new THREE.MeshStandardMaterial({ color: 0xf5d7fa, emissive: 0x8a5ad0, emissiveIntensity: 0.3 }));
+      heart.position.y = 0.8; g.add(heart);
+      g.userData.ember = heart;
       return g;
     }
   }
@@ -1558,7 +1737,7 @@ class Wolf {
       this.pos.x += dirX * this.speed * dt;
       this.pos.y += dirY * this.speed * dt;
       this.pos.z += dirZ * this.speed * dt;
-      this.pos.y = clamp(this.pos.y, Math.max(heightAt(this.pos.x, this.pos.z), WATER_Y) + 0.7, 130);
+      this.pos.y = clamp(this.pos.y, Math.max(groundAt(this.pos.x, this.pos.z), groundWaterY()) + 0.7, 130);
       this.distance += this.speed * dt;
       this.grounded = false;
       this.swimming = false;
@@ -1586,7 +1765,7 @@ class Wolf {
       target *= clamp(0.55 + 0.45 * Math.min(1, mag), 0.55, 1); // joystick deflection scales speed
     }
     if (moving && this.grounded) {
-      const ah = heightAt(this.pos.x + dirX * 2, this.pos.z + dirZ * 2);
+      const ah = groundAt(this.pos.x + dirX * 2, this.pos.z + dirZ * 2);
       const grade = Math.max(0, (ah - this.pos.y) / 2);
       target *= clamp(1 / (1 + grade * 0.9), 0.4, 1);
     }
@@ -1597,9 +1776,9 @@ class Wolf {
     this.pos.z += dirZ * this.speed * dt;
     this.distance += this.speed * dt;
 
-    const ground = heightAt(this.pos.x, this.pos.z);
-    const wy = waterYNow();
-    this.swimming = ground < wy - 0.85 && this.pos.y <= wy + 0.1;
+    const ground = groundAt(this.pos.x, this.pos.z);
+    const wy = groundWaterY();
+    this.swimming = wy > -500 && ground < wy - 0.85 && this.pos.y <= wy + 0.1;
     if (input.jump && this.grounded && !this.swimming) {
       this.vy = 8.8; this.grounded = false;
       pool.burst(this.pos, 8, 0xcfc4a8, 1.2, 1.4, 2.2);
@@ -1621,7 +1800,7 @@ class Wolf {
       }
       // climb-out assist: paddling toward a low bank pops the wolf onto land
       const ax = this.pos.x + Math.sin(this.yaw) * 1.7, az = this.pos.z + Math.cos(this.yaw) * 1.7;
-      const ah = heightAt(ax, az);
+      const ah = groundAt(ax, az);
       if ((moving || input.jump) && ah > waterYNow() - 0.35 && ah < waterYNow() + 1.8) {
         this.swimming = false; this.vy = 6.4; this.grounded = false;
         this.pos.y = Math.max(this.pos.y, waterYNow() - 0.1);
@@ -2257,8 +2436,15 @@ const AnimalCombat = {
 
 const AnimalLoot = {
   grant(a) {
-    let msg = `⚔️ Took down a ${a.sp.label}! +${a.sp.meat} 🥩`;
-    inv.meat += a.sp.meat;
+    let msg;
+    if (a.luminous) {
+      inv.meat += a.sp.meat; inv.pelt += 1; inv.bone += 2;
+      msg = `🦌 The White Stag falls — the old magic passes on. +${a.sp.meat} 🥩 +1 🧥 +2 🦴`;
+      stats.discoveries.add('whiteStag');
+    } else {
+      msg = `⚔️ Took down a ${a.sp.label}! +${a.sp.meat} 🥩`;
+      inv.meat += a.sp.meat;
+    }
     if (a.sp.pelt) { inv.pelt += a.sp.pelt; msg += ` +${a.sp.pelt} 🧥`; }
     if (a.sp.bone) { inv.bone += a.sp.bone; msg += ` +${a.sp.bone} 🦴`; }
     stats.caught++;
@@ -2934,11 +3120,13 @@ const PICKUP_DEF = {
   herb:      { label: 'Gather Herbs',         inv: 'herb', icon: '🌿', color: 0xa8e0a0 },
   stick:     { label: 'Grab Stick',           inv: 'wood', icon: '🪵', color: 0xb98d5e },
   stoneP:    { label: 'Pick up Stone',        inv: 'stone', icon: '🪨', color: 0xd0d4d8 },
+  caveEnter: { label: 'Enter Cave',        inv: null, icon: '🕳️', color: 0x223244 },
+  caveExit:  { label: 'Leave Cave',        inv: null, icon: '☀️', color: 0xd8c8a0 },
   magicShroom: { label: 'Eat Magic Mushroom',  inv: null, icon: '✨', color: 0xb07aff }
 };
 const PICKUP_GEO = { berryBush: G.berryBush, mushroom: G.mushroom, herb: G.herb, stick: G.stick, stoneP: G.stoneP, magicShroom: G.magicShroom };
 const inv = { berry: 0, mushroom: 0, herb: 0, wood: 0, stone: 0, meat: 0, pelt: 0, bone: 0 };
-const stats = { gathered: 0, caught: 0, slain: 0, biomes: new Set(), playT: 0 };
+const stats = { gathered: 0, caught: 0, slain: 0, biomes: new Set(), playT: 0, discoveries: new Set(), firstFinds: 0 };
 const zeroM = new THREE.Matrix4().makeScale(0.0001, 0.0001, 0.0001);
 
 /* ---------------- chunks ---------------- */
@@ -2993,7 +3181,7 @@ const FOREST = {
   },
   clearingAt(x, z) { return ss(0.5, 0.72, fbm(nClr, x * 0.021, z * 0.021, 2)); },
   pathAt(x, z) { return 1 - ss(0.009, 0.028, Math.abs(fbm(nPath, x * 0.016, z * 0.016, 2) - 0.5)); },
-  place(treeSets, bushes, ferns, grass, leafPatches, branches, cx, cz, rng, sample, slopeOK) {
+  place(treeSets, bushes, ferns, grass, leafPatches, branches, glowFlowers, cx, cz, rng, sample, slopeOK) {
     const Q = this.Q, x0 = cx * CHUNK, z0 = cz * CHUNK;
     const stats = { canopy: 0, mid: 0, young: 0, understory: 0, floor: 0, trees: [] };
     // coarse trunk grid: keeps trunks from fusing while staying organic
@@ -3108,6 +3296,21 @@ const FOREST = {
       branches.push({ x, y: s.h - 0.02, z, ry: rng() * 6.283, s: 0.8 + rng() * 1.1 });
       stats.floor++;
     }
+    // ---- moon petals: faintly glowing night flowers, rare as surprises ----
+    for (let i = 0, n = Math.round(5 * Q); i < n; i++) {
+      const x = x0 + rng() * CHUNK, z = z0 + rng() * CHUNK;
+      const s = sample(x, z);
+      if (s.h < 1.2) continue;
+      const p = 0.05 * ((s.w.enchanted || 0) * 1.6 + (s.w.forest || 0) * 0.5 + (s.w.grove || 0) * 0.45 + (s.w.swamp || 0) * 0.3);
+      if (rng() > p) continue;
+      const cx2 = x + (rng() - 0.5) * 6, cz2 = z + (rng() - 0.5) * 6;
+      for (let k = 0, m = 2 + (rng() * 3 | 0); k < m; k++) {
+        const fx = cx2 + (rng() - 0.5) * 3.4, fz = cz2 + (rng() - 0.5) * 3.4;
+        const fs = sample(fx, fz);
+        if (fs.h < 1.2) continue;
+        glowFlowers.push({ x: fx, y: fs.h - 0.02, z: fz, ry: rng() * 6.283, s: 0.7 + rng() * 0.6 });
+      }
+    }
     const MOSS_TINTS = [0x4a5f33, 0x55682f, 0x3f5a3a];
     for (let i = 0, n = Math.round(12 * Q); i < n; i++) {   // moss: shady, damp northern ground
       const x = x0 + rng() * CHUNK, z = z0 + rng() * CHUNK;
@@ -3166,10 +3369,11 @@ function buildChunkVeg(chunk, far) {
       const m = makeInstanced(G[k], matVeg, items.trees[k], true, true);
       if (m) { m.userData.species = k; chunk.group.add(m); chunk.vegMeshes.push(m); }
     }
-    const FLOOR_GEO = { grass: G.grassTuft, bushes: G.bush, ferns: G.fern, leafPatches: G.leafPatch, branches: G.branch, flowers: G.flower };
+    const FLOOR_GEO = { grass: [G.grassTuft], bushes: [G.bush], ferns: [G.fern], leafPatches: [G.leafPatch], branches: [G.branch], flowers: [G.flower], glowFlowers: [G.flower, matGlow] };
     for (const key in FLOOR_GEO) {
       const arr = floor[key]; if (!arr || !arr.length) continue;
-      const m = makeInstanced(FLOOR_GEO[key], matVeg, arr, false, true);
+      const fe = FLOOR_GEO[key];
+      const m = makeInstanced(fe[0], fe[1] || matVeg, arr, false, true);
       if (m) { m.userData.floor = true; chunk.group.add(m); chunk.vegMeshes.push(m); }
     }
     chunk.lod = 'near';
@@ -3238,7 +3442,7 @@ function genChunk(cx, cz) {
   const treeSets = { spruce: [], snowSpruce: [], pine: [], birch: [], autumnBirch: [], rowan: [], oak: [], deadTree: [], dwarfPine: [],
     spruceTall: [], pineTall: [], birchTall: [], oakTall: [], fir: [], deadPine: [], youngConifer: [], youngBroad: [], fallenTree: [], stump: [] };
   const rocks = [], flowers = [];
-  let grass = [], bushes = [], ferns = [], leafPatches = [], branches = [];
+  let grass = [], bushes = [], ferns = [], leafPatches = [], branches = [], glowFlowers = [];
   const pkSets = { berryBush: [], mushroom: [], herb: [], stick: [], stoneP: [], magicShroom: [] };
 
   const sample = (bx, bz) => {
@@ -3253,7 +3457,7 @@ function genChunk(cx, cz) {
   };
 
   /* ---- boreal forest: layered stands, clearings, paths ---- */
-  chunk.veg = FOREST.place(treeSets, bushes, ferns, grass, leafPatches, branches, cx, cz, rng, sample, slopeOK);
+  chunk.veg = FOREST.place(treeSets, bushes, ferns, grass, leafPatches, branches, glowFlowers, cx, cz, rng, sample, slopeOK);
 
   for (let i = 0; i < 18; i++) {
     const x = cx * CHUNK + rng() * CHUNK, z = cz * CHUNK + rng() * CHUNK;
@@ -3296,9 +3500,11 @@ function genChunk(cx, cz) {
     }
   }
 
-  /* ---- landmarks: rare, spaced, data-driven ---- */
-  if (hash2(cx, cz, SEED ^ 0x5bd1) % 5 === 0) {
-    const types = Object.keys(LANDMARKS);
+  /* ---- landmarks: tiered rarity — common sights, rare finds, epics you tell stories about ---- */
+  const hLm = hash2(cx, cz, SEED ^ 0x5bd1);
+  const tierRoll = hLm % 5 === 0 ? 'common' : hLm % 11 === 5 ? 'rare' : hLm % 71 === 37 ? 'epic' : null;
+  if (tierRoll) {
+    const types = Object.keys(LANDMARKS).filter(k => (LANDMARKS[k].tier || 'common') === tierRoll);
     let type = types[hash2(cx, cz, SEED ^ 0x9e37) % types.length];
     const def = LANDMARKS[type];
     const cS = sample(cx * CHUNK + CHUNK / 2, cz * CHUNK + CHUNK / 2);
@@ -3312,7 +3518,8 @@ function genChunk(cx, cz) {
     if (okBiome) {
       const lx = cx * CHUNK + 14 + rng() * (CHUNK - 28), lz = cz * CHUNK + 14 + rng() * (CHUNK - 28);
       const ls = sample(lx, lz);
-      if (ls.h > 1.1) {
+      if (def.needsHigh && ls.h < 22) { /* waterfalls need a hillside */ }
+      else if (ls.h > 1.1) {
         let model = def.build(rng), ry = rng() * 6.28;
         if (def.needsWater) {
           // find water in this chunk; lay the log along the shoreline contour (across the water)
@@ -3331,8 +3538,9 @@ function genChunk(cx, cz) {
         if (model) {
           if (!def.needsWater) { model.position.set(lx, ls.h - 0.25, lz); model.rotation.y = ry; }
           scene.add(model);
-          const lm = { type, x: model.position.x, z: model.position.z, model, chunkKey: key, ember: model.userData.ember || null };
+          const lm = { type, x: model.position.x, z: model.position.z, model, chunkKey: key, ember: model.userData.ember || null, mist: model.userData.mist || null, found: false, tier: def.tier || 'common', label: def.label };
           landmarkList.push(lm);
+          if (def.enterable) chunk.pickups.push({ type: 'caveEnter', mesh: null, idx: 0, x: model.position.x, y: model.position.y + 1.3, z: model.position.z + 2.2, gathered: false, lm });
           chunk.landmarks = chunk.landmarks || [];
           chunk.landmarks.push(lm);
           def.resources(pkSets, rng, lm.x, lm.z);   // special nearby resources
@@ -3366,13 +3574,13 @@ function genChunk(cx, cz) {
       return true;
     });
     for (const k in treeSets) treeSets[k] = clearOf(treeSets[k]);
-    grass = clearOf(grass); bushes = clearOf(bushes); ferns = clearOf(ferns); leafPatches = clearOf(leafPatches); branches = clearOf(branches);
+    grass = clearOf(grass); bushes = clearOf(bushes); ferns = clearOf(ferns); leafPatches = clearOf(leafPatches); branches = clearOf(branches); glowFlowers = clearOf(glowFlowers);
     if (chunk.veg) chunk.veg.trees = clearOf(chunk.veg.trees);   // keep the census honest
   }
 
   /* ---- instantiate: full meshes near, impostors far ---- */
   chunk.vegItems = { trees: treeSets };
-  chunk.floorItems = { grass, bushes, ferns, leafPatches, branches, flowers };
+  chunk.floorItems = { grass, bushes, ferns, leafPatches, branches, flowers, glowFlowers };
   const dC0 = Math.hypot(cx * CHUNK + 32 - wolf.pos.x, cz * CHUNK + 32 - wolf.pos.z);
   buildChunkVeg(chunk, dC0 > 124);
   if (rocks.length) { const m = makeInstanced(G.rock, matVeg, rocks, true, true); if (m) { group.add(m); chunk.instanced.push(m); } }
@@ -3416,6 +3624,7 @@ function disposeChunk(chunk) {
 }
 
 function maintainChunks(dt) {
+  if (caveState.in) return;   // the surface waits while you are under it
   maintainT -= dt;
   if (maintainT <= 0) {
     maintainT = 0.4;
@@ -3451,8 +3660,22 @@ function maintainChunks(dt) {
 
 /* ---------------- nearest pickup / gathering ---------------- */
 function nearestPickup() {
+  if (caveState.in) {                 // underground: the cave's own trove
+    let best = null, bestD = 2.7;
+    for (const p of caveState.pickups) {
+      if (p.gathered) continue;
+      const d = Math.hypot(p.x - wolf.pos.x, p.z - wolf.pos.z, (p.y - wolf.pos.y) * 0.7);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return best;
+  }
   const ccx = Math.floor(wolf.pos.x / CHUNK), ccz = Math.floor(wolf.pos.z / CHUNK);
   let best = null, bestD = 2.7;
+  if (meteorSite) for (const p of meteorSite.loose) {
+    if (p.gathered) continue;
+    const d = Math.hypot(p.x - wolf.pos.x, p.z - wolf.pos.z, (p.y - wolf.pos.y) * 0.7);
+    if (d < bestD) { bestD = d; best = p; }
+  }
   for (let dz = -1; dz <= 1; dz++)
     for (let dx = -1; dx <= 1; dx++) {
       const ch = chunks.get(ck(ccx + dx, ccz + dz));
@@ -3468,8 +3691,12 @@ function nearestPickup() {
 function gather(p) {
   const def = PICKUP_DEF[p.type];
   p.gathered = true;
-  p.mesh.setMatrixAt(p.idx, zeroM);
-  p.mesh.instanceMatrix.needsUpdate = true;
+  if (p.type === 'caveEnter') { enterCave(p.lm); return; }
+  if (p.type === 'caveExit') { exitCave(); return; }
+  if (p.mesh && p.mesh.setMatrixAt) {
+    p.mesh.setMatrixAt(p.idx, zeroM);
+    p.mesh.instanceMatrix.needsUpdate = true;
+  } else if (p.mesh) p.mesh.visible = false;
   if (p.type === 'magicShroom') {
     stats.gathered++;
     wolf.flyT = 10;
@@ -3487,8 +3714,24 @@ function gather(p) {
 }
 
 /* ---------------- wolf sense ---------------- */
-let senseT = 0, senseTick = 0;
+let senseT = 0, senseTick = 0, discoverTick = 1;
 function updateSense(dt) {
+  discoverTick -= dt;   // discoveries always tick, sense or not
+  if (discoverTick <= 0) {
+    discoverTick = 0.5;
+    for (const lm of landmarkList) {
+      if (lm.found) continue;
+      if (Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z) > 19) continue;
+      lm.found = true;
+      const first = !stats.discoveries.has(lm.type);
+      stats.discoveries.add(lm.type);
+      if (first) {
+        stats.firstFinds++;
+        toast(`📍 First discovery: ${lm.label}! ${lm.tier === 'epic' ? '✨ A sight few wolves ever see…' : lm.tier === 'rare' ? 'A rare find.' : ''}`, true);
+        if (lm.tier !== 'common') { wolf.hp = Math.min(wolf.maxHp, wolf.hp + 25); wolf.stamina = 100; audio.chime(); }   // the wild rewards curiosity
+      } else toast(`📍 ${lm.label}`);
+    }
+  }
   if (senseT <= 0) return;
   senseT -= dt; senseTick -= dt;
   if (senseTick > 0) return;
@@ -3556,8 +3799,39 @@ function waterYNow() { return WATER_Y + WORLD_EVENTS.floodH; }
    dramatic events: storms, blizzards, floods, forest fires,
    great migrations, rival wolf packs. Weather becomes gameplay.
    ============================================================ */
+let meteorSite = null;
+function makeMeteorSite(ix, iz) {   // star-metal on the earth
+  const g = new THREE.Group();
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x4c4650, emissive: 0xb06a2a, emissiveIntensity: 0.35, roughness: 0.8 });
+  for (let i = 0; i < 5; i++) {
+    const rk = new THREE.Mesh(new THREE.DodecahedronGeometry(0.4 + Math.random() * 0.7, 0), rockMat);
+    const a = Math.random() * 6.28, r = Math.random() * 3.2;
+    rk.position.set(ix + Math.sin(a) * r, heightAt(ix + Math.sin(a) * r, iz + Math.cos(a) * r) + 0.15, iz + Math.cos(a) * r);
+    rk.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+    g.add(rk);
+  }
+  const pit = new THREE.Mesh(new THREE.CircleGeometry(4.4, 16), new THREE.MeshStandardMaterial({ color: 0x2a2422, roughness: 1 }));
+  pit.rotation.x = -Math.PI / 2; pit.position.set(ix, heightAt(ix, iz) + 0.02, iz);
+  g.add(pit);
+  scene.add(g);
+  pool.burst(V3(ix, heightAt(ix, iz) + 1, iz), 30, 0xffb36a, 2, 4, 3);
+  const lm = { type: 'meteor', x: ix, z: iz, model: g, chunkKey: null, ember: null, mist: null, found: false, tier: 'rare', label: 'Fallen Star' };
+  landmarkList.push(lm);
+  const loose = [];
+  const drop = (type, x, z) => {
+    const geo = PICKUP_GEO[type];
+    const m = new THREE.Mesh(geo, type === 'magicShroom' ? matMagic : matVeg);
+    m.position.set(x, heightAt(x, z) + 0.05, z);
+    g.add(m);
+    loose.push({ type, x, y: heightAt(x, z), z, gathered: false, mesh: m });
+  };
+  for (let i = 0; i < 3; i++) { const a = Math.random() * 6.28, r = 1 + Math.random() * 2.6; drop('stoneP', ix + Math.sin(a) * r, iz + Math.cos(a) * r); }
+  drop('magicShroom', ix + 2.4, iz - 1.5);
+  meteorSite = { group: g, lm, loose, ttl: 300 };
+  toast('💥 The star struck the earth — seek the fall site!', true);
+}
 const WORLD_EVENTS = {
-  active: null, name: null, t: 0, dur: 0,
+  active: null, name: null, t: 0, dur: 0, auroraBoost: 1,
   cooldown: 60 + Math.random() * 60,
   rollT: 12,
   fireAt: null,     // { x, z, r } while a fire burns
@@ -3591,6 +3865,12 @@ const WORLD_EVENTS = {
     push('blizzard', (k === 'tundra' || k === 'taiga' || k === 'mountain' || k === 'highland') ? 0.9 : (weather.snow > 0.2 ? 0.5 : 0.08), () => EVENTS.blizzard());
     push('fire', weather.rain < 0.15 && dayF > 0.4 && ((w.forest || 0) + (w.grove || 0) + (w.taiga || 0) > 0.55) ? 0.7 : 0, () => EVENTS.fire());
     push('flood', (weather.rain > 0.45 || weather.storm > 0.5) ? 0.8 : 0.05, () => EVENTS.flood());
+    // mysticism: only at night, only rarely — wonder must stay wondrous
+    if (dayF < 0.25 && !caveState.in) {
+      push('aurora', 0.17, () => EVENTS.aurora());
+      push('meteor', 0.13, () => EVENTS.meteor());
+      push('whiteStag', 0.15, () => EVENTS.whiteStag());
+    }
     if (!opts.length) return null;
     let tot = 0; for (const o of opts) tot += o.wt;
     let r = Math.random() * tot;
@@ -3606,7 +3886,7 @@ const WORLD_EVENTS = {
   end() {
     if (this.active && this.active.finish) this.active.finish();
     this.active = null; this.name = null;
-    this.fireAt = null; this.chill = 0;
+    this.fireAt = null; this.chill = 0; this.auroraBoost = 1;
     this.cooldown = 110 + Math.random() * 90;   // the world holds its breath
   },
   force(name) {   // tests & debugging
@@ -3748,6 +4028,89 @@ const EVENTS = {
       finish() { delete herd.route; }
     };
   },
+  aurora() {                // the sky itself performs
+    return {
+      dur: 85,
+      begin() {
+        WORLD_EVENTS.auroraBoost = 2.35;
+        toast('🌌 The northern sky ignites — the lights dance tonight!', true);
+        audio.howl(0.8);
+        setTimeout(() => audio.ready && audio.howl(0.62), 2600);
+      },
+      tick() { },
+      finish() { WORLD_EVENTS.auroraBoost = 1; }
+    };
+  },
+  meteor() {                // a star falls
+    const ev = { dur: 34, t: 0, impacted: false, streak: null, from: null, to: null };
+    return {
+      dur: 34,
+      begin() {
+        const a = Math.random() * 6.28;
+        ev.from = { x: wolf.pos.x + Math.sin(a) * 420, y: 240, z: wolf.pos.z + Math.cos(a) * 420 };
+        ev.to = { x: wolf.pos.x + Math.sin(a + 0.9) * (170 + Math.random() * 80), y: 0, z: wolf.pos.z + Math.cos(a + 0.9) * (170 + Math.random() * 80) };
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texGlow, color: 0xffd9a0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+        sp.scale.set(26, 26, 1);
+        sp.position.set(ev.from.x, ev.from.y, ev.from.z);
+        scene.add(sp);
+        ev.streak = sp;
+        toast('🌠 A star falls beyond the trees…', true);
+      },
+      tick(dt) {
+        ev.t += dt;
+        const k = Math.min(1, ev.t / 3.2);
+        ev.streak.position.set(ev.from.x + (ev.to.x - ev.from.x) * k, ev.from.y + (ev.to.y - ev.from.y) * k, ev.from.z + (ev.to.z - ev.from.z) * k);
+        ev.streak.material.opacity = 1 - Math.max(0, k - 0.75) * 4;
+        if (k >= 1 && !ev.impacted) {
+          ev.impacted = true;
+          scene.remove(ev.streak);
+          const ix = ev.to.x, iz = ev.to.z;
+          if (heightAt(ix, iz) > 1.2) makeMeteorSite(ix, iz);
+          else this.done = true;
+        }
+      },
+      finish() { if (ev.streak) scene.remove(ev.streak); }
+    };
+  },
+  whiteStag() {             // old magic walks
+    const ev = { stag: null, seen: false };
+    return {
+      dur: 300,
+      begin() {
+        let x = wolf.pos.x, z = wolf.pos.z;
+        for (let i = 0; i < 30; i++) {
+          const a = Math.random() * 6.28, d = 110 + Math.random() * 60;
+          x = wolf.pos.x + Math.sin(a) * d; z = wolf.pos.z + Math.cos(a) * d;
+          if (heightAt(x, z) > 1.5) break;
+        }
+        const st = new Animal('reindeer', x, z, { adult: true });
+        st.luminous = true;
+        st.model.traverse(o => {
+          if (o.isMesh && o.material && o.material.color) {
+            o.material = o.material.clone();
+            o.material.color.lerp(new THREE.Color(0xf2f6ff), 0.8);
+            o.material.emissive = new THREE.Color(0x8fd0ff);
+            o.material.emissiveIntensity = 0.42;
+          }
+        });
+        st.aware = 0;
+        const ch = chunks.get(Math.floor(x / CHUNK) + ',' + Math.floor(z / CHUNK)) || [...chunks.values()][0];
+        if (ch) ch.animals.push(st);
+        ev.stag = st;
+        stats.discoveries.add('whiteStag');
+      },
+      tick() {
+        const st = ev.stag;
+        if (!st || st.dead) { this.done = true; return; }
+        if (!ev.seen && st.aware >= 0.5 && st.pos.distanceTo(wolf.pos) < 70) {
+          ev.seen = true;
+          toast('🦌 A white stag! Old magic walks these woods — follow it.', true);
+          audio.chime();
+        }
+      },
+      finish() { const st = ev.stag; if (st && !st.dead) st.dispose(); }
+    };
+  },
   rivalPack() {
     return {
       dur: 240,
@@ -3826,9 +4189,213 @@ function charVegetation(fx, fz, fr) {   // scorched earth: char trunks, blacken 
   }
 }
 
+/* ============================================================
+   Caves & the underground — enter through a cave mouth (E),
+   descend into a living cavern: crystals, pools, mushrooms,
+   rare stones… and things that sleep in the dark.
+   ============================================================ */
+const caveState = {
+  in: false, group: null, y0: 0, R: 26, cx: 0, cz: 0, variant: 'cave',
+  pickups: [], predators: [], lights: [], poolAt: null, entrance: null,
+  reentryCd: 0, dripT: 2, discovered: false
+};
+function groundAt(x, z) { return caveState.in ? caveFloorAt(x, z) : heightAt(x, z); }
+function groundWaterY() { return caveState.in ? -999 : waterYNow(); }
+function caveFloorAt(x, z) {
+  let y = caveState.y0 + (fbm(nVar, x * 0.09, z * 0.09, 2) - 0.5) * 0.9;
+  if (caveState.poolAt) {
+    const d = Math.hypot(x - caveState.poolAt.x, z - caveState.poolAt.z);
+    y -= (1 - ss(1.2, 4.6, d)) * 1.35;   // basin
+  }
+  const dc = Math.hypot(x - caveState.cx, z - caveState.cz);
+  y += ss(caveState.R * 0.62, caveState.R * 0.98, dc) * (caveState.R * 0.34);   // walls rise at the rim
+  return y;
+}
+function enterCave(lm) {
+  if (caveState.in || caveState.reentryCd > 0 || !lm) return;
+  const rng = mulberry32((hash2(lm.x | 0, lm.z | 0, SEED ^ 0xc0ffee) >>> 0) || 1234);
+  const surfY = heightAt(lm.x, lm.z);
+  caveState.in = true;
+  caveState.cx = lm.x; caveState.cz = lm.z;
+  caveState.y0 = surfY - 34;
+  caveState.R = 24 + rng() * 7;
+  caveState.variant = rng() < 0.25 ? 'crystal' : 'cave';
+  caveState.entrance = { x: lm.x, z: lm.z, y: surfY };
+  caveState.pickups = []; caveState.predators = []; caveState.lights = [];
+  caveState.discovered = false;
+  buildCave(rng);
+  for (const ch of chunks.values()) ch.group.visible = false;   // the surface waits, unseen
+  wolf.pos.x = lm.x; wolf.pos.z = lm.z + caveState.R * 0.45;
+  wolf.pos.y = caveFloorAt(wolf.pos.x, wolf.pos.z) + 0.2;
+  wolf.vy = 0;
+  pool.burst(wolf.pos, 16, 0x8a7a5a, 1, 2, 2);
+  if (caveState.variant === 'crystal') {
+    stats.discoveries.add('crystalCave'); stats.firstFinds++;
+    toast('💎 A crystal cave! Light that few wolves ever see…', true);
+    audio.chime();
+  } else toast('🕳️ You slip into the dark…', true);
+}
+function exitCave() {
+  if (!caveState.in) return;
+  const e = caveState.entrance;
+  caveState.in = false;
+  wolf.pos.x = e.x; wolf.pos.z = e.z + 4; wolf.pos.y = e.y + 0.2;
+  wolf.vy = 0;
+  caveState.reentryCd = 4;
+  for (const ch of chunks.values()) ch.group.visible = true;    // the world returns
+  disposeCave();
+  toast('☀️ Back under the open sky.');
+}
+function disposeCave() {
+  for (const ch of chunks.values()) ch.group.visible = true;
+  if (caveState.group) {
+    caveState.group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); } });
+    scene.remove(caveState.group);
+    caveState.group = null;
+  }
+  for (const l of caveState.lights) scene.remove(l);
+  caveState.lights = [];
+  for (const p of caveState.predators) p.dispose();
+  caveState.predators = [];
+  caveState.pickups = [];
+}
+function cavePickupMesh(type, x, y, z, rng) {
+  const geo = PICKUP_GEO[type]; if (!geo) return null;
+  const m = new THREE.Mesh(geo, type === 'magicShroom' ? matMagic : matVeg);
+  m.position.set(x, y + 0.05, z);
+  m.rotation.y = rng() * 6.28;
+  const sc = 0.9 + rng() * 0.5; m.scale.setScalar(sc);
+  caveState.group.add(m);
+  return m;
+}
+function buildCave(rng) {
+  const g = new THREE.Group();
+  caveState.group = g;
+  const { y0, R, cx, cz } = caveState;
+  // shell — the dark belly of the hill
+  const shellMat = new THREE.MeshStandardMaterial({ color: 0x4a4238, roughness: 1, metalness: 0, side: THREE.BackSide });
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(R, 26, 18), shellMat);
+  shell.position.set(cx, y0 + R * 0.62, cz); shell.scale.y = 0.8;
+  g.add(shell);
+  // rugged floor, matching caveFloorAt
+  const SEG2 = 14;
+  const floor = new THREE.PlaneGeometry(R * 2.1, R * 2.1, SEG2, SEG2);
+  floor.rotateX(-Math.PI / 2);
+  const fp = floor.attributes.position;
+  for (let i = 0; i < fp.count; i++) fp.setY(i, caveFloorAt(cx + fp.getX(i), cz + fp.getZ(i)) - y0);
+  const floorMesh = new THREE.Mesh(floor, new THREE.MeshStandardMaterial({ color: 0x554a3d, roughness: 1 }));
+  floorMesh.position.set(cx, y0, cz);
+  floorMesh.receiveShadow = true;
+  g.add(floorMesh);
+  const spot = (minR, maxR) => { const a = rng() * 6.28, r = minR + rng() * (maxR - minR); return { x: cx + Math.sin(a) * r, z: cz + Math.cos(a) * r }; };
+  // rim rocks
+  for (let i = 0; i < 8; i++) {
+    const sp = spot(R * 0.7, R * 0.95);
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1 + rng() * 1.8, 0), matColor(0x5d564c));
+    rock.position.set(sp.x, caveFloorAt(sp.x, sp.z) + 0.4, sp.z); rock.rotation.set(rng() * 3, rng() * 3, rng() * 3);
+    g.add(rock);
+  }
+  // stalagmites & stalactites
+  for (let i = 0; i < 9; i++) {
+    const sp = spot(R * 0.25, R * 0.8);
+    const h2 = 1.2 + rng() * 2.8;
+    const st = new THREE.Mesh(new THREE.ConeGeometry(0.4 + rng() * 0.7, h2, 6), matColor(0x6b6258));
+    st.position.set(sp.x, caveFloorAt(sp.x, sp.z) + h2 / 2 - 0.2, sp.z);
+    g.add(st);
+    if (rng() < 0.7) {
+      const sp2 = spot(R * 0.2, R * 0.75);
+      const h3 = 1 + rng() * 2.4;
+      const ct = new THREE.Mesh(new THREE.ConeGeometry(0.3 + rng() * 0.5, h3, 6), matColor(0x655c52));
+      ct.rotation.x = Math.PI; ct.position.set(sp2.x, y0 + R * 0.62 * 0.8 + 2.5 - rng() * 2, sp2.z);
+      g.add(ct);
+    }
+  }
+  // crystals — always some, glorious in the crystal variant
+  const nCry = caveState.variant === 'crystal' ? 5 + (rng() * 3 | 0) : 1 + (rng() * 2 | 0);
+  const cryMat = new THREE.MeshStandardMaterial({ color: 0x7fe8ff, emissive: 0x2a8fa8, emissiveIntensity: 0.9, roughness: 0.25 });
+  for (let i = 0; i < nCry; i++) {
+    const sp = spot(R * 0.3, R * 0.85);
+    const cl = new THREE.Group();
+    for (let k = 0; k < 4; k++) {
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.3 + rng() * 0.55), cryMat);
+      gem.position.set((rng() - 0.5) * 1.2, rng() * 0.8, (rng() - 0.5) * 1.2);
+      gem.rotation.set(rng() * 3, rng() * 3, rng() * 3);
+      cl.add(gem);
+    }
+    cl.position.set(sp.x, caveFloorAt(sp.x, sp.z), sp.z);
+    g.add(cl);
+    if (caveState.lights.length < 1 && caveState.variant === 'crystal') {
+      const pl = new THREE.PointLight(0x5fd8ef, 1.15, 22, 1.6);
+      pl.position.set(sp.x, caveFloorAt(sp.x, sp.z) + 1.6, sp.z);
+      scene.add(pl); caveState.lights.push(pl);
+    }
+  }
+  // water pool
+  if (rng() < 0.62) {
+    const sp = spot(R * 0.3, R * 0.6);
+    caveState.poolAt = sp;
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(4.3, 18), new THREE.MeshStandardMaterial({ color: 0x2e5566, transparent: true, opacity: 0.82, roughness: 0.2 }));
+    pool.rotation.x = -Math.PI / 2; pool.position.set(sp.x, y0 - 0.5, sp.z);
+    g.add(pool);
+  } else caveState.poolAt = null;
+  // mushrooms & loot
+  const drop = (type, x, z) => { const m = cavePickupMesh(type, x, caveFloorAt(x, z), z, rng); if (m) caveState.pickups.push({ type, x, y: caveFloorAt(x, z), z, gathered: false, mesh: m }); };
+  for (let i = 0, n = 2 + (rng() * 3 | 0); i < n; i++) { const sp = spot(R * 0.25, R * 0.8); drop('mushroom', sp.x, sp.z); }
+  if (rng() < 0.55) { const sp = spot(R * 0.3, R * 0.7); drop('magicShroom', sp.x, sp.z); if (rng() < 0.5) drop('magicShroom', sp.x + 1.2, sp.z + 0.8); }
+  for (let i = 0, n = 3 + (rng() * 3 | 0); i < n; i++) { const sp = spot(R * 0.3, R * 0.9); drop('stoneP', sp.x, sp.z); }
+  for (let i = 0, n = 1 + (rng() * 2 | 0); i < n; i++) { const sp = spot(R * 0.3, R * 0.8); drop('stick', sp.x, sp.z); }
+  // old bones — something fed here
+  const bs = spot(R * 0.4, R * 0.7);
+  for (let i = 0; i < 4; i++) {
+    const bone = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.7 + rng() * 0.6, 4), matColor(0xd8d2c4));
+    bone.position.set(bs.x + (rng() - 0.5) * 2, caveFloorAt(bs.x, bs.z) + 0.1, bs.z + (rng() - 0.5) * 2);
+    bone.rotation.set(Math.PI / 2, rng() * 6.28, 0); g.add(bone);
+  }
+  // the sleeper in the dark
+  if (rng() < 0.45) {
+    const sp = spot(R * 0.45, R * 0.6);
+    const bear = new Predator('bear', sp.x, sp.z);
+    bear.home.x = sp.x; bear.home.z = sp.z;
+    bear.pos.y = caveFloorAt(sp.x, sp.z);
+    bear.state = 'sleep';
+    bear.model.position.copy(bear.pos);
+    caveState.predators.push(bear);
+  }
+  // the way out
+  const ex = { x: cx, z: cz + R * 0.82 };
+  const exitGlow = new THREE.Mesh(new THREE.CircleGeometry(1.3, 14), new THREE.MeshBasicMaterial({ color: 0x8fb8d8, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
+  exitGlow.position.set(ex.x, caveFloorAt(ex.x, ex.z) + 2.2, ex.z);
+  g.add(exitGlow);
+  caveState.pickups.push({ type: 'caveExit', x: ex.x, y: caveFloorAt(ex.x, ex.z), z: ex.z, gathered: false, mesh: null });
+  scene.add(g);
+}
+function caveTick(dt) {
+  caveState.reentryCd = Math.max(0, caveState.reentryCd - dt);
+  // keep the wolf inside the cavern
+  const dc = Math.hypot(wolf.pos.x - caveState.cx, wolf.pos.z - caveState.cz);
+  const lim = caveState.R - 2;
+  if (dc > lim) {
+    const k = lim / dc;
+    wolf.pos.x = caveState.cx + (wolf.pos.x - caveState.cx) * k;
+    wolf.pos.z = caveState.cz + (wolf.pos.z - caveState.cz) * k;
+  }
+  // underground predators ride the cave floor, not the surface heightfield
+  for (const p of caveState.predators) {
+    if (!p.dead) { p.pos.y = caveFloorAt(p.pos.x, p.pos.z); p.model.position.copy(p.pos); }
+  }
+  // drips & cold
+  caveState.dripT -= dt;
+  if (caveState.dripT <= 0) { caveState.dripT = 1.5 + Math.random() * 4; audio.drip(); }
+  if (wolf.stamina < 100) wolf.stamina = Math.min(100, wolf.stamina + dt * 0.5);   // still, cold air: slow recovery
+}
+
 let envToastT = 0, emberT = 0;
 function updateEnvironment(dt) {      // regional hazards: scorching ash, bitter cold, dry heat, mire
   if (state !== 'play' || wolf.deadT > 0) return;
+  if (caveState.in) {                 // underground: still air, biting chill, no sky-borne hazards
+    wolf.stamina = Math.max(0, wolf.stamina - 0.3 * dt);
+    return;
+  }
   const h = heightAt(wolf.pos.x, wolf.pos.z);
   const cl = climateAt(wolf.pos.x, wolf.pos.z, h);
   const w = biomeWeights(wolf.pos.x, wolf.pos.z, h, cl.temp, cl.moist);
@@ -3935,6 +4502,15 @@ function updateAtmosphere(dt) {
   far = Math.max(85, far);
   if (WORLD_EVENTS.name === 'blizzard') far *= 0.5;
   scene.fog.far += (far * (window.__biomeFogMul || 1) - scene.fog.far) * Math.min(1, dt * 2);
+  if (caveState.in) {                 // the underground dark
+    scene.fog.color.setHex(0x05070b);
+    scene.fog.near = 1.5; scene.fog.far = 30;
+    scene.background.setHex(0x03040a);
+    sun.intensity = 0.12; hemi.intensity = 0.2;
+  } else {
+    scene.fog.near = 24;
+    hemi.intensity = 0.6;
+  }
   scene.fog.near = scene.fog.far * 0.42;
 
   hemi.intensity = 0.2 + 0.62 * dayF * (1 - 0.5 * weather.cloud) + flash * 1.5;
@@ -3943,7 +4519,7 @@ function updateAtmosphere(dt) {
   const night = sunAlt < -0.03;
   if (!night) {
     sun.position.set(wolf.pos.x + sunDir.x * 150, wolf.pos.y + sunDir.y * 150, wolf.pos.z + sunDir.z * 150);
-    sun.intensity = (0.12 + 1.2 * dayF) * (1 - 0.68 * weather.cloud) * (1 - 0.22 * weather.rain) + flash * 2.2;
+    if (!caveState.in) sun.intensity = (0.12 + 1.2 * dayF) * (1 - 0.68 * weather.cloud) * (1 - 0.22 * weather.rain) + flash * 2.2;
     _c3.copy(SKY.sunWarm).lerp(SKY.sunLow, glow);
   } else {
     sun.position.set(wolf.pos.x - sunDir.x * 150, wolf.pos.y - sunDir.y * 150, wolf.pos.z - sunDir.z * 150);
@@ -3969,7 +4545,8 @@ function updateAtmosphere(dt) {
     if (clWolf.temp < -0.08 && dayF < 0.3) {
       op = (1 - dayF * 3) * (1 - weather.cloud) * (0.3 + 0.28 * Math.sin(tSec * 0.22 + b.userData.phase));
     }
-    b.material.opacity = clamp(op, 0, 0.8);
+    op *= (WORLD_EVENTS.auroraBoost || 1);
+    b.material.opacity = clamp(op, 0, 0.95);
     b.material.map.offset.x += dt * 0.01;
     b.lookAt(wolf.pos.x, b.position.y, wolf.pos.z);
   });
@@ -4048,6 +4625,20 @@ const audio = {
     const t = this.ctx.currentTime;
     if (this.shoreG) this.shoreG.gain.setTargetAtTime(0.05 * (w.coast || 0), t, 1.2);
     if (this.rumbleG) this.rumbleG.gain.setTargetAtTime(0.075 * (w.volcanic || 0), t, 1.2);
+  },
+  drip() {                   // caves: water counting the centuries
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(); o.type = 'sine';
+    const f = 900 + Math.random() * 700;
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(f * 0.45, t + 0.07);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.035, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + 0.13);
   },
   croak() {                  // swamp nights
     if (!this.ready || this.muted) return;
@@ -4258,9 +4849,28 @@ let lastBiomeKey = null, biomeToastT = 0, curBiomeKey = 'forest';
 let hudT = 0, fpsAcc = 0, fpsN = 0, fpsShow = 60;
 let shroomGlowT = 0;
 function updateMagicGlow(dt) {
-  // shrine embers pulse
+  // moon petals breathe — brightest at night
+  matGlow.emissiveIntensity = (dayF < 0.35 ? 0.85 : 0.3) * (0.75 + 0.25 * Math.sin(tSec * 1.7));
+  // fallen-star sites fade back into the wild
+  if (meteorSite) {
+    meteorSite.ttl -= dt;
+    if (meteorSite.ttl <= 0) {
+      scene.remove(meteorSite.group);
+      meteorSite.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+      const li = landmarkList.indexOf(meteorSite.lm);
+      if (li >= 0) landmarkList.splice(li, 1);
+      meteorSite = null;
+    }
+  }
+  // shrine embers pulse · waterfall spray
   for (const lm of landmarkList) {
-    if (lm.ember) lm.ember.material.color.setHSL(0.1, 0.9, 0.55 + Math.sin(tSec * 3 + lm.x) * 0.2);
+    if (lm.ember) {
+      if (lm.type === 'wolfShrine') lm.ember.material.color.setHSL(0.55, 0.8, 0.6 + Math.sin(tSec * 2.2 + lm.x) * 0.2);
+      else if (lm.type === 'hiddenValley') lm.ember.material.color.setHSL(0.78, 0.6, 0.62 + Math.sin(tSec * 1.6 + lm.x) * 0.18);
+      else lm.ember.material.color.setHSL(0.1, 0.9, 0.55 + Math.sin(tSec * 3 + lm.x) * 0.2);
+    }
+    if (lm.mist && Math.random() < 0.5 && Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z) < 130)
+      pool.burst(V3(lm.x + lm.mist.x + (Math.random() - 0.5) * 3, lm.model.position.y + 5.5 + Math.random() * 3.5, lm.z + lm.mist.z + (Math.random() - 0.5) * 2), 1, 0xd8ecf4, 0.5, 1.4, 0.9);
   }
   shroomGlowT -= dt;
   if (shroomGlowT > 0) return;
@@ -4303,6 +4913,7 @@ function wolfTakeDamage(dmg, fromPos, label, icon) {
   if (wolf.hp <= 0) wolfDie(`the ${label || 'wild'}`, icon);
 }
 function wolfRespawn() {
+  if (caveState.in) exitCave();   // no dying underground: the wild carries you back to the mouth
   let ang = Math.random() * Math.PI * 2;
   if (wolf.killerPos) ang = Math.atan2(wolf.pos.x - wolf.killerPos.x, wolf.pos.z - wolf.killerPos.z); // run away from the killer
   let rx = wolf.pos.x, rz = wolf.pos.z;
@@ -4896,7 +5507,7 @@ function updateCamera(dt) {
   const px = camTarget.x + Math.sin(viewYaw) * cp * viewDist;
   const pz = camTarget.z + Math.cos(viewYaw) * cp * viewDist;
   const py = camTarget.y + sp * viewDist;
-  const gh = heightAt(px, pz) + 0.65;
+  const gh = groundAt(px, pz) + 0.65;
   camera.position.set(px, Math.max(py, gh), pz);
   camera.lookAt(camTarget);
   const fovT = (wolf.flyT > 0 && wolf.speed > 10) ? 80 : wolf.speed > 9 ? 70 : 62;
@@ -4989,7 +5600,8 @@ function tick() {
   updateSense(dt);
   updateMagicGlow(dt);
   pool.update(Math.max(dt, 0.0001));
-  WORLD_EVENTS.update(dt);
+  if (!caveState.in) WORLD_EVENTS.update(dt);
+  if (caveState.in) caveTick(dt);
   updateEnvironment(dt);
   if (audio.ready && audio.fireG) {
     const f = WORLD_EVENTS.fireAt;
