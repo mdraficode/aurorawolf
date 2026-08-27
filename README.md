@@ -4,41 +4,18 @@ A 3D open-world wolf simulator in a **single self-contained HTML file** (`index.
 
 ## ▶ How to run
 - Open `index.html` in any modern browser (double-click it), **or**
-- Serve it: `python3 -m http.server 8000` → http://localhost:8000
+- Play online: **https://mdraficode.github.io/aurorawolf/**
 - URL params: `?seed=12345` (specific world), `?quality=low` (no shadows, faster), `?autostart=1` (skip menu)
-- **Android:** install `Revontulet-AuroraWolf.apk` (see below)
 
-## 🤖 Android APK
-`Revontulet-AuroraWolf.apk` — a signed (v1+v2+v3) WebView wrapper around the single-file game:
-- Package `com.revontulet.wolf` · versionName 1.0 · minSdk 23 (Android 6.0+) · targetSdk 33
-- Locked to **landscape**, immersive sticky fullscreen, keep-screen-on, no permissions
-- Adaptive launcher icon (aurora wolf) in all densities + legacy square/round
-- To install: copy to a phone, open it, allow "install unknown apps" when prompted
+## 🤖 Android APK (archived)
+The signed APK and its WebView wrapper project are preserved in git history at tag **`archive/android-apk`** (nothing is lost). To resurrect for a requested APK build:
 
-Rebuild from source after changing the game (`android/` holds the wrapper project):
 ```
-# needs JDK 11+, build-tools r34 + platform-34 android.jar unpacked into /tmp/at/
-bash android/build_apk.sh     # -> Revontulet-AuroraWolf.apk
+git fetch --tags
+git checkout archive/android-apk -- android Revontulet-AuroraWolf.apk
+cp ~/.revontulet.keystore android/revontulet.keystore   # never committed
+# then build with android/build_apk.sh (JDK 11+, build-tools r34, platform-34)
 ```
-`android/revontulet.keystore` (pass `revontulet`, alias `revontulet`) signs all builds — keep it to push updates that install over previous ones.
-
-## 🎮 Controls
-| Key | Action |
-|---|---|
-| **WASD / arrows** | Run |
-| **Shift** | Sprint (uses stamina — you'll tire out) |
-| **Space** | Jump |
-| **F** | Attack — bite & claw to hunt nearby prey |
-| **E** | Gather (berries, mushrooms, herbs, wood, stones) |
-| **Q** | Wolf sense — reveal nearby resources & prey |
-| **H** | Howl (scares every animal within earshot) |
-| **Drag mouse / wheel** | Orbit + zoom camera · **C** snap behind wolf |
-| **T** | Time ×8 (watch sunsets & auroras) |
-| **M** | Open the big centered map (or click the minimap) — live terrain, landmarks, territories |
-| **K / N** | Sound on/off · small minimap on/off |
-| **M / P** | Mute / pause (+ stats, new world) |
-
-**Touch devices** get an on-screen controller automatically: a left-side **virtual joystick** (partial deflection = slower, quieter stalking), right-side **ATTACK / JUMP / GATHER / SPRINT / HOWL / SENSE** buttons, plus a top-right **minimap** (E also drinks at water edges), drag anywhere to look, **pinch to zoom**, and a ⏸ pause button.
 
 ## 📁 Project structure
 ```
@@ -47,16 +24,14 @@ build.py                ← assembles index.html from src/ + vendor/
 src/                    ← source: p1 math/terrain · p2 render/veg · p3 wolf+animals+predators · p4 world/HUD/input · shell.html · style.css
 vendor/three.min.js     ← three.js r134 (inlined at build)
 publish.sh              ← publish: `github "msg"` = live update (~1 min) · `archive [alias]` = permanent snapshot
-android/                ← APK wrapper (manifest, MainActivity, icons, keystore, build_apk.sh)
-Revontulet-AuroraWolf.apk ← signed Android build
-test/                   ← suite: smoke, layout, landscape, wolf, pose, ui2, touch, features (attack/flight), enemies (predators), github/wayback (live links), analyze.py
-shots/                  ← current-build screenshots (menu · world+minimap · landmarks · dense forest · ember wastes)
+test/                   ← 16-suite gate (npm test) + on-demand: touch (mobile UI), github (live), snapshots.mjs + analyze.py (regenerate shots)
+shots/                  ← current-build screenshots (cave crystals · night aurora · waterfall · forest)
 LINKS.md                ← all public links + tokens how-to
 ~/.ghtoken              ← GitHub access (keep! revocable at github.com/settings/tokens)
 ```
 Build · test · publish: `npm run build` · `npm test` · `npm run publish`
 
-> ⚠️ **Standing rule:** updates go to the live web link only. Rebuild the APK (`npm run apk`) **only when explicitly requested**.
+> ⚠️ **Standing rule:** updates go to the live web link only. APK rebuilds **only when explicitly requested** (restore `android/` from tag `archive/android-apk` first).
 
 ## 🌍 What's in the world
 - **Infinite procedural terrain** — simplex-noise continents, ridged mountains, lakes, rivers of hills; chunks stream in/out as you roam, so exploration never ends
