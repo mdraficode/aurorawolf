@@ -755,6 +755,8 @@ class Wolf {
       if (ambush) dmg += 1;
       if (this.crouch && behind) dmg += 1;            // a prowling strike from the blind side
       best.hit(dmg, behind, ambush);
+      audio.boneCrunch();
+      if (typeof music !== 'undefined') music.hitStab();
       if (ambush) { toast('🩸 AMBUSH! A killing bite from the blind side'); audio.thud(); }
       else if (behind) toast('🔪 Bite from behind — it never saw you');
     }
@@ -777,6 +779,7 @@ class Wolf {
   wolfSense() {
     if (this.senseCd > 0) return false;
     this.senseCd = 9;
+    audio.whoosh();
     toast('👃 Wolf sense — tracks, scent and blood glow in the ground');
     senseT = 6.5;
     return true;
@@ -843,6 +846,7 @@ class RivalWolf {
     this.dead = true;
     pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
     inv.meat += 1; stats.slain++; updateInv();
+    audio.cry(0.7);
     toast(`⚔️ Bested a ${this.sp.label}! +1 🥩`, true);
     scene.remove(this.model);
     this.pack.memberDown(this);
@@ -1678,6 +1682,7 @@ class Animal {
   caught() {
     if (this.dead) return;
     this.dead = true;
+    audio.cry(1 / Math.max(0.6, (this.sp.scale || 1) * 0.9));
     animalTotal--;
     pool.burst(this.pos, 26, 0xffe0a8, 1.8, 3.4, 3.6);
     AnimalLoot.grant(this);
@@ -1754,6 +1759,7 @@ class Predator {
     this.threatening = false;
     predatorTotal--;
     pool.burst(this.pos, 34, 0xffd9a8, 2.2, 4.0, 4.2);
+    audio.cry(0.55);
     let msg = `${this.sp.icon} You slew the ${this.sp.label}! +${this.sp.meat} 🥩`;
     inv.meat += this.sp.meat;
     if (this.sp.pelt) { inv.pelt += this.sp.pelt; msg += ` +${this.sp.pelt} 🧥`; }

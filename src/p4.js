@@ -786,6 +786,40 @@ function updateSensesTick() {       // slow tick: the world leaves its marks
     pool.burst(V3(wolf.pos.x, wolf.pos.y + 0.5, wolf.pos.z), 4, 0x6f8f4a, 0.8, 1.4, 1.6);
   }
 }
+function updatePawPrints(dt) {
+  if (!pawPrints) {
+    pawPrints = { list: [], lastD: wolf.distance, side: 1, mesh: null, rebuild: 0 };
+    pawPrints.mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.24, 0.34), new THREE.MeshBasicMaterial({ color: 0x35302a, transparent: true, opacity: 0.4, depthWrite: false }), 140);
+    pawPrints.mesh.frustumCulled = false; pawPrints.mesh.renderOrder = 3;
+    scene.add(pawPrints.mesh);
+  }
+  const P = pawPrints;
+  if (!caveState.in && wolf.speed > 1.2 && !wolf.swimming && wolf.flyT <= 0 && wolf.deadT <= 0) {
+    const st = groundStepType(wolf.pos.x, wolf.pos.z);
+    if (st === 'snow' || st === 'sand' || st === 'ash') {
+      if (wolf.distance - P.lastD > 1.05) {
+        P.lastD = wolf.distance; P.side = -P.side;
+        const bx = wolf.pos.x - Math.sin(wolf.yaw) * 0.5 + Math.cos(wolf.yaw) * 0.16 * P.side;
+        const bz = wolf.pos.z - Math.cos(wolf.yaw) * 0.5 - Math.sin(wolf.yaw) * 0.16 * P.side;
+        P.list.push({ x: bx, z: bz, y: groundAt(bx, bz) + 0.035, dir: wolf.yaw, t: tSec });
+        if (P.list.length > 140) P.list.shift();
+      }
+    } else P.lastD = wolf.distance;
+  }
+  P.rebuild -= dt;
+  if (P.rebuild <= 0) {
+    P.rebuild = 0.5;
+    P.list = P.list.filter(p => tSec - p.t < 30);   // the wild heals its surface
+    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), S1 = new THREE.Vector3(1, 1, 1), V = new THREE.Vector3();
+    for (let i = 0; i < P.list.length; i++) {
+      const p = P.list[i];
+      V.set(p.x, p.y, p.z); E.set(-Math.PI / 2, 0, -p.dir); Q.setFromEuler(E);
+      M.compose(V, Q, S1); P.mesh.setMatrixAt(i, M);
+    }
+    P.mesh.count = P.list.length;
+    P.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
 function updateSense(dt) {
   discoverTick -= dt;   // discoveries & senses always tick, sense or not
   if (discoverTick <= 0) {
@@ -801,6 +835,7 @@ function updateSense(dt) {
         stats.firstFinds++;
         toast(`📍 First discovery: ${lm.label}! ${lm.tier === 'epic' ? '✨ A sight few wolves ever see…' : lm.tier === 'rare' ? 'A rare find.' : ''}`, true);
         if (lm.tier !== 'common') { wolf.hp = Math.min(wolf.maxHp, wolf.hp + 25); wolf.stamina = 100; audio.chime(); }   // the wild rewards curiosity
+        music.fanfare();
       } else toast(`📍 ${lm.label}`);
     }
   }
@@ -1715,6 +1750,7 @@ function updateAtmosphere(dt) {
   let far = 260 * (1 - 0.32 * weather.rain - 0.42 * weather.snow - 0.16 * weather.cloud) * (1 - 0.12 * (1 - dayF));
   far = Math.max(110, far);
   if (wolf.pos.y > 34) far *= 1.38;   // from a ridge, the land unrolls to the haze
+  far *= 1 - 0.16 * dawnMistA;         // dawn fog fills the valleys
   if (WORLD_EVENTS.name === 'blizzard') far *= 0.5;
   scene.fog.far += (far * (window.__biomeFogMul || 1) - scene.fog.far) * Math.min(1, dt * 2);
   if (caveState.in) {                 // the underground dark
@@ -1745,6 +1781,62 @@ function updateAtmosphere(dt) {
   sun.target.position.copy(wolf.pos);
   sun.target.updateMatrixWorld();
 
+  // ---- the sun's blessing: lens flare when you face it ----
+  if (!flareGrp) {
+    flareGrp = [];
+    for (let i = 0; i < 3; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texGlow, color: i === 0 ? 0xffe9c4 : 0xffd9a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+      sp.scale.setScalar(9 + i * 7);
+      scene.add(sp); flareGrp.push(sp);
+    }
+  }
+  const _fv = new THREE.Vector3();
+  camera.getWorldDirection(_fv);
+  const sunDot = _fv.dot(sunDir);
+  const flareA = clamp((sunDot - 0.55) / 0.45, 0, 1) * clamp(dayF * 1.5, 0, 1) * (1 - weather.cloud * 0.85) * 0.55;
+  for (let i = 0; i < 3; i++) {
+    flareGrp[i].position.copy(camera.position).addScaledVector(sunDir, 700 * (0.45 + i * 0.22));
+    flareGrp[i].material.opacity = flareA * (i === 0 ? 0.55 : 0.3);
+  }
+  // ---- god rays: shafts between the trunks ----
+  if (!raysGrp) {
+    raysGrp = [];
+    for (let i = 0; i < 5; i++) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 24), new THREE.MeshBasicMaterial({ map: texGlow, color: 0xfff2d0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      m.renderOrder = 2; scene.add(m); raysGrp.push(m);
+    }
+  }
+  const raysOn = !caveState.in && coverAt(wolf.pos.x, wolf.pos.z) > 0.55 && dayF > 0.28 && dayF < 0.62 && weather.cloud < 0.5;
+  for (let i = 0; i < 5; i++) {
+    const m = raysGrp[i];
+    const a = i * 2.39 + (i * i) * 0.7, r = 11 + (i * 7) % 15;
+    const gx = wolf.pos.x + Math.sin(a) * r, gz = wolf.pos.z + Math.cos(a) * r;
+    m.position.set(gx, groundAt(gx, gz) + 9.5, gz);
+    m.quaternion.copy(camera.quaternion);
+    const target = raysOn ? 0.045 + 0.03 * (0.5 + 0.5 * Math.sin(tSec * 0.6 + i * 1.7)) : 0;
+    m.material.opacity += (target - m.material.opacity) * Math.min(1, dt * 2);
+  }
+  // ---- dawn mist sleeping in the valleys ----
+  dawnMistA = ss(0.2, 0.26, tDay) * (1 - ss(0.33, 0.39, tDay));
+  if (!mistGrp) {
+    mistGrp = [];
+    for (let i = 0; i < 6; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texGlow, color: 0xeef3f8, transparent: true, opacity: 0, depthWrite: false }));
+      sp.scale.set(34, 16, 1);
+      sp.userData.reset = true;
+      scene.add(sp); mistGrp.push(sp);
+    }
+  }
+  for (const sp of mistGrp) {
+    if (sp.userData.reset || sp.position.distanceTo(wolf.pos) > 55) {
+      const a = Math.random() * 6.28, r = 16 + Math.random() * 26;
+      const mx = wolf.pos.x + Math.sin(a) * r, mz = wolf.pos.z + Math.cos(a) * r;
+      sp.position.set(mx, groundAt(mx, mz) + 2.5, mz);
+      sp.userData.reset = false;
+    }
+    sp.position.x += dt * 0.4;
+    sp.material.opacity += (dawnMistA * 0.06 - sp.material.opacity) * Math.min(1, dt * 1.5);
+  }
   skyG.position.copy(wolf.pos);
   sunSprite.position.copy(camera.position).addScaledVector(sunDir, 700);
   sunSprite.material.opacity = clamp(dayF * (1 - weather.cloud * 0.9), 0, 1) * 0.95;
@@ -1760,7 +1852,7 @@ function updateAtmosphere(dt) {
     if (clWolf.temp < -0.08 && dayF < 0.3) {
       op = (1 - dayF * 3) * (1 - weather.cloud) * (0.3 + 0.28 * Math.sin(tSec * 0.22 + b.userData.phase));
     }
-    op *= (WORLD_EVENTS.auroraBoost || 1);
+    op *= (WORLD_EVENTS.auroraBoost || 1) * (1 + ((window.__biomeW && window.__biomeW.mountain) || 0) * 0.5);
     b.material.opacity = clamp(op, 0, 0.95);
     b.material.map.offset.x += dt * 0.01;
     b.lookAt(wolf.pos.x, b.position.y, wolf.pos.z);
@@ -1820,6 +1912,8 @@ const audio = {
       this.leafG = mk('bandpass', 900, 0.0);   // wind in the crowns
       this.shoreG = mk('lowpass', 240, 0.0);    // distant surf
       this.rumbleG = mk('lowpass', 55, 0.0);     // volcanic tremor
+      this.roarG = mk('lowpass', 300, 0.0);       // a waterfall's weight
+      this.riverG = mk('bandpass', 520, 0.0);      // living water nearby
       this.fireG = mk('bandpass', 1350, 0.0);    // crackling flames
       this.ready = true;
     } catch (e) { }
@@ -2026,13 +2120,405 @@ const audio = {
       o.start(st); o.stop(st + 0.15);
     }
   },
+  setWater(roar, river) {    // falling water has weight; rivers murmur by proximity
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    this.roarG.gain.setTargetAtTime(roar, t, 0.6);
+    this.riverG.gain.setTargetAtTime(river, t, 0.6);
+  },
+  growlVar(kind) {           // aggressive · warning · pain — three voices of the wolf
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const P = { aggressive: [90, 0.4, 1.1], warning: [130, 0.22, 0.5], pain: [170, 0.3, 0.7] }[kind] || [110, 0.25, 0.6];
+    const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+    const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = P[0] * 6; f.Q.value = 2;
+    const o = this.ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = P[0];
+    const lfo = this.ctx.createOscillator(); lfo.frequency.value = kind === 'aggressive' ? 11 : 7;
+    const lg = this.ctx.createGain(); lg.gain.value = P[0] * 0.4; lfo.connect(lg); lg.connect(o.frequency);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(P[1] * 0.5, t + P[2] * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + P[2]);
+    src.connect(f); f.connect(g); o.connect(g); g.connect(this.master);
+    src.start(t); o.start(t); lfo.start(t);
+    src.stop(t + P[2] + 0.05); o.stop(t + P[2] + 0.05); lfo.stop(t + P[2] + 0.05);
+  },
+  whimper() {                // low hp: a small hurt sound
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(600, t); o.frequency.linearRampToValueAtTime(860, t + 0.18); o.frequency.linearRampToValueAtTime(520, t + 0.42);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.5);
+  },
+  bark() {
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    for (const dt0 of [0, 0.16]) {
+      const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.playbackRate.value = 0.8;
+      const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 620; f.Q.value = 1.4;
+      const o = this.ctx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(240, t + dt0); o.frequency.exponentialRampToValueAtTime(140, t + dt0 + 0.1);
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(0.0001, t + dt0); g.gain.linearRampToValueAtTime(0.16, t + dt0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dt0 + 0.12);
+      src.connect(f); f.connect(g); o.connect(g); g.connect(this.master);
+      src.start(t + dt0); o.start(t + dt0); src.stop(t + dt0 + 0.15); o.stop(t + dt0 + 0.15);
+    }
+  },
+  pant() {                   // stamina low: quick double breaths
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    for (const dt0 of [0, 0.28]) {
+      const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.playbackRate.value = 0.9;
+      const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.8;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t + dt0); g.gain.linearRampToValueAtTime(0.05, t + dt0 + 0.05); g.gain.linearRampToValueAtTime(0.0001, t + dt0 + 0.22);
+      src.connect(f); f.connect(g); g.connect(this.master);
+      src.start(t + dt0); src.stop(t + dt0 + 0.25);
+    }
+  },
+  breath(vol) {              // running lungs
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.playbackRate.value = 0.7;
+    const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.09); g.gain.linearRampToValueAtTime(0.0001, t + 0.4);
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(t); src.stop(t + 0.45);
+  },
+  boneCrunch() {             // the bite lands
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    for (const [dt0, fr, vol] of [[0, 2600, 0.14], [0.03, 1400, 0.1], [0.05, 700, 0.08]]) {
+      const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.playbackRate.value = 1 + Math.random() * 0.3;
+      const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = fr; f.Q.value = 1.2;
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(vol, t + dt0); g.gain.exponentialRampToValueAtTime(0.0001, t + dt0 + 0.07);
+      src.connect(f); f.connect(g); g.connect(this.master);
+      src.start(t + dt0); src.stop(t + dt0 + 0.09);
+    }
+  },
+  cry(pitch) {               // a death cry, pitched by the beast
+    pitch = pitch || 1;
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(340 * pitch, t);
+    o.frequency.exponentialRampToValueAtTime(150 * pitch, t + 0.55);
+    const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1200;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.12, t + 0.07); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    o.connect(lp); lp.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + 0.65);
+  },
+  iceCrack() {
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.playbackRate.value = 1.6;
+    const f = this.ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 3000;
+    const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(1900, t); o.frequency.exponentialRampToValueAtTime(400, t + 0.12);
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(0.1, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    src.connect(f); f.connect(g); o.connect(g); g.connect(this.master);
+    src.start(t); o.start(t); src.stop(t + 0.18); o.stop(t + 0.18);
+  },
+  branchSnap() {
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.playbackRate.value = 1.2;
+    const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2000; f.Q.value = 2.2;
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(0.09, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(t); src.stop(t + 0.1);
+  },
+  rustle() {                 // pushing through bushes
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.playbackRate.value = 0.85;
+    const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 0.7;
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07, t + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(t); src.stop(t + 0.4);
+  },
+  owl() {                    // the night watchman
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    for (const [dt0, fr] of [[0, 380], [0.35, 330]]) {
+      const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.value = fr;
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(0.0001, t + dt0); g.gain.linearRampToValueAtTime(0.06, t + dt0 + 0.05); g.gain.linearRampToValueAtTime(0.0001, t + dt0 + 0.28);
+      o.connect(g); g.connect(this.master); o.start(t + dt0); o.stop(t + dt0 + 0.3);
+    }
+  },
+  eagle() {                  // high country
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(); o.type = 'sawtooth';
+    o.frequency.setValueAtTime(1500, t); o.frequency.exponentialRampToValueAtTime(900, t + 0.5);
+    const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400;
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.045, t + 0.08); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+    o.connect(lp); lp.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.6);
+  },
+  uiClick() {
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(500, t + 0.06);
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.09);
+  },
+  whoosh() {                 // senses open
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf; src.loop = true;
+    const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.1;
+    f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(2600, t + 0.5);
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.12, t + 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(t); src.stop(t + 0.65);
+  },
   toggleMute() {
     this.muted = !this.muted;
     if (this.master) this.master.gain.value = this.muted ? 0 : 0.55;
     return this.muted;
   }
 };
-let chirpT = 5, croakT = 4;
+/* ============================================================
+   MUSIC — a living score, synthesized note by note.
+   Layers (pad · melody · percussion · bass · choir · bells) crossfade
+   between exploration, the hunt and combat; every biome sings its own
+   theme; night detunes the world; the mystic events ring bells.
+   ============================================================ */
+const music = {
+  bus: null, wet: null, layers: {}, nextBeat: 0, beat: 0, bar: 0,
+  state: 'explore', stateT: 0, intensity: 0.2, bpm: 60, theme: 'forest',
+  comboN: 0, comboT: 0, started: false,
+  THEMES: {   // the voice of each land
+    forest:   { root: 293.66, scale: [0, 2, 4, 7, 9],        instr: 'flute',   pad: 'warm',  perc: 'soft',  bass: 0 },
+    taiga:    { root: 293.66, scale: [0, 2, 4, 7, 9],        instr: 'flute',   pad: 'warm',  perc: 'soft',  bass: 0 },
+    mountain: { root: 220.00, scale: [0, 3, 7, 10, 14],      instr: 'piano',   pad: 'choir', perc: 'none',  bass: 0 },
+    tundra:   { root: 220.00, scale: [0, 3, 7, 10, 14],      instr: 'piano',   pad: 'choir', perc: 'none',  bass: 0 },
+    highland: { root: 220.00, scale: [0, 3, 7, 10, 14],      instr: 'piano',   pad: 'choir', perc: 'none',  bass: 0 },
+    swamp:    { root: 110.00, scale: [0, 1, 3, 6, 8],        instr: 'none',    pad: 'dark',  perc: 'none',  bass: 1 },
+    grove:    { root: 261.63, scale: [0, 2, 3, 5, 7, 8, 10], instr: 'strings', pad: 'warm',  perc: 'soft',  bass: 0 },
+    meadow:   { root: 329.63, scale: [0, 2, 4, 7, 9],        instr: 'kalimba', pad: 'warm',  perc: 'shaker',bass: 0 },
+    dry:      { root: 246.94, scale: [0, 1, 4, 5, 7, 8, 11], instr: 'oud',     pad: 'dark',  perc: 'soft',  bass: 0 },
+    volcanic: { root: 246.94, scale: [0, 1, 4, 5, 7, 8, 11], instr: 'oud',     pad: 'dark',  perc: 'soft',  bass: 1 },
+    enchanted:{ root: 392.00, scale: [0, 2, 4, 7, 9, 11],    instr: 'bells',   pad: 'choir', perc: 'none',  bass: 0 },
+    coast:    { root: 261.63, scale: [0, 2, 4, 7, 9],        instr: 'none',    pad: 'warm',  perc: 'none',  bass: 0 }
+  },
+  init() {
+    if (this.bus || !audio.ctx) return;
+    const ctx = audio.ctx;
+    this.bus = ctx.createGain(); this.bus.gain.value = 0.0;
+    this.bus.connect(audio.master);
+    // a small cathedral: generated impulse reverb
+    const len = ctx.sampleRate * 1.9, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    this.conv = ctx.createConvolver(); this.conv.buffer = ir;
+    this.wet = ctx.createGain(); this.wet.gain.value = 0.18;
+    this.bus.connect(this.conv); this.conv.connect(this.wet); this.wet.connect(audio.master);
+    for (const k of ['pad', 'melody', 'perc', 'bass', 'choir', 'bells']) {
+      const g = ctx.createGain(); g.gain.value = 0; g.connect(this.bus); this.layers[k] = g;
+    }
+    this.nextBeat = ctx.currentTime + 0.3;
+    this.started = true;
+  },
+  /* ---- instruments ---- */
+  v(instrument, f, t, dur, vol, layer, detune) {
+    const ctx = audio.ctx, o = [], g = ctx.createGain();
+    const wet2 = this.layers[layer];
+    if (instrument === 'flute') {
+      const os = ctx.createOscillator(); os.type = 'triangle'; os.frequency.value = f;
+      const vib = ctx.createOscillator(); vib.frequency.value = 4.6 + Math.random();
+      const vg = ctx.createGain(); vg.gain.value = f * 0.006; vib.connect(vg); vg.connect(os.frequency);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.12);
+      g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      os.connect(g); o.push(os, vib); this.stop(o, t + dur + 0.05);
+    } else if (instrument === 'piano') {
+      for (const [m, a] of [[1, 1], [2, 0.35], [3, 0.12]]) {
+        const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.value = f * m;
+        const gg = ctx.createGain(); gg.gain.setValueAtTime(a * vol, t); gg.gain.exponentialRampToValueAtTime(0.0001, t + dur * (m === 1 ? 1 : 0.5));
+        os.connect(gg); gg.connect(g); o.push(os);
+      }
+      g.gain.value = 1; this.stop(o, t + dur + 0.05);
+    } else if (instrument === 'strings') {
+      for (const dt2 of [-6, 5]) {
+        const os = ctx.createOscillator(); os.type = 'sawtooth'; os.frequency.value = f; os.detune.value = dt2 + (detune || 0);
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100;
+        os.connect(lp); lp.connect(g); o.push(os);
+      }
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.45);
+      g.gain.linearRampToValueAtTime(vol * 0.7, t + dur * 0.85); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      this.stop(o, t + dur + 0.05);
+    } else if (instrument === 'oud') {
+      const os = ctx.createOscillator(); os.type = 'sawtooth';
+      os.frequency.setValueAtTime(f * 0.985, t); os.frequency.exponentialRampToValueAtTime(f, t + 0.05);
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1600;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      os.connect(lp); lp.connect(g); o.push(os); this.stop(o, t + dur + 0.05);
+    } else if (instrument === 'kalimba') {
+      for (const [m, a] of [[1, 1], [2.76, 0.2]]) {
+        const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.value = f * m;
+        const gg = ctx.createGain(); gg.gain.setValueAtTime(a * vol, t); gg.gain.exponentialRampToValueAtTime(0.0001, t + dur * (m === 1 ? 1 : 0.35));
+        os.connect(gg); gg.connect(g); o.push(os);
+      }
+      g.gain.value = 1; this.stop(o, t + dur + 0.05);
+    } else if (instrument === 'bells') {
+      for (const [m, a, d2] of [[1, 1, 1], [2.76, 0.4, 0.7], [5.4, 0.15, 0.4]]) {
+        const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.value = f * m;
+        const gg = ctx.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.linearRampToValueAtTime(a * vol, t + 0.01);
+        gg.gain.exponentialRampToValueAtTime(0.0001, t + dur * d2 + 0.1);
+        os.connect(gg); gg.connect(g); o.push(os);
+      }
+      g.gain.value = 1; this.stop(o, t + dur + 0.2);
+    } else if (instrument === 'choir') {
+      for (const dt2 of [-8, 6, 0]) {
+        const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.value = f; os.detune.value = dt2;
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+        os.connect(lp); lp.connect(g); o.push(os);
+      }
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.5);
+      g.gain.linearRampToValueAtTime(0.0001, t + dur); this.stop(o, t + dur + 0.05);
+    } else if (instrument === 'kick') {
+      const os = ctx.createOscillator(); os.type = 'sine';
+      os.frequency.setValueAtTime(130, t); os.frequency.exponentialRampToValueAtTime(44, t + 0.16);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      os.connect(g); o.push(os); this.stop(o, t + 0.25);
+    } else if (instrument === 'tom') {
+      const os = ctx.createOscillator(); os.type = 'sine';
+      os.frequency.setValueAtTime(f, t); os.frequency.exponentialRampToValueAtTime(f * 0.55, t + 0.2);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      os.connect(g); o.push(os); this.stop(o, t + 0.32);
+    } else if (instrument === 'shaker') {
+      const src = ctx.createBufferSource(); src.buffer = audio.noiseBuf; src.playbackRate.value = 1.4;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 5200;
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+      src.connect(hp); hp.connect(g); o.push(src); this.stop(o, t + 0.1);
+    } else if (instrument === 'stab') {   // brass hit on landed bites
+      for (const dt2 of [0, -7, -12]) {
+        const os = ctx.createOscillator(); os.type = 'sawtooth'; os.frequency.value = f; os.detune.value = dt2;
+        const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(2400, t);
+        lp.frequency.exponentialRampToValueAtTime(500, t + 0.28);
+        os.connect(lp); lp.connect(g); o.push(os);
+      }
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      this.stop(o, t + 0.34);
+    }
+    g.connect(wet2);
+  },
+  stop(list, t) { for (const n of list) { try { n.start(t); } catch (e) {} try { n.stop(t); } catch (e) {} } },
+  chordF(root, semis) { return semis.map(s => root * Math.pow(2, s / 12)); },
+  note(th, deg, oct) {
+    const sc = th.scale, n = sc[((deg % sc.length) + sc.length) % sc.length] + 12 * Math.floor(deg / sc.length);
+    return th.root * Math.pow(2, (n + 12 * (oct || 0)) / 12);
+  },
+  /* ---- the director: what does this moment need to sound like? ---- */
+  direct() {
+    let st = 'explore', it = 0.22, epic = false;
+    if (!caveState.in) {
+      for (const ch of chunks.values())
+        for (const pr of ch.predators)
+          if (!pr.dead && (pr.state === 'chase' || pr.state === 'attack') && pr.pos.distanceTo(wolf.pos) < 70) {
+            st = 'combat';
+            it = Math.max(it, 0.55 + (1 - wolf.hp / wolf.maxHp) * 0.35 + (pr.state === 'attack' ? 0.08 : 0));
+          }
+      if (WORLD_EVENTS.name === 'rivalPack') {   // the pack battle: this land's boss fight
+        st = 'combat'; epic = true;
+        let dead = 0, alive = 0;
+        for (const r of rivals) r.dead ? dead++ : alive++;
+        it = Math.max(it, 0.7 + dead * 0.1 + (alive <= 1 ? 0.1 : 0) + (1 - wolf.hp / wolf.maxHp) * 0.2);
+      }
+      if (st !== 'combat') {
+        const hunting = senseT > 0 || (wolf.crouch && nearestPrey() < 34);
+        if (hunting) { st = 'hunt'; it = 0.3 + Math.max(0, 1 - nearestPrey() / 34) * 0.3; }
+      }
+    } else { st = 'explore'; it = 0.15; }
+    if (weather.storm > 0.55) it = Math.min(1, it + 0.08);
+    this.state = st; this.intensity = it; this.epic = epic;
+  },
+  update(dt) {
+    if (!audio.ready) return;
+    this.init();
+    if (audio.muted || !this.started) return;
+    this.direct();
+    const night = dayF < 0.3, mystical = ['aurora', 'whiteStag', 'meteor'].includes(WORLD_EVENTS.name);
+    const th = this.THEMES[this.theme] || this.THEMES.forest;
+    const cave = caveState.in;
+    this.bpm = (st => st === 'combat' ? 96 + this.intensity * 60 : st === 'hunt' ? 66 : 58)(this.state) - (night ? 4 : 0);
+    const T = {
+      explore: { pad: cave ? 0.5 : 0.34, melody: cave ? 0 : 0.2, perc: 0.05, bass: th.bass ? 0.3 : 0.12, choir: th.pad === 'choir' ? 0.16 : 0, bells: 0 },
+      hunt:    { pad: 0.1, melody: 0.05, perc: 0.16, bass: 0.1, choir: 0, bells: 0 },   // percussion is the heartbeat
+      combat:  { pad: 0.22, melody: 0.12, perc: 0.34, bass: 0.2, choir: this.epic ? 0.3 : 0, bells: 0 }
+    }[this.state];
+    if (mystical && this.state === 'explore') T.bells = 0.2, T.choir = Math.max(T.choir, 0.2);
+    const k = Math.min(1, dt * 1.6);
+    for (const key in this.layers) this.layers[key].gain.value += ((T[key] || 0) * 0.9 - this.layers[key].gain.value) * k;
+    this.wet.gain.value += ((cave ? 0.5 : night ? 0.36 : this.state === 'combat' ? 0.12 : 0.18) - this.wet.gain.value) * k;
+    this.bus.gain.value += (0.3 - this.bus.gain.value) * k;
+    // schedule ahead
+    const ctx = audio.ctx, ahead = ctx.currentTime + 1.1;
+    let guard = 0;
+    while (this.nextBeat < ahead && guard++ < 24) {
+      const t = this.nextBeat, b = this.beat % 8;
+      const pitchMul = night ? Math.pow(2, -2 / 12) : 1;
+      const inst = th.instr;
+      if (b === 0) {   // a new bar breathes
+        this.bar++;
+        const deg = [0, 3, 4, 2][this.bar % 4];
+        const chordSemis = [0, 2, 4].map(x => th.scale[(deg + x) % th.scale.length] + (deg + x >= th.scale.length ? 12 : 0));
+        const fs = this.chordF(th.root * pitchMul, [chordSemis[0], chordSemis[1] + 0, chordSemis[2]]);
+        this.v(th.pad === 'dark' ? 'strings' : th.pad === 'choir' ? 'choir' : 'strings', fs[0] / 2, t, 8 * 60 / this.bpm * 0.98, 0.16, 'pad', night ? 12 : 0);
+        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[1], t + 0.05, 8 * 60 / this.bpm * 0.95, 0.1, 'pad');
+        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[2] / 2, t, 8 * 60 / this.bpm * 0.95, 0.08, 'bass');
+        if (this.epic) this.v('choir', fs[0], t, 8 * 60 / this.bpm, 0.14, 'choir');
+      }
+      // melody walks the scale — sparse at night, silent in the cave
+      if (inst !== 'none' && !cave) {
+        const dens = this.state === 'explore' ? (night ? 0.24 : 0.42) : this.state === 'hunt' ? 0.1 : 0.3;
+        if (Math.random() < dens && b % 2 === 0) {
+          const deg = (Math.random() * 8) | 0, oct = Math.random() < 0.25 ? 1 : 0;
+          this.v(inst, this.note(th, deg, oct) * pitchMul, t, inst === 'piano' ? 1.4 : 1.1, 0.11, 'melody');
+          if (mystical && Math.random() < 0.4) this.v('bells', this.note(th, deg + 2, 1) * pitchMul, t + 0.22, 1.6, 0.07, 'bells');
+        }
+      }
+      // percussion speaks the state
+      if (this.state === 'hunt') {   // the heartbeat: closer prey, faster pulse
+        if (b % 2 === 0) this.v('kick', 60, t, 0, 0.16 + this.intensity * 0.12, 'perc');
+        if (b % 2 === 1 && this.intensity > 0.45) this.v('kick', 55, t, 0, 0.1, 'perc');
+      } else if (this.state === 'combat') {
+        if (b === 0 || b === 4) this.v('kick', 0, t, 0, 0.3, 'perc');
+        if (b === 4) this.v('tom', 190 * pitchMul, t, 0, 0.2, 'perc');
+        if (this.intensity > 0.8 && b % 1 === 0) this.v('kick', 0, t, 0, 0.16, 'perc');   // the fierce finale
+        if (b === 6 && Math.random() < 0.5) this.v('tom', 150 * pitchMul, t, 0, 0.16, 'perc');
+        if (th.perc !== 'none' && b % 2 === 1) this.v('shaker', 0, t, 0, 0.08, 'perc');
+      } else if (th.perc === 'shaker' && (b === 2 || b === 6) && !night) this.v('shaker', 0, t, 0, 0.07, 'perc');
+      this.beat++;
+      this.nextBeat += 60 / this.bpm;
+    }
+    if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) this.comboN = 0; }
+  },
+  hitStab() {   // brass on a landed bite — pitch climbs with the combo
+    if (!this.started || audio.muted) return;
+    this.comboN = Math.min(this.comboN + 1, 8); this.comboT = 1.9;
+    const th = this.THEMES[this.theme] || this.THEMES.forest;
+    this.v('stab', th.root * 2 * Math.pow(2, this.comboN / 25), audio.ctx.currentTime + 0.01, 0.32, 0.2, 'perc');
+  },
+  fanfare() {   // a discovery worth remembering
+    if (!this.started || audio.muted) return;
+    const th = this.THEMES[this.theme] || this.THEMES.forest, t = audio.ctx.currentTime + 0.05;
+    [0, 2, 4, 7].forEach((d, i) => this.v('bells', this.note(th, d, 1), t + i * 0.11, 1.2, 0.14, 'bells'));
+  }
+};
+function nearestPrey() {
+  let best = 999;
+  for (const ch of chunks.values())
+    for (const a of ch.animals) {
+      if (a.dead) continue;
+      const d = a.pos.distanceTo(wolf.pos);
+      if (d < best && (!a.aware || a.aware < 0.5)) best = d;
+    }
+  return best;
+}
+let chirpT = 5, croakT = 4, breathT = 0, pantT = 0, whimperT = 0, owlT = 6, cricketT = 3, eagleT = 10, farHowlT = 15;
+let dawnMistA = 0, pawPrints = null, flareGrp = null, raysGrp = null, mistGrp = null;
 
 /* ---------------- UI ---------------- */
 const el = id => document.getElementById(id);
@@ -2175,7 +2661,7 @@ function updateThreatArrow() {
 
 /* ---------------- minimap ---------------- */
 const MM = { size: 168, px: 64, range: 150, t: 0, lastX: 1e9, lastZ: 1e9, on: true };
-addEventListener('pointerdown', e => { if (e.target && e.target.id === 'minimap') { e.stopPropagation(); toggleBigMap(true); } }, true);
+addEventListener('pointerdown', e => { if (e.target && e.target.id === 'minimap') { e.stopPropagation(); audio.uiClick(); toggleBigMap(true); } }, true);
 const mmBase = document.createElement('canvas'); mmBase.width = MM.px; mmBase.height = MM.px;
 const mmBaseCtx = mmBase.getContext('2d');
 const MM_RES_DOT = {};
@@ -2628,7 +3114,7 @@ function bindHold(id, down, up) {
   if (!b) return;
   b.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation();
-    audio.resume();
+    audio.resume(); audio.uiClick();
     down();
     b.classList.add('on');
   });
@@ -2776,6 +3262,8 @@ function tick() {
     renderer.render(scene, camera);
     return;
   }
+  const wantBlur = (state === 'pause' || document.getElementById('bigmapWrap').classList.contains('show')) ? 'blur(5px) brightness(0.85)' : '';   // gameplay suspended — the world steps back (not the live menu vista: too costly to composite)
+  if (renderer.domElement.style.filter !== wantBlur) renderer.domElement.style.filter = wantBlur;
   const running = state === 'play';
   const dt = running || state === 'menu' ? rdt : 0;
   tSec += dt;
@@ -2840,6 +3328,52 @@ function tick() {
     chirpT -= dt;
     if (chirpT <= 0) { chirpT = 2.6 - wCov * 1.2 + Math.random() * 6; audio.chirp(0.45 + 0.45 * wCov); }   // songbirds hold forth in the canopy
   }
+
+  /* ---- the living soundtrack: state, theme, body, wild voices ---- */
+  if (audio.ready) {
+    if (music.THEMES[curBiomeKey]) music.theme = curBiomeKey;   // each land sings its own song
+    music.update(dt);
+    // the wolf's body: breath, pants, whimpers, crunch of ground
+    const tempHere = climateAt(wolf.pos.x, wolf.pos.z, heightAt(wolf.pos.x, wolf.pos.z)).temp;
+    breathT -= dt;
+    if (breathT <= 0) {
+      const running2 = wolf.speed > 7.5;
+      breathT = running2 ? 0.85 : 2.3;
+      if (wolf.speed > 1.5 || wolf.stamina < 30) audio.breath(running2 ? 0.05 : 0.022);
+      if (tempHere < -0.15 && !wolf.swimming && wolf.deadT <= 0) pool.burst(V3(wolf.pos.x + Math.sin(wolf.yaw) * 0.9, wolf.pos.y + 0.75, wolf.pos.z + Math.cos(wolf.yaw) * 0.9), 1, 0xeaf4fa, 0.32, 0.5, 0.8);   // breath hangs in the cold
+    }
+    if (wolf.stamina < 28 && wolf.deadT <= 0) { pantT -= dt; if (pantT <= 0) { pantT = 1.5; audio.pant(); } }
+    if (wolf.hp < 30 && wolf.hp > 0 && wolf.deadT <= 0) { whimperT -= dt; if (whimperT <= 0) { whimperT = 3.8; audio.whimper(); } }
+    if (wolf.speed > 2 && !wolf.swimming && wolf.flyT <= 0) {
+      const st = groundStepType(wolf.pos.x, wolf.pos.z);
+      if (st === 'snow' && tempHere < -0.3 && Math.random() < dt * 0.05) audio.iceCrack();       // deep cold talks
+      if (wCov > 0.45 && Math.random() < dt * 0.04) audio.branchSnap();                            // old wood gives way
+      if (wolf.speed > 7 && wCov > 0.4 && Math.random() < dt * 0.3) audio.rustle();                // pushing through brush
+    }
+    // falling water: the roar of falls, the murmur of rivers
+    let roar = 0;
+    for (const lm of landmarkList) if (lm.type === 'waterfall') {
+      const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
+      roar = Math.max(roar, (1 - Math.min(1, d / 130)) * 0.3);
+    }
+    let river = 0;
+    for (const [ox, oz] of [[0, 0], [9, 0], [-9, 0], [0, 9], [0, -9]]) {
+      if (heightAt(wolf.pos.x + ox, wolf.pos.z + oz) < waterYNow() - 0.1) { river = 0.1 - Math.hypot(ox, oz) * 0.008; break; }
+    }
+    audio.setWater(roar, Math.max(0, river));
+    // wild voices: owls, crickets, eagles — and other wolves, far off
+    owlT -= dt; cricketT -= dt; eagleT -= dt; farHowlT -= dt;
+    if (dayF < 0.28 && wCov > 0.3 && owlT <= 0) { owlT = 9 + Math.random() * 14; audio.owl(); }
+    if (dayF < 0.4 && (curBiomeKey === 'meadow' || curBiomeKey === 'forest' || curBiomeKey === 'grove') && weather.rain < 0.2 && cricketT <= 0) { cricketT = 1.4 + Math.random() * 2.2; audio.chirp(0.12); }
+    if (dayF > 0.5 && (curBiomeKey === 'mountain' || curBiomeKey === 'highland') && eagleT <= 0) { eagleT = 16 + Math.random() * 22; audio.eagle(); }
+    if (farHowlT <= 0) {
+      farHowlT = 18 + Math.random() * 20;
+      let near = false;
+      for (const r of rivals) if (!r.dead && r.pos.distanceTo(wolf.pos) < 420) { near = true; break; }
+      if (near && !caveState.in) audio.howl(0.58);   // the pack sings in the distance
+    }
+  }
+  updatePawPrints(dt);   // the wolf writes its passage, sound or silence
 
   updateCamera(rdt);
   updateHUD(rdt);
