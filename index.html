@@ -1825,6 +1825,7 @@ class RivalWolf {
   hit() {          // player bite lands
     if (this.dead) return;
     this.hp -= (this.pack.stance === 'undecided' || this.pack.stance === 'ignore') ? 2 : 1;   // ambush an unaware pack
+    AnimalHealthBar.show(this);
     if (this.flinchT <= 0) this.flinchT = 0.3;
     pool.burst(this.pos, 10, 0xffb3a0, 1.0, 2.0, 2.4);
     this.pack.provoked();          // biting a wolf answers the question of stance
@@ -2301,16 +2302,20 @@ const AnimalAnimation = {
 };
 
 const AnimalHealthBar = {
-  // hidden until the player draws first blood; green → amber → pulsing red at death's door
+  // hidden until the player draws first blood; hugs the crown so close combat keeps it in frame
   show(a) {
     if (!a.bar) {
       a.barCv = document.createElement('canvas'); a.barCv.width = 64; a.barCv.height = 10;
       a.barTex = new THREE.CanvasTexture(a.barCv);
       a.barTex.minFilter = THREE.LinearFilter; a.barTex.magFilter = THREE.LinearFilter;
-      a.bar = new THREE.Sprite(new THREE.SpriteMaterial({ map: a.barTex, transparent: true, depthWrite: false }));
-      a.bar.scale.set(1.5, 0.22, 1);
-      const b = new THREE.Box3().setFromObject(a.model);   // seat it just above the head
-      a.bar.position.y = (b.isEmpty() ? 1.6 : b.max.y - a.model.position.y) + 0.35;
+      a.bar = new THREE.Sprite(new THREE.SpriteMaterial({ map: a.barTex, transparent: true, depthWrite: false, depthTest: false }));
+      a.bar.renderOrder = 999;              // never lost behind fur, antlers or foliage
+      a.bar.scale.set(1.55, 0.24, 1);
+      a.model.updateMatrixWorld(true);                       // fresh matrices → honest crown height
+      const b = new THREE.Box3().setFromObject(a.model);
+      const top = b.isEmpty() ? 1.2 : b.max.y - a.model.position.y;
+      const sc = a.model.scale.x || 1;               // the parent's scale multiplies local offsets —
+      a.bar.position.y = Math.max(0.35, (top + 0.12) / sc);   // divide it out: hug the crown in world space
       a.model.add(a.bar);
     }
     this.draw(a);
@@ -2318,7 +2323,11 @@ const AnimalHealthBar = {
   draw(a) {
     const ctx = a.barCv.getContext('2d');
     const f = Math.max(0, Math.min(1, a.hp / a.maxHp));
-    a.barCol = f > 0.5 ? '#7ec84a' : f > 0.25 ? '#e8b53a' : '#e04328';
+    // life drains the green out continuously: green → amber → deep red
+    let r, g, b;
+    if (f >= 0.5) { const t = (f - 0.5) * 2; r = lerp(0.90, 0.42, t); g = lerp(0.70, 0.76, t); b = lerp(0.22, 0.30, t); }
+    else { const t = f * 2; r = lerp(0.85, 0.90, t); g = lerp(0.20, 0.70, t); b = lerp(0.12, 0.22, t); }
+    a.barCol = `rgb(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)})`;
     ctx.clearRect(0, 0, 64, 10);
     ctx.fillStyle = 'rgba(12,10,8,0.85)'; ctx.fillRect(0, 0, 64, 10);
     ctx.fillStyle = '#241d16'; ctx.fillRect(1, 1, 62, 8);
