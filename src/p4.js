@@ -446,7 +446,8 @@ function genChunk(cx, cz) {
     }
   }
 
-  /* ---- landmarks: tiered rarity — common sights, rare finds, epics you tell stories about ---- */
+  chunk.solids = [];   // big trunks, boulders, landmark stone — the solid world
+    /* ---- landmarks: tiered rarity — common sights, rare finds, epics you tell stories about ---- */
   const hLm = hash2(cx, cz, SEED ^ 0x5bd1);
   const tierRoll = hLm % 5 === 0 ? 'common' : hLm % 11 === 5 ? 'rare' : hLm % 71 === 37 ? 'epic' : null;
   if (tierRoll) {
@@ -487,6 +488,11 @@ function genChunk(cx, cz) {
           const lm = { type, x: model.position.x, z: model.position.z, model, chunkKey: key, ember: model.userData.ember || null, mist: model.userData.mist || null, found: false, tier: def.tier || 'common', label: def.label };
           landmarkList.push(lm);
           if (def.enterable) chunk.pickups.push({ type: 'caveEnter', mesh: null, idx: 0, x: model.position.x, y: model.position.y + 1.3, z: model.position.z + 2.2, gathered: false, lm });
+          const lmSolids = def.solid || model.userData.solid || null;
+          if (lmSolids) {
+            const cR = Math.cos(ry), sR = Math.sin(ry);
+            for (const [sdx, sdz, sr] of lmSolids) chunk.solids.push({ x: lm.x + sdx * cR + sdz * sR, z: lm.z - sdx * sR + sdz * cR, r: sr });
+          }
           chunk.landmarks = chunk.landmarks || [];
           chunk.landmarks.push(lm);
           def.resources(pkSets, rng, lm.x, lm.z);   // special nearby resources
@@ -526,6 +532,11 @@ function genChunk(cx, cz) {
 
   /* ---- instantiate: full meshes near, impostors far ---- */
   chunk.vegItems = { trees: treeSets };
+  for (const k in treeSets) {
+    const br = SOLID_TRUNK_R[k]; if (!br) continue;
+    for (const t of treeSets[k]) chunk.solids.push({ x: t.x, z: t.z, r: br * (t.sx || 1) });
+  }
+  for (const rk of rocks) if (rk.s >= 1.0) chunk.solids.push({ x: rk.x, z: rk.z, r: 0.8 * rk.s });
   chunk.floorItems = { grass, bushes, ferns, leafPatches, branches, flowers, glowFlowers };
   const dC0 = Math.hypot(cx * CHUNK + 32 - wolf.pos.x, cz * CHUNK + 32 - wolf.pos.z);
   buildChunkVeg(chunk, dC0 > 124);
@@ -1146,6 +1157,61 @@ const caveState = {
   reentryCd: 0, dripT: 2, discovered: false
 };
 function groundAt(x, z) { return caveState.in ? caveFloorAt(x, z) : heightAt(x, z); }
+/* ---- solids: big trunks & boulders block the wolf — the world has edges you can run into ---- */
+const SOLID_TRUNK_R = {   // base trunk (bottom) radius per species, × instance sx
+  spruce: 0.18, snowSpruce: 0.18, pine: 0.2, birch: 0.12, autumnBirch: 0.12, rowan: 0.11,
+  oak: 0.3, deadTree: 0.17, spruceTall: 0.34, pineTall: 0.42, oakTall: 0.6, birchTall: 0.2,
+  fir: 0.2, deadPine: 0.4
+};
+const WOLF_BODY_R = 0.55;
+function collideSolids(w, dx, dz) {
+  if (w.flyT > 0) return;                    // magic flight passes the trunks
+  const R = WOLF_BODY_R;
+  let worst = 0;                             // most head-on normal hit this frame
+  if (caveState.in) {
+    for (const so of caveState.solids) {
+      const ddx = w.pos.x - so.x; if (ddx > 3.2 || ddx < -3.2) continue;
+      const ddz = w.pos.z - so.z; if (ddz > 3.2 || ddz < -3.2) continue;
+      const rr = so.r + R, d2 = ddx * ddx + ddz * ddz;
+      if (d2 >= rr * rr) continue;
+      const d = Math.sqrt(d2) || 0.0001, nx = ddx / d, nz = ddz / d;
+      w.pos.x += nx * (rr - d); w.pos.z += nz * (rr - d);
+      const vn = dx * nx + dz * nz;
+      if (vn < worst) worst = vn;
+    }
+  } else {
+    const c0x = Math.floor(w.pos.x / CHUNK), c0z = Math.floor(w.pos.z / CHUNK);
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+      const ch = chunks.get(ck(c0x + a, c0z + b));
+      if (!ch || !ch.solids) continue;
+      for (const so of ch.solids) {
+        const ddx = w.pos.x - so.x; if (ddx > 3.2 || ddx < -3.2) continue;
+        const ddz = w.pos.z - so.z; if (ddz > 3.2 || ddz < -3.2) continue;
+        const rr = so.r + R, d2 = ddx * ddx + ddz * ddz;
+        if (d2 >= rr * rr) continue;
+        const d = Math.sqrt(d2) || 0.0001, nx = ddx / d, nz = ddz / d;
+        w.pos.x += nx * (rr - d); w.pos.z += nz * (rr - d);
+        const vn = dx * nx + dz * nz;
+        if (vn < worst) worst = vn;
+      }
+    }
+  }
+  if (worst >= 0) return;                    // grazed nothing solid
+  const spd0 = w.speed;
+  if (worst < -0.8) w.speed *= 0.22;         // head-on: the world says no
+  else w.speed *= Math.min(1, 1 + worst * 1.2);   // glancing: scrub a little, slide along
+  // full-speed crash into wood or stone bites a little
+  if (worst < -0.82 && spd0 > 10.5 && w.impactCd <= 0 && w.deadT <= 0) {
+    w.impactCd = 1.5;
+    w.hp = Math.max(1, w.hp - 4);
+    w.lastHurt = tSec;
+    w.invulnT = Math.max(w.invulnT || 0, 0.3);
+    vignetteA = Math.min(0.5, vignetteA + 0.3);
+    audio.thud();
+    pool.burst(w.pos, 9, 0xa89478, 1.2, 2, 1.8);
+    if (tSec - (w.impactToastT || -9) > 8) { w.impactToastT = tSec; toast('💥 Crashed at full speed! −4 HP — watch the trees and rocks'); }
+  }
+}
 function groundWaterY() { return caveState.in ? -999 : waterYNow(); }
 function caveFloorAt(x, z) {
   let y = caveState.y0 + (fbm(nVar, x * 0.09, z * 0.09, 2) - 0.5) * 0.9;
@@ -1167,7 +1233,7 @@ function enterCave(lm) {
   caveState.R = 24 + rng() * 7;
   caveState.variant = rng() < 0.25 ? 'crystal' : 'cave';
   caveState.entrance = { x: lm.x, z: lm.z, y: surfY };
-  caveState.pickups = []; caveState.predators = []; caveState.lights = [];
+  caveState.pickups = []; caveState.predators = []; caveState.lights = []; caveState.solids = [];
   caveState.discovered = false;
   buildCave(rng);
   for (const ch of chunks.values()) ch.group.visible = false;   // the surface waits, unseen
@@ -1193,6 +1259,7 @@ function exitCave() {
   toast('☀️ Back under the open sky.');
 }
 function disposeCave() {
+  caveState.solids = [];
   for (const ch of chunks.values()) ch.group.visible = true;
   if (caveState.group) {
     caveState.group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); } });
@@ -1240,6 +1307,7 @@ function buildCave(rng) {
     const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1 + rng() * 1.8, 0), matColor(0x5d564c));
     rock.position.set(sp.x, caveFloorAt(sp.x, sp.z) + 0.4, sp.z); rock.rotation.set(rng() * 3, rng() * 3, rng() * 3);
     g.add(rock);
+    caveState.solids.push({ x: sp.x, z: sp.z, r: 0.95 + (rock.geometry.parameters.radius - 1) * 0.6 });
   }
   // stalagmites & stalactites
   for (let i = 0; i < 9; i++) {
@@ -1248,6 +1316,7 @@ function buildCave(rng) {
     const st = new THREE.Mesh(new THREE.ConeGeometry(0.4 + rng() * 0.7, h2, 6), matColor(0x6b6258));
     st.position.set(sp.x, caveFloorAt(sp.x, sp.z) + h2 / 2 - 0.2, sp.z);
     g.add(st);
+    caveState.solids.push({ x: sp.x, z: sp.z, r: 0.45 });
     if (rng() < 0.7) {
       const sp2 = spot(R * 0.2, R * 0.75);
       const h3 = 1 + rng() * 2.4;

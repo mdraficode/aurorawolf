@@ -13,6 +13,7 @@ function lmRock(w, h, d, col, x, y, z, ry) {
 const LANDMARKS = {
   ancientTree: {
     label: 'Elder Tree', icon: '🌳', biomes: { forest: 0.6, grove: 0.25, taiga: 0.15 },
+    solid: [[0, 0, 1.7]],
     resources(pk, rng, x, z) {
       for (let i = 0; i < 3; i++) { const a = rng() * 6.28, r = 3 + rng() * 4; pk.magicShroom.push({ x: x + Math.sin(a) * r, y: heightAt(x + Math.sin(a) * r, z + Math.cos(a) * r) - 0.04, z: z + Math.cos(a) * r, ry: rng() * 6.28, s: 1.1 }); }
     },
@@ -37,6 +38,7 @@ const LANDMARKS = {
   },
   stoneCircle: {
     label: 'Stone Circle', icon: '🪨', biomes: { meadow: 0.5, tundra: 0.3, mountain: 0.2 },
+    solid: [[0.00, 7.00, 0.7], [4.50, 5.36, 0.7], [6.89, 1.22, 0.7], [6.06, -3.50, 0.7], [2.39, -6.58, 0.7], [-2.39, -6.58, 0.7], [-6.06, -3.50, 0.7], [-6.89, 1.21, 0.7], [-4.50, 5.36, 0.7], [0, 0, 1.0]],
     resources(pk, rng, x, z) {
       pk.stoneP.push({ x: x + 2, y: heightAt(x + 2, z) - 0.04, z, ry: rng() * 6.28, s: 1.1 });
       pk.bone && pk.bone.push({ x: x - 2.5, y: heightAt(x - 2.5, z + 1) - 0.04, z: z + 1, ry: 0, s: 1 });
@@ -56,6 +58,7 @@ const LANDMARKS = {
   },
   cave: {
     label: 'Cave Mouth', icon: '🕳️', tier: 'common', biomes: { mountain: 0.65, taiga: 0.2, tundra: 0.15 }, enterable: true,
+    solid: [[0, 0, 2.6]],
     resources(pk, rng, x, z) { for (let i = 0; i < 3; i++) pk.stoneP.push({ x: x + (rng() - 0.5) * 6, y: heightAt(x, z) - 0.04, z: z + (rng() - 0.5) * 6, ry: rng() * 6.28, s: 1 }); },
     build(rng) {
       const g = new THREE.Group();
@@ -72,6 +75,7 @@ const LANDMARKS = {
   },
   shrine: {
     label: 'Ruined Shrine', icon: '⛩️', biomes: { grove: 0.4, enchanted: 0.35, forest: 0.25 },
+    solid: [[-2.2, 1.6, 0.4], [2.2, 1.6, 0.4], [-2.2, -1.6, 0.4], [2.2, -1.6, 0.4], [0, 0, 1.1]],
     resources(pk, rng, x, z) {
       pk.magicShroom.push({ x: x + 1.6, y: heightAt(x + 1.6, z - 1.2) - 0.04, z: z - 1.2, ry: rng() * 6.28, s: 1.2 });
       pk.herb.push({ x: x - 1.8, y: heightAt(x - 1.8, z + 1) - 0.04, z: z + 1, ry: 0, s: 1 });
@@ -109,6 +113,7 @@ const LANDMARKS = {
   /* ---- rare discoveries (tier: 'rare') & epics (tier: 'epic') ---- */
   cabin: {
     label: 'Abandoned Cabin', icon: '🏚️', tier: 'rare', biomes: { forest: 0.45, taiga: 0.35, meadow: 0.2 },
+    solid: [[0, -2.2, 1.3], [0, 2.2, 1.3], [-2.9, 0, 1.1], [2.9, 0, 1.1], [-2, -2.2, 1.0], [2, -2.2, 1.0], [-2, 2.2, 1.0], [2, 2.2, 1.0]],
     resources(pk, rng, x, z) { pk.stick.push({ x: x + 2.5, y: heightAt(x + 2.5, z) - 0.04, z, ry: rng() * 6.28, s: 1.1 }); },
     build(rng) {
       const g = new THREE.Group();
@@ -132,6 +137,7 @@ const LANDMARKS = {
   },
   ruins: {
     label: 'Ancient Ruins', icon: '🏛️', tier: 'rare', biomes: { grove: 0.4, meadow: 0.3, forest: 0.3 },
+    solid: [[0.00, 5.50, 0.5], [4.76, 2.75, 0.5], [4.76, -2.75, 0.5], [0.00, -5.50, 0.5], [-4.76, -2.75, 0.5], [-4.76, 2.75, 0.5], [0, 0, 1.7], [2.2, 3.4, 0.5]],
     resources(pk, rng, x, z) { pk.stoneP.push({ x: x - 3, y: heightAt(x - 3, z + 2) - 0.04, z: z + 2, ry: rng() * 6.28, s: 1.2 }); },
     build(rng) {
       const g = new THREE.Group();
@@ -155,6 +161,7 @@ const LANDMARKS = {
   },
   waterfall: {
     label: 'Waterfall', icon: '🌊', tier: 'rare', biomes: { mountain: 0.55, highland: 0.3, taiga: 0.15 }, needsHigh: true,
+    solid: [[0, -1.4, 2.7], [-3.6, 1.8, 0.75], [3.8, 2.1, 0.7]],
     resources(pk, rng, x, z) {},
     build(rng) {
       const g = new THREE.Group();
@@ -197,6 +204,7 @@ const LANDMARKS = {
   },
   wolfShrine: {
     label: 'Wolf Shrine', icon: '🐺', tier: 'rare', biomes: { forest: 0.4, taiga: 0.35, grove: 0.25 },
+    solid: [[0, 0, 1.15]],
     resources(pk, rng, x, z) { pk.magicShroom.push({ x: x + 2.2, y: heightAt(x + 2.2, z) - 0.04, z, ry: rng() * 6.28, s: 1 }); },
     build(rng) {
       const g = new THREE.Group();
@@ -221,6 +229,7 @@ const LANDMARKS = {
   },
   deposit: {
     label: 'Rare Deposit', icon: '💎', tier: 'rare', biomes: { mountain: 0.5, highland: 0.3, volcanic: 0.2 },
+    solid: [[0, 0, 1.35]],
     resources(pk, rng, x, z) { for (let i = 0; i < 4; i++) pk.stoneP.push({ x: x + (rng() - 0.5) * 5, y: heightAt(x, z) - 0.04, z: z + (rng() - 0.5) * 5, ry: rng() * 6.28, s: 1.2 }); },
     build(rng) {
       const g = new THREE.Group();
@@ -243,11 +252,13 @@ const LANDMARKS = {
       const g = new THREE.Group();
       const capMat = new THREE.MeshStandardMaterial({ color: 0x9a5ee0, emissive: 0x5a2a8a, emissiveIntensity: 0.4, roughness: 0.6 });
       const stemMat = matColor(0xe8ddf5);
+      const stems = []; g.userData.solid = stems;
       for (let i = 0; i < 7; i++) {   // towering caps, 2-5 m tall
         const a = i / 7 * 6.28 + rng() * 0.5, r = 2.5 + rng() * 5.5;
         const hgt = 2 + rng() * 3, capR = 0.8 + rng() * 1.1;
         const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.34, hgt, 6), stemMat);
         stem.position.set(Math.sin(a) * r, hgt / 2, Math.cos(a) * r); stem.castShadow = true; g.add(stem);
+        stems.push([Math.sin(a) * r, Math.cos(a) * r, 0.45]);
         const cap = new THREE.Mesh(new THREE.SphereGeometry(capR, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), capMat);
         cap.position.set(Math.sin(a) * r, hgt, Math.cos(a) * r); cap.castShadow = true; g.add(cap);
         for (let k = 0; k < 3; k++) {
@@ -467,6 +478,7 @@ class Wolf {
     this.lastHurt = -99;
     this.invulnT = 0;
     this.deadT = 0;
+    this.impactCd = 0;   // solid-collision injury cooldown
     this.killerPos = null;
     this.flyDirY = 0;
     this.trailAcc = 0;
@@ -494,6 +506,7 @@ class Wolf {
       return;
     }
     if (this.invulnT > 0) this.invulnT -= dt;
+    if (this.impactCd > 0) this.impactCd -= dt;
     const mvF = clamp((input.f ? 1 : 0) - (input.b ? 1 : 0) + input.my, -1, 1);
     const mvS = clamp((input.r ? 1 : 0) - (input.l ? 1 : 0) + input.mx, -1, 1);
     const mag = Math.hypot(mvF, mvS);
@@ -571,6 +584,7 @@ class Wolf {
     this.pos.x += dirX * this.speed * dt;
     this.pos.z += dirZ * this.speed * dt;
     this.distance += this.speed * dt;
+    if (this.speed > 0.5) collideSolids(this, dirX, dirZ);   // big trunks & boulders are solid
 
     const ground = groundAt(this.pos.x, this.pos.z);
     const wy = groundWaterY();
