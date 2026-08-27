@@ -441,6 +441,8 @@ const nF    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // forest clumping
 const nVar  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // ground variation
 const nRiver = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // river bands
 const nMagic = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // enchanted grove fields
+const nClr   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // forest clearings
+const nPath  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // winding animal paths
 
 /* ---------------- terrain shape ---------------- */
 const CHUNK = 64, SEG = 32, VIEW_R = 3;
@@ -941,6 +943,96 @@ const G = {};
     [cone(0.55, 0.95), 0x446b50, T(0, 1.3, 0)],
     [cone(0.3, 0.7), 0x4c7557, T(0, 1.85, 0)]
   ]);
+  /* ---- boreal canopy & forest-layer species (tall bases; instance scale picks final height) ---- */
+  G.spruceTall = bakeParts([
+    [cyl(0.16, 0.34, 10, 5), 0x5a4030, T(0, 5, 0)],
+    [cone(3.1, 3.6, 6), 0x27452e, T(0, 10.2, 0)],
+    [cone(2.85, 3.4, 6), 0x2c4f35, T(0, 12.4, 0)],
+    [cone(2.6, 3.2, 6), 0x27452e, T(0, 14.6, 0)],
+    [cone(2.3, 3.0, 6), 0x2c4f35, T(0, 16.7, 0)],
+    [cone(2.0, 2.8, 6), 0x27452e, T(0, 18.7, 0)],
+    [cone(1.65, 2.5, 6), 0x2f553a, T(0, 20.6, 0)],
+    [cone(1.25, 2.2, 6), 0x27452e, T(0, 22.4, 0)],
+    [cone(0.85, 1.9, 6), 0x2f553a, T(0, 24.1, 0)],
+    [cone(0.45, 1.5, 6), 0x356040, T(0, 25.6, 0)]
+  ]);
+  G.pineTall = bakeParts([
+    [cyl(0.2, 0.42, 12, 5), 0x63442e, T(0, 6, 0)],
+    [cone(3.4, 3.8, 6), 0x2a4f34, T(0, 12.8, 0)],
+    [cone(2.9, 3.5, 6), 0x306044, T(0, 15.4, 0)],
+    [cone(2.35, 3.1, 6), 0x2a4f34, T(0, 17.9, 0)],
+    [cone(1.75, 2.7, 6), 0x36684a, T(0, 20.2, 0)],
+    [cone(1.15, 2.3, 6), 0x2a4f34, T(0, 22.3, 0)],
+    [cone(0.6, 1.8, 6), 0x3c6e50, T(0, 24.1, 0)]
+  ]);
+  G.fir = bakeParts([
+    [cyl(0.1, 0.2, 5.5, 5), 0x5f4230, T(0, 2.75, 0)],
+    [cone(1.5, 2.6, 6), 0x2e5238, T(0, 6.2, 0)],
+    [cone(1.25, 2.4, 6), 0x345c3e, T(0, 8.2, 0)],
+    [cone(1.0, 2.2, 6), 0x2e5238, T(0, 10.1, 0)],
+    [cone(0.7, 1.9, 6), 0x345c3e, T(0, 11.9, 0)],
+    [cone(0.4, 1.5, 6), 0x3a6644, T(0, 13.4, 0)]
+  ]);
+  G.birchTall = bakeParts([
+    [cyl(0.1, 0.2, 11, 5), 0xe6eaea, T(0, 5.5, 0)],
+    [ico(2.0), 0x7fa847, T(0, 12.2, 0)],
+    [ico(1.55), 0x8bb454, T(1.1, 13.6, 0.4)],
+    [ico(1.35), 0x749f41, T(-1.15, 12.9, -0.5)],
+    [ico(1.1), 0x86b04f, T(0.15, 15.0, -0.75)],
+    [ico(0.8), 0x7fa847, T(-0.6, 15.6, 0.55)]
+  ]);
+  G.oakTall = bakeParts([
+    [cyl(0.3, 0.6, 7.5, 5), 0x5d3f29, T(0, 3.75, 0)],
+    [ico(2.6), 0x42632d, T(0, 9.6, 0)],
+    [ico(2.0), 0x4a6d34, T(1.7, 11.2, 0.5)],
+    [ico(1.8), 0x3c5c29, T(-1.6, 10.6, -0.6)],
+    [ico(1.5), 0x476a31, T(0.2, 13.0, -0.9)],
+    [ico(1.1), 0x4a6d34, T(-0.9, 13.9, 1.0)]
+  ]);
+  G.deadPine = bakeParts([
+    [cyl(0.14, 0.4, 16, 5), 0x7d746a, T(0, 8, 0)],
+    [cyl(0.03, 0.08, 2.6, 4), 0x746b60, T(0.75, 10.5, 0, 0, 0, -1.05)],
+    [cyl(0.025, 0.07, 2.2, 4), 0x746b60, T(-0.7, 13.2, 0.1, 0, 0, 1.15)],
+    [cyl(0.02, 0.05, 1.6, 4), 0x6e655b, T(0.2, 15.5, -0.15, 0, 0, -0.7)],
+    [cyl(0.02, 0.06, 1.8, 4), 0x746b60, T(-0.4, 8.2, -0.6, 0.6, 0, 0.9)]
+  ]);
+  G.youngConifer = bakeParts([
+    [cyl(0.035, 0.06, 1.5, 4), 0x6b4a33, T(0, 0.75, 0)],
+    [cone(0.55, 1.15, 5), 0x3a6244, T(0, 1.95, 0)],
+    [cone(0.38, 0.95, 5), 0x446e4e, T(0, 2.75, 0)],
+    [cone(0.2, 0.7, 5), 0x4c7557, T(0, 3.35, 0)]
+  ]);
+  G.youngBroad = bakeParts([
+    [cyl(0.035, 0.06, 1.7, 4), 0x7a5a3d, T(0, 0.85, 0)],
+    [ico(0.62), 0x6f9c45, T(0, 2.35, 0)],
+    [ico(0.45), 0x7dab51, T(0.4, 2.85, 0.15)],
+    [ico(0.4), 0x648f3d, T(-0.38, 2.6, -0.2)]
+  ]);
+  G.fallenTree = bakeParts([
+    [cyl(0.22, 0.36, 8.5, 5), 0x5e4632, T(0, 0.32, 0, Math.PI / 2, 0, 0)],
+    [cyl(0.05, 0.09, 1.4, 4), 0x55402d, T(0.3, 0.5, 1.8, 0.5, 0, 0.9)],
+    [cyl(0.04, 0.07, 1.1, 4), 0x55402d, T(-0.3, 0.45, -2.2, -0.5, 0, -0.8)],
+    [ico(0.35), 0x4a6b3c, T(0.15, 0.55, 0.6)],
+    [ico(0.28), 0x4f7340, T(-0.2, 0.5, -1.2)]
+  ]);
+  G.stump = bakeParts([
+    [cyl(0.34, 0.46, 1.0, 6), 0x5a4230, T(0, 0.5, 0)],
+    [cyl(0.3, 0.3, 0.08, 6), 0x8a6a4a, T(0, 1.02, 0)]
+  ]);
+  G.fern = bakeParts([
+    [plane(0.85, 1.05), 0x3f6e35, T(0, 0.5, 0)],
+    [plane(0.85, 1.05), 0x457a3a, T(0, 0.5, 0, 0, 1.25, 0)],
+    [plane(0.85, 1.05), 0x386431, T(0, 0.5, 0, 0, 2.5, 0)],
+    [plane(0.85, 1.05), 0x3f6e35, T(0, 0.5, 0, 0, 3.9, 0)],
+    [plane(0.85, 1.05), 0x457a3a, T(0, 0.5, 0, 0, 5.1, 0)]
+  ]);
+  G.leafPatch = bakeParts([
+    [plane(1.5, 1.5), 0x8a6a34, T(0, 0.03, 0, -Math.PI / 2, 0, 0)]
+  ]);
+  G.branch = bakeParts([
+    [cyl(0.025, 0.045, 1.1, 4), 0x6e5138, T(0, 0.05, 0, 0, 0, 1.45)],
+    [cyl(0.02, 0.035, 0.7, 4), 0x644a34, T(0.25, 0.08, 0.1, 0, 0, 1.1)]
+  ]);
   G.bush = bakeParts([
     [ico(0.55), 0x3c6640, T(0, 0.5, 0)],
     [ico(0.42), 0x446c42, T(0.45, 0.42, 0.12)],
@@ -989,16 +1081,21 @@ const G = {};
   G.stoneP = bakeParts([[dod(0.24), 0x9a9da2, T(0, 0.14, 0, 0.3, 0.5, 0.2, 1)]]);
 })();
 
-function makeInstanced(geom, mat, items, shadow) {
+const TREE_BASE_H = {
+  spruceTall: 26.3, pineTall: 25, fir: 14.1, birchTall: 16.4, oakTall: 15, deadPine: 17,
+  youngConifer: 3.7, youngBroad: 3.4, fallenTree: 9, stump: 1.05,
+  spruce: 7.1, snowSpruce: 7.1, pine: 7.2, birch: 6.05, autumnBirch: 6.05, rowan: 4.9, oak: 5.8, deadTree: 3.6, dwarfPine: 2.2
+};
+function makeInstanced(geom, mat, items, shadow, cull) {
   if (!items.length) return null;
   const m = new THREE.InstancedMesh(geom, mat, items.length);
   const d = new THREE.Object3D();
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     d.position.set(it.x, it.y, it.z);
-    d.rotation.set(0, it.ry || 0, 0);
+    d.rotation.set(it.rx || 0, it.ry || 0, it.rz || 0);
     const s = it.s || 1;
-    d.scale.set(s, s, s);
+    d.scale.set(it.sx || s, it.sy || s, it.sz || s);
     d.updateMatrix();
     m.setMatrixAt(i, d.matrix);
     if (it.tint) m.setColorAt(i, it.tint);
@@ -1007,6 +1104,28 @@ function makeInstanced(geom, mat, items, shadow) {
   m.castShadow = !!shadow;
   m.receiveShadow = true;
   m.frustumCulled = false;
+  if (cull) {
+    // r134 shares geometry between InstancedMeshes; clone per chunk so frustum culling
+    // gets an honest bounding sphere (draw-call savings fund the dense forest)
+    if (!geom.boundingBox) geom.computeBoundingBox();
+    const bb = geom.boundingBox;
+    let minx = 1e9, miny = 1e9, minz = 1e9, maxx = -1e9, maxy = -1e9, maxz = -1e9;
+    for (const it of items) {
+      const sx = it.sx || it.s || 1, sy = it.sy || it.s || 1;
+      const ex = (bb.max.x - bb.min.x) * sx * 0.5 + 0.5, ey = (bb.max.y - bb.min.y) * sy;
+      minx = Math.min(minx, it.x - ex); maxx = Math.max(maxx, it.x + ex);
+      minz = Math.min(minz, it.z - ex); maxz = Math.max(maxz, it.z + ex);
+      miny = Math.min(miny, it.y); maxy = Math.max(maxy, it.y + ey);
+    }
+    const g2 = geom.clone();
+    g2.boundingSphere = new THREE.Sphere(
+      new THREE.Vector3((minx + maxx) / 2, (miny + maxy) / 2, (minz + maxz) / 2),
+      Math.max(maxx - minx, maxy - miny, maxz - minz) * 0.62
+    );
+    m.geometry = g2;
+    m.userData.ownGeo = g2;
+    m.frustumCulled = true;
+  }
   return m;
 }
 
@@ -2560,6 +2679,165 @@ function pickWeighted(rng, entries) {
   return entries[entries.length - 1][0];
 }
 
+/* ================= the boreal forest engine =================
+   Layered vegetation — canopy (15-40 m) / mid-story / young trees /
+   understory / floor detail — placed in organic clusters with
+   noise-driven clearings and winding animal paths. All instanced;
+   counts scale with QUALITY for mobile. */
+const FOREST = {
+  Q: QUALITY === 'low' ? 0.7 : 1,
+  BASE: TREE_BASE_H,
+  POOLS: {   // [species, weight, tier]
+    taiga:     [['spruceTall', .26, 'canopy'], ['spruce', .22, 'mid'], ['fir', .13, 'mid'], ['birchTall', .08, 'canopy'], ['birch', .09, 'mid'], ['snowSpruce', .06, 'mid'], ['deadPine', .05, 'canopy'], ['youngConifer', .11, 'young']],
+    forest:    [['pineTall', .23, 'canopy'], ['spruceTall', .17, 'canopy'], ['pine', .17, 'mid'], ['oakTall', .14, 'canopy'], ['oak', .10, 'mid'], ['birchTall', .09, 'canopy'], ['birch', .06, 'mid'], ['youngBroad', .04, 'young']],
+    grove:     [['birchTall', .26, 'canopy'], ['autumnBirch', .21, 'mid'], ['rowan', .15, 'mid'], ['oakTall', .14, 'canopy'], ['youngBroad', .13, 'young'], ['birch', .11, 'mid']],
+    enchanted: [['birchTall', .30, 'canopy'], ['rowan', .17, 'mid'], ['spruceTall', .19, 'canopy'], ['autumnBirch', .16, 'mid'], ['birch', .10, 'mid'], ['youngBroad', .08, 'young']],
+    meadow:    [['oakTall', .34, 'canopy'], ['oak', .30, 'mid'], ['birch', .22, 'mid'], ['youngBroad', .14, 'young']],
+    tundra:    [['deadPine', .30, 'canopy'], ['deadTree', .30, 'mid'], ['dwarfPine', .40, 'mid']],
+    swamp:     [['deadPine', .26, 'canopy'], ['deadTree', .26, 'mid'], ['dwarfPine', .22, 'mid'], ['birch', .26, 'mid']],
+    mountain:  [['spruce', .40, 'mid'], ['snowSpruce', .28, 'mid'], ['fir', .20, 'mid'], ['spruceTall', .12, 'canopy']]
+  },
+  pick(pool, rng) {
+    let tot = 0; for (const e of pool) tot += e[1];
+    let r = rng() * tot;
+    for (const e of pool) { r -= e[1]; if (r <= 0) return e; }
+    return pool[pool.length - 1];
+  },
+  poolFor(w, rng) {           // biome mix at a spot decides the species pool
+    const entries = [];
+    for (const k in this.POOLS) { const wt = w[k] || 0; if (wt > 0.04) entries.push([this.POOLS[k], wt]); }
+    if (!entries.length) return null;
+    let tot = 0; for (const e of entries) tot += e[1];
+    let r = rng() * tot;
+    for (const e of entries) { r -= e[1]; if (r <= 0) return e[0]; }
+    return entries[entries.length - 1][0];
+  },
+  clearingAt(x, z) { return ss(0.5, 0.72, fbm(nClr, x * 0.021, z * 0.021, 2)); },
+  pathAt(x, z) { return 1 - ss(0.009, 0.028, Math.abs(fbm(nPath, x * 0.016, z * 0.016, 2) - 0.5)); },
+  place(treeSets, bushes, ferns, grass, leafPatches, branches, cx, cz, rng, sample, slopeOK) {
+    const Q = this.Q, x0 = cx * CHUNK, z0 = cz * CHUNK;
+    const stats = { canopy: 0, mid: 0, young: 0, understory: 0, floor: 0, trees: [] };
+    // coarse trunk grid: keeps trunks from fusing while staying organic
+    const cell = new Map();
+    const crowded = (x, z, r) => {
+      const gx = Math.floor(x / 2.4), gz = Math.floor(z / 2.4);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+        const arr = cell.get((gx + a) + ',' + (gz + b)); if (!arr) continue;
+        for (let q = 0; q < arr.length; q++) {
+          const dx = arr[q][0] - x, dz = arr[q][1] - z;
+          if (dx * dx + dz * dz < r * r) return true;
+        }
+      }
+      return false;
+    };
+    const mark = (x, z) => {
+      const k = Math.floor(x / 2.4) + ',' + Math.floor(z / 2.4);
+      let a = cell.get(k); if (!a) { a = []; cell.set(k, a); }
+      a.push([x, z]);
+    };
+    const c0 = sample(x0 + 32, z0 + 32), w0 = c0.w;
+    const forestF = Math.min(1, (w0.forest || 0) + (w0.taiga || 0) + (w0.grove || 0) * 0.9 + (w0.enchanted || 0) * 0.95 + (w0.swamp || 0) * 0.5 + (w0.mountain || 0) * 0.3);
+    // stand clusters — each breeds mostly true
+    const clusters = [];
+    const nCl = Math.round((1 + forestF * 4) * (0.7 + rng() * 0.6));
+    for (let i = 0; i < nCl; i++) {
+      const cp = this.poolFor(sample(x0 + 10 + rng() * (CHUNK - 20), z0 + 10 + rng() * (CHUNK - 20)).w, rng);
+      if (cp) clusters.push({ x: x0 + 8 + rng() * (CHUNK - 16), z: z0 + 8 + rng() * (CHUNK - 16), dom: this.pick(cp, rng) });
+    }
+    const tries = Math.min(260, Math.round((30 + 205 * forestF) * Q));
+    for (let t = 0; t < tries; t++) {
+      let x, z;
+      if (clusters.length && rng() < 0.58) {          // clustered majority
+        const c = clusters[(rng() * clusters.length) | 0];
+        const ang = rng() * 6.283, r = Math.pow(rng(), 0.6) * 13;
+        x = c.x + Math.sin(ang) * r; z = c.z + Math.cos(ang) * r;
+        if (x < x0 + 0.5 || x >= x0 + CHUNK - 0.5 || z < z0 + 0.5 || z >= z0 + CHUNK - 0.5) continue;
+      } else { x = x0 + rng() * CHUNK; z = z0 + rng() * CHUNK; }
+      const s = sample(x, z);
+      if (s.h < 1.4) continue;
+      const dens = ss(-0.35, 0.55, fbm(nF, x * 0.012, z * 0.012, 2));
+      const open = this.clearingAt(x, z), path = this.pathAt(x, z);
+      const bf = (s.w.forest || 0) + (s.w.taiga || 0) + (s.w.grove || 0) * 0.9 + (s.w.enchanted || 0) * 0.95 +
+                 (s.w.swamp || 0) * 0.5 + (s.w.mountain || 0) * (s.h < 40 ? 0.35 : 0.05) + (s.w.meadow || 0) * 0.16 + (s.w.tundra || 0) * 0.22;
+      let p = (0.1 + 0.92 * dens) * bf * (1 - open * 0.95) * (1 - path * 0.93);
+      if ((s.w.meadow || 0) > 0.5) p *= 0.32;          // meadows stay airy
+      if (rng() > p || !slopeOK(x, z, s.h) || crowded(x, z, 1.5)) continue;
+      let dom;
+      if (rng() < 0.62 && clusters.length) dom = clusters[(rng() * clusters.length) | 0].dom;
+      else { const pool = this.poolFor(s.w, rng); if (!pool) continue; dom = this.pick(pool, rng); }
+      const type = dom[0], tier = dom[2];
+      let h;
+      if (tier === 'canopy') h = rng() < 0.06 ? 29 + rng() * 10 : 15 + rng() * 12;   // 6% old growth 29-39 m
+      else if (tier === 'young') h = 2.2 + rng() * 3.2;
+      else h = (this.BASE[type] || 7) * (0.92 + rng() * 0.85);
+      if (type === 'deadPine') h = 11 + rng() * 9;
+      const sy = h / (this.BASE[type] || 7), sxv = sy * (0.85 + rng() * 0.3);
+      const tv = 0.86 + rng() * 0.28;
+      const tint = _c2.setRGB(tv * (0.9 + rng() * 0.2), tv, tv * (0.85 + rng() * 0.25)).clone();
+      if ((s.w.enchanted || 0) > 0.4) tint.setRGB(0.62 + rng() * 0.25, 0.58 + rng() * 0.2, 0.85 + rng() * 0.3);
+      else if (type === 'birch' && (s.w.swamp || 0) > 0.4) tint.multiplyScalar(0.82);
+      treeSets[type].push({ x, y: s.h - 0.12, z, ry: rng() * 6.283, rx: type === 'deadPine' ? (rng() - 0.5) * 0.12 : 0, sx: sxv, sy, sz: sxv * (0.9 + rng() * 0.2), tint });
+      mark(x, z);
+      if (tier === 'canopy') stats.canopy++; else if (tier === 'young') stats.young++; else stats.mid++;
+      stats.trees.push({ x, z, h, y: s.h });
+    }
+    // ---- understory: bushes & ferns, thick in dense stands, thin on paths ----
+    for (let i = 0, n = Math.round(52 * Q); i < n; i++) {
+      const x = x0 + rng() * CHUNK, z = z0 + rng() * CHUNK;
+      const s = sample(x, z);
+      if (s.h < 1.2) continue;
+      const dens = ss(-0.35, 0.55, fbm(nF, x * 0.012, z * 0.012, 2));
+      const p = ((s.w.forest || 0) * 0.62 + (s.w.taiga || 0) * 0.55 + (s.w.grove || 0) * 0.5 + (s.w.enchanted || 0) * 0.5 + (s.w.meadow || 0) * 0.18) *
+                (0.5 + 0.75 * dens) * (1 - this.clearingAt(x, z) * 0.55) * (1 - this.pathAt(x, z) * 0.75);
+      if (rng() > p) continue;
+      const dst = rng() < 0.42 + (s.w.taiga || 0) * 0.25 ? ferns : bushes;
+      const bv = 0.78 + rng() * 0.4;
+      dst.push({ x, y: s.h - 0.05, z, ry: rng() * 6.283, s: 0.7 + rng() * 1.1, tint: _c2.setRGB(bv * 0.95, bv, bv * 0.88).clone() });
+      stats.understory++;
+    }
+    // ---- floor: grass, leaf litter, dead branches ----
+    for (let i = 0, n = Math.round(150 * Q * (0.6 + 0.5 * ((w0.meadow || 0) + forestF * 0.6))); i < n; i++) {
+      const x = x0 + rng() * CHUNK, z = z0 + rng() * CHUNK;
+      const s = sample(x, z);
+      if (s.h < 1.2) continue;
+      const p = (0.85 * (s.w.meadow || 0) + 0.7 * (s.w.forest || 0) + 0.5 * (s.w.grove || 0) + 0.32 * (s.w.taiga || 0) + 0.3 * (s.w.enchanted || 0)) * (1 - this.pathAt(x, z) * 0.5);
+      if (rng() > p) continue;
+      const gv = 0.75 + rng() * 0.45;
+      grass.push({ x, y: s.h - 0.05, z, ry: rng() * 6.283, s: 0.7 + rng() * 0.85, tint: _c2.setRGB(gv * (0.9 + (s.w.grove || 0) * 0.35), gv, gv * (0.85 + (s.w.taiga || 0) * 0.2)).clone() });
+      stats.floor++;
+    }
+    const LEAF_TINTS = [0x8a6a34, 0x6d5a30, 0x9c7a3c, 0xb0803f, 0x5d4a2a];
+    for (let i = 0, n = Math.round(20 * Q); i < n; i++) {
+      const x = x0 + rng() * CHUNK, z = z0 + rng() * CHUNK;
+      const s = sample(x, z);
+      if (s.h < 1.2) continue;
+      const p = 0.62 * ((s.w.forest || 0) + (s.w.grove || 0) * 0.95 + (s.w.enchanted || 0) * 0.5 + (s.w.taiga || 0) * 0.22);
+      if (rng() > p) continue;
+      leafPatches.push({ x, y: s.h - 0.02, z, ry: rng() * 6.283, s: 0.7 + rng() * 1.0, tint: _c2.setHex(LEAF_TINTS[(rng() * LEAF_TINTS.length) | 0]).clone() });
+      stats.floor++;
+    }
+    for (let i = 0, n = Math.round(13 * Q); i < n; i++) {
+      const x = x0 + rng() * CHUNK, z = z0 + rng() * CHUNK;
+      const s = sample(x, z);
+      if (s.h < 1.2) continue;
+      const p = 0.55 * ((s.w.forest || 0) + (s.w.taiga || 0) * 0.8 + (s.w.grove || 0) * 0.7 + (s.w.enchanted || 0) * 0.4);
+      if (rng() > p) continue;
+      branches.push({ x, y: s.h - 0.02, z, ry: rng() * 6.283, s: 0.8 + rng() * 1.1 });
+      stats.floor++;
+    }
+    // ---- windfall: fallen trunks & stumps where the stand is old ----
+    for (let i = 0; i < 3; i++) {
+      const x = x0 + 6 + rng() * (CHUNK - 12), z = z0 + 6 + rng() * (CHUNK - 12);
+      const s = sample(x, z);
+      if (s.h < 1.4) continue;
+      if (rng() > 0.4 * forestF * ss(-0.1, 0.6, fbm(nF, x * 0.012, z * 0.012, 2))) continue;
+      if (rng() < 0.6) treeSets.fallenTree.push({ x, y: s.h - 0.06, z, ry: rng() * 6.283, rz: (rng() - 0.5) * 0.1, s: 0.7 + rng() * 0.65 });
+      else treeSets.stump.push({ x, y: s.h - 0.08, z, ry: rng() * 6.283, s: 0.8 + rng() * 0.7 });
+    }
+    return stats;
+  }
+};
+
 function genChunk(cx, cz) {
   const key = ck(cx, cz);
   if (chunks.has(key)) return;
@@ -2607,8 +2885,10 @@ function genChunk(cx, cz) {
 
   /* ---- placement ---- */
   const rng = mulberry32(hash2(cx, cz, SEED));
-  const treeSets = { spruce: [], snowSpruce: [], pine: [], birch: [], autumnBirch: [], rowan: [], oak: [], deadTree: [], dwarfPine: [] };
-  const rocks = [], grass = [], flowers = [], bushes = [];
+  const treeSets = { spruce: [], snowSpruce: [], pine: [], birch: [], autumnBirch: [], rowan: [], oak: [], deadTree: [], dwarfPine: [],
+    spruceTall: [], pineTall: [], birchTall: [], oakTall: [], fir: [], deadPine: [], youngConifer: [], youngBroad: [], fallenTree: [], stump: [] };
+  const rocks = [], flowers = [];
+  let grass = [], bushes = [], ferns = [], leafPatches = [], branches = [];
   const pkSets = { berryBush: [], mushroom: [], herb: [], stick: [], stoneP: [], magicShroom: [] };
 
   const sample = (bx, bz) => {
@@ -2622,63 +2902,10 @@ function genChunk(cx, cz) {
     return g < 0.85;
   };
 
-  for (let i = 0; i < 150; i++) {
-    const x = cx * CHUNK + rng() * CHUNK, z = cz * CHUNK + rng() * CHUNK;
-    const s = sample(x, z);
-    if (s.h < 1.4) continue;
-    const dens = ss(-0.35, 0.55, fbm(nF, x * 0.012, z * 0.012, 2));
-    const biome = pickWeighted(rng, Object.entries(s.w).filter(e => e[1] > 0.02));
-    let p = 0, placed = null;
-    const item = { x, y: s.h - 0.1, z, ry: rng() * 6.28, s: 1.0 + rng() * 0.8, tint: _c2.setRGB(0.86 + rng() * 0.28, 0.86 + rng() * 0.28, 0.86 + rng() * 0.24).clone() };
-    if (biome === 'taiga') {
-      p = 0.16 + 0.85 * dens;
-      const t = rng() < 0.16 ? 'birch' : (s.cl.temp < -0.32 && rng() < 0.75 ? 'snowSpruce' : 'spruce');
-      treeSets[t].push(item); placed = item;
-    } else if (biome === 'forest') {
-      p = 0.12 + 0.78 * dens;
-      const r = rng();
-      const t = r < 0.45 ? 'pine' : r < 0.72 ? 'birch' : 'spruce';
-      treeSets[t].push(item); placed = item;
-    } else if (biome === 'grove') {
-      p = 0.12 + 0.72 * dens;
-      const r = rng();
-      const t = r < 0.5 ? 'autumnBirch' : r < 0.78 ? 'rowan' : 'birch';
-      treeSets[t].push(item); placed = item;
-    } else if (biome === 'meadow') {
-      p = 0.05 + 0.14 * dens;
-      const t = rng() < 0.8 ? 'oak' : 'birch';
-      treeSets[t].push(item); placed = item;
-    } else if (biome === 'tundra') {
-      p = 0.13;
-      const t = rng() < 0.5 ? 'deadTree' : 'dwarfPine';
-      treeSets[t].push(item); placed = item;
-    } else if (biome === 'swamp') {
-      p = 0.34 + 0.3 * dens;
-      const r = rng();
-      const t = r < 0.45 ? 'deadTree' : r < 0.7 ? 'dwarfPine' : 'birch';
-      treeSets[t].push(item); placed = item;
-      if (t === 'birch') item.tint.multiplyScalar(0.82);
-    } else if (biome === 'enchanted') {
-      p = 0.16 + 0.8 * dens;
-      const r = rng();
-      const t = r < 0.6 ? 'birch' : r < 0.85 ? 'rowan' : 'spruce';
-      treeSets[t].push(item); placed = item;
-      // mystical teal-violet canopy tint
-      item.tint.setRGB(0.62 + rng() * 0.25, 0.58 + rng() * 0.2, 0.85 + rng() * 0.3);
-    } else if (biome === 'mountain') {
-      p = s.h < 40 ? 0.08 + 0.34 * dens : 0.015;
-      const t = s.cl.temp < -0.25 && rng() < 0.6 ? 'snowSpruce' : 'spruce';
-      treeSets[t].push(item); placed = item;
-    }
-    if (placed && (rng() > p || !slopeOK(x, z, s.h))) {
-      for (const k in treeSets) {
-        const arr = treeSets[k];
-        if (arr.length && arr[arr.length - 1] === placed) arr.pop();
-      }
-    }
-  }
+  /* ---- boreal forest: layered stands, clearings, paths ---- */
+  chunk.veg = FOREST.place(treeSets, bushes, ferns, grass, leafPatches, branches, cx, cz, rng, sample, slopeOK);
 
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 18; i++) {
     const x = cx * CHUNK + rng() * CHUNK, z = cz * CHUNK + rng() * CHUNK;
     const s = sample(x, z);
     if (s.h < 0.6) continue;
@@ -2689,28 +2916,6 @@ function genChunk(cx, cz) {
       _c2.setRGB(g, g, Math.min(1, g + 0.04));
       if (white) _c2.setRGB(1.25, 1.28, 1.34);
       rocks.push({ x, y: s.h - 0.15, z, ry: rng() * 6.28, s: 0.5 + rng() * 1.7, tint: _c2.clone() });
-    }
-  }
-  for (let i = 0; i < 85; i++) {
-    const x = cx * CHUNK + rng() * CHUNK, z = cz * CHUNK + rng() * CHUNK;
-    const s = sample(x, z);
-    if (s.h < 1.2) continue;
-    const p = 0.85 * s.w.meadow + 0.6 * s.w.forest + 0.45 * s.w.grove + 0.25 * s.w.taiga;
-    if (rng() < p) {
-      const gv = 0.75 + rng() * 0.45;
-      _c2.setRGB(gv * (0.9 + s.w.grove * 0.35), gv, gv * (0.85 + s.w.taiga * 0.2));
-      grass.push({ x, y: s.h - 0.05, z, ry: rng() * 6.28, s: 0.8 + rng() * 1.1, tint: _c2.clone() });
-    }
-  }
-  for (let i = 0; i < 30; i++) {
-    const x = cx * CHUNK + rng() * CHUNK, z = cz * CHUNK + rng() * CHUNK;
-    const s = sample(x, z);
-    if (s.h < 1.2) continue;
-    const p = 0.5 * s.w.forest + 0.45 * s.w.taiga + 0.35 * s.w.grove + 0.15 * s.w.meadow;
-    if (rng() < p) {
-      const bv = 0.8 + rng() * 0.35;
-      _c2.setRGB(bv * 0.95, bv, bv * 0.9);
-      bushes.push({ x, y: s.h - 0.05, z, ry: rng() * 6.28, s: 0.8 + rng() * 1.3, tint: _c2.clone() });
     }
   }
   const FLOWER_COLS = [0xf2a7c3, 0xf7e07a, 0xffffff, 0xb28ff2, 0xff8f5e];
@@ -2800,16 +3005,34 @@ function genChunk(cx, cz) {
     }
   }
 
+  /* ---- keep landmarks clear of trunks & thickets ---- */
+  const lmPts = [];
+  for (const l of landmarkList)
+    if (l.x > cx * CHUNK - 6 && l.x < cx * CHUNK + CHUNK + 6 && l.z > cz * CHUNK - 6 && l.z < cz * CHUNK + CHUNK + 6) lmPts.push(l);
+  if (lmPts.length) {
+    const R2 = 9 * 9;
+    const clearOf = arr => arr.filter(it => {
+      for (const l of lmPts) { const dx = it.x - l.x, dz = it.z - l.z; if (dx * dx + dz * dz < R2) return false; }
+      return true;
+    });
+    for (const k in treeSets) treeSets[k] = clearOf(treeSets[k]);
+    grass = clearOf(grass); bushes = clearOf(bushes); ferns = clearOf(ferns); leafPatches = clearOf(leafPatches); branches = clearOf(branches);
+    if (chunk.veg) chunk.veg.trees = clearOf(chunk.veg.trees);   // keep the census honest
+  }
+
   /* ---- instantiate ---- */
   for (const t in treeSets) {
     if (!treeSets[t].length) continue;
-    const m = makeInstanced(G[t], matVeg, treeSets[t], true);
+    const m = makeInstanced(G[t], matVeg, treeSets[t], true, true);
     if (m) { group.add(m); chunk.instanced.push(m); }
   }
-  if (rocks.length) { const m = makeInstanced(G.rock, matVeg, rocks, true); if (m) { group.add(m); chunk.instanced.push(m); } }
-  if (grass.length) { const m = makeInstanced(G.grassTuft, matVeg, grass, false); if (m) { group.add(m); chunk.instanced.push(m); } }
-  if (flowers.length) { const m = makeInstanced(G.flower, matVeg, flowers, false); if (m) { group.add(m); chunk.instanced.push(m); } }
-  if (bushes.length) { const m = makeInstanced(G.bush, matVeg, bushes, false); if (m) { group.add(m); chunk.instanced.push(m); } }
+  if (rocks.length) { const m = makeInstanced(G.rock, matVeg, rocks, true, true); if (m) { group.add(m); chunk.instanced.push(m); } }
+  if (grass.length) { const m = makeInstanced(G.grassTuft, matVeg, grass, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
+  if (flowers.length) { const m = makeInstanced(G.flower, matVeg, flowers, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
+  if (bushes.length) { const m = makeInstanced(G.bush, matVeg, bushes, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
+  if (ferns.length) { const m = makeInstanced(G.fern, matVeg, ferns, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
+  if (leafPatches.length) { const m = makeInstanced(G.leafPatch, matVeg, leafPatches, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
+  if (branches.length) { const m = makeInstanced(G.branch, matVeg, branches, false, true); if (m) { group.add(m); chunk.instanced.push(m); } }
   for (const type in pkSets) {
     if (!pkSets[type].length) continue;
     const m = makeInstanced(PICKUP_GEO[type], type === 'magicShroom' ? matMagic : matVeg, pkSets[type], true);
@@ -2838,7 +3061,7 @@ function genChunk(cx, cz) {
 function disposeChunk(chunk) {
   scene.remove(chunk.group);
   chunk.geo.dispose();
-  for (const m of chunk.instanced) { if (m.dispose) m.dispose(); }
+  for (const m of chunk.instanced) { if (m.dispose) m.dispose(); if (m.userData && m.userData.ownGeo) m.userData.ownGeo.dispose(); }
   for (const a of chunk.animals) a.dispose();
   chunk.animals.length = 0;
   for (const pr of chunk.predators) pr.dispose();
@@ -3128,6 +3351,7 @@ const audio = {
       };
       this.windG = mk('bandpass', 360, 0.05);
       this.rainG = mk('highpass', 1600, 0.0);
+      this.leafG = mk('bandpass', 900, 0.0);   // wind in the crowns
       this.ready = true;
     } catch (e) { }
   },
@@ -3137,6 +3361,10 @@ const audio = {
     const t = this.ctx.currentTime;
     this.windG.gain.setTargetAtTime(0.02 + wind * 0.1, t, 0.8);
     this.rainG.gain.setTargetAtTime(rain * 0.14, t, 0.9);
+  },
+  setForest(cover, wind) {   // denser canopy = louder rustling overhead
+    if (!this.ready || !this.leafG) return;
+    this.leafG.gain.setTargetAtTime((0.012 + wind * 0.055) * (0.35 + 0.65 * cover), this.ctx.currentTime, 1.0);
   },
   howl() {
     if (!this.ready) return;
@@ -4045,10 +4273,12 @@ function tick() {
   updateMagicGlow(dt);
   pool.update(Math.max(dt, 0.0001));
   audio.setAmbient(weather.wind + weather.storm * 0.4 + (wolf.flyT > 0 ? 1.3 : 0), weather.rain);
+  const wCov = coverAt(wolf.pos.x, wolf.pos.z);
+  audio.setForest(wCov, weather.wind + weather.storm * 0.4);
 
   if (audio.ready && dayF > 0.5 && weather.rain < 0.15 && curBiomeKey !== 'tundra' && curBiomeKey !== 'mountain') {
     chirpT -= dt;
-    if (chirpT <= 0) { chirpT = 3 + Math.random() * 7; audio.chirp(0.7); }
+    if (chirpT <= 0) { chirpT = 2.6 - wCov * 1.2 + Math.random() * 6; audio.chirp(0.45 + 0.45 * wCov); }   // songbirds hold forth in the canopy
   }
 
   updateCamera(rdt);
