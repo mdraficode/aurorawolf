@@ -48,15 +48,15 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
   border-radius: 50%; background: rgba(8, 14, 22, 0.55); pointer-events: auto; cursor: pointer;
   box-shadow: 0 2px 14px rgba(0, 0, 0, .45), inset 0 0 24px rgba(0, 0, 0, .35);
 }
-#bigmapWrap { position: absolute; inset: 0; z-index: 55; display: none; align-items: center;
+#bigmapWrap { position: absolute; inset: 0; z-index: 55; display: none; align-items: center; pointer-events: auto;
   justify-content: center; background: rgba(6, 10, 16, 0.62); backdrop-filter: blur(2px); }
 #bigmapWrap.show { display: flex; }
 #bigmapBox { background: rgba(14, 22, 32, 0.92); border: 1px solid rgba(150, 190, 230, 0.3);
   border-radius: 16px; padding: 12px 14px 10px; box-shadow: 0 12px 48px rgba(0, 0, 0, .6); }
 #bigmapHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 #bigmapTitle { font-size: 14px; letter-spacing: .05em; color: #dce9f6; }
-#bigmapClose { background: none; border: 1px solid rgba(180, 210, 240, .35); color: #dce9f6;
-  border-radius: 8px; width: 28px; height: 28px; font-size: 14px; cursor: pointer; }
+#bigmapClose { background: none; border: 1px solid rgba(180, 210, 240, .35); color: #dce9f6; cursor: pointer; padding: 4px 8px; margin-left: 10px;
+  border-radius: 8px; min-width: 36px; min-height: 36px; font-size: 15px; cursor: pointer; }
 #bigmap { width: min(62vmin, 460px); height: min(62vmin, 460px); border-radius: 10px; display: block; }
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
 body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
