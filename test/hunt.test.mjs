@@ -131,6 +131,14 @@ try {
       out.highChunks = chunks.size;
       out.viewR_effect = chunks.size > 52;
     } else out.viewR_effect = 'no-peak-found';
+    /* ---- the long view: bigger standing ring + far fog ---- */
+    wolf.pos.x = 0; wolf.pos.z = 0; wolf.pos.y = heightAt(0, 0) + 1;
+    for (let i = 0; i < 600; i++) tick();
+    out.baseChunks = chunks.size;
+    out.far = scene.fog.far;
+    weatherT.cloud = 0; weatherT.rain = 0; weatherT.snow = 0; weather.cloud = 0; weather.rain = 0; weather.snow = 0;
+    for (let i = 0; i < 3; i++) updateAtmosphere(0.05);
+    out.farClear = scene.fog.far;
     return out;
   });
   ok(R.seasonStart === 'spring', `world begins in spring (${R.seasonStart})`);
@@ -152,6 +160,8 @@ try {
   ok(R.senseOn && R.senseVisible, 'wolf sense reveals tracks & scent');
   ok(R.cache, 'cave caches exist (old bones worth gathering)');
   ok(R.viewR_effect === true || R.viewR_effect === 'no-peak-found', `elevated view unrolls the world (${R.highChunks || R.viewR_effect} chunks)`);
+  ok(R.baseChunks >= 45, `standing ring loaded (${R.baseChunks} chunks)`);
+  ok(R.farClear > 200, `clear-day fog opens far beyond the old 184 (${(+R.farClear).toFixed(0)} m here, biome haze varies)`);
   console.log(failures ? `FAIL (${failures})` : 'ALL PASS');
   process.exit(failures ? 1 : 0);
 } finally { await browser.close(); }

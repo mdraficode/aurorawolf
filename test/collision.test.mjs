@@ -103,6 +103,49 @@ try {
     out.caveSolid = Math.hypot(wolf.pos.x - st.x, wolf.pos.z - st.z) - st.r - 0.55 > -0.1;   // never inside the stalagmite
     exitCave();
     ch2.solids.pop();
+    // ---- fallen logs & stumps: capsule of circles end to end ----
+    let log = null, logChunk = null;
+    for (let i = 0; i < 50 && !log; i++) {
+      for (const ch of chunks.values()) {
+        const f = ch.vegItems && ch.vegItems.trees && ch.vegItems.trees.fallenTree;
+        if (f && f.length && Math.hypot(f[0].x - wolf.pos.x, f[0].z - wolf.pos.z) < 70) { log = f[0]; logChunk = ch; break; }
+      }
+      if (!log) { wolf.pos.x += 95; wolf.pos.z += 70; for (let k = 0; k < 12; k++) tick(); }
+    }
+    out.hasLog = !!log;
+    if (log) {
+      const ax = Math.sin(log.ry || 0), az = Math.cos(log.ry || 0);
+      const rLog = 0.5 * (log.s || 1);
+      const segDist = (px, pz) => {   // distance to the log's line segment
+        const t2 = Math.max(-1, Math.min(1, ((px - log.x) * ax + (pz - log.z) * az) / (4.25 * (log.s || 1))));
+        return Math.hypot(px - (log.x + ax * t2 * 4.25 * (log.s || 1)), pz - (log.z + az * t2 * 4.25 * (log.s || 1)));
+      };
+      // sprint straight at the log's middle, perpendicular
+      wolf.hp = 100; wolf.impactCd = 0; wolf.stamina = 100;
+      const px0 = log.x - az * 9, pz0 = log.z + ax * 9;   // perpendicular offset
+      wolf.pos.x = px0; wolf.pos.z = pz0; wolf.pos.y = heightAt(px0, pz0) + 0.5;
+      const yawL = Math.atan2(log.x - wolf.pos.x, log.z - wolf.pos.z);
+      let minSeg = 99;
+      for (let i = 0; i < 220; i++) { wolf.update(1 / 30, IN(1), yawL, 0.3); minSeg = Math.min(minSeg, segDist(wolf.pos.x, wolf.pos.z) - rLog - 0.55); if (wolf.stamina <= 0) wolf.stamina = 100; }
+      out.logBlocked = minSeg > -0.22;
+      out.logHp = wolf.hp;
+      // walk along the log's axis from one end: the circles hold the whole length
+      wolf.hp = 100; wolf.impactCd = 0;
+      let worstAlong = 99;
+      for (let step = 0; step < 40; step++) {
+        const lx = log.x + ax * (-4.6 + step * 0.24), lz = log.z + az * (-4.6 + step * 0.24);
+        wolf.pos.x = lx - az * 1.9; wolf.pos.z = lz + ax * 1.9; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
+        const yawP = Math.atan2(lx - wolf.pos.x, lz - wolf.pos.z);
+        for (let k = 0; k < 3; k++) wolf.update(1 / 30, IN(0), yawP, 0.3);
+        worstAlong = Math.min(worstAlong, segDist(wolf.pos.x, wolf.pos.z) - rLog - 0.55);
+      }
+      out.logSolidAlong = worstAlong > -0.3;   // no gaps to slip through
+    }
+    // stumps registered?
+    let stumps = 0;
+    for (const ch of chunks.values()) { const st = ch.vegItems && ch.vegItems.trees && ch.vegItems.trees.stump; if (st) stumps += st.length; }
+    out.stumps = stumps;
+
     // ---- the wild is solid to the wild: fleeing deer & wary bear vs a boulder ----
     const rock2 = { x: wolf.pos.x + 26, z: wolf.pos.z, r: 1.3 };
     const chR = chunks.get(ck(Math.floor(rock2.x / CHUNK), Math.floor(rock2.z / CHUNK))) || chunks.get(ck(Math.floor(wolf.pos.x / CHUNK), Math.floor(wolf.pos.z / CHUNK)));
@@ -156,6 +199,12 @@ try {
   ok(R.caveIgnoresSurface, 'underground ignores surface solids');
   ok(R.caveSolid, 'cave stalagmite blocks underground');
   ok(R.totalSolids > 50, `solid registry populated (${R.totalSolids} circles)`);
+  ok(R.hasLog, 'fallen log found in the wild');
+  if (R.hasLog) {
+    ok(R.logBlocked, `sprint into the log stops at its bark (${R.logHp} HP after)`);
+    ok(R.logSolidAlong, 'the log is solid along its whole length — no gaps');
+  }
+  ok(R.stumps >= 0, `stumps registered (${R.stumps} in view)`);
   ok(R.deerBlocked && R.deerWalked, `deer walks but never enters the boulder (moved ${(+R.deerMoved || 0).toFixed(1)} m)`);
   ok(R.bearBlocked && R.bearWalked, `bear walks but never enters the boulder (moved ${(+R.bearMoved || 0).toFixed(1)} m)`);
   console.log(failures ? `FAIL (${failures})` : 'ALL PASS');

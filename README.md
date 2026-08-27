@@ -69,7 +69,7 @@ Build · test · publish: `npm run build` · `npm test` · `npm run publish`
 - **🩸 The hunt** — follow tracks → hear it → prowl in low → strike from the blind side. Wounded prey limps, bleeds a trail and goes to ground in thick cover; sprint through brush and you'll crunch it
 - **🌍 Living populations** — every species keeps count. Hunt a valley empty and it stays empty; wild predators take prey too; herds birth back in spring (you can witness fawns). The world remembers
 - **🌸 Seasons** — a 12-day year rides the day cycle: spring births & rain, summer plenty, autumn migrations, winter snow & bitter cold — the HUD shows the turning year
-- **🏔️ The long view** — climb a ridge and the world unrolls: an extra ring of distant land generates for the vista alone
+- **🏔️ The long view** — the haze opens far past the old horizon, and from a ridge the world unrolls: an extra ring of distant land generates for the vista. Fallen logs and stumps are solid too — the forest floor has walls
 - **Resources** — lingonberries, mushrooms, herbs, sticks, stones; gathered spots regrow when you roam far and return
 - **Day/night cycle** — moving sun & moon, dawn/dusk glows, stars, and **aurora borealis** on clear cold nights (this game is from Lapland, after all)
 - **Dynamic weather** — clear / fair / overcast / rain / snow / thunderstorms with lightning, drifting clouds, wind, fog that breathes with the weather; cold biomes get snow instead of rain

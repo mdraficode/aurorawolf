@@ -95,7 +95,7 @@ const nPath  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // winding animal 
 const nVol   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // volcanic fields
 
 /* ---------------- terrain shape ---------------- */
-const CHUNK = 64, SEG = 32, VIEW_R = 3;
+const CHUNK = 64, SEG = 32, VIEW_R = 3;   // 7×7 standing (mobile-kind); ridges unroll 9×9
 const WATER_Y = 0;
 
 function riverBandAt(x, z) {
