@@ -50,7 +50,7 @@ publish.sh              ← publish: `github "msg"` = live update (~1 min) · `a
 android/                ← APK wrapper (manifest, MainActivity, icons, keystore, build_apk.sh)
 Revontulet-AuroraWolf.apk ← signed Android build
 test/                   ← suite: smoke, layout, landscape, wolf, pose, ui2, touch, features (attack/flight), enemies (predators), github/wayback (live links), analyze.py
-shots/                  ← current-build screenshots (menu · world+minimap · landmarks)
+shots/                  ← current-build screenshots (menu · world+minimap · landmarks · dense forest)
 LINKS.md                ← all public links + tokens how-to
 ~/.ghtoken              ← GitHub access (keep! revocable at github.com/settings/tokens)
 ```
