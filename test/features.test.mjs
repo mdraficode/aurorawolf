@@ -47,7 +47,7 @@ const R = await page.evaluate(async () => {
     R.firstHit = wolf.attack();
     R.atkCdSet = wolf.atkCd > 0.5;
     R.cooldownBlocks = wolf.attack() === false;
-    R.hpDropped = prey.hp === hp0 - 1;
+    R.hpDropped = prey.hp <= hp0 - 1;   // ambush bonus: unaware prey takes 2
     // burn cooldown, then kill it (prey is knocked back / flees — re-approach each swing)
     let guard = 0;
     while (!prey.dead && guard++ < 20) { wolf.atkCd = 0; stand(); wolf.attack(); }

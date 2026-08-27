@@ -55,7 +55,7 @@ const LANDMARKS = {
     }
   },
   cave: {
-    label: 'Cave Mouth', icon: '🕳️', biomes: { mountain: 0.65, taiga: 0.2, tundra: 0.15 },
+    label: 'Cave Mouth', icon: '🕳️', tier: 'common', biomes: { mountain: 0.65, taiga: 0.2, tundra: 0.15 }, enterable: true,
     resources(pk, rng, x, z) { for (let i = 0; i < 3; i++) pk.stoneP.push({ x: x + (rng() - 0.5) * 6, y: heightAt(x, z) - 0.04, z: z + (rng() - 0.5) * 6, ry: rng() * 6.28, s: 1 }); },
     build(rng) {
       const g = new THREE.Group();
@@ -102,6 +102,184 @@ const LANDMARKS = {
         const moss = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 0.8), matColor(0x4a6b3a));
         moss.position.set((rng() - 0.5) * 10, 1.32, (rng() - 0.5) * 0.8); g.add(moss);
       }
+      return g;
+    }
+  },
+
+  /* ---- rare discoveries (tier: 'rare') & epics (tier: 'epic') ---- */
+  cabin: {
+    label: 'Abandoned Cabin', icon: '🏚️', tier: 'rare', biomes: { forest: 0.45, taiga: 0.35, meadow: 0.2 },
+    resources(pk, rng, x, z) { pk.stick.push({ x: x + 2.5, y: heightAt(x + 2.5, z) - 0.04, z, ry: rng() * 6.28, s: 1.1 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      const wallMat = matColor(0x6b5236);
+      const mkWall = (w, h, d, px, py, pz, ry) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat); m.position.set(px, py, pz); m.rotation.y = ry; m.castShadow = true; g.add(m); return m; };
+      mkWall(6, 2.6, 0.3, 0, 1.3, -2.2, 0); mkWall(6, 2.6, 0.3, 0, 1.3, 2.2, 0);
+      mkWall(0.3, 2.6, 4.4, -2.9, 1.3, 0, 0); mkWall(0.3, 2.6, 4.4, 2.9, 1.3, 0, 0);
+      const doorway = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2, 0.34), matColor(0x14100c));
+      doorway.position.set(-1.6, 1, -2.2); g.add(doorway);   // dark doorway — long abandoned
+      const roofL = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.22, 5.2), matColor(0x4c3b28));
+      roofL.position.set(-1.55, 3.35, 0); roofL.rotation.z = 0.62; roofL.castShadow = true; g.add(roofL);
+      const roofR = roofL.clone(); roofR.position.x = 1.55; roofR.rotation.z = -0.62; g.add(roofR);
+      const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.8, 0.7), matColor(0x777c82));
+      chimney.position.set(1.7, 3.6, -0.8); g.add(chimney);
+      for (let i = 0; i < 3; i++) { // collapsed fence posts
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 1.2 + rng(), 5), matColor(0x5d4a33));
+        post.position.set(4 + i * 1.4, 0.7, 3.6 + (rng() - 0.5)); post.rotation.z = (rng() - 0.5) * 0.5; g.add(post);
+      }
+      return g;
+    }
+  },
+  ruins: {
+    label: 'Ancient Ruins', icon: '🏛️', tier: 'rare', biomes: { grove: 0.4, meadow: 0.3, forest: 0.3 },
+    resources(pk, rng, x, z) { pk.stoneP.push({ x: x - 3, y: heightAt(x - 3, z + 2) - 0.04, z: z + 2, ry: rng() * 6.28, s: 1.2 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      for (let i = 0; i < 6; i++) {   // broken colonnade
+        const a = i / 6 * 6.28, R = 5.5;
+        const hgt = 1 + rng() * 3.4;
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, hgt, 7), matColor(0x9b968b));
+        col.position.set(Math.sin(a) * R, hgt / 2 - 0.2, Math.cos(a) * R);
+        col.rotation.z = (rng() - 0.5) * 0.22; col.castShadow = true; g.add(col);
+      }
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.5, 2.6), matColor(0x8f8a80));
+      slab.position.set(0, 0.3, 0); slab.rotation.y = 0.4; g.add(slab);
+      const fallen = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 3.6, 7), matColor(0x948f84));
+      fallen.rotation.z = Math.PI / 2 - 0.1; fallen.position.set(2.2, 0.45, 3.4); g.add(fallen);
+      for (let i = 0; i < 4; i++) {  // reclaiming moss
+        const moss = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5 + rng() * 0.4, 0), matColor(0x4d7040));
+        moss.position.set((rng() - 0.5) * 8, 0.3, (rng() - 0.5) * 8); g.add(moss);
+      }
+      return g;
+    }
+  },
+  waterfall: {
+    label: 'Waterfall', icon: '🌊', tier: 'rare', biomes: { mountain: 0.55, highland: 0.3, taiga: 0.15 }, needsHigh: true,
+    resources(pk, rng, x, z) {},
+    build(rng) {
+      const g = new THREE.Group();
+      const cliff = lmRock(7, 9, 3.4, 0x7d8087, 0, 4.2, -1.4, 0.1);
+      g.add(cliff);
+      const fallMat = new THREE.MeshStandardMaterial({ color: 0xbfe4f2, transparent: true, opacity: 0.7, roughness: 0.25, metalness: 0 });
+      for (let i = 0; i < 3; i++) {   // cascading veils
+        const f = new THREE.Mesh(new THREE.PlaneGeometry(1.5 + i * 0.5, 8.6), fallMat);
+        f.position.set((i - 1) * 1.1, 4.6, 0.35 + i * 0.12);
+        g.add(f);
+      }
+      const pool = new THREE.Mesh(new THREE.CircleGeometry(4.6, 18), new THREE.MeshStandardMaterial({ color: 0x5590b8, transparent: true, opacity: 0.85, roughness: 0.2 }));
+      pool.rotation.x = -Math.PI / 2; pool.position.y = 0.12; g.add(pool);
+      const rim1 = lmRock(1.2, 0.9, 1.1, 0x82858c, -3.6, 0.4, 1.8, 0.4);
+      const rim2 = lmRock(1.1, 0.8, 1.2, 0x82858c, 3.8, 0.35, 2.1, 1.1);
+      g.add(rim1); g.add(rim2);
+      g.userData.mist = { x: 0, z: 1.6 };   // spray particles tick below
+      return g;
+    }
+  },
+  frozenLake: {
+    label: 'Frozen Lake', icon: '🧊', tier: 'rare', biomes: { tundra: 0.6, taiga: 0.25, mountain: 0.15 }, needsWater: true,
+    resources(pk, rng, x, z) {},
+    build(rng) {
+      const g = new THREE.Group();
+      const ice = new THREE.Mesh(new THREE.CircleGeometry(7.5, 22), new THREE.MeshStandardMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0.92, roughness: 0.15, metalness: 0.05 }));
+      ice.rotation.x = -Math.PI / 2; ice.position.y = WATER_Y + 0.12; g.add(ice);
+      for (let i = 0; i < 5; i++) {   // pressure cracks
+        const crack = new THREE.Mesh(new THREE.BoxGeometry(2 + rng() * 4, 0.02, 0.08 + rng() * 0.08), matColor(0x9fc4d8));
+        const a = rng() * 6.28, r = rng() * 5;
+        crack.position.set(Math.sin(a) * r, WATER_Y + 0.14, Math.cos(a) * r); crack.rotation.y = rng() * 6.28; g.add(crack);
+      }
+      for (let i = 0; i < 4; i++) {   // banked snow
+        const snow = new THREE.Mesh(new THREE.IcosahedronGeometry(0.8 + rng() * 0.9, 0), matColor(0xe8eff4));
+        const a = i / 4 * 6.28 + rng();
+        snow.position.set(Math.sin(a) * 7.2, 0.4, Math.cos(a) * 7.2); g.add(snow);
+      }
+      return g;
+    }
+  },
+  wolfShrine: {
+    label: 'Wolf Shrine', icon: '🐺', tier: 'rare', biomes: { forest: 0.4, taiga: 0.35, grove: 0.25 },
+    resources(pk, rng, x, z) { pk.magicShroom.push({ x: x + 2.2, y: heightAt(x + 2.2, z) - 0.04, z, ry: rng() * 6.28, s: 1 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      const cairn = lmRock(2.2, 1.1, 1.6, 0x84888e, 0, 0.5, 0, 0.2);
+      g.add(cairn);
+      const skull = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), matColor(0xe8e2d4));   // offering stone
+      skull.position.set(0, 1.2, 0.3); g.add(skull);
+      for (let i = 0; i < 2; i++) {   // antler totems
+        const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.09, 1.7, 5), matColor(0xd8cfc0));
+        ant.position.set(-0.9 + i * 1.8, 1.5, -0.4); ant.rotation.z = (i ? -1 : 1) * 0.45; g.add(ant);
+        for (let k = 0; k < 3; k++) {
+          const tine = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.6, 4), matColor(0xd8cfc0));
+          tine.position.set(-0.9 + i * 1.8 + (i ? 0.28 : -0.28), 1.5 + 0.35 + k * 0.4, -0.4);
+          tine.rotation.z = (i ? -0.9 : 0.9); g.add(tine);
+        }
+      }
+      const ember = new THREE.Mesh(new THREE.IcosahedronGeometry(0.15, 0), new THREE.MeshBasicMaterial({ color: 0x8fd8ff }));
+      ember.position.set(0, 1.62, 0.3); g.add(ember);
+      g.userData.ember = ember;      // pale blue watchfire
+      return g;
+    }
+  },
+  deposit: {
+    label: 'Rare Deposit', icon: '💎', tier: 'rare', biomes: { mountain: 0.5, highland: 0.3, volcanic: 0.2 },
+    resources(pk, rng, x, z) { for (let i = 0; i < 4; i++) pk.stoneP.push({ x: x + (rng() - 0.5) * 5, y: heightAt(x, z) - 0.04, z: z + (rng() - 0.5) * 5, ry: rng() * 6.28, s: 1.2 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      const base = lmRock(2.6, 1.2, 2.2, 0x6f7278, 0, 0.5, 0, 0.3);
+      g.add(base);
+      const gemMat = new THREE.MeshStandardMaterial({ color: 0x7fe8ff, emissive: 0x2a7f96, emissiveIntensity: 0.55, roughness: 0.3 });
+      for (let i = 0; i < 6; i++) {
+        const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.28 + rng() * 0.4), gemMat);
+        const a = rng() * 6.28, r = rng() * 1.4;
+        gem.position.set(Math.sin(a) * r, 1 + rng() * 0.5, Math.cos(a) * r);
+        gem.rotation.set(rng() * 3, rng() * 3, rng() * 3); g.add(gem);
+      }
+      return g;
+    }
+  },
+  shroomForest: {
+    label: 'Mushroom Forest', icon: '🍄', tier: 'epic', biomes: { enchanted: 0.5, forest: 0.3, grove: 0.2 },
+    resources(pk, rng, x, z) { for (let i = 0; i < 2; i++) pk.magicShroom.push({ x: x + (rng() - 0.5) * 7, y: heightAt(x, z) - 0.04, z: z + (rng() - 0.5) * 7, ry: rng() * 6.28, s: 1.2 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      const capMat = new THREE.MeshStandardMaterial({ color: 0x9a5ee0, emissive: 0x5a2a8a, emissiveIntensity: 0.4, roughness: 0.6 });
+      const stemMat = matColor(0xe8ddf5);
+      for (let i = 0; i < 7; i++) {   // towering caps, 2-5 m tall
+        const a = i / 7 * 6.28 + rng() * 0.5, r = 2.5 + rng() * 5.5;
+        const hgt = 2 + rng() * 3, capR = 0.8 + rng() * 1.1;
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.34, hgt, 6), stemMat);
+        stem.position.set(Math.sin(a) * r, hgt / 2, Math.cos(a) * r); stem.castShadow = true; g.add(stem);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(capR, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), capMat);
+        cap.position.set(Math.sin(a) * r, hgt, Math.cos(a) * r); cap.castShadow = true; g.add(cap);
+        for (let k = 0; k < 3; k++) {
+          const dot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 5, 4), new THREE.MeshBasicMaterial({ color: 0x7ef0ff }));
+          dot.position.set(Math.sin(a) * r + (rng() - 0.5) * capR * 1.3, hgt + 0.1 + rng() * 0.25, Math.cos(a) * r + (rng() - 0.5) * capR * 1.3);
+          g.add(dot);
+        }
+      }
+      return g;
+    }
+  },
+  hiddenValley: {
+    label: 'Hidden Valley', icon: '🌼', tier: 'epic', biomes: { meadow: 0.5, forest: 0.3, grove: 0.2 },
+    resources(pk, rng, x, z) { pk.herb.push({ x: x + 1.5, y: heightAt(x + 1.5, z) - 0.04, z, ry: 0, s: 1.2 }); pk.berryBush.push({ x: x - 2, y: heightAt(x - 2, z) - 0.04, z, ry: rng() * 6.28, s: 1.2 }); },
+    build(rng) {
+      const g = new THREE.Group();
+      // a secret ring of birches around a flower heart
+      for (let i = 0; i < 10; i++) {
+        const a = i / 10 * 6.28, r = 8 + rng() * 1.5;
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 5 + rng() * 3, 5), matColor(0xe6eaea));
+        trunk.position.set(Math.sin(a) * r, 3.5, Math.cos(a) * r); trunk.castShadow = true; g.add(trunk);
+        const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1 + rng() * 0.7), matColor(0x8fb757));
+        crown.position.set(Math.sin(a) * r, 6.5 + rng(), Math.cos(a) * r); g.add(crown);
+      }
+      for (let i = 0; i < 16; i++) {  // flower carpet
+        const a = rng() * 6.28, r = rng() * 6;
+        const fl = new THREE.Mesh(new THREE.IcosahedronGeometry(0.12 + rng() * 0.08, 0), matColor([0xf2a7c3, 0xf7e07a, 0xffffff, 0xb28ff2][(rng() * 4) | 0]));
+        fl.position.set(Math.sin(a) * r, 0.35, Math.cos(a) * r); g.add(fl);
+      }
+      const heart = new THREE.Mesh(new THREE.IcosahedronGeometry(0.5, 1), new THREE.MeshStandardMaterial({ color: 0xf5d7fa, emissive: 0x8a5ad0, emissiveIntensity: 0.3 }));
+      heart.position.y = 0.8; g.add(heart);
+      g.userData.ember = heart;
       return g;
     }
   }
@@ -355,7 +533,7 @@ class Wolf {
       this.pos.x += dirX * this.speed * dt;
       this.pos.y += dirY * this.speed * dt;
       this.pos.z += dirZ * this.speed * dt;
-      this.pos.y = clamp(this.pos.y, Math.max(heightAt(this.pos.x, this.pos.z), WATER_Y) + 0.7, 130);
+      this.pos.y = clamp(this.pos.y, Math.max(groundAt(this.pos.x, this.pos.z), groundWaterY()) + 0.7, 130);
       this.distance += this.speed * dt;
       this.grounded = false;
       this.swimming = false;
@@ -383,7 +561,7 @@ class Wolf {
       target *= clamp(0.55 + 0.45 * Math.min(1, mag), 0.55, 1); // joystick deflection scales speed
     }
     if (moving && this.grounded) {
-      const ah = heightAt(this.pos.x + dirX * 2, this.pos.z + dirZ * 2);
+      const ah = groundAt(this.pos.x + dirX * 2, this.pos.z + dirZ * 2);
       const grade = Math.max(0, (ah - this.pos.y) / 2);
       target *= clamp(1 / (1 + grade * 0.9), 0.4, 1);
     }
@@ -394,14 +572,15 @@ class Wolf {
     this.pos.z += dirZ * this.speed * dt;
     this.distance += this.speed * dt;
 
-    const ground = heightAt(this.pos.x, this.pos.z);
-    this.swimming = ground < WATER_Y - 0.85 && this.pos.y <= WATER_Y + 0.1;
+    const ground = groundAt(this.pos.x, this.pos.z);
+    const wy = groundWaterY();
+    this.swimming = wy > -500 && ground < wy - 0.85 && this.pos.y <= wy + 0.1;
     if (input.jump && this.grounded && !this.swimming) {
       this.vy = 8.8; this.grounded = false;
       pool.burst(this.pos, 8, 0xcfc4a8, 1.2, 1.4, 2.2);
     }
     if (this.swimming) {
-      this.pos.y += (WATER_Y - 0.42 - this.pos.y) * Math.min(1, dt * 6);
+      this.pos.y += (waterYNow() - 0.42 - this.pos.y) * Math.min(1, dt * 6);
       this.vy = 0; this.grounded = false;
       if (this.speed > 1 && Math.random() < dt * 6) pool.burst(this.pos, 3, 0x9fc3e0, 1.0, 2.2, 1.6);
       // continuous stamina drain; exhaustion in deep water eats health
@@ -417,10 +596,10 @@ class Wolf {
       }
       // climb-out assist: paddling toward a low bank pops the wolf onto land
       const ax = this.pos.x + Math.sin(this.yaw) * 1.7, az = this.pos.z + Math.cos(this.yaw) * 1.7;
-      const ah = heightAt(ax, az);
-      if ((moving || input.jump) && ah > WATER_Y - 0.35 && ah < WATER_Y + 1.8) {
+      const ah = groundAt(ax, az);
+      if ((moving || input.jump) && ah > waterYNow() - 0.35 && ah < waterYNow() + 1.8) {
         this.swimming = false; this.vy = 6.4; this.grounded = false;
-        this.pos.y = Math.max(this.pos.y, WATER_Y - 0.1);
+        this.pos.y = Math.max(this.pos.y, waterYNow() - 0.1);
       }
     } else {
       this.vy -= 26 * dt;
@@ -441,6 +620,14 @@ class Wolf {
       if (this.stepAcc > 0.12) {
         this.stepAcc = 0;
         pool.burst(this.pos, 2, 0xb9ae94, 0.8, 1.0, 1.4);
+      }
+    }
+    // footsteps: cadence follows gait, timbre follows the ground
+    if (this.grounded && this.speed > 0.6) {
+      this.stepDist = (this.stepDist || 0) + this.speed * dt;
+      if (this.stepDist > (sprint ? 1.9 : 1.25)) {
+        this.stepDist = 0;
+        audio.step(groundStepType(this.pos.x, this.pos.z));
       }
     }
     this.animate(dt, sprint);
@@ -525,7 +712,7 @@ class Wolf {
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     let best = null, bestD = 99;
     for (const ch of chunks.values()) {
-      const targets = ch.animals.concat(ch.predators);
+      const targets = ch.animals.concat(ch.predators).concat(rivals);
       for (const a of targets) {
         if (a.dead) continue;
         const dx = a.pos.x - this.pos.x, dz = a.pos.z - this.pos.z;
@@ -547,7 +734,9 @@ class Wolf {
     toast('🐺 You howl into the wind…');
     for (const ch of chunks.values()) {
       for (const a of ch.animals) {
-        if (a.pos.distanceTo(this.pos) < 65) a.startFlee(this.pos);
+        const d = a.pos.distanceTo(this.pos);
+        if (d < 65) a.startFlee(this.pos);
+        else if (d < 130 && a.stats && !a.asleep && Math.random() < a.stats.curiosity * 0.4) a.investigate(this.pos);
       }
     }
     return true;
@@ -576,27 +765,195 @@ const SPECIES = {
   reindeer:   { label: 'Reindeer',    scale: 1.35, body: 0x7d6b58, belly: 0xc9bcae, legs: 0x64513f, head: 0x7d6b58, ear: 0.2, earW: 0.08, legH: 0.78, bodyLen: 1.15, bodyH: 0.56, snout: 1, tail: 'short', antler: 2, walk: 2.1, run: 10.4, detect: 16, hp: 3, meat: 3, pelt: 1, bone: 1 },
   elk:        { label: 'Elk',         scale: 1.60, body: 0x5d4a3a, belly: 0x9a8a76, legs: 0x4c3c2f, head: 0x5d4a3a, ear: 0.18, earW: 0.09, legH: 0.95, bodyLen: 1.35, bodyH: 0.66, snout: 1, tail: 'short', antler: 2, walk: 1.9, run: 10.8, detect: 15, hp: 4, meat: 4, pelt: 1, bone: 2 }
 };
+const rivals = [];   // roaming rival wolves — targetable by the player's bite
+
+/* ============================================================
+   Rival wolf pack — roams the wilds; may ignore, challenge, or
+   attack the player. Coordinated stance, pack morale, retreat.
+   ============================================================ */
+class RivalWolf {
+  constructor(x, z, pack, leader) {
+    const built = buildWolf();
+    this.model = built.group; this.legs = built.legs; this.lowers = built.lowers; this.head = built.head;
+    // darker, scarred coat — recolour every mesh so the player's wolf stays untouched
+    this.model.traverse(o => {
+      if (o.isMesh && o.material && o.material.color) {
+        o.material = o.material.clone();
+        o.material.color.multiplyScalar(leader ? 0.62 : 0.78);
+        if (o.material.color.r + o.material.color.g + o.material.color.b > 1.6) o.material.color.multiplyScalar(0.85);
+      }
+    });
+    scene.add(this.model);
+    this.pack = pack;
+    this.leader = !!leader;
+    this.sp = { scale: leader ? 1.14 : 0.96, label: leader ? 'Rival Alpha' : 'Rival Wolf' };
+    this.pos = V3(x, heightAt(x, z), z);
+    this.heading = Math.random() * 6.28;
+    this.hp = leader ? 9 : 6;
+    this.maxHp = this.hp;
+    this.dead = false;
+    this.state = 'roam';
+    this.off = { x: (Math.random() - 0.5) * 14, z: (Math.random() - 0.5) * 14 };
+    this.atkCd = 0; this.flinchT = 0; this.phase = Math.random() * 6;
+    this.circleDir = Math.random() < 0.5 ? 1 : -1;
+  }
+  hit() {          // player bite lands
+    if (this.dead) return;
+    this.hp -= (this.pack.stance === 'undecided' || this.pack.stance === 'ignore') ? 2 : 1;   // ambush an unaware pack
+    AnimalHealthBar.show(this);
+    if (this.flinchT <= 0) this.flinchT = 0.3;
+    pool.burst(this.pos, 10, 0xffb3a0, 1.0, 2.0, 2.4);
+    this.pack.provoked();          // biting a wolf answers the question of stance
+    if (this.hp <= 0) this.die();
+  }
+  die() {
+    this.dead = true;
+    pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
+    inv.meat += 1; stats.slain++; updateInv();
+    toast(`⚔️ Bested a ${this.sp.label}! +1 🥩`, true);
+    scene.remove(this.model);
+    this.pack.memberDown(this);
+  }
+  update(dt, tSec) {
+    if (this.dead) return;
+    const pk = this.pack;
+    const dxw = wolf.pos.x - this.pos.x, dzw = wolf.pos.z - this.pos.z;
+    const dWolf = Math.hypot(dxw, dzw);
+    if (dWolf > 320) { this.model.visible = false; return; }   // frozen at distance
+    this.model.visible = true;
+    if (this.flinchT > 0) { this.flinchT -= dt; return; }
+    this.atkCd = Math.max(0, this.atkCd - dt);
+    let speed = 0;
+    const faceWolf = () => { this.heading = angLerp(this.heading, Math.atan2(dxw, dzw), Math.min(1, dt * 6)); };
+    if (this.state === 'roam' || pk.stance === 'ignore') {
+      const tx = pk.wp.x + this.off.x, tz = pk.wp.z + this.off.z;
+      const dl = Math.hypot(tx - this.pos.x, tz - this.pos.z);
+      if (dl > 2) { this.heading = angLerp(this.heading, Math.atan2(tx - this.pos.x, tz - this.pos.z), Math.min(1, dt * 2.5)); speed = 3.4; }
+    } else if (this.state === 'challenge' || this.state === 'follow') {
+      if (this.state === 'follow' && !this.leader) {   // flankers circle wide while the alpha stares
+        const ang = Math.atan2(this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z) + this.circleDir * dt * 0.35;
+        const ring = 11 + (this.off.x % 5);
+        const tx = wolf.pos.x + Math.sin(ang) * ring, tz = wolf.pos.z + Math.cos(ang) * ring;
+        this.heading = angLerp(this.heading, Math.atan2(tx - this.pos.x, tz - this.pos.z), Math.min(1, dt * 3)); speed = 4.5;
+        if (dWolf < 6) faceWolf();
+      } else {
+        if (dWolf > 13) { faceWolf(); speed = 5.5; }
+        else { this.heading = angLerp(this.heading, Math.atan2(dxw, dzw) + this.circleDir * 0.5, Math.min(1, dt * 2)); }
+      }
+    } else if (this.state === 'attack') {
+      faceWolf();
+      speed = 12.2;                     // just slower than the player's sprint — a real chase
+      if (dWolf < 2.1 && this.atkCd <= 0) {
+        this.atkCd = 1.15;
+        wolfTakeDamage(this.leader ? 9 : 6, this.pos, this.sp.label, '🐺');
+      }
+      if (dWolf > 90) this.state = 'follow';    // lost it — regroup
+    } else if (this.state === 'flee') {
+      this.heading = angLerp(this.heading, Math.atan2(this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z), Math.min(1, dt * 4));
+      speed = 11.5;
+    }
+    // terrain-aware movement
+    const nx = this.pos.x + Math.sin(this.heading) * 2.5, nz = this.pos.z + Math.cos(this.heading) * 2.5;
+    if (heightAt(nx, nz) < waterYNow() + 0.3) this.heading += dt * 2.4;
+    if (speed > 0) {
+      this.pos.x += Math.sin(this.heading) * speed * dt;
+      this.pos.z += Math.cos(this.heading) * speed * dt;
+      this.pos.y = heightAt(this.pos.x, this.pos.z);
+    }
+    this.model.position.copy(this.pos);
+    this.model.rotation.y = this.heading;
+    this.phase += dt * (2 + speed * 1.3);
+    const amp = Math.min(0.55, speed * 0.055);
+    this.legs.forEach((l, i) => { l.rotation.x = Math.sin(this.phase * 2 + i * 1.6) * amp; });
+    this.head.rotation.x = this.state === 'challenge' ? 0.12 : Math.sin(tSec * 0.6 + this.phase) * 0.12;
+  }
+  dispose() { if (!this.dead) { this.dead = true; } scene.remove(this.model); }
+}
+
+class RivalPack {
+  constructor(x, z) {
+    this.stance = 'undecided';     // undecided -> ignore | challenge | attack -> (fight) -> flee
+    this.members = [];
+    this.lost = 0;
+    this.provokedT = 0;
+    this.engageT = 0;
+    this.disbanded = false;
+    const n = 3 + (Math.random() * 3 | 0);
+    for (let i = 0; i < n; i++) {
+      const m = new RivalWolf(x + (Math.random() - 0.5) * 18, z + (Math.random() - 0.5) * 18, this, i === 0);
+      this.members.push(m); rivals.push(m);
+    }
+    this.wp = { x, z };
+    this.newWp = () => { const a = Math.random() * 6.28, r = 30 + Math.random() * 55; this.wp = { x: x + Math.sin(a) * r * 3, z: z + Math.cos(a) * r * 3 }; };
+    this.growlT = 2;
+  }
+  provoked() {
+    if (this.stance !== 'attack') { this.stance = 'attack'; this.setStates('attack'); audio.growl(); }
+    this.provokedT = 0;
+  }
+  setStates(st) { for (const m of this.members) if (!m.dead) m.state = this.stance === 'ignore' && st === 'attack' ? 'attack' : st; }
+  memberDown() {
+    this.lost++;
+    if (this.lost >= 2 || this.members[0].dead) { this.stance = 'flee'; this.setStates('flee'); }
+  }
+  update(dt, tSec) {
+    const alive = this.members.filter(m => !m.dead);
+    if (!alive.length) { this.disbanded = true; return; }
+    const dWolf = Math.hypot(alive[0].pos.x - wolf.pos.x, alive[0].pos.z - wolf.pos.z);
+    if (this.stance === 'undecided' && dWolf < 80) {
+      const r = Math.random();
+      this.stance = r < 0.34 ? 'ignore' : r < 0.76 ? 'challenge' : 'attack';
+      if (this.stance === 'challenge') { audio.howl(0.72); }
+      if (this.stance === 'attack') { audio.growl(); }
+      this.setStates(this.stance === 'attack' ? 'attack' : this.stance === 'challenge' ? (alive[0].leader, 'challenge') : 'roam');
+      if (this.stance === 'challenge') alive[0].state = 'challenge';
+    }
+    if (this.stance === 'challenge') {
+      this.provokedT += dt;
+      this.growlT -= dt;
+      if (this.growlT <= 0) { this.growlT = 4 + Math.random() * 3; if (dWolf < 60) audio.growl(); }
+      // hold your ground or back away slowly…
+      if (dWolf < 7.5) { this.engageT += dt; if (this.engageT > 1.6) this.provoked(); }
+      else this.engageT = Math.max(0, this.engageT - dt * 0.5);
+      if (dWolf > 70) { this.stance = 'undecided'; this.setStates('roam'); }  // they lose interest
+    }
+    if (this.stance === 'ignore' && dWolf < 12) { /* even pacifists defend close quarters */ }
+    if (this.stance === 'flee' && dWolf > 260) this.disbanded = true;
+    if (this.stance === 'ignore' || this.stance === 'undecided') {
+      if (Math.hypot(this.wp.x - alive[0].pos.x, this.wp.z - alive[0].pos.z) < 8) this.newWp();
+    }
+    if (wolf.deadT > 0 && this.stance === 'attack') { this.stance = 'roam'; this.setStates('roam'); }
+    for (const m of this.members) m.update(dt, tSec);
+    if (alive.length && Math.hypot(alive[0].pos.x - wolf.pos.x, alive[0].pos.z - wolf.pos.z) > 460) this.disbanded = true;
+  }
+  dispose() { for (const m of this.members) m.dispose(); }
+}
+
 const SPECIES_TABLE = {
   taiga:    [['elk', 0.25], ['hare', 0.45], ['arcticFox', 0.3]],
   tundra:   [['reindeer', 0.4], ['hare', 0.4], ['arcticFox', 0.2]],
   forest:   [['deer', 0.35], ['rabbit', 0.4], ['fox', 0.25]],
   grove:    [['deer', 0.3], ['rabbit', 0.45], ['fox', 0.25]],
   meadow:   [['rabbit', 0.6], ['deer', 0.25], ['fox', 0.15]],
-  mountain: [['goat', 1]]
-};
+  mountain: [['goat', 1]],
+  coast:    [['hare', 0.45], ['arcticFox', 0.3], ['rabbit', 0.25]],   // dunes & driftwood
+  dry:      [['rabbit', 0.5], ['fox', 0.3], ['goat', 0.2]],           // steppe scrub
+  highland: [['goat', 0.55], ['hare', 0.3], ['reindeer', 0.15]]       // crag dwellers
+};  // ember wastes stay lifeless — nothing grazes on ash
 
 /* ---- territorial predators: rare, dangerous, rich bounty ---- */
 const PREDATORS = {
-  bear:  { name: 'bear',   label: 'Brown Bear',   icon: '🐻', scale: 1.9,  hp: 8, dmg: 15, walk: 2.2, run: 11.8, reach: 3.9, atkCd: 1.45,
+  bear:  { name: 'bear',   label: 'Brown Bear',   icon: '🐻', scale: 1.9,  hp: 8, dmg: 15, walk: 2.2, run: 11.8, reach: 3.9, atkCd: 1.45, huntsWolf: 1,
            body: 0x5d4128, belly: 0x7a5c3c, legs: 0x4a3520, head: 0x5d4128, meat: 6, pelt: 2, bone: 3, build: 'bear' },
-  tiger: { name: 'tiger',  label: 'Tiger',        icon: '🐯', scale: 1.45, hp: 6, dmg: 11, walk: 2.6, run: 13.0, reach: 3.6, atkCd: 1.15,
+  tiger: { name: 'tiger',  label: 'Tiger',        icon: '🐯', scale: 1.45, hp: 6, dmg: 11, walk: 2.6, run: 13.0, reach: 3.6, atkCd: 1.15, huntsWolf: 1,
            body: 0xc26a1e, belly: 0xe8dcc4, legs: 0xa85716, head: 0xc26a1e, meat: 5, pelt: 2, bone: 2, build: 'cat', stripes: 0x3a2410 },
   snowLeopard: { name: 'snowLeopard', label: 'Snow Leopard', icon: '🐆', scale: 1.3, hp: 5, dmg: 9, walk: 2.5, run: 12.6, reach: 3.4, atkCd: 1.0,
            body: 0xcfd6dd, belly: 0xeef2f5, legs: 0xb8c2cb, head: 0xcfd6dd, meat: 4, pelt: 2, bone: 2, build: 'cat', spots: 0x4a5158 }
 };
 const PREDATOR_TABLE = {
   taiga: [['bear', 1]], forest: [['bear', 0.6], ['tiger', 0.4]],
-  grove: [['tiger', 0.7], ['bear', 0.3]], mountain: [['snowLeopard', 1]], tundra: [['snowLeopard', 0.65], ['bear', 0.35]]
+  grove: [['tiger', 0.7], ['bear', 0.3]], mountain: [['snowLeopard', 1]], tundra: [['snowLeopard', 0.65], ['bear', 0.35]],
+  highland: [['snowLeopard', 1]]
 };
 
 function buildAnimal(sp) {
@@ -735,123 +1092,550 @@ function buildPredator(sp) {
 }
 let animalTotal = 0;
 let predatorTotal = 0;
+/* ============================================================
+   LIVING ECOSYSTEM — modular animal AI
+   Systems: AnimalStats · AnimalNeeds · AnimalDetection · AnimalAIController ·
+   AnimalFlocking · AnimalCombat · AnimalLoot · AnimalAnimation · AnimalLOD · AnimalSpawner (in p4)
+   States: idle · wander · graze · seekFood · drink · flee · sleep · rest ·
+   alert · investigate · follow · protect   (Predator adds lurk/warn/chase/attack/hunt/return)
+   ============================================================ */
+const ECO = {   // species ecology & personality baselines (variance per individual in AnimalStats)
+  rabbit:    { fear: .85, aggr: .02, int: .3,  herd: 3, yng: .3 },
+  hare:      { fear: .9,  aggr: .02, int: .45, herd: 2, yng: .2, nocturnal: 1, snow: 1 },
+  fox:       { fear: .5,  aggr: .15, int: .8,  herd: 1, nocturnal: 1, curious: .8 },
+  arcticFox: { fear: .5,  aggr: .15, int: .75, herd: 1, nocturnal: 1, curious: .7, snow: 1 },
+  goat:      { fear: .3,  aggr: .75, int: .5,  herd: 3, charge: 7 },
+  deer:      { fear: .8,  aggr: .12, int: .6,  herd: 4, yng: .25 },
+  reindeer:  { fear: .75, aggr: .15, int: .55, herd: 5, yng: .25, snow: 1 },
+  elk:       { fear: .55, aggr: .55, int: .55, herd: 2, charge: 11 }
+};
+function ecoNight() { return dayF < 0.3; }
+
+const AnimalStats = {
+  make(name, rng) {
+    const sp = Object.assign({}, SPECIES[name], ECO[name] || {});
+    const v = (a, f) => a * (1 + (rng() * 2 - 1) * f);
+    return {
+      sp,
+      speedMul: 1 + (rng() * 2 - 1) * 0.15,
+      detectMul: Math.max(0.6, 1 + (rng() * 2 - 1) * 0.2),
+      fear: Math.max(0.1, v(sp.fear ?? 0.5, 0.3)),
+      aggression: Math.max(0, v(sp.aggr ?? 0.1, 0.25)),
+      intelligence: Math.min(1, Math.max(0.1, v(sp.int ?? 0.5, 0.2))),
+      curiosity: Math.min(1, Math.max(0.05, v(sp.curious ?? 0.3, 0.25))),
+      stamRun: Math.max(1.5, v(sp.stamRun ?? 4, 0.3)),
+      social: sp.herd > 1 ? 1 : 0.15
+    };
+  }
+};
+
+const AnimalNeeds = {
+  init(a) { a.hunger = 15 + Math.random() * 45; a.thirst = 15 + Math.random() * 45; a.energy = 65 + Math.random() * 35; a.safety = 85 + Math.random() * 15; },
+  update(a, dt, moving) {
+    a.hunger = Math.min(100, a.hunger + dt * 0.4);
+    a.thirst = Math.min(100, a.thirst + dt * 0.35);
+    a.energy = Math.max(0, Math.min(100, a.energy + (moving ? -dt * 1.5 : dt * (a.asleep ? 5 : 2.4))));
+    const danger = (a.aware >= 0.5 ? 2.2 : a.aware > 0 ? 0.7 : 0)
+      + (a.wildD != null && a.wildD < 40 ? 1.6 : 0)
+      + ((weather.rain > 0.45 || weather.snow > 0.45) ? 0.5 : 0);
+    a.safety = clamp(a.safety + dt * (danger ? -danger : (a.cover > 0.3 ? 3.2 : 1.5)), 0, 100);
+  },
+  dominant(a) {
+    if (a.thirst > 78 && a.findWater(false)) return 'drink';
+    if (a.hunger > 72) return 'seekFood';
+    if (a.safety < 24 && a.aware < 0.5) return 'seekCover';
+    if (a.energy < 22) return (ecoNight() !== !!a.sp.nocturnal) && a.cover > 0.3 ? 'sleep' : 'rest';
+    return null;
+  }
+};
+
+function coverAt(x, z) {   // vegetation density — blocks sight, offers shelter
+  const h = heightAt(x, z);
+  const cl = climateAt(x, z, h);
+  const w = biomeWeights(x, z, h, cl.temp, cl.moist);
+  return clamp((w.forest || 0) + (w.taiga || 0) + (w.grove || 0) + (w.enchanted || 0), 0, 1);
+}
+let _losT = -9, _losV = 0;
+function wolfCover() {     // cached a quarter-second: where the wolf hides
+  if (tSec - _losT > 0.25) { _losT = tSec; _losV = coverAt(wolf.pos.x, wolf.pos.z); }
+  return _losV;
+}
+const AnimalDetection = {
+  threat(a) {          // 0 unaware · 0.25 uneasy · 0.5 alert · 1 critical
+    const d = a.pos.distanceTo(wolf.pos);
+    let range = a.sp.detect * a.stats.detectMul;
+    range *= wolf.speed > 6 ? 1.3 : wolf.speed > 3 ? 0.85 : 0.55;   // wolf speed = noise
+    range *= ecoNight() ? (a.sp.nocturnal ? 1.15 : 0.8) : (a.sp.nocturnal ? 0.8 : 1);
+    if (weather.rain > 0.3 || weather.snow > 0.3) range *= 0.82;    // heavy weather masks
+    if (wolf.swimming) range *= 0.7;
+    if (a.asleep) range *= 0.45;
+    let band;
+    if (d > range * 1.6) band = 0;
+    else if (d > range) band = 0.25;
+    else if (d > range * 0.55) band = 0.5;
+    else return 1;
+    // line-of-sight: thick vegetation around the wolf masks it at anything but lunging range
+    if (band >= 0.5 && wolfCover() > 0.5) band -= 0.25;
+    return band;
+  },
+  nearestWildPredator(a) {   // bears/tigers hunting independently of the player
+    let best = null, bd = 46;
+    for (const ch of chunks.values()) {
+      for (const pr of ch.predators) {
+        if (pr.dead) continue;
+        const d = pr.pos.distanceTo(a.pos);
+        if (d < bd) { bd = d; best = pr; }
+      }
+    }
+    return best ? { pr: best, d: bd } : null;
+  }
+};
+
+const AnimalFlocking = {
+  steer(a) {           // returns heading pull toward herd + separation, or null
+    if (!a.herd) return null;
+    let cx = 0, cz = 0, n = 0, sx = 0, sz = 0;
+    for (const m of a.herd.members) {
+      if (m === a || m.dead) continue;
+      const dx = m.pos.x - a.pos.x, dz = m.pos.z - a.pos.z, d = Math.hypot(dx, dz);
+      if (d > 42) continue;
+      n++; cx += m.pos.x; cz += m.pos.z;
+      if (d < 2.4 && d > 0.01) { sx -= dx / d; sz -= dz / d; }
+    }
+    if (!n) return null;
+    const pull = (a.young ? 1.7 : 1) * a.stats.social * 0.5;
+    let tx = (cx / n - a.pos.x) * pull + sx * 1.3;
+    let tz = (cz / n - a.pos.z) * pull + sz * 1.3;
+    const l = Math.hypot(tx, tz);
+    return l > 0.05 ? Math.atan2(tx, tz) : null;
+  }
+};
+
+const AnimalCombat = {
+  retaliate(a) {       // cornered beasts fight back; mothers protect young
+    if (a.dead || !a.sp.charge) return false;
+    if (a.stats.aggression > 0.25 && Math.random() < a.stats.aggression) { a.setState('protect'); return true; }
+    return false;
+  },
+  protectTick(a, dt) { // charge the wolf, strike once, then bolt
+    a.heading = angLerp(a.heading, Math.atan2(wolf.pos.x - a.pos.x, wolf.pos.z - a.pos.z), Math.min(1, dt * 7));
+    const d = a.pos.distanceTo(wolf.pos);
+    if (d < 2.4 + a.sp.scale * 0.6) {
+      wolfTakeDamage(a.sp.charge, a.pos, a.sp.label, '🦌');
+      pool.burst(a.pos, 10, 0xffb090, 1.2, 2.2, 2.4);
+      a.startFlee(wolf.pos);
+      return;
+    }
+    if (a.stateT > 4) a.startFlee(wolf.pos);
+  }
+};
+
+const AnimalLoot = {
+  grant(a) {
+    let msg;
+    if (a.luminous) {
+      inv.meat += a.sp.meat; inv.pelt += 1; inv.bone += 2;
+      msg = `🦌 The White Stag falls — the old magic passes on. +${a.sp.meat} 🥩 +1 🧥 +2 🦴`;
+      stats.discoveries.add('whiteStag');
+    } else {
+      msg = `⚔️ Took down a ${a.sp.label}! +${a.sp.meat} 🥩`;
+      inv.meat += a.sp.meat;
+    }
+    if (a.sp.pelt) { inv.pelt += a.sp.pelt; msg += ` +${a.sp.pelt} 🧥`; }
+    if (a.sp.bone) { inv.bone += a.sp.bone; msg += ` +${a.sp.bone} 🦴`; }
+    stats.caught++;
+    toast(msg);
+    updateInv();
+  }
+};
+
+const AnimalAnimation = {
+  pose(a, dt, tSec, speed) {
+    a.phase += dt * (2 + speed * 1.6);
+    const amp = clamp(speed * 0.12, 0, 0.6);
+    if (a.asleep) {   // lying low, head tucked
+      a.model.position.y = a.pos.y - a.sp.scale * 0.16;
+      a.legs.forEach(l => { l.rotation.x = lerp(l.rotation.x, 0.5, dt * 4); });
+      a.head.rotation.x = lerp(a.head.rotation.x, 0.55, dt * 3);
+      return;
+    }
+    a.model.position.copy(a.pos);
+    if (a.sp.anim === 'hop') {
+      if (speed > 0.5) {
+        const hop = Math.abs(Math.sin(a.phase * 1.4));
+        a.model.position.y += hop * 0.28;
+        a.legs[0].rotation.x = a.legs[1].rotation.x = hop * 0.7 - 0.3;
+        a.legs[2].rotation.x = a.legs[3].rotation.x = -hop * 0.5;
+      } else {
+        a.legs.forEach(l => { l.rotation.x = lerp(l.rotation.x, 0, dt * 6); });
+        a.head.rotation.x = Math.sin(tSec * 0.7 + a.phase) * 0.5;
+      }
+    } else {
+      a.legs[0].rotation.x = Math.sin(a.phase) * amp;
+      a.legs[1].rotation.x = Math.sin(a.phase + Math.PI) * amp;
+      a.legs[2].rotation.x = Math.sin(a.phase + Math.PI) * amp;
+      a.legs[3].rotation.x = Math.sin(a.phase) * amp;
+      if (a.state === 'graze' || a.state === 'drink') a.head.rotation.x = lerp(a.head.rotation.x, 0.55, dt * 3);
+      else if (a.state === 'alert' || a.state === 'investigate' || a.state === 'protect') a.head.rotation.x = lerp(a.head.rotation.x, -0.22, dt * 4);
+      else if (speed < 0.3) a.head.rotation.x = Math.sin(tSec * 0.5 + a.phase) * 0.45;
+      else a.head.rotation.x = lerp(a.head.rotation.x, 0, dt * 3);
+    }
+  }
+};
+
+const AnimalHealthBar = {
+  // hidden until the player draws first blood; hugs the crown so close combat keeps it in frame
+  show(a) {
+    if (!a.bar) {
+      a.barCv = document.createElement('canvas'); a.barCv.width = 64; a.barCv.height = 10;
+      a.barTex = new THREE.CanvasTexture(a.barCv);
+      a.barTex.minFilter = THREE.LinearFilter; a.barTex.magFilter = THREE.LinearFilter;
+      a.bar = new THREE.Sprite(new THREE.SpriteMaterial({ map: a.barTex, transparent: true, depthWrite: false, depthTest: false }));
+      a.bar.renderOrder = 999;              // never lost behind fur, antlers or foliage
+      a.bar.scale.set(1.55, 0.24, 1);
+      a.model.updateMatrixWorld(true);                       // fresh matrices → honest crown height
+      const b = new THREE.Box3().setFromObject(a.model);
+      const top = b.isEmpty() ? 1.2 : b.max.y - a.model.position.y;
+      const sc = a.model.scale.x || 1;               // the parent's scale multiplies local offsets —
+      a.bar.position.y = Math.max(0.35, (top + 0.12) / sc);   // divide it out: hug the crown in world space
+      a.model.add(a.bar);
+    }
+    this.draw(a);
+  },
+  draw(a) {
+    const ctx = a.barCv.getContext('2d');
+    const f = Math.max(0, Math.min(1, a.hp / a.maxHp));
+    // life drains the green out continuously: green → amber → deep red
+    let r, g, b;
+    if (f >= 0.5) { const t = (f - 0.5) * 2; r = lerp(0.90, 0.42, t); g = lerp(0.70, 0.76, t); b = lerp(0.22, 0.30, t); }
+    else { const t = f * 2; r = lerp(0.85, 0.90, t); g = lerp(0.20, 0.70, t); b = lerp(0.12, 0.22, t); }
+    a.barCol = `rgb(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)})`;
+    ctx.clearRect(0, 0, 64, 10);
+    ctx.fillStyle = 'rgba(12,10,8,0.85)'; ctx.fillRect(0, 0, 64, 10);
+    ctx.fillStyle = '#241d16'; ctx.fillRect(1, 1, 62, 8);
+    ctx.fillStyle = a.barCol; ctx.fillRect(1, 1, Math.round(62 * f), 8);
+    a.barTex.needsUpdate = true;
+  },
+  tick(a) {
+    if (!a.bar) return;
+    a.bar.material.opacity = a.hp / a.maxHp <= 0.25 ? 0.62 + 0.38 * Math.sin(tSec * 9) : 1;   // critical: pulse
+  }
+};
+
+const AnimalAIController = {
+  STATES: ['idle', 'wander', 'graze', 'seekFood', 'drink', 'flee', 'sleep', 'rest', 'alert', 'investigate', 'follow', 'protect', 'seekCover', 'migrate'],
+  perceive(a) {          // awareness of the wolf: distance · speed · direction · night · weather · cover
+    a.aware = AnimalDetection.threat(a);
+    return a.aware;
+  },
+  reactWild(a) {         // react to wild predators independent of the player
+    const wild = AnimalDetection.nearestWildPredator(a);
+    a.wildD = wild ? wild.d : null;
+    if (wild && wild.d < a.sp.detect * a.stats.detectMul * 0.8 && a.state !== 'flee' && a.state !== 'protect') {
+      if (a.sp.charge && a.stats.aggression > 0.6 && wild.d < 10) a.setState('protect');
+      else a.startFlee(wild.pr.pos);
+      return true;
+    }
+    return false;
+  }
+};
+
+const AnimalLOD = { NEAR: 85, FAR: 170, STEP: 0.22 };
+
+const AnimalSpawner = {
+  spawnChunk(chunk, cx, cz, rng, sample, pickW) {
+    const centerS = sample(cx * CHUNK + CHUNK / 2, cz * CHUNK + CHUNK / 2);
+    const entries = Object.entries(centerS.w).filter(e => e[1] > 0.05);
+    const centerBiome = pickW(rng, entries);
+    const table = SPECIES_TABLE[centerBiome];
+    if (!table) return;
+    const night = ecoNight();
+    // nocturnal species dominate the night shift, diurnal the day
+    const wtable = table.map(([k, w]) => {
+      const eco = ECO[k];
+      if (eco && eco.nocturnal) w *= night ? 1.9 : 0.55;
+      else w *= night ? 0.65 : 1.2;
+      if (eco && eco.snow && weather.snow > 0.4) w *= 1.35;   // snowfall: winter coats come out
+      return [k, w];
+    });
+    const groups = 1 + (rng() < 0.3 ? 1 : 0);
+    for (let g = 0; g < groups; g++) {
+      if (animalTotal >= 46) break;
+      const kind = pickW(rng, wtable);
+      const gx = cx * CHUNK + 10 + rng() * (CHUNK - 20), gz = cz * CHUNK + 10 + rng() * (CHUNK - 20);
+      if (heightAt(gx, gz) < 0.9) continue;
+      if (Math.hypot(gx - wolf.pos.x, gz - wolf.pos.z) < 34) continue;   // never spawn beside the player
+      const herdN = Math.max(1, ((ECO[kind] && ECO[kind].herd) || 1) + (rng() < 0.4 ? 1 : 0) - (rng() < 0.5 ? 1 : 0));
+      const herd = herdN > 1 ? { members: [] } : null;
+      for (let m = 0; m < herdN; m++) {
+        if (animalTotal >= 46) break;
+        const ax = gx + (rng() - 0.5) * 8, az = gz + (rng() - 0.5) * 8;
+        if (heightAt(ax, az) < 0.8) continue;
+        const a = new Animal(kind, ax, az, { herd, leader: m === 0, adult: m === 0 || rng() < 0.6 });
+        if (herd) herd.members.push(a);
+        chunk.animals.push(a);
+      }
+    }
+  }
+};
+
 class Animal {
-  constructor(speciesName, x, z) {
-    this.sp = SPECIES[speciesName];
+  constructor(speciesName, x, z, opts) {
+    opts = opts || {};
     this.name = speciesName;
+    this.stats = AnimalStats.make(speciesName, Math.random);
+    this.sp = this.stats.sp;
+    this.young = !opts.adult && this.sp.yng && Math.random() < this.sp.yng;
     const built = buildAnimal(this.sp);
     this.model = built.group;
     this.legs = built.legs; this.head = built.head;
+    if (this.young) { this.sp = Object.assign({}, this.sp, { label: 'Young ' + this.sp.label, hp: 1, meat: Math.max(1, this.sp.meat - 1), pelt: 0, scale: this.sp.scale * 0.55 }); this.model.scale.setScalar(this.sp.scale); }
     scene.add(this.model);
     this.pos = V3(x, heightAt(x, z), z);
     this.heading = Math.random() * Math.PI * 2;
     this.state = 'graze';
+    this.stateT = 0;
     this.timer = 1 + Math.random() * 4;
     this.phase = Math.random() * 9;
     this.fleeT = 0;
+    this.runT = 0;            // sprint stamina while fleeing
     this.target = null;
     this.dead = false;
     this.hp = this.sp.hp || 1;
+    this.maxHp = this.hp;
     this.flinchT = 0;
+    this.asleep = false;
+    this.herd = opts.herd || null;
+    this.herdLeader = !!opts.leader;
+    this.lodT = 0;
+    this.aware = 0;
+    AnimalNeeds.init(this);
+    const w = biomeWeights(x, z, this.pos.y, climateAt(x, z, this.pos.y).temp, climateAt(x, z, this.pos.y).moist);
+    this.cover = clamp((w.forest || 0) + (w.taiga || 0) + (w.grove || 0) + (w.enchanted || 0), 0, 1);
     animalTotal++;
+  }
+  setState(st) { if (this.state !== st) { this.state = st; this.stateT = 0; } this.asleep = st === 'sleep'; }
+  findWater(remember) {     // scan for a nearby shore; cached per animal
+    if (this._waterT && tSec < this._waterT) return this.waterSpot || null;
+    this._waterT = tSec + 6;
+    for (let i = 0; i < 10; i++) {
+      const a = i / 10 * 6.28, r = 14 + i * 3.4;
+      const wx = this.pos.x + Math.sin(a) * r, wz = this.pos.z + Math.cos(a) * r;
+      if (heightAt(wx, wz) < WATER_Y - 0.2) {
+        // walk back to the bank
+        for (let k = 1; k <= 4; k++) { const bx = this.pos.x + Math.sin(a) * (r - k * 2), bz = this.pos.z + Math.cos(a) * (r - k * 2); if (heightAt(bx, bz) > WATER_Y + 0.1) { this.waterSpot = { x: bx, z: bz }; return this.waterSpot; } }
+      }
+    }
+    this.waterSpot = null;
+    return null;
   }
   hit() {
     if (this.dead) return;
-    this.hp--;
+    const ambush = this.aware < 0.5;         // stealth strikes bite deeper
+    this.hp -= ambush ? 2 : 1;
+    AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.32;
     pool.burst(this.pos, 12, 0xffb3a0, 1.1, 2.2, 2.6);
     const dx = this.pos.x - wolf.pos.x, dz = this.pos.z - wolf.pos.z;
     const l = Math.hypot(dx, dz) || 1;
     const nx = this.pos.x + dx / l * 2.2, nz = this.pos.z + dz / l * 2.2;
-    if (heightAt(nx, nz) > WATER_Y + 0.2) {
-      this.pos.x = nx; this.pos.z = nz;
-      this.pos.y = heightAt(nx, nz);
-    }
+    if (heightAt(nx, nz) > WATER_Y + 0.2) { this.pos.x = nx; this.pos.z = nz; this.pos.y = heightAt(nx, nz); }
+    // panic ripples through the herd
+    if (this.herd) for (const m of this.herd.members) if (m !== this && !m.dead && m.pos.distanceTo(this.pos) < 30) m.startFlee(wolf.pos);
     if (this.hp <= 0) this.caught();
-    else this.startFlee(wolf.pos);
+    else if (!AnimalCombat.retaliate(this)) this.startFlee(wolf.pos);
+  }
+  dieSilently() {           // taken by a wild predator — no loot, herd panics
+    if (this.dead) return;
+    this.dead = true; animalTotal--;
+    pool.burst(this.pos, 18, 0xd84a3a, 1.5, 2.6, 3);
+    if (this.herd) for (const m of this.herd.members) if (!m.dead) m.startFlee(this.pos);
+    scene.remove(this.model);
+  }
+  seekCoverDir() {        // sniff out the nearest denser patch of forest
+    let best = this.cover, dir = null;
+    for (let k = 0; k < 6; k++) {
+      const ang = (k / 6) * Math.PI * 2;
+      const c = coverAt(this.pos.x + Math.sin(ang) * 14, this.pos.z + Math.cos(ang) * 14);
+      if (c > best + 0.05) { best = c; dir = ang; }
+    }
+    return dir;
   }
   startFlee(from) {
     if (this.dead) return;
-    this.state = 'flee';
+    this.setState('flee');
     this.fleeT = 4 + Math.random() * 2.5;
+    this.runT = this.stats.stamRun;
     this.heading = Math.atan2(this.pos.x - from.x, this.pos.z - from.z) + (Math.random() - 0.5) * 0.8;
+    this.aware = 1;
   }
+  investigate(pt) { if (this.dead || this.asleep) return; this.target = { x: pt.x, z: pt.z }; this.setState('investigate'); }
   update(dt, tSec) {
     if (this.dead) return;
     const dWolf = this.pos.distanceTo(wolf.pos);
-    if (dWolf > 230) { this.model.visible = false; return; }
+    if (dWolf > AnimalLOD.FAR && !(this.herd && this.herd.route)) { this.model.visible = false; return; }   // far: population-only (frozen) — unless the great herds are on the move
     this.model.visible = true;
-    const detect = this.sp.detect * (wolf.speed > 6 ? 1.25 : wolf.speed > 3 ? 0.8 : 0.55);
-    if (dWolf < detect && this.state !== 'flee' && (wolf.speed > 3 || dWolf < detect * 0.45)) {
-      this.startFlee(wolf.pos);
-    }
+    // ---- LOD: mid-distance animals think in bursts ----
+    if (dWolf > AnimalLOD.NEAR) { this.lodT += dt; if (this.lodT < AnimalLOD.STEP) return; dt = this.lodT; this.lodT = 0; }
+    this.stateT += dt;
     let speed = 0;
-    if (this.state === 'flee') {
-      this.fleeT -= dt;
-      speed = this.sp.run * (this.fleeT < 0 ? 0.55 : 1);
-      if (this.fleeT < -3) { this.state = 'graze'; this.timer = 2; }
-    } else if (this.state === 'wander') {
-      speed = this.sp.walk;
-      const dl = Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z);
-      if (dl < 1.5) { this.state = 'graze'; this.timer = 2 + Math.random() * 5; }
-      else this.heading = angLerp(this.heading, Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), Math.min(1, dt * 3));
-    } else {
-      this.timer -= dt;
-      if (this.timer <= 0) {
-        const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 16;
-        const tx = this.pos.x + Math.sin(a) * r, tz = this.pos.z + Math.cos(a) * r;
-        if (heightAt(tx, tz) > WATER_Y + 0.4) { this.target = { x: tx, z: tz }; this.state = 'wander'; }
-        else this.timer = 1;
+    // ---- perception (AI controller) ----
+    if (!this.asleep || this.stateT > 1) AnimalAIController.perceive(this);
+    const need = this.asleep ? null : AnimalNeeds.dominant(this);
+    // ---- AI state machine ----
+    if (this.flinchT > 0) {
+      this.flinchT -= dt;
+      this.model.scale.setScalar(this.sp.scale * (1 + Math.max(0, this.flinchT) / 0.32 * 0.22));
+      AnimalAnimation.pose(this, dt, tSec, 0);
+      return;
+    } else this.model.scale.setScalar(this.sp.scale);
+    switch (this.state) {
+      case 'flee': {
+        this.fleeT -= dt;
+        const tired = this.runT <= 0;
+        if (!tired) this.runT -= dt;
+        speed = this.sp.run * this.stats.speedMul * (tired ? 0.55 : 1);
+        // smart prey jukes when the wolf lunges close
+        if (this.stats.intelligence > 0.6 && dWolf < 6.5 && wolf.atkT > 0 && Math.random() < dt * 2.2)
+          this.heading += (Math.random() < 0.5 ? 1 : -1) * (0.9 + Math.random());
+        if (this.fleeT < -3 && dWolf > this.sp.detect * 1.4) { this.setState('idle'); this.timer = 1; }
+        break;
+      }
+      case 'protect': AnimalCombat.protectTick(this, dt); speed = this.sp.run * 0.9; break;
+      case 'migrate': {         // the great herds travel their ancestral route
+        const route = this.herd && this.herd.route;
+        if (!route) { this.setState('idle'); break; }
+        const wp = route[this.mwp || 0];
+        if (!wp) { delete this.herd.route; this.setState('graze'); this.timer = 3; break; }
+        const dl = Math.hypot(wp.x - this.pos.x, wp.z - this.pos.z);
+        if (dl < 7) { this.mwp = (this.mwp || 0) + 1; break; }
+        this.heading = angLerp(this.heading, Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z), Math.min(1, dt * 2.6));
+        speed = this.sp.walk * 1.45;
+        if (this.aware >= 0.5 && dWolf < this.sp.detect * 0.9) { this.setState('alert'); break; }   // spooked off the line
+        break;
+      }
+      case 'seekCover': {
+        if (this.cover > 0.32 || this.stateT > 7) { this.setState('rest'); this.timer = 2; break; }
+        const dir = this.seekCoverDir();
+        if (dir !== null) { this.heading = angLerp(this.heading, dir, Math.min(1, dt * 3)); speed = this.sp.walk; }
+        else { this.setState('rest'); this.timer = 2; }
+        break;
+      }
+      case 'sleep': {
+        const wsl = AnimalDetection.nearestWildPredator(this);
+        if (this.aware >= 0.5 || (wsl && wsl.d < 12)) { this.setState('alert'); break; }
+        if (!ecoNight() && !this.sp.nocturnal) { this.setState('idle'); this.timer = 1; }
+        break;
+      }
+      case 'rest': {
+        if (this.aware >= 0.5) { this.setState('alert'); break; }
+        if (this.energy > 55 || (need !== 'rest' && this.stateT > 8)) { this.setState('idle'); this.timer = 0.5; }
+        break;
+      }
+      case 'alert': {
+        this.heading = angLerp(this.heading, Math.atan2(this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z), Math.min(1, dt * 4));
+        if (this.aware >= 1) this.startFlee(wolf.pos);
+        else if (this.aware <= 0.25) { need ? this.pursue(need) : this.setState('graze'); }
+        else if (this.stateT > 2.2 && this.aware < 0.75 && this.stats.curiosity > 0.55 && dWolf > 9) { this.investigate(wolf.pos); }
+        break;
+      }
+      case 'investigate': {
+        const dl = this.target ? Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z) : 99;
+        if (this.aware >= 0.75) { this.startFlee(wolf.pos); break; }
+        if (dl > 3) { speed = this.sp.walk; this.heading = angLerp(this.heading, Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), Math.min(1, dt * 3)); }
+        else { this.setState('idle'); this.timer = 2; }
+        break;
+      }
+      case 'seekFood': {
+        if (!this.target || this.stateT > 10) {
+          const a = Math.random() * 6.28, r = 4 + Math.random() * 10;
+          this.target = { x: this.pos.x + Math.sin(a) * r, z: this.pos.z + Math.cos(a) * r };
+        }
+        const dl = Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z);
+        if (dl > 1.5) { speed = this.sp.walk; this.heading = angLerp(this.heading, Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), Math.min(1, dt * 2.5)); }
+        else { this.hunger = Math.max(0, this.hunger - 30); this.setState('graze'); }
+        break;
+      }
+      case 'drink': {
+        const wsp = this.waterSpot;
+        if (!wsp) { this.thirst = Math.max(0, this.thirst - 10); this.setState('idle'); break; }
+        const dl = Math.hypot(wsp.x - this.pos.x, wsp.z - this.pos.z);
+        if (dl > 1.6) { speed = this.sp.walk; this.heading = angLerp(this.heading, Math.atan2(wsp.x - this.pos.x, wsp.z - this.pos.z), Math.min(1, dt * 2.5)); }
+        else { this.thirst = Math.max(0, this.thirst - 55); if (Math.random() < dt * 3) pool.burst(V3(wsp.x, WATER_Y + 0.2, wsp.z), 2, 0x9fd4e8, 0.3, 1, 1); if (this.thirst < 25) { this.setState('idle'); this.timer = 2; } }
+        break;
+      }
+      case 'follow': {
+        const pull = AnimalFlocking.steer(this);
+        if (pull !== null) { speed = this.sp.walk * 1.15; this.heading = angLerp(this.heading, pull, Math.min(1, dt * 2.5)); }
+        if (this.stateT > 3) this.setState('graze');
+        break;
+      }
+      case 'wander': {
+        speed = this.sp.walk;
+        const dl = this.target ? Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z) : 0;
+        if (dl < 1.5) { this.setState('graze'); this.timer = 2 + Math.random() * 5; }
+        else this.heading = angLerp(this.heading, Math.atan2(this.target.x - this.pos.x, this.target.z - this.pos.z), Math.min(1, dt * 3));
+        break;
+      }
+      case 'idle': {
+        this.timer -= dt;
+        if (this.timer <= 0) {
+          if (need) this.pursue(need);
+          else if (ecoNight() && !this.sp.nocturnal && this.energy < 75 && this.cover > 0.3 && dWolf > 25) this.setState('sleep');
+          else if ((this.sp.nocturnal ? !ecoNight() : ecoNight()) && this.energy < 40) this.setState('rest');
+          else if ((weather.rain > 0.3 || weather.snow > 0.3) && Math.random() < 0.45) { this.setState('rest'); this.timer = 3 + Math.random() * 4; }   // stormy: hunker down
+          else { const a = Math.random() * 6.28, r = 6 + Math.random() * 16; const tx = this.pos.x + Math.sin(a) * r, tz = this.pos.z + Math.cos(a) * r; if (heightAt(tx, tz) > WATER_Y + 0.4) { this.target = { x: tx, z: tz }; this.setState('wander'); } else this.timer = 1; }
+        }
+        break;
+      }
+      default: { // graze
+        this.timer -= dt;
+        if (this.aware >= 0.5) { this.setState('alert'); break; }
+        if (this.timer <= 0) {
+          if (need) this.pursue(need);
+          else if (this.herd && !this.herdLeader && Math.random() < 0.5) this.setState('follow');
+          else { this.setState('idle'); this.timer = 1; }
+        }
+        break;
       }
     }
+    // ---- herd cohesion while moving ----
+    if (this.herd && speed > 0 && this.state !== 'flee' && this.state !== 'protect') {
+      const pull = AnimalFlocking.steer(this);
+      if (pull !== null) this.heading = angLerp(this.heading, pull, Math.min(1, dt * (this.young ? 2.2 : 0.9)));
+    }
+    // ---- wild predators scare prey independent of the player ----
+    AnimalAIController.reactWild(this);
+    // ---- terrain-aware movement ----
     const nx = this.pos.x + Math.sin(this.heading) * 2.5, nz = this.pos.z + Math.cos(this.heading) * 2.5;
     if (heightAt(nx, nz) < WATER_Y + 0.3) this.heading += dt * 2.4;
     if (speed > 0) {
-      this.pos.x += Math.sin(this.heading) * speed * dt;
-      this.pos.z += Math.cos(this.heading) * speed * dt;
+      let spd2 = speed;
+      if (weather.snow > 0.4 && !this.sp.snow) spd2 *= 0.88;   // plowing through powder
+      this.pos.x += Math.sin(this.heading) * spd2 * dt;
+      this.pos.z += Math.cos(this.heading) * spd2 * dt;
       this.pos.y = heightAt(this.pos.x, this.pos.z);
     }
     this.model.position.copy(this.pos);
     this.model.rotation.y = this.heading;
-    if (this.flinchT > 0) {
-      this.flinchT -= dt;
-      this.model.scale.setScalar(this.sp.scale * (1 + Math.max(0, this.flinchT) / 0.32 * 0.22));
-    } else {
-      this.model.scale.setScalar(this.sp.scale);
-    }
-    this.phase += dt * (2 + speed * 1.6);
-    const amp = clamp(speed * 0.12, 0, 0.6);
-    if (this.sp.anim === 'hop') {
-      if (speed > 0.5) {
-        const hop = Math.abs(Math.sin(this.phase * 1.4));
-        this.model.position.y += hop * 0.28;
-        this.legs[0].rotation.x = this.legs[1].rotation.x = hop * 0.7 - 0.3;
-        this.legs[2].rotation.x = this.legs[3].rotation.x = -hop * 0.5;
-      } else {
-        this.legs.forEach(l => { l.rotation.x = lerp(l.rotation.x, 0, dt * 6); });
-        this.head.rotation.x = Math.sin(tSec * 0.7 + this.phase) * 0.5;
-      }
-    } else {
-      this.legs[0].rotation.x = Math.sin(this.phase) * amp;
-      this.legs[1].rotation.x = Math.sin(this.phase + Math.PI) * amp;
-      this.legs[2].rotation.x = Math.sin(this.phase + Math.PI) * amp;
-      this.legs[3].rotation.x = Math.sin(this.phase) * amp;
-      if (speed < 0.3) this.head.rotation.x = Math.sin(tSec * 0.5 + this.phase) * 0.45;
-      else this.head.rotation.x = lerp(this.head.rotation.x, 0, dt * 3);
-    }
+    AnimalNeeds.update(this, dt, speed > 0.3);
+    AnimalHealthBar.tick(this);
+    AnimalAnimation.pose(this, dt, tSec, speed);
+  }
+  pursue(need) {
+    if (need === 'seekCover') { this.setState(this.cover > 0.32 ? 'rest' : 'seekCover'); return; }
+    if (need === 'drink' && this.findWater(true)) { this.setState('drink'); return; }
+    if (need === 'seekFood') { this.setState('seekFood'); return; }
+    if (need === 'sleep') { this.setState('sleep'); return; }
+    if (need === 'rest') { this.setState('rest'); return; }
+    this.setState('wander');
   }
   caught() {
     if (this.dead) return;
     this.dead = true;
     animalTotal--;
     pool.burst(this.pos, 26, 0xffe0a8, 1.8, 3.4, 3.6);
-    let msg = `⚔️ Took down a ${this.sp.label}! +${this.sp.meat} 🥩`;
-    inv.meat += this.sp.meat;
-    if (this.sp.pelt) { inv.pelt += this.sp.pelt; msg += ` +${this.sp.pelt} 🧥`; }
-    if (this.sp.bone) { inv.bone += this.sp.bone; msg += ` +${this.sp.bone} 🦴`; }
-    stats.caught++;
-    toast(msg);
-    updateInv();
+    AnimalLoot.grant(this);
     scene.remove(this.model);
   }
   dispose() {
@@ -881,6 +1665,7 @@ class Predator {
     this.timer = 2 + Math.random() * 4;
     this.target = null;
     this.hp = this.sp.hp;
+    this.maxHp = this.hp;
     this.flinchT = 0;
     this.atkCd = 0;
     this.biteT = 0;
@@ -888,12 +1673,17 @@ class Predator {
     this.dead = false;
     this.threatening = false;
     this.reArmed = true;        // re-arm warning after player leaves
+    this.hunger = 30 + Math.random() * 40;
+    this.huntTarget = null;
+    this.lodT = 0;
+    this.nocturnal = (kind === 'tiger' || kind === 'snowLeopard');
     predatorTotal++;
   }
   startFlee() { /* predators don't spook — they hold their ground */ }
   hit() {
     if (this.dead) return;
     this.hp--;
+    AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.38;
     pool.burst(this.pos, 14, 0xffb3a0, 1.2, 2.4, 2.8);
     // heavy: only a slight stagger, barely pushed
@@ -937,9 +1727,17 @@ class Predator {
       return;                       // staggered by the blow
     }
     this.model.scale.setScalar(this.sp.scale);
+    AnimalHealthBar.tick(this);
     const dWolfHome = Math.hypot(wolf.pos.x - this.home.x, wolf.pos.z - this.home.z);
     let speed = 0;
     this.threatening = false;
+    this.hunger = Math.min(100, this.hunger + dt * 0.5);
+    // LOD: idle-distance predators think in bursts; combat states stay full-rate
+    if ((this.state === 'lurk' || this.state === 'return' || this.state === 'sleep') && dWolf > 85) {
+      this.lodT += dt;
+      if (this.lodT < 0.25) return;
+      dt = this.lodT; this.lodT = 0;
+    }
     if (this.state === 'lurk') {
       if (dWolfHome < this.territory && this.reArmed && state === 'play' && wolf.deadT <= 0) {
         this.state = 'warn'; this.warnT = 3;
@@ -947,6 +1745,25 @@ class Predator {
         showTerritoryWarning(this.sp);
         audio.growl();
         this.heading = Math.atan2(dxw, dzw);
+      } else if (this.sp.huntsWolf && this.hunger > 88 && dWolf < 42 && state === 'play' && wolf.deadT <= 0) {
+        // starving apex predator: the wolf is on tonight's menu
+        this.state = 'warn'; this.warnT = 2.5; this.reArmed = false;
+        showTerritoryWarning(this.sp); audio.growl();
+        this.heading = Math.atan2(dxw, dzw);
+      } else if (this.hunger > 65 && dWolfHome > this.territory) {
+        // hungry and unprovoked: hunt wild prey (ecosystem lives without the player)
+        let prey = null, pd = 55;
+        for (const ch of chunks.values()) {
+          for (const an of ch.animals) {
+            if (an.dead || an.sp.charge) continue;      // avoids goats & elk
+            const d = an.pos.distanceTo(this.pos);
+            if (d < pd) { pd = d; prey = an; }
+          }
+        }
+        if (prey) { this.huntTarget = prey; this.state = 'hunt'; }
+        else this.hunger = 50;
+      } else if (!this.nocturnal && ecoNight() && dWolfHome > this.territory * 0.8 && Math.random() < dt * 0.05) {
+        this.state = 'sleep';
       } else {
         if (dWolfHome > this.territory * 1.6) this.reArmed = true;
         this.timer -= dt;
@@ -985,6 +1802,20 @@ class Predator {
         pool.burst(V3(this.pos.x + dxw / (dWolf || 1) * 1.2, this.pos.y + 1, this.pos.z + dzw / (dWolf || 1) * 1.2), 8, 0xff5040, 0.8, 1.6, 2.2);
         if (dWolf < this.sp.reach) wolfTakeDamage(this.sp.dmg, this.pos, this.sp.label, this.sp.icon);
       }
+    } else if (this.state === 'hunt') {
+      const prey = this.huntTarget;
+      if (!prey || prey.dead) { this.huntTarget = null; this.state = 'return'; }
+      else {
+        const pd2 = prey.pos.distanceTo(this.pos);
+        this.heading = angLerp(this.heading, Math.atan2(prey.pos.x - this.pos.x, prey.pos.z - this.pos.z), Math.min(1, dt * 5));
+        speed = this.sp.run * (this.nocturnal && ecoNight() ? 1.1 : 1);
+        if (pd2 < 2.3) { prey.dieSilently(); this.hunger = 0; this.huntTarget = null; this.state = 'return'; }
+        else if (pd2 > 75) { this.huntTarget = null; this.state = 'return'; }
+      }
+    } else if (this.state === 'sleep') {
+      this.heading += (Math.random() - 0.5) * dt;   // restless slumber
+      if (dWolfHome < this.territory * 0.85) { this.state = 'warn'; this.warnT = 3; showTerritoryWarning(this.sp); audio.growl(); }
+      else if (!ecoNight() && Math.random() < dt * 0.1) { this.state = 'lurk'; this.timer = 2; }
     } else if (this.state === 'return') {
       const dl = Math.hypot(this.home.x - this.pos.x, this.home.z - this.pos.z);
       this.heading = angLerp(this.heading, Math.atan2(this.home.x - this.pos.x, this.home.z - this.pos.z), Math.min(1, dt * 4));
@@ -1007,6 +1838,7 @@ class Predator {
     this.legs[1].rotation.x = Math.sin(this.phase + Math.PI) * amp;
     this.legs[2].rotation.x = Math.sin(this.phase + Math.PI) * amp;
     this.legs[3].rotation.x = Math.sin(this.phase) * amp;
+    if (this.state === 'sleep') { this.legs.forEach(l => { l.rotation.x = lerp(l.rotation.x, 0.5, dt * 3); }); this.head.rotation.x = 0.5; return; }
     if (this.biteT > 0) { this.biteT -= dt; this.head.rotation.x = 0.55; }
     else this.head.rotation.x = this.state === 'attack' || this.state === 'chase' ? 0.18 : Math.sin(tSec * 0.5 + this.phase) * 0.25;
   }

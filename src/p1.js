@@ -90,6 +90,9 @@ const nF    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // forest clumping
 const nVar  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // ground variation
 const nRiver = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // river bands
 const nMagic = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // enchanted grove fields
+const nClr   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // forest clearings
+const nPath  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // winding animal paths
+const nVol   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // volcanic fields
 
 /* ---------------- terrain shape ---------------- */
 const CHUNK = 64, SEG = 32, VIEW_R = 3;
@@ -132,8 +135,14 @@ const BIOME_INFO = {
   mountain: { name: 'Frostpeak Mountains', icon: '⛰️' },
   swamp:    { name: 'Murky Swamp',      icon: '🪵' },
   enchanted:{ name: 'Enchanted Grove',   icon: '✨' },
+  coast:    { name: 'Coastal Reach',     icon: '🏖️' },
+  dry:      { name: 'Dry Valley',        icon: '🏜️' },
+  highland: { name: 'Rocky Highlands',   icon: '🪨' },
+  volcanic: { name: 'Ember Wastes',      icon: '🌋' },
   shore:    { name: 'Wild Shoreline',   icon: '🌊' }
 };
+function volField(x, z) { return fbm(nVol, x * 0.0016, z * 0.0016, 2); }   // broad fields, soft fringes
+function volcanicAt(x, z) { return ss(0.75, 0.82, volField(x, z)); }   // 1 on the hot ember core
 function biomeWeights(x, z, h, temp, moist) {
   const cold = 1 - ss(-0.42, -0.10, temp);
   const warm = ss(0.10, 0.40, temp);
@@ -143,6 +152,9 @@ function biomeWeights(x, z, h, temp, moist) {
   let forest = mid * wet, grove = warm * wet;
   let meadow = mid * (1 - wet) * 0.85 + warm * (1 - wet);
   const mt = ss(27, 38, h);
+  // dry valley — parched steppe carved out of meadow in arid noise troughs
+  let dry = meadow * ss(-0.25, -0.42, moist) * (1 - mt);
+  meadow *= 1 - dry * 0.9;
   // swamp — saturated lowlands: murky pools, mist, dead trees
   let swamp = ss(0.55, 0.8, moist) * ss(6.8, 3.0, h) * ss(0.35, 0.6, wet) * (1 - mt);
   swamp = Math.max(0, swamp - mt);
@@ -150,10 +162,19 @@ function biomeWeights(x, z, h, temp, moist) {
   const magicN = fbm(nMagic, x * 0.00085 + 91.7, z * 0.00085 - 45.2, 3);
   let enchanted = ss(0.60, 0.70, magicN) * wet * ss(1.2, 2.6, h) * (1 - mt);
   enchanted *= enchanted > 0 ? (0.55 + 0.45 * ss(0.2, 0.5, forest + grove)) : 1;
-  if (swamp > 0) { const k = 1 - swamp * 0.8; forest *= k; grove *= k; taiga *= k; meadow *= k; }
+  // rocky highlands — bare scree shoulders above the treeline
+  let highland = mt * ss(38, 44, h);
+  let mountain = mt * (1 - highland);
+  // coastal reach — low shorelines, dunes & stream banks
+  let coast = ss(4.6, 0.5, h) * (1 - mt);
+  if (swamp > 0) { const k = 1 - swamp * 0.8; forest *= k; grove *= k; taiga *= k; meadow *= k; dry *= k; }
   if (enchanted > 0) { const k = 1 - enchanted; forest *= k; grove *= k; swamp *= 1 - enchanted; }
-  if (mt > 0) { const k = 1 - mt; tundra *= k; taiga *= k; forest *= k; grove *= k; meadow *= k; }
-  return { tundra, taiga, forest, grove, meadow, mountain: mt, swamp, enchanted };
+  if (mt > 0) { const k = 1 - mt; tundra *= k; taiga *= k; forest *= k; grove *= k; meadow *= k; dry *= k; }
+  if (coast > 0) { const k = 1 - coast * 0.7; forest *= k; grove *= k; meadow *= k; dry *= k; tundra *= k; taiga *= k; }
+  // ember wastes — rare scorched volcanic fields
+  let vol = ss(0.66, 0.86, volField(x, z)) * ss(0.5, 3.4, h) * (1 - mt);
+  if (vol > 0) { const k = 1 - vol; tundra *= k; taiga *= k; forest *= k; grove *= k; meadow *= k; swamp *= k; enchanted *= k; coast *= k; dry *= k; mountain *= k; highland *= k; }
+  return { tundra, taiga, forest, grove, meadow, mountain, swamp, enchanted, coast, dry, highland, volcanic: vol };
 }
 function biomeInfoAt(x, z, h) {
   if (h === undefined) h = heightAt(x, z);

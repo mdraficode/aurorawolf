@@ -308,6 +308,7 @@ const furTex = (() => {
 const matTerrain  = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
 const matVeg      = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, side: THREE.DoubleSide });
 const matMagic = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0, emissive: 0x8a4fff, emissiveIntensity: 0.42 });
+const matGlow = new THREE.MeshStandardMaterial({ color: 0xbdf5e8, roughness: 0.6, metalness: 0, emissive: 0x38d8b0, emissiveIntensity: 0.55 });   // moon petals
 const matColorCache = {};
 function matColor(hex) {
   if (!matColorCache[hex]) matColorCache[hex] = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.92, metalness: 0, bumpMap: furTex, bumpScale: 0.008 });
@@ -423,6 +424,96 @@ const G = {};
     [cone(0.55, 0.95), 0x446b50, T(0, 1.3, 0)],
     [cone(0.3, 0.7), 0x4c7557, T(0, 1.85, 0)]
   ]);
+  /* ---- boreal canopy & forest-layer species (tall bases; instance scale picks final height) ---- */
+  G.spruceTall = bakeParts([
+    [cyl(0.16, 0.34, 10, 5), 0x5a4030, T(0, 5, 0)],
+    [cone(3.1, 3.6, 6), 0x27452e, T(0, 10.2, 0)],
+    [cone(2.85, 3.4, 6), 0x2c4f35, T(0, 12.4, 0)],
+    [cone(2.6, 3.2, 6), 0x27452e, T(0, 14.6, 0)],
+    [cone(2.3, 3.0, 6), 0x2c4f35, T(0, 16.7, 0)],
+    [cone(2.0, 2.8, 6), 0x27452e, T(0, 18.7, 0)],
+    [cone(1.65, 2.5, 6), 0x2f553a, T(0, 20.6, 0)],
+    [cone(1.25, 2.2, 6), 0x27452e, T(0, 22.4, 0)],
+    [cone(0.85, 1.9, 6), 0x2f553a, T(0, 24.1, 0)],
+    [cone(0.45, 1.5, 6), 0x356040, T(0, 25.6, 0)]
+  ]);
+  G.pineTall = bakeParts([
+    [cyl(0.2, 0.42, 12, 5), 0x63442e, T(0, 6, 0)],
+    [cone(3.4, 3.8, 6), 0x2a4f34, T(0, 12.8, 0)],
+    [cone(2.9, 3.5, 6), 0x306044, T(0, 15.4, 0)],
+    [cone(2.35, 3.1, 6), 0x2a4f34, T(0, 17.9, 0)],
+    [cone(1.75, 2.7, 6), 0x36684a, T(0, 20.2, 0)],
+    [cone(1.15, 2.3, 6), 0x2a4f34, T(0, 22.3, 0)],
+    [cone(0.6, 1.8, 6), 0x3c6e50, T(0, 24.1, 0)]
+  ]);
+  G.fir = bakeParts([
+    [cyl(0.1, 0.2, 5.5, 5), 0x5f4230, T(0, 2.75, 0)],
+    [cone(1.5, 2.6, 6), 0x2e5238, T(0, 6.2, 0)],
+    [cone(1.25, 2.4, 6), 0x345c3e, T(0, 8.2, 0)],
+    [cone(1.0, 2.2, 6), 0x2e5238, T(0, 10.1, 0)],
+    [cone(0.7, 1.9, 6), 0x345c3e, T(0, 11.9, 0)],
+    [cone(0.4, 1.5, 6), 0x3a6644, T(0, 13.4, 0)]
+  ]);
+  G.birchTall = bakeParts([
+    [cyl(0.1, 0.2, 11, 5), 0xe6eaea, T(0, 5.5, 0)],
+    [ico(2.0), 0x7fa847, T(0, 12.2, 0)],
+    [ico(1.55), 0x8bb454, T(1.1, 13.6, 0.4)],
+    [ico(1.35), 0x749f41, T(-1.15, 12.9, -0.5)],
+    [ico(1.1), 0x86b04f, T(0.15, 15.0, -0.75)],
+    [ico(0.8), 0x7fa847, T(-0.6, 15.6, 0.55)]
+  ]);
+  G.oakTall = bakeParts([
+    [cyl(0.3, 0.6, 7.5, 5), 0x5d3f29, T(0, 3.75, 0)],
+    [ico(2.6), 0x42632d, T(0, 9.6, 0)],
+    [ico(2.0), 0x4a6d34, T(1.7, 11.2, 0.5)],
+    [ico(1.8), 0x3c5c29, T(-1.6, 10.6, -0.6)],
+    [ico(1.5), 0x476a31, T(0.2, 13.0, -0.9)],
+    [ico(1.1), 0x4a6d34, T(-0.9, 13.9, 1.0)]
+  ]);
+  G.deadPine = bakeParts([
+    [cyl(0.14, 0.4, 16, 5), 0x7d746a, T(0, 8, 0)],
+    [cyl(0.03, 0.08, 2.6, 4), 0x746b60, T(0.75, 10.5, 0, 0, 0, -1.05)],
+    [cyl(0.025, 0.07, 2.2, 4), 0x746b60, T(-0.7, 13.2, 0.1, 0, 0, 1.15)],
+    [cyl(0.02, 0.05, 1.6, 4), 0x6e655b, T(0.2, 15.5, -0.15, 0, 0, -0.7)],
+    [cyl(0.02, 0.06, 1.8, 4), 0x746b60, T(-0.4, 8.2, -0.6, 0.6, 0, 0.9)]
+  ]);
+  G.youngConifer = bakeParts([
+    [cyl(0.035, 0.06, 1.5, 4), 0x6b4a33, T(0, 0.75, 0)],
+    [cone(0.55, 1.15, 5), 0x3a6244, T(0, 1.95, 0)],
+    [cone(0.38, 0.95, 5), 0x446e4e, T(0, 2.75, 0)],
+    [cone(0.2, 0.7, 5), 0x4c7557, T(0, 3.35, 0)]
+  ]);
+  G.youngBroad = bakeParts([
+    [cyl(0.035, 0.06, 1.7, 4), 0x7a5a3d, T(0, 0.85, 0)],
+    [ico(0.62), 0x6f9c45, T(0, 2.35, 0)],
+    [ico(0.45), 0x7dab51, T(0.4, 2.85, 0.15)],
+    [ico(0.4), 0x648f3d, T(-0.38, 2.6, -0.2)]
+  ]);
+  G.fallenTree = bakeParts([
+    [cyl(0.22, 0.36, 8.5, 5), 0x5e4632, T(0, 0.32, 0, Math.PI / 2, 0, 0)],
+    [cyl(0.05, 0.09, 1.4, 4), 0x55402d, T(0.3, 0.5, 1.8, 0.5, 0, 0.9)],
+    [cyl(0.04, 0.07, 1.1, 4), 0x55402d, T(-0.3, 0.45, -2.2, -0.5, 0, -0.8)],
+    [ico(0.35), 0x4a6b3c, T(0.15, 0.55, 0.6)],
+    [ico(0.28), 0x4f7340, T(-0.2, 0.5, -1.2)]
+  ]);
+  G.stump = bakeParts([
+    [cyl(0.34, 0.46, 1.0, 6), 0x5a4230, T(0, 0.5, 0)],
+    [cyl(0.3, 0.3, 0.08, 6), 0x8a6a4a, T(0, 1.02, 0)]
+  ]);
+  G.fern = bakeParts([
+    [plane(0.85, 1.05), 0x3f6e35, T(0, 0.5, 0)],
+    [plane(0.85, 1.05), 0x457a3a, T(0, 0.5, 0, 0, 1.25, 0)],
+    [plane(0.85, 1.05), 0x386431, T(0, 0.5, 0, 0, 2.5, 0)],
+    [plane(0.85, 1.05), 0x3f6e35, T(0, 0.5, 0, 0, 3.9, 0)],
+    [plane(0.85, 1.05), 0x457a3a, T(0, 0.5, 0, 0, 5.1, 0)]
+  ]);
+  G.leafPatch = bakeParts([
+    [plane(1.5, 1.5), 0x8a6a34, T(0, 0.03, 0, -Math.PI / 2, 0, 0)]
+  ]);
+  G.branch = bakeParts([
+    [cyl(0.025, 0.045, 1.1, 4), 0x6e5138, T(0, 0.05, 0, 0, 0, 1.45)],
+    [cyl(0.02, 0.035, 0.7, 4), 0x644a34, T(0.25, 0.08, 0.1, 0, 0, 1.1)]
+  ]);
   G.bush = bakeParts([
     [ico(0.55), 0x3c6640, T(0, 0.5, 0)],
     [ico(0.42), 0x446c42, T(0.45, 0.42, 0.12)],
@@ -469,18 +560,76 @@ const G = {};
     [cyl(0.03, 0.05, 0.85), 0x7d5b3a, T(0, 0.07, 0, 0, 0.4, 1.45)]
   ]);
   G.stoneP = bakeParts([[dod(0.24), 0x9a9da2, T(0, 0.14, 0, 0.3, 0.5, 0.2, 1)]]);
+  G.impConifer = crossQuads(0.6, 1);
+  G.impBroad = crossQuads(0.85, 1);
+  G.impDead = crossQuads(0.55, 1);
 })();
 
-function makeInstanced(geom, mat, items, shadow) {
+const TREE_BASE_H = {
+  spruceTall: 26.3, pineTall: 25, fir: 14.1, birchTall: 16.4, oakTall: 15, deadPine: 17,
+  youngConifer: 3.7, youngBroad: 3.4, fallenTree: 9, stump: 1.05,
+  spruce: 7.1, snowSpruce: 7.1, pine: 7.2, birch: 6.05, autumnBirch: 6.05, rowan: 4.9, oak: 5.8, deadTree: 3.6, dwarfPine: 2.2
+};
+/* ---------------- distant-tree impostors: crossed quads with baked silhouettes ---------------- */
+function impTexture(draw) {
+  const cv = document.createElement('canvas'); cv.width = 128; cv.height = 256;
+  draw(cv.getContext('2d'));
+  const tx = new THREE.CanvasTexture(cv);
+  tx.minFilter = THREE.LinearFilter; tx.magFilter = THREE.LinearFilter;
+  return tx;
+}
+function crossQuads(w, h) {          // two intersecting quads — reads as a tree from any side, zero billboarding cost
+  const a = new THREE.PlaneGeometry(w, h).toNonIndexed();
+  const b = new THREE.PlaneGeometry(w, h).toNonIndexed(); b.rotateY(Math.PI / 2);
+  const g = new THREE.BufferGeometry();
+  for (const attr of [['position', 3], ['normal', 3], ['uv', 2]]) {
+    const A = a.attributes[attr[0]].array, B = b.attributes[attr[0]].array;
+    g.setAttribute(attr[0], new THREE.Float32BufferAttribute([...A, ...B], attr[1]));
+  }
+  const n = g.attributes.position.count, cols = new Float32Array(n * 3).fill(1);   // white base: instance tint does the work
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  a.dispose(); b.dispose();
+  return g;
+}
+const impTexConifer = impTexture(ctx => {
+  ctx.fillStyle = '#b3a48c'; ctx.fillRect(58, 208, 12, 48);            // trunk
+  for (let i = 0; i < 7; i++) {                                         // stacked foliage tiers
+    const y0 = 40 + i * 24, half = 14 + i * 7.5;
+    ctx.fillStyle = i % 2 ? '#dae6d0' : '#cfe0c4';
+    ctx.beginPath(); ctx.moveTo(64, y0 - 16); ctx.lineTo(64 - half, y0 + 22); ctx.lineTo(64 + half, y0 + 22); ctx.closePath(); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'destination-out';                     // ragged edges
+  for (let i = 0; i < 26; i++) { ctx.beginPath(); ctx.arc(12 + Math.random() * 104, 40 + Math.random() * 180, 1.2 + Math.random() * 1.8, 0, 7); ctx.fill(); }
+});
+const impTexBroad = impTexture(ctx => {
+  ctx.fillStyle = '#b3a48c'; ctx.fillRect(60, 170, 8, 86);
+  const blobs = [[64, 92, 46], [34, 118, 30], [94, 116, 30], [50, 62, 28], [82, 66, 27], [64, 132, 30]];
+  for (const [x, y, r] of blobs) { ctx.fillStyle = '#d6e2ca'; ctx.beginPath(); ctx.ellipse(x, y, r * 1.05, r * 0.92, 0, 0, 7); ctx.fill(); }
+  ctx.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 70; i++) { ctx.beginPath(); ctx.arc(8 + Math.random() * 112, 20 + Math.random() * 170, 1.5 + Math.random() * 3, 0, 7); ctx.fill(); }
+});
+const impTexDead = impTexture(ctx => {
+  ctx.strokeStyle = '#c9c2b6'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(64, 256); ctx.lineTo(64, 40); ctx.stroke();      // trunk
+  ctx.lineWidth = 4;
+  const branches = [[64, 90, 20, 50], [64, 120, 108, 76], [64, 150, 24, 108], [64, 170, 104, 140], [64, 200, 30, 172]];
+  for (const [x1, y1, x2, y2] of branches) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+});
+const matImp = {
+  conifer: new THREE.MeshStandardMaterial({ map: impTexConifer, vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1, metalness: 0 }),
+  broad:   new THREE.MeshStandardMaterial({ map: impTexBroad,   vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1, metalness: 0 }),
+  dead:    new THREE.MeshStandardMaterial({ map: impTexDead,    vertexColors: true, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1, metalness: 0 })
+};
+function makeInstanced(geom, mat, items, shadow, cull) {
   if (!items.length) return null;
   const m = new THREE.InstancedMesh(geom, mat, items.length);
   const d = new THREE.Object3D();
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     d.position.set(it.x, it.y, it.z);
-    d.rotation.set(0, it.ry || 0, 0);
+    d.rotation.set(it.rx || 0, it.ry || 0, it.rz || 0);
     const s = it.s || 1;
-    d.scale.set(s, s, s);
+    d.scale.set(it.sx || s, it.sy || s, it.sz || s);
     d.updateMatrix();
     m.setMatrixAt(i, d.matrix);
     if (it.tint) m.setColorAt(i, it.tint);
@@ -489,5 +638,27 @@ function makeInstanced(geom, mat, items, shadow) {
   m.castShadow = !!shadow;
   m.receiveShadow = true;
   m.frustumCulled = false;
+  if (cull) {
+    // r134 shares geometry between InstancedMeshes; clone per chunk so frustum culling
+    // gets an honest bounding sphere (draw-call savings fund the dense forest)
+    if (!geom.boundingBox) geom.computeBoundingBox();
+    const bb = geom.boundingBox;
+    let minx = 1e9, miny = 1e9, minz = 1e9, maxx = -1e9, maxy = -1e9, maxz = -1e9;
+    for (const it of items) {
+      const sx = it.sx || it.s || 1, sy = it.sy || it.s || 1;
+      const ex = (bb.max.x - bb.min.x) * sx * 0.5 + 0.5, ey = (bb.max.y - bb.min.y) * sy;
+      minx = Math.min(minx, it.x - ex); maxx = Math.max(maxx, it.x + ex);
+      minz = Math.min(minz, it.z - ex); maxz = Math.max(maxz, it.z + ex);
+      miny = Math.min(miny, it.y); maxy = Math.max(maxy, it.y + ey);
+    }
+    const g2 = geom.clone();
+    g2.boundingSphere = new THREE.Sphere(
+      new THREE.Vector3((minx + maxx) / 2, (miny + maxy) / 2, (minz + maxz) / 2),
+      Math.max(maxx - minx, maxy - miny, maxz - minz) * 0.62
+    );
+    m.geometry = g2;
+    m.userData.ownGeo = g2;
+    m.frustumCulled = true;
+  }
   return m;
 }

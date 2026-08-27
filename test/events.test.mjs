@@ -157,7 +157,7 @@ console.log(JSON.stringify(R, null, 1));
 console.log('pageerrors:', errors.length ? errors.join(' | ') : 'none');
 await browser.close();
 const F = [];
-if (!R.director.exists || R.director.events.join() !== 'blizzard,fire,flood,migration,rivalPack,storm') F.push('director registry');
+if (!R.director.exists || R.director.events.join() !== 'aurora,blizzard,fire,flood,meteor,migration,rivalPack,storm,whiteStag') F.push('director registry');
 if (R.pickReturns !== true) F.push('pickEvent broken');
 if (R.storm.name !== 'storm' || R.storm.storm < 0.9 || R.storm.rain < 0.6) F.push('storm weather ' + JSON.stringify(R.storm));
 if (!(R.stormOpenHp !== undefined && R.stormOpenHp < 80)) F.push('storm exposure no drain ' + R.stormOpenHp);
