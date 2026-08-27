@@ -121,8 +121,9 @@ function heightAt(x, z) {
   }
   return h;
 }
+var SEASON_TEMP_BIAS = 0;   // set by the turning year (p4)
 function climateAt(x, z, h) {
-  const temp  = fbm(nT, x * 0.00062, z * 0.00062, 3) - Math.max(0, h - 25) * 0.016;
+  const temp  = fbm(nT, x * 0.00062, z * 0.00062, 3) - Math.max(0, h - 25) * 0.016 + SEASON_TEMP_BIAS;
   const moist = fbm(nO, x * 0.00068, z * 0.00068, 3);
   return { temp, moist };
 }

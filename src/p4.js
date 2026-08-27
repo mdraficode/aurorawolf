@@ -68,6 +68,7 @@ const PICKUP_DEF = {
   stoneP:    { label: 'Pick up Stone',        inv: 'stone', icon: '🪨', color: 0xd0d4d8 },
   caveEnter: { label: 'Enter Cave',        inv: null, icon: '🕳️', color: 0x223244 },
   caveExit:  { label: 'Leave Cave',        inv: null, icon: '☀️', color: 0xd8c8a0 },
+  bone:      { label: 'Gather Bone',        inv: 'bone', icon: '🦴', color: 0xd8d2c4 },
   magicShroom: { label: 'Eat Magic Mushroom',  inv: null, icon: '✨', color: 0xb07aff }
 };
 const PICKUP_GEO = { berryBush: G.berryBush, mushroom: G.mushroom, herb: G.herb, stick: G.stick, stoneP: G.stoneP, magicShroom: G.magicShroom };
@@ -571,7 +572,7 @@ function disposeChunk(chunk) {
   chunk.geo.dispose();
   for (const m of chunk.instanced) { if (m.dispose) m.dispose(); if (m.userData && m.userData.ownGeo) m.userData.ownGeo.dispose(); }
   for (const m of chunk.vegMeshes) { if (m.userData.ownGeo) m.userData.ownGeo.dispose(); if (m.dispose) m.dispose(); }
-  for (const a of chunk.animals) a.dispose();
+  for (const a of chunk.animals) { if (!a.dead && ECO_CAP[a.name] !== undefined) ECO_POP[a.name]++; a.dispose(); }
   chunk.animals.length = 0;
   for (const pr of chunk.predators) pr.dispose();
   chunk.predators.length = 0;
@@ -586,15 +587,17 @@ function maintainChunks(dt) {
   if (maintainT <= 0) {
     maintainT = 0.4;
     const ccx = Math.floor(wolf.pos.x / CHUNK), ccz = Math.floor(wolf.pos.z / CHUNK);
+    const elevated = wolf.pos.y > 34;              // on a ridge, the world unrolls
+    const viewR = VIEW_R + (elevated ? 1 : 0);
     genQueue = [];
-    for (let dz = -VIEW_R; dz <= VIEW_R; dz++)
-      for (let dx = -VIEW_R; dx <= VIEW_R; dx++) {
+    for (let dz = -viewR; dz <= viewR; dz++)
+      for (let dx = -viewR; dx <= viewR; dx++) {
         const cx = ccx + dx, cz = ccz + dz;
         if (!chunks.has(ck(cx, cz))) genQueue.push({ cx, cz, d: dx * dx + dz * dz });
       }
     genQueue.sort((a, b) => a.d - b.d);
     for (const chunk of Array.from(chunks.values())) {
-      if (Math.max(Math.abs(chunk.cx - ccx), Math.abs(chunk.cz - ccz)) > VIEW_R + 1) disposeChunk(chunk);
+      if (Math.max(Math.abs(chunk.cx - ccx), Math.abs(chunk.cz - ccz)) > viewR + 1) disposeChunk(chunk);
     }
     // vegetation LOD: near = full geometry, far = impostors (hysteresis 116-132 m); closest first
     const lodWanted = [];
@@ -672,10 +675,116 @@ function gather(p) {
 
 /* ---------------- wolf sense ---------------- */
 let senseT = 0, senseTick = 0, discoverTick = 1;
+/* ---- senses: the wolf reads the ground — tracks, scent, blood ---- */
+const SENSE = { scents: [], tracks: [], hearT: 0, trampleT: 0 };
+let scentCloud = null, trackMarks = null;
+function ensureSenseMeshes() {
+  if (!scentCloud) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(160 * 3), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(160 * 3), 3));
+    scentCloud = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.5, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false }));
+    scentCloud.frustumCulled = false; scentCloud.visible = false; scentCloud.renderOrder = 5;
+    scene.add(scentCloud);
+  }
+  if (!trackMarks) {
+    trackMarks = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.3, 0.52), new THREE.MeshBasicMaterial({ color: 0x241f1c, transparent: true, opacity: 0.5, depthWrite: false }), 140);
+    trackMarks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    trackMarks.frustumCulled = false; trackMarks.visible = false; trackMarks.renderOrder = 4;
+    scene.add(trackMarks);
+  }
+}
+const SCENT_COL = { prey: [0.42, 0.85, 0.5], pred: [1, 0.32, 0.25], blood: [0.75, 0.08, 0.08], rival: [0.72, 0.5, 0.95] };
+function updateSenseFX() {          // paint tracks & scent while the sense burns
+  ensureSenseMeshes();
+  const on = senseT > 0 && !caveState.in;
+  scentCloud.visible = on; trackMarks.visible = on;
+  if (!on) return;
+  const pos = scentCloud.geometry.attributes.position, col = scentCloud.geometry.attributes.color;
+  const now = tSec;
+  let n = 0;
+  for (const sc of SENSE.scents) {
+    if (n >= 160) break;
+    const age = (now - sc.t) / 60;                     // scent fades over a minute
+    if (age > 1) continue;
+    pos.setXYZ(n, sc.x, groundAt(sc.x, sc.z) + 0.35, sc.z);
+    const c = SCENT_COL[sc.k], f = (1 - age) * 0.95;
+    col.setXYZ(n, c[0] * f, c[1] * f, c[2] * f);
+    n++;
+  }
+  scentCloud.geometry.setDrawRange(0, n);
+  pos.needsUpdate = true; col.needsUpdate = true;
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), S1 = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
+  let m = 0;
+  for (const tr of SENSE.tracks) {
+    if (m >= 140) break;
+    const age = (now - tr.t) / 90;
+    if (age > 1) continue;
+    P.set(tr.x, groundAt(tr.x, tr.z) + 0.04, tr.z);
+    E.set(-Math.PI / 2, 0, -tr.dir); Q.setFromEuler(E);
+    M.compose(P, Q, S1);
+    trackMarks.setMatrixAt(m++, M);
+  }
+  trackMarks.count = m;
+  trackMarks.instanceMatrix.needsUpdate = true;
+}
+function updateSensesTick() {       // slow tick: the world leaves its marks
+  let hear = null, hearD = 58;
+  for (const ch of chunks.values()) {
+    if (Math.abs(ch.cx * CHUNK + 32 - wolf.pos.x) > 90 || Math.abs(ch.cz * CHUNK + 32 - wolf.pos.z) > 90) continue;
+    for (const a of ch.animals.concat(ch.predators)) {
+      if (a.dead) continue;
+      const d = Math.hypot(a.pos.x - wolf.pos.x, a.pos.z - wolf.pos.z);
+      if (d > 80) continue;
+      const lx = a._lx !== undefined ? a._lx : a.pos.x, lz = a._lz !== undefined ? a._lz : a.pos.z;
+      const moved = Math.hypot(a.pos.x - lx, a.pos.z - lz);
+      const mvDir = Math.atan2(a.pos.x - lx, a.pos.z - lz);
+      a._lx = a.pos.x; a._lz = a.pos.z;
+      // tracks in snow and soft ground — stride by stride
+      a._trAcc = (a._trAcc || 0) + moved;
+      if (a._trAcc > 2.2) { a._trAcc = 0; SENSE.tracks.push({ x: a.pos.x, z: a.pos.z, dir: mvDir, t: tSec }); if (SENSE.tracks.length > 140) SENSE.tracks.shift(); }
+      // scent: everything that breathes leaves one
+      a._scT = (a._scT || 0) - 0.6;
+      if (a._scT <= 0) {
+        a._scT = a.sp.huntsWolf ? 3 : 4.5;
+        SENSE.scents.push({ x: a.pos.x, z: a.pos.z, k: a.sp.huntsWolf ? 'pred' : 'prey', t: tSec });
+        if (SENSE.scents.length > 160) SENSE.scents.shift();
+      }
+      // blood tells the strongest story
+      if (a.injured) {
+        SENSE.scents.push({ x: a.pos.x, z: a.pos.z, k: 'blood', t: tSec });
+        if (SENSE.scents.length > 160) SENSE.scents.shift();
+        if (d < 60 && Math.random() < 0.5) pool.burst(V3(a.pos.x, a.pos.y + 0.3, a.pos.z), 1, 0x8f1414, 0.5, 0.9, 1.2);
+      }
+      // hearing: the closest thing that moves
+      if (moved > 0.4 && d < hearD) { hearD = d; hear = a; }
+    }
+  }
+  for (const r of rivals) {          // other wolves pass through
+    if (r.dead) continue;
+    if (Math.hypot(r.pos.x - wolf.pos.x, r.pos.z - wolf.pos.z) < 80) {
+      SENSE.scents.push({ x: r.pos.x, z: r.pos.z, k: 'rival', t: tSec });
+      if (SENSE.scents.length > 160) SENSE.scents.shift();
+    }
+  }
+  // you hear it before you see it
+  SENSE.hearT -= 0.6;
+  if (hear && (senseT > 0 ? hearD < 58 : hearD < 24) && SENSE.hearT <= 0) {
+    SENSE.hearT = senseT > 0 ? 1.4 : 4;
+    pool.burst(V3(hear.pos.x, hear.pos.y + 1.1, hear.pos.z), 3, 0xf0e6c8, 0.6, 1.1, 0.9);
+  }
+  // broken vegetation: sprinting through cover
+  SENSE.trampleT -= 0.6;
+  if (wolf.speed > 9 && !wolf.swimming && coverAt(wolf.pos) > 0.45 && SENSE.trampleT <= 0) {
+    SENSE.trampleT = 0.25;
+    pool.burst(V3(wolf.pos.x, wolf.pos.y + 0.5, wolf.pos.z), 4, 0x6f8f4a, 0.8, 1.4, 1.6);
+  }
+}
 function updateSense(dt) {
-  discoverTick -= dt;   // discoveries always tick, sense or not
+  discoverTick -= dt;   // discoveries & senses always tick, sense or not
   if (discoverTick <= 0) {
-    discoverTick = 0.5;
+    discoverTick = 0.6;
+    updateSensesTick();
     for (const lm of landmarkList) {
       if (lm.found) continue;
       if (Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z) > 19) continue;
@@ -689,6 +798,7 @@ function updateSense(dt) {
       } else toast(`📍 ${lm.label}`);
     }
   }
+  updateSenseFX();
   if (senseT <= 0) return;
   senseT -= dt; senseTick -= dt;
   if (senseTick > 0) return;
@@ -721,6 +831,69 @@ const weather = { cloud: 0.3, rain: 0, snow: 0, wind: 0.3, storm: 0, label: 'Fai
 const weatherT = { cloud: 0.3, rain: 0, snow: 0, wind: 0.3, storm: 0, label: 'Fair', icon: '🌤️' };
 let lightningT = 6, flash = 0;
 
+/* ---- living populations: the world keeps count, and life comes back ---- */
+const ECO_POP = {}, ECO_CAP = {};
+(function initEco() {
+  for (const bi in SPECIES_TABLE)
+    for (const [k, w] of SPECIES_TABLE[bi]) {
+      if (ECO_CAP[k] !== undefined) continue;
+      const herd = (ECO[k] && ECO[k].herd) || 1;
+      ECO_CAP[k] = herd >= 3 ? 34 : herd === 2 ? 26 : 18;
+      ECO_POP[k] = ECO_CAP[k];   // the world begins full of life
+    }
+})();
+let ecoT = 0;
+function updateEco(dt) {
+  ecoT -= dt;
+  if (ecoT > 0) return;
+  ecoT = 12;
+  for (const k in ECO_CAP) {
+    const pop = ECO_POP[k], cap = ECO_CAP[k];
+    if (pop >= cap || pop <= 0) continue;
+    if (Math.random() < 0.16 * SEASON.birth * (0.35 + 0.65 * pop / cap)) {
+      ECO_POP[k]++;
+      // a birth the player can witness: near a live herd
+      let parent = null;
+      for (const ch of chunks.values())
+        for (const a of ch.animals)
+          if (!a.dead && a.name === k && !a.young && a.pos.distanceTo(wolf.pos) < 150 && !caveState.in) { parent = a; break; }
+      if (parent && animalTotal < 46) {
+        const fawn = new Animal(k, parent.pos.x + 1.5, parent.pos.z + 1, { young: true, herd: parent.herd });
+        parent.herd && parent.herd.members && parent.herd.members.push(fawn);
+        const chp = chunks.get(ck(Math.floor(fawn.pos.x / CHUNK), Math.floor(fawn.pos.z / CHUNK)));
+        if (chp) { chp.animals.push(fawn); if (fawn.pos.distanceTo(wolf.pos) < 90) toast(`🌱 A ${fawn.sp.label.toLowerCase()} is born — the herd grows`); }
+        else fawn.dispose();
+      }
+    }
+  }
+}
+function ecoPredation(prey, pr) {          // the wild feeds itself
+  if (prey.dead || pr.dead) return;
+  if (Math.hypot(prey.pos.x - pr.pos.x, prey.pos.z - pr.pos.z) > 7) return;
+  if (Math.random() > 0.02) return;        // most hunts fail
+  prey.dieSilently();                      // herd panics, no loot — the wild feeds itself
+  pr.hunger = Math.max(0, pr.hunger - 45);
+}
+/* ---- the turning year: seasons ride the existing day counter ---- */
+const SEASON_LEN = 3;   // game days per season → a 12-day year
+const SEASONS = [
+  { id: 'spring', name: 'Spring', icon: '🌸', temp: 0.06, rain: 0.18, birth: 2.4, tag: 'Rain returns. The herds give birth.' },
+  { id: 'summer', name: 'Summer', icon: '☀️', temp: 0.2,  rain: 0.02, birth: 1.5, tag: 'Long warm days. Life is plentiful.' },
+  { id: 'autumn', name: 'Autumn', icon: '🍁', temp: -0.06, rain: 0.06, birth: 0.5, tag: 'The great herds move. Gather what you can.' },
+  { id: 'winter', name: 'Winter', icon: '❄️', temp: -0.26, rain: 0.02, birth: 0.15, tag: 'The land sleeps. Hunt wisely.' }
+];
+const SEASON = { i: -1, id: 'summer', icon: '☀️', birth: 1, rain: 0 };
+function updateSeasons() {
+  const total = dayCount + tDay;
+  const i = Math.floor(total / SEASON_LEN) % 4;
+  if (i === SEASON.i) return;
+  const first = SEASON.i === -1;
+  SEASON.i = i;
+  const sn = SEASONS[i];
+  SEASON.id = sn.id; SEASON.icon = sn.icon; SEASON.birth = sn.birth; SEASON.rain = sn.rain;
+  SEASON_TEMP_BIAS = sn.temp;
+  if (!first) toast(`${sn.icon} ${sn.name} — ${sn.tag}`, true);
+}
 function pickWeather() {
   const h = heightAt(wolf.pos.x, wolf.pos.z);
   const cl = climateAt(wolf.pos.x, wolf.pos.z, h);
@@ -733,7 +906,7 @@ function pickWeather() {
     if (bw.fog && Math.random() < bw.fog) weatherT.mistBias = 1; else weatherT.mistBias = 0;
     if (bw.clear && Math.random() < bw.clear) weatherT.cloud = Math.min(weatherT.cloud, 0.25);
   } else weatherT.mistBias = 0;
-  const r = Math.random();
+  const r = Math.random() - (SEASON.rain || 0);   // spring skies lean wet
   let st;
   if (r < 0.26) st = 'clear';
   else if (r < 0.55) st = 'fair';
@@ -1363,6 +1536,22 @@ function buildCave(rng) {
   if (rng() < 0.55) { const sp = spot(R * 0.3, R * 0.7); drop('magicShroom', sp.x, sp.z); if (rng() < 0.5) drop('magicShroom', sp.x + 1.2, sp.z + 0.8); }
   for (let i = 0, n = 3 + (rng() * 3 | 0); i < n; i++) { const sp = spot(R * 0.3, R * 0.9); drop('stoneP', sp.x, sp.z); }
   for (let i = 0, n = 1 + (rng() * 2 | 0); i < n; i++) { const sp = spot(R * 0.3, R * 0.8); drop('stick', sp.x, sp.z); }
+  // a lucky hunter's cache — treasure of the deep dark
+  if (rng() < 0.4) {
+    const cs = spot(R * 0.5, R * 0.75);
+    const cache = new THREE.Group();
+    const skullM = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 0), matColor(0xd8d2c4));
+    skullM.position.set(0, 0.3, 0); cache.add(skullM);
+    for (let i = 0; i < 5; i++) {
+      const bn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.6 + rng() * 0.4, 4), matColor(0xcfc9bb));
+      bn.position.set((rng() - 0.5) * 1.6, 0.08, (rng() - 0.5) * 1.6);
+      bn.rotation.set(Math.PI / 2 + (rng() - 0.5) * 0.4, rng() * 6.28, 0);
+      cache.add(bn);
+    }
+    cache.position.set(cs.x, caveFloorAt(cs.x, cs.z), cs.z);
+    g.add(cache);
+    caveState.pickups.push({ type: 'bone', x: cs.x, y: caveFloorAt(cs.x, cs.z), z: cs.z, gathered: false, mesh: null, cache: true });
+  }
   // old bones — something fed here
   const bs = spot(R * 0.4, R * 0.7);
   for (let i = 0; i < 4; i++) {
@@ -2240,7 +2429,7 @@ function updateHUD(dt) {
   const info = biomeInfoAt(wolf.pos.x, wolf.pos.z);
   curBiomeKey = info === BIOME_INFO.shore ? 'shore' : Object.keys(BIOME_INFO).find(k => BIOME_INFO[k] === info);
   const tC = Math.round((climateAt(wolf.pos.x, wolf.pos.z, heightAt(wolf.pos.x, wolf.pos.z)).temp - WORLD_EVENTS.chill) * 28);
-  ui.biome.textContent = `${info.icon} ${info.name} · ${tC}°C`;
+  ui.biome.textContent = `${SEASON.icon} ${info.icon} ${info.name} · ${tC}°C`;
   ui.pos.textContent = `${wolf.pos.x | 0}, ${wolf.pos.z | 0} · ${fpsShow} fps`;
   ui.seed.textContent = 'seed ' + SEED;
   biomeToastT -= 0.25;
@@ -2365,6 +2554,7 @@ addEventListener('keydown', e => {
     switch (e.code) {
       case 'KeyE': doGather(); break;
       case 'KeyF': wolf.attack(); break;
+      case 'KeyX': wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾 Prowling — low, quiet, hard to see' : '🐾 Standing tall'); break;
       case 'KeyH': wolf.howl(); break;
       case 'KeyQ': wolf.wolfSense(); break;
       case 'KeyC': camYaw = wolf.yaw + Math.PI; break;
@@ -2445,6 +2635,7 @@ bindHold('tSprint', () => { touch.sprint = true; }, () => { touch.sprint = false
 bindHold('tGather', () => doGather());
 bindHold('tAttack', () => wolf.attack());
 bindHold('tHowl', () => wolf.howl());
+bindHold('tProwl', () => { wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾 Prowling' : '🐾 Standing'); });
 bindHold('tSense', () => wolf.wolfSense());
 (function () {
   const b = el('tPause');
@@ -2621,6 +2812,8 @@ function tick() {
   pool.update(Math.max(dt, 0.0001));
   if (!caveState.in) WORLD_EVENTS.update(dt);
   if (caveState.in) caveTick(dt);
+  updateSeasons();
+  if (!caveState.in) updateEco(dt);
   updateEnvironment(dt);
   if (audio.ready && audio.fireG) {
     const f = WORLD_EVENTS.fireAt;

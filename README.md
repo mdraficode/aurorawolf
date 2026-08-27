@@ -17,6 +17,24 @@ cp ~/.revontulet.keystore android/revontulet.keystore   # never committed
 # then build with android/build_apk.sh (JDK 11+, build-tools r34, platform-34)
 ```
 
+## 🎮 Controls
+| Key | Action |
+|---|---|
+| **WASD / arrows** | Run |
+| **Shift** | Sprint (uses stamina — you'll tire out) |
+| **Space** | Jump |
+| **F** | Attack — bite & claw. **Behind ×3 · flank ×2 · face ×1; an unaware strike from the blind side = AMBUSH crit** |
+| **X** | Prowl (crouch) — half speed, detection halved, bites from behind hit harder. Touch: 🐾 PROWL |
+| **E** | Gather (berries, mushrooms, herbs, wood, stones) & drink at water |
+| **Q** | Wolf sense — the ground lights up: 🐾 tracks, scent clouds (green prey · red predators · violet rivals), blood trails, resources |
+| **H** | Howl (scares every animal within earshot) |
+| **Drag mouse / wheel** | Orbit + zoom camera · **C** snap behind wolf |
+| **T** | Time ×8 (watch sunsets, seasons & auroras) |
+| **M** | Big centered map — live terrain, landmarks, territories |
+| **K / N / P** | Sound · minimap · pause (+ stats, new world) |
+
+**Touch devices** get an on-screen controller: left **virtual joystick** (partial deflection = quieter stalking), right-side **ATTACK / JUMP / GATHER / SPRINT / HOWL / SENSE / PROWL** buttons, top-right **minimap**, drag to look, pinch to zoom, ⏸ pause.
+
 ## 📁 Project structure
 ```
 index.html              ← THE game (self-contained deliverable, built)
@@ -47,6 +65,11 @@ Build · test · publish: `npm run build` · `npm test` · `npm run publish`
 - **Minimap & world map** — circular live minimap (top-right): terrain, vivid water, colored resource dots, dashed **predator territory rings**, gold **landmark markers + guidance chevron with distance**, hunting predators (red), and a heading arrow — all scrolling in real time. **M** (or click the minimap) opens a **centered big map** of ~900 m around you with landmark names, updating live as you move
 - **6 blending biomes** — Snowy Taiga, Frozen Tundra, Boreal Forest, Autumn Grove, Flower Meadows, Frostpeak Mountains (+ shorelines), each with its own trees, plants, ground colors and **wildlife** (elk, reindeer, deer, rabbits, hares, foxes, arctic foxes, mountain goats)
 - **Wildlife AI** — animals graze, wander and flee; walk slowly to stalk, sprint to run them down (they tire out); meat is yours
+- **👃 Three senses** — *see* the world; *hear* the closest moving thing; *smell* it: wolf sense paints tracks and drifting scent on the ground (green prey · red predators · violet rivals), and blood reads loudest of all
+- **🩸 The hunt** — follow tracks → hear it → prowl in low → strike from the blind side. Wounded prey limps, bleeds a trail and goes to ground in thick cover; sprint through brush and you'll crunch it
+- **🌍 Living populations** — every species keeps count. Hunt a valley empty and it stays empty; wild predators take prey too; herds birth back in spring (you can witness fawns). The world remembers
+- **🌸 Seasons** — a 12-day year rides the day cycle: spring births & rain, summer plenty, autumn migrations, winter snow & bitter cold — the HUD shows the turning year
+- **🏔️ The long view** — climb a ridge and the world unrolls: an extra ring of distant land generates for the vista alone
 - **Resources** — lingonberries, mushrooms, herbs, sticks, stones; gathered spots regrow when you roam far and return
 - **Day/night cycle** — moving sun & moon, dawn/dusk glows, stars, and **aurora borealis** on clear cold nights (this game is from Lapland, after all)
 - **Dynamic weather** — clear / fair / overcast / rain / snow / thunderstorms with lightning, drifting clouds, wind, fog that breathes with the weather; cold biomes get snow instead of rain

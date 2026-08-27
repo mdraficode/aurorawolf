@@ -479,6 +479,7 @@ class Wolf {
     this.invulnT = 0;
     this.deadT = 0;
     this.impactCd = 0;   // solid-collision injury cooldown
+    this.crouch = false;  // prowling: low, quiet, unseen
     this.killerPos = null;
     this.flyDirY = 0;
     this.trailAcc = 0;
@@ -578,6 +579,7 @@ class Wolf {
       const grade = Math.max(0, (ah - this.pos.y) / 2);
       target *= clamp(1 / (1 + grade * 0.9), 0.4, 1);
     }
+    if (this.crouch && !this.swimming) target *= 0.42;
     this.speed += clamp(target - this.speed, -46 * dt, 34 * dt);
     if (!moving && this.speed < 0.4) this.speed = 0;
 
@@ -645,6 +647,8 @@ class Wolf {
       }
     }
     this.animate(dt, sprint);
+    const ty = this.crouch ? 0.85 : 1;
+    if (Math.abs(this.model.scale.y - ty) > 0.01) this.model.scale.y += (ty - this.model.scale.y) * Math.min(1, dt * 7);
   }
   animate(dt, sprint) {
     const m = this.model;
@@ -738,7 +742,22 @@ class Wolf {
       }
     }
     pool.burst(V3(this.pos.x + fx * 1.5, this.pos.y + 0.9, this.pos.z + fz * 1.5), 10, 0xfff2c8, 0.9, 1.6, 3.2);
-    if (best) best.hit();
+    if (best) {
+      // where does the bite land? behind · flank · face
+      const tfx = Math.sin(best.heading || 0), tfz = Math.cos(best.heading || 0);
+      const twx = (this.pos.x - best.pos.x), twz = (this.pos.z - best.pos.z);
+      const twl = Math.hypot(twx, twz) || 1;
+      const facing = (tfx * twx + tfz * twz) / twl;   // 1 = it stares at you, -1 = you're behind it
+      const behind = facing < -0.35, front = facing > 0.45;
+      let dmg = behind ? 3 : front ? 1 : 2;
+      const unaware = best.aware === undefined || best.aware < 0.25;
+      const ambush = behind && unaware;
+      if (ambush) dmg += 1;
+      if (this.crouch && behind) dmg += 1;            // a prowling strike from the blind side
+      best.hit(dmg, behind, ambush);
+      if (ambush) { toast('🩸 AMBUSH! A killing bite from the blind side'); audio.thud(); }
+      else if (behind) toast('🔪 Bite from behind — it never saw you');
+    }
     return true;
   }
   howl() {
@@ -758,7 +777,7 @@ class Wolf {
   wolfSense() {
     if (this.senseCd > 0) return false;
     this.senseCd = 9;
-    toast('👃 Wolf sense — you can smell nearby life');
+    toast('👃 Wolf sense — tracks, scent and blood glow in the ground');
     senseT = 6.5;
     return true;
   }
@@ -1159,6 +1178,7 @@ const AnimalNeeds = {
   dominant(a) {
     if (a.thirst > 78 && a.findWater(false)) return 'drink';
     if (a.hunger > 72) return 'seekFood';
+    if (a.injured && a.pos && Math.hypot(a.pos.x - wolf.pos.x, a.pos.z - wolf.pos.z) > 24) return 'seekCover';   // wounded prey goes to ground
     if (a.safety < 24 && a.aware < 0.5) return 'seekCover';
     if (a.energy < 22) return (ecoNight() !== !!a.sp.nocturnal) && a.cover > 0.3 ? 'sleep' : 'rest';
     return null;
@@ -1181,6 +1201,7 @@ const AnimalDetection = {
     const d = a.pos.distanceTo(wolf.pos);
     let range = a.sp.detect * a.stats.detectMul;
     range *= wolf.speed > 6 ? 1.3 : wolf.speed > 3 ? 0.85 : 0.55;   // wolf speed = noise
+    if (wolf.crouch) range *= 0.45;   // low and quiet
     range *= ecoNight() ? (a.sp.nocturnal ? 1.15 : 0.8) : (a.sp.nocturnal ? 0.8 : 1);
     if (weather.rain > 0.3 || weather.snow > 0.3) range *= 0.82;    // heavy weather masks
     if (wolf.swimming) range *= 0.7;
@@ -1350,6 +1371,7 @@ const AnimalAIController = {
     if (wild && wild.d < a.sp.detect * a.stats.detectMul * 0.8 && a.state !== 'flee' && a.state !== 'protect') {
       if (a.sp.charge && a.stats.aggression > 0.6 && wild.d < 10) a.setState('protect');
       else a.startFlee(wild.pr.pos);
+      if (typeof ecoPredation === 'function') ecoPredation(a, wild.pr);   // sometimes the hunt succeeds
       return true;
     }
     return false;
@@ -1385,6 +1407,8 @@ const AnimalSpawner = {
       const herd = herdN > 1 ? { members: [] } : null;
       for (let m = 0; m < herdN; m++) {
         if (animalTotal >= 46) break;
+        if (!(ECO_POP[kind] > 0)) break;   // hunted-out lands stay quiet
+        ECO_POP[kind]--;
         const ax = gx + (rng() - 0.5) * 8, az = gz + (rng() - 0.5) * 8;
         if (heightAt(ax, az) < 0.8) continue;
         const a = new Animal(kind, ax, az, { herd, leader: m === 0, adult: m === 0 || rng() < 0.6 });
@@ -1401,7 +1425,7 @@ class Animal {
     this.name = speciesName;
     this.stats = AnimalStats.make(speciesName, Math.random);
     this.sp = this.stats.sp;
-    this.young = !opts.adult && this.sp.yng && Math.random() < this.sp.yng;
+    this.young = !!(opts.young || (!opts.adult && this.sp.yng && Math.random() < this.sp.yng));
     const built = buildAnimal(this.sp);
     this.model = built.group;
     this.legs = built.legs; this.head = built.head;
@@ -1445,13 +1469,17 @@ class Animal {
     this.waterSpot = null;
     return null;
   }
-  hit() {
+  hit(dmg = 1, behind = false, ambush = false) {
     if (this.dead) return;
-    const ambush = this.aware < 0.5;         // stealth strikes bite deeper
-    this.hp -= ambush ? 2 : 1;
+    if (!ambush && this.aware < 0.25 && behind) ambush = true;   // the old stealth rule lives in the new
+    this.hp -= dmg;
     AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.32;
-    pool.burst(this.pos, 12, 0xffb3a0, 1.1, 2.2, 2.6);
+    pool.burst(this.pos, 6 + dmg * 4, ambush ? 0xd23a2a : 0xffb3a0, 1.1, 2.2, 2.6);
+    if (!this.injured && this.hp > 0 && this.hp <= Math.ceil((this.sp.hp || 1) / 2)) {
+      this.injured = true;                    // it will limp, bleed, and try to hide
+      if (this.pos.distanceTo(wolf.pos) < 40) toast(`🩸 The ${this.sp.label.toLowerCase()} is wounded — follow the blood`);
+    }
     const dx = this.pos.x - wolf.pos.x, dz = this.pos.z - wolf.pos.z;
     const l = Math.hypot(dx, dz) || 1;
     const nx = this.pos.x + dx / l * 2.2, nz = this.pos.z + dz / l * 2.2;
@@ -1510,11 +1538,12 @@ class Animal {
         this.fleeT -= dt;
         const tired = this.runT <= 0;
         if (!tired) this.runT -= dt;
-        speed = this.sp.run * this.stats.speedMul * (tired ? 0.55 : 1);
+        speed = this.sp.run * this.stats.speedMul * (tired ? 0.55 : 1) * (this.injured ? 0.6 : 1);
         // smart prey jukes when the wolf lunges close
         if (this.stats.intelligence > 0.6 && dWolf < 6.5 && wolf.atkT > 0 && Math.random() < dt * 2.2)
           this.heading += (Math.random() < 0.5 ? 1 : -1) * (0.9 + Math.random());
-        if (this.fleeT < -3 && dWolf > this.sp.detect * 1.4) { this.setState('idle'); this.timer = 1; }
+        if (this.injured && dWolf > 24) this.setState('seekCover');   // wounded prey goes to ground
+        else if (this.fleeT < -3 && dWolf > this.sp.detect * 1.4) { this.setState('idle'); this.timer = 1; }
         break;
       }
       case 'protect': AnimalCombat.protectTick(this, dt); speed = this.sp.run * 0.9; break;
@@ -1531,7 +1560,7 @@ class Animal {
         break;
       }
       case 'seekCover': {
-        if (this.cover > 0.32 || this.stateT > 7) { this.setState('rest'); this.timer = 2; break; }
+        if (this.cover > 0.32 || this.stateT > 7) { this.setState('rest'); this.timer = 2; break; }  // hidden — it holds still and hopes
         const dir = this.seekCoverDir();
         if (dir !== null) { this.heading = angLerp(this.heading, dir, Math.min(1, dt * 3)); speed = this.sp.walk; }
         else { this.setState('rest'); this.timer = 2; }
@@ -1696,12 +1725,16 @@ class Predator {
     predatorTotal++;
   }
   startFlee() { /* predators don't spook — they hold their ground */ }
-  hit() {
+  hit(dmg = 1, behind = false, ambush = false) {
     if (this.dead) return;
-    this.hp--;
+    this.hp -= dmg;
     AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.38;
-    pool.burst(this.pos, 14, 0xffb3a0, 1.2, 2.4, 2.8);
+    pool.burst(this.pos, 8 + dmg * 6, ambush ? 0xd23a2a : 0xffb3a0, 1.2, 2.4, 2.8);
+    if (!this.injured && this.hp > 0 && this.hp <= Math.ceil((this.sp.hp || 1) / 2)) {
+      this.injured = true;                    // it will limp, bleed, and try to hide
+      if (this.pos.distanceTo(wolf.pos) < 40) toast(`🩸 The ${this.sp.label.toLowerCase()} is wounded — follow the blood`);
+    }
     // heavy: only a slight stagger, barely pushed
     const dx = this.pos.x - wolf.pos.x, dz = this.pos.z - wolf.pos.z;
     const l = Math.hypot(dx, dz) || 1;
