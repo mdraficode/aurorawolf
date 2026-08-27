@@ -133,8 +133,8 @@ if (R.standX !== undefined) {
 }
 await page.evaluate(() => {
   camPitch = 0.18; camDist = 8.5; camYaw = 1.6;
-  for (let i = 0; i < 90; i++) {
-    wolf.pos.x += Math.sin(1.1) * 0.9; wolf.pos.z += Math.cos(1.1) * 0.9;
+  for (let i = 0; i < 60; i++) {                 // 24 m: stays inside the generated stand
+    wolf.pos.x += Math.sin(1.1) * 0.4; wolf.pos.z += Math.cos(1.1) * 0.4;
     wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z);
     wolf.yaw = 1.1; wolf.speed = 4;
     updateCamera(1 / 30);
