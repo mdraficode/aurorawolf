@@ -1598,13 +1598,14 @@ class Wolf {
     this.distance += this.speed * dt;
 
     const ground = heightAt(this.pos.x, this.pos.z);
-    this.swimming = ground < WATER_Y - 0.85 && this.pos.y <= WATER_Y + 0.1;
+    const wy = waterYNow();
+    this.swimming = ground < wy - 0.85 && this.pos.y <= wy + 0.1;
     if (input.jump && this.grounded && !this.swimming) {
       this.vy = 8.8; this.grounded = false;
       pool.burst(this.pos, 8, 0xcfc4a8, 1.2, 1.4, 2.2);
     }
     if (this.swimming) {
-      this.pos.y += (WATER_Y - 0.42 - this.pos.y) * Math.min(1, dt * 6);
+      this.pos.y += (waterYNow() - 0.42 - this.pos.y) * Math.min(1, dt * 6);
       this.vy = 0; this.grounded = false;
       if (this.speed > 1 && Math.random() < dt * 6) pool.burst(this.pos, 3, 0x9fc3e0, 1.0, 2.2, 1.6);
       // continuous stamina drain; exhaustion in deep water eats health
@@ -1621,9 +1622,9 @@ class Wolf {
       // climb-out assist: paddling toward a low bank pops the wolf onto land
       const ax = this.pos.x + Math.sin(this.yaw) * 1.7, az = this.pos.z + Math.cos(this.yaw) * 1.7;
       const ah = heightAt(ax, az);
-      if ((moving || input.jump) && ah > WATER_Y - 0.35 && ah < WATER_Y + 1.8) {
+      if ((moving || input.jump) && ah > waterYNow() - 0.35 && ah < waterYNow() + 1.8) {
         this.swimming = false; this.vy = 6.4; this.grounded = false;
-        this.pos.y = Math.max(this.pos.y, WATER_Y - 0.1);
+        this.pos.y = Math.max(this.pos.y, waterYNow() - 0.1);
       }
     } else {
       this.vy -= 26 * dt;
@@ -1736,7 +1737,7 @@ class Wolf {
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     let best = null, bestD = 99;
     for (const ch of chunks.values()) {
-      const targets = ch.animals.concat(ch.predators);
+      const targets = ch.animals.concat(ch.predators).concat(rivals);
       for (const a of targets) {
         if (a.dead) continue;
         const dx = a.pos.x - this.pos.x, dz = a.pos.z - this.pos.z;
@@ -1789,6 +1790,169 @@ const SPECIES = {
   reindeer:   { label: 'Reindeer',    scale: 1.35, body: 0x7d6b58, belly: 0xc9bcae, legs: 0x64513f, head: 0x7d6b58, ear: 0.2, earW: 0.08, legH: 0.78, bodyLen: 1.15, bodyH: 0.56, snout: 1, tail: 'short', antler: 2, walk: 2.1, run: 10.4, detect: 16, hp: 3, meat: 3, pelt: 1, bone: 1 },
   elk:        { label: 'Elk',         scale: 1.60, body: 0x5d4a3a, belly: 0x9a8a76, legs: 0x4c3c2f, head: 0x5d4a3a, ear: 0.18, earW: 0.09, legH: 0.95, bodyLen: 1.35, bodyH: 0.66, snout: 1, tail: 'short', antler: 2, walk: 1.9, run: 10.8, detect: 15, hp: 4, meat: 4, pelt: 1, bone: 2 }
 };
+const rivals = [];   // roaming rival wolves — targetable by the player's bite
+
+/* ============================================================
+   Rival wolf pack — roams the wilds; may ignore, challenge, or
+   attack the player. Coordinated stance, pack morale, retreat.
+   ============================================================ */
+class RivalWolf {
+  constructor(x, z, pack, leader) {
+    const built = buildWolf();
+    this.model = built.group; this.legs = built.legs; this.lowers = built.lowers; this.head = built.head;
+    // darker, scarred coat — recolour every mesh so the player's wolf stays untouched
+    this.model.traverse(o => {
+      if (o.isMesh && o.material && o.material.color) {
+        o.material = o.material.clone();
+        o.material.color.multiplyScalar(leader ? 0.62 : 0.78);
+        if (o.material.color.r + o.material.color.g + o.material.color.b > 1.6) o.material.color.multiplyScalar(0.85);
+      }
+    });
+    scene.add(this.model);
+    this.pack = pack;
+    this.leader = !!leader;
+    this.sp = { scale: leader ? 1.14 : 0.96, label: leader ? 'Rival Alpha' : 'Rival Wolf' };
+    this.pos = V3(x, heightAt(x, z), z);
+    this.heading = Math.random() * 6.28;
+    this.hp = leader ? 9 : 6;
+    this.maxHp = this.hp;
+    this.dead = false;
+    this.state = 'roam';
+    this.off = { x: (Math.random() - 0.5) * 14, z: (Math.random() - 0.5) * 14 };
+    this.atkCd = 0; this.flinchT = 0; this.phase = Math.random() * 6;
+    this.circleDir = Math.random() < 0.5 ? 1 : -1;
+  }
+  hit() {          // player bite lands
+    if (this.dead) return;
+    this.hp -= (this.pack.stance === 'undecided' || this.pack.stance === 'ignore') ? 2 : 1;   // ambush an unaware pack
+    if (this.flinchT <= 0) this.flinchT = 0.3;
+    pool.burst(this.pos, 10, 0xffb3a0, 1.0, 2.0, 2.4);
+    this.pack.provoked();          // biting a wolf answers the question of stance
+    if (this.hp <= 0) this.die();
+  }
+  die() {
+    this.dead = true;
+    pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
+    inv.meat += 1; stats.slain++; updateInv();
+    toast(`⚔️ Bested a ${this.sp.label}! +1 🥩`, true);
+    scene.remove(this.model);
+    this.pack.memberDown(this);
+  }
+  update(dt, tSec) {
+    if (this.dead) return;
+    const pk = this.pack;
+    const dxw = wolf.pos.x - this.pos.x, dzw = wolf.pos.z - this.pos.z;
+    const dWolf = Math.hypot(dxw, dzw);
+    if (dWolf > 320) { this.model.visible = false; return; }   // frozen at distance
+    this.model.visible = true;
+    if (this.flinchT > 0) { this.flinchT -= dt; return; }
+    this.atkCd = Math.max(0, this.atkCd - dt);
+    let speed = 0;
+    const faceWolf = () => { this.heading = angLerp(this.heading, Math.atan2(dxw, dzw), Math.min(1, dt * 6)); };
+    if (this.state === 'roam' || pk.stance === 'ignore') {
+      const tx = pk.wp.x + this.off.x, tz = pk.wp.z + this.off.z;
+      const dl = Math.hypot(tx - this.pos.x, tz - this.pos.z);
+      if (dl > 2) { this.heading = angLerp(this.heading, Math.atan2(tx - this.pos.x, tz - this.pos.z), Math.min(1, dt * 2.5)); speed = 3.4; }
+    } else if (this.state === 'challenge' || this.state === 'follow') {
+      if (this.state === 'follow' && !this.leader) {   // flankers circle wide while the alpha stares
+        const ang = Math.atan2(this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z) + this.circleDir * dt * 0.35;
+        const ring = 11 + (this.off.x % 5);
+        const tx = wolf.pos.x + Math.sin(ang) * ring, tz = wolf.pos.z + Math.cos(ang) * ring;
+        this.heading = angLerp(this.heading, Math.atan2(tx - this.pos.x, tz - this.pos.z), Math.min(1, dt * 3)); speed = 4.5;
+        if (dWolf < 6) faceWolf();
+      } else {
+        if (dWolf > 13) { faceWolf(); speed = 5.5; }
+        else { this.heading = angLerp(this.heading, Math.atan2(dxw, dzw) + this.circleDir * 0.5, Math.min(1, dt * 2)); }
+      }
+    } else if (this.state === 'attack') {
+      faceWolf();
+      speed = 12.2;                     // just slower than the player's sprint — a real chase
+      if (dWolf < 2.1 && this.atkCd <= 0) {
+        this.atkCd = 1.15;
+        wolfTakeDamage(this.leader ? 9 : 6, this.pos, this.sp.label, '🐺');
+      }
+      if (dWolf > 90) this.state = 'follow';    // lost it — regroup
+    } else if (this.state === 'flee') {
+      this.heading = angLerp(this.heading, Math.atan2(this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z), Math.min(1, dt * 4));
+      speed = 11.5;
+    }
+    // terrain-aware movement
+    const nx = this.pos.x + Math.sin(this.heading) * 2.5, nz = this.pos.z + Math.cos(this.heading) * 2.5;
+    if (heightAt(nx, nz) < waterYNow() + 0.3) this.heading += dt * 2.4;
+    if (speed > 0) {
+      this.pos.x += Math.sin(this.heading) * speed * dt;
+      this.pos.z += Math.cos(this.heading) * speed * dt;
+      this.pos.y = heightAt(this.pos.x, this.pos.z);
+    }
+    this.model.position.copy(this.pos);
+    this.model.rotation.y = this.heading;
+    this.phase += dt * (2 + speed * 1.3);
+    const amp = Math.min(0.55, speed * 0.055);
+    this.legs.forEach((l, i) => { l.rotation.x = Math.sin(this.phase * 2 + i * 1.6) * amp; });
+    this.head.rotation.x = this.state === 'challenge' ? 0.12 : Math.sin(tSec * 0.6 + this.phase) * 0.12;
+  }
+  dispose() { if (!this.dead) { this.dead = true; } scene.remove(this.model); }
+}
+
+class RivalPack {
+  constructor(x, z) {
+    this.stance = 'undecided';     // undecided -> ignore | challenge | attack -> (fight) -> flee
+    this.members = [];
+    this.lost = 0;
+    this.provokedT = 0;
+    this.engageT = 0;
+    this.disbanded = false;
+    const n = 3 + (Math.random() * 3 | 0);
+    for (let i = 0; i < n; i++) {
+      const m = new RivalWolf(x + (Math.random() - 0.5) * 18, z + (Math.random() - 0.5) * 18, this, i === 0);
+      this.members.push(m); rivals.push(m);
+    }
+    this.wp = { x, z };
+    this.newWp = () => { const a = Math.random() * 6.28, r = 30 + Math.random() * 55; this.wp = { x: x + Math.sin(a) * r * 3, z: z + Math.cos(a) * r * 3 }; };
+    this.growlT = 2;
+  }
+  provoked() {
+    if (this.stance !== 'attack') { this.stance = 'attack'; this.setStates('attack'); audio.growl(); }
+    this.provokedT = 0;
+  }
+  setStates(st) { for (const m of this.members) if (!m.dead) m.state = this.stance === 'ignore' && st === 'attack' ? 'attack' : st; }
+  memberDown() {
+    this.lost++;
+    if (this.lost >= 2 || this.members[0].dead) { this.stance = 'flee'; this.setStates('flee'); }
+  }
+  update(dt, tSec) {
+    const alive = this.members.filter(m => !m.dead);
+    if (!alive.length) { this.disbanded = true; return; }
+    const dWolf = Math.hypot(alive[0].pos.x - wolf.pos.x, alive[0].pos.z - wolf.pos.z);
+    if (this.stance === 'undecided' && dWolf < 80) {
+      const r = Math.random();
+      this.stance = r < 0.34 ? 'ignore' : r < 0.76 ? 'challenge' : 'attack';
+      if (this.stance === 'challenge') { audio.howl(0.72); }
+      if (this.stance === 'attack') { audio.growl(); }
+      this.setStates(this.stance === 'attack' ? 'attack' : this.stance === 'challenge' ? (alive[0].leader, 'challenge') : 'roam');
+      if (this.stance === 'challenge') alive[0].state = 'challenge';
+    }
+    if (this.stance === 'challenge') {
+      this.provokedT += dt;
+      this.growlT -= dt;
+      if (this.growlT <= 0) { this.growlT = 4 + Math.random() * 3; if (dWolf < 60) audio.growl(); }
+      // hold your ground or back away slowly…
+      if (dWolf < 7.5) { this.engageT += dt; if (this.engageT > 1.6) this.provoked(); }
+      else this.engageT = Math.max(0, this.engageT - dt * 0.5);
+      if (dWolf > 70) { this.stance = 'undecided'; this.setStates('roam'); }  // they lose interest
+    }
+    if (this.stance === 'ignore' && dWolf < 12) { /* even pacifists defend close quarters */ }
+    if (this.stance === 'flee' && dWolf > 260) this.disbanded = true;
+    if (this.stance === 'ignore' || this.stance === 'undecided') {
+      if (Math.hypot(this.wp.x - alive[0].pos.x, this.wp.z - alive[0].pos.z) < 8) this.newWp();
+    }
+    if (wolf.deadT > 0 && this.stance === 'attack') { this.stance = 'roam'; this.setStates('roam'); }
+    for (const m of this.members) m.update(dt, tSec);
+    if (alive.length && Math.hypot(alive[0].pos.x - wolf.pos.x, alive[0].pos.z - wolf.pos.z) > 460) this.disbanded = true;
+  }
+  dispose() { for (const m of this.members) m.dispose(); }
+}
+
 const SPECIES_TABLE = {
   taiga:    [['elk', 0.25], ['hare', 0.45], ['arcticFox', 0.3]],
   tundra:   [['reindeer', 0.4], ['hare', 0.4], ['arcticFox', 0.2]],
@@ -2168,7 +2332,7 @@ const AnimalHealthBar = {
 };
 
 const AnimalAIController = {
-  STATES: ['idle', 'wander', 'graze', 'seekFood', 'drink', 'flee', 'sleep', 'rest', 'alert', 'investigate', 'follow', 'protect', 'seekCover'],
+  STATES: ['idle', 'wander', 'graze', 'seekFood', 'drink', 'flee', 'sleep', 'rest', 'alert', 'investigate', 'follow', 'protect', 'seekCover', 'migrate'],
   perceive(a) {          // awareness of the wolf: distance · speed · direction · night · weather · cover
     a.aware = AnimalDetection.threat(a);
     return a.aware;
@@ -2318,7 +2482,7 @@ class Animal {
   update(dt, tSec) {
     if (this.dead) return;
     const dWolf = this.pos.distanceTo(wolf.pos);
-    if (dWolf > AnimalLOD.FAR) { this.model.visible = false; return; }   // far: population-only (frozen, invisible)
+    if (dWolf > AnimalLOD.FAR && !(this.herd && this.herd.route)) { this.model.visible = false; return; }   // far: population-only (frozen) — unless the great herds are on the move
     this.model.visible = true;
     // ---- LOD: mid-distance animals think in bursts ----
     if (dWolf > AnimalLOD.NEAR) { this.lodT += dt; if (this.lodT < AnimalLOD.STEP) return; dt = this.lodT; this.lodT = 0; }
@@ -2347,6 +2511,18 @@ class Animal {
         break;
       }
       case 'protect': AnimalCombat.protectTick(this, dt); speed = this.sp.run * 0.9; break;
+      case 'migrate': {         // the great herds travel their ancestral route
+        const route = this.herd && this.herd.route;
+        if (!route) { this.setState('idle'); break; }
+        const wp = route[this.mwp || 0];
+        if (!wp) { delete this.herd.route; this.setState('graze'); this.timer = 3; break; }
+        const dl = Math.hypot(wp.x - this.pos.x, wp.z - this.pos.z);
+        if (dl < 7) { this.mwp = (this.mwp || 0) + 1; break; }
+        this.heading = angLerp(this.heading, Math.atan2(wp.x - this.pos.x, wp.z - this.pos.z), Math.min(1, dt * 2.6));
+        speed = this.sp.walk * 1.45;
+        if (this.aware >= 0.5 && dWolf < this.sp.detect * 0.9) { this.setState('alert'); break; }   // spooked off the line
+        break;
+      }
       case 'seekCover': {
         if (this.cover > 0.32 || this.stateT > 7) { this.setState('rest'); this.timer = 2; break; }
         const dir = this.seekCoverDir();
@@ -2979,7 +3155,7 @@ function buildChunkVeg(chunk, far) {
     for (const k in items.trees) {
       if (!items.trees[k].length) continue;
       const m = makeInstanced(G[k], matVeg, items.trees[k], true, true);
-      if (m) { chunk.group.add(m); chunk.vegMeshes.push(m); }
+      if (m) { m.userData.species = k; chunk.group.add(m); chunk.vegMeshes.push(m); }
     }
     const FLOOR_GEO = { grass: G.grassTuft, bushes: G.bush, ferns: G.fern, leafPatches: G.leafPatch, branches: G.branch, flowers: G.flower };
     for (const key in FLOOR_GEO) {
@@ -3364,6 +3540,283 @@ function pickWeather() {
   } else { weatherT.rain = 0; weatherT.snow = 0; weatherT.label = w.label; weatherT.icon = w.icon; }
   weather.timer = 40 + Math.random() * 75;
 }
+function waterYNow() { return WATER_Y + WORLD_EVENTS.floodH; }
+
+/* ============================================================
+   Dynamic world events — an unpredictable director rolls rare,
+   dramatic events: storms, blizzards, floods, forest fires,
+   great migrations, rival wolf packs. Weather becomes gameplay.
+   ============================================================ */
+const WORLD_EVENTS = {
+  active: null, name: null, t: 0, dur: 0,
+  cooldown: 60 + Math.random() * 60,
+  rollT: 12,
+  fireAt: null,     // { x, z, r } while a fire burns
+  floodH: 0,        // river swell in metres
+  chill: 0,         // blizzard cold (subtracted from felt temperature)
+  pack: null,
+  update(dt) {
+    if (this.active) {
+      this.t += dt;
+      this.active.tick(dt, this.t);
+      if (this.t >= this.dur || this.active.done) this.end();
+      return;
+    }
+    this.cooldown -= dt;
+    if (this.cooldown > 0) return;
+    this.rollT -= dt;
+    if (this.rollT <= 0) {
+      this.rollT = 14 + Math.random() * 10;
+      const ev = this.pickEvent();
+      if (ev) this.start(ev.name, ev.make());
+    }
+  },
+  pickEvent() {    // weighted by where you are and what the sky is doing
+    const dom = dominantBiomeAt(wolf.pos.x, wolf.pos.z);
+    const k = dom.key, w = dom.w;
+    const opts = [];
+    const push = (name, wt, make) => { if (wt > 0 && !this.recent.includes(name)) opts.push({ name, wt, make }); };
+    push('storm', 1.0, () => EVENTS.storm());
+    push('rivalPack', 0.85, () => EVENTS.rivalPack());
+    push('migration', (w.forest || 0) + (w.taiga || 0) + (w.meadow || 0) + (w.grove || 0) > 0.5 ? 0.8 : 0.15, () => EVENTS.migration());
+    push('blizzard', (k === 'tundra' || k === 'taiga' || k === 'mountain' || k === 'highland') ? 0.9 : (weather.snow > 0.2 ? 0.5 : 0.08), () => EVENTS.blizzard());
+    push('fire', weather.rain < 0.15 && dayF > 0.4 && ((w.forest || 0) + (w.grove || 0) + (w.taiga || 0) > 0.55) ? 0.7 : 0, () => EVENTS.fire());
+    push('flood', (weather.rain > 0.45 || weather.storm > 0.5) ? 0.8 : 0.05, () => EVENTS.flood());
+    if (!opts.length) return null;
+    let tot = 0; for (const o of opts) tot += o.wt;
+    let r = Math.random() * tot;
+    for (const o of opts) { r -= o.wt; if (r <= 0) return o; }
+    return opts[opts.length - 1];
+  },
+  recent: [],
+  start(name, ev) {
+    this.active = ev; this.name = name; this.t = 0; this.dur = ev.dur;
+    this.recent.unshift(name); if (this.recent.length > 3) this.recent.pop();
+    if (ev.begin) ev.begin();
+  },
+  end() {
+    if (this.active && this.active.finish) this.active.finish();
+    this.active = null; this.name = null;
+    this.fireAt = null; this.chill = 0;
+    this.cooldown = 110 + Math.random() * 90;   // the world holds its breath
+  },
+  force(name) {   // tests & debugging
+    const ev = EVENTS[name]();
+    this.start(name, ev);
+    return this.name === name;
+  }
+};
+
+const EVENTS = {
+  storm() {
+    return {
+      dur: 100 + Math.random() * 50,
+      begin() {
+        weatherT.cloud = 1; weatherT.storm = 1; weatherT.wind = 0.95;
+        weatherT.rain = 0.8; weatherT.snow = 0;
+        weather.timer = this.dur + 10;   // the sky stays committed
+        toast('🌩️ A storm rolls in — seek shelter!', true);
+      },
+      tick() { weather.timer = Math.max(weather.timer, 20); }
+    };
+  },
+  blizzard() {
+    return {
+      dur: 90 + Math.random() * 50,
+      begin() {
+        weatherT.cloud = 1; weatherT.storm = 0.3; weatherT.wind = 1;
+        weatherT.snow = 1; weatherT.rain = 0;
+        weather.timer = this.dur + 10;
+        WORLD_EVENTS.chill = 0.55;
+        toast('❄️ Blizzard! The world turns white — keep moving!', true);
+      },
+      tick() { weather.timer = Math.max(weather.timer, 20); },
+      finish() { WORLD_EVENTS.chill = 0; }
+    };
+  },
+  flood() {
+    return {
+      dur: 130 + Math.random() * 50, phase: 0,
+      begin() {
+        weatherT.cloud = 1; weatherT.rain = 0.85; weatherT.storm = 0.5; weatherT.wind = 0.7;
+        weather.timer = this.dur + 10;
+        toast('🌊 Heavy rains — the rivers are rising!', true);
+        this.plane = new THREE.Mesh(
+          new THREE.PlaneGeometry(1500, 1500),
+          new THREE.MeshStandardMaterial({ color: 0x4a708c, transparent: true, opacity: 0.0, roughness: 0.3, metalness: 0, depthWrite: false })
+        );
+        this.plane.rotation.x = -Math.PI / 2;
+        this.plane.renderOrder = 1;
+        scene.add(this.plane);
+      },
+      tick(dt, t) {
+        if (t < 35) WORLD_EVENTS.floodH = Math.min(1.55, WORLD_EVENTS.floodH + dt * 0.05);
+        else if (WORLD_EVENTS.dur - t < 30) { WORLD_EVENTS.floodH = Math.max(0, WORLD_EVENTS.floodH - dt * 0.06); }
+        this.plane.position.set(wolf.pos.x, WATER_Y + WORLD_EVENTS.floodH, wolf.pos.z);
+        this.plane.material.opacity = Math.min(0.55, WORLD_EVENTS.floodH * 0.4);
+      },
+      finish() {
+        WORLD_EVENTS.floodH = 0;
+        scene.remove(this.plane);
+        this.plane.geometry.dispose(); this.plane.material.dispose();
+        toast('🌊 The flood recedes.');
+      }
+    };
+  },
+  fire() {
+    // find a wooded patch to ignite
+    let spot = null;
+    for (let i = 0; i < 60 && !spot; i++) {
+      const a = Math.random() * 6.28, d = 60 + Math.random() * 70;
+      const x = wolf.pos.x + Math.sin(a) * d, z = wolf.pos.z + Math.cos(a) * d;
+      const h = heightAt(x, z), cl = climateAt(x, z, h);
+      const w = biomeWeights(x, z, h, cl.temp, cl.moist);
+      if (h < 1.5 || (w.forest || 0) + (w.grove || 0) + (w.taiga || 0) < 0.5) continue;
+      const ch = chunks.get(Math.floor(x / CHUNK) + ',' + Math.floor(z / CHUNK));
+      if (!ch || !ch.veg || ch.veg.trees.length < 8) continue;   // ignite where there is fuel
+      spot = { x, z };
+    }
+    if (!spot) return { dur: 1, tick() { } };
+    return {
+      dur: 200, r: 3, maxR: 30 + Math.random() * 12, charT: 0,
+      begin() {
+        WORLD_EVENTS.fireAt = { x: spot.x, z: spot.z, r: this.r };
+        toast('🔥 Forest fire! The flames spread on the wind!', true);
+      },
+      tick(dt) {
+        const f = WORLD_EVENTS.fireAt;
+        f.r += (weather.rain > 0.4 ? -0.8 : 0.3) * dt;   // rain beats it back
+        if (f.r <= 1 || f.r > this.maxR) { this.done = true; return; }
+        // panic ripples ahead of the flames
+        for (const ch of chunks.values()) for (const a of ch.animals) {
+          if (a.dead || a.state === 'flee') continue;
+          const d = Math.hypot(a.pos.x - f.x, a.pos.z - f.z);
+          if (d < f.r + 45) a.startFlee(f);
+        }
+        // embers & smoke
+        for (let i = 0; i < 2; i++) {
+          const a = Math.random() * 6.28, rr = Math.random() * f.r;
+          const px = f.x + Math.sin(a) * rr, pz = f.z + Math.cos(a) * rr;
+          pool.burst(V3(px, heightAt(px, pz) + 1 + Math.random() * 3, pz), 2, Math.random() < 0.6 ? 0xff7020 : 0x2a2622, 1.4, 2.2, 1.8);
+        }
+        this.charT -= dt;
+        if (this.charT <= 0) { this.charT = 1.2; charVegetation(f.x, f.z, f.r); }
+      },
+      finish() {
+        WORLD_EVENTS.fireAt = null;
+        toast('🔥 The fire burns itself out.');
+      }
+    };
+  },
+  migration() {
+    const herd = { members: [], route: [] };
+    return {
+      dur: 260,
+      begin() {
+        // a route that crosses near the player: start 190 m out, waypoints past them
+        const th = Math.random() * 6.28;
+        const px = Math.cos(th), pz = -Math.sin(th);          // travel direction
+        const sx = wolf.pos.x - px * 190 + pz * 60, sz = wolf.pos.z - pz * 190 - px * 60;
+        for (let i = 0; i < 6; i++) herd.route.push({ x: sx + px * i * 90, z: sz + pz * i * 90 });
+        const dom = dominantBiomeAt(wolf.pos.x, wolf.pos.z);
+        const kind = (dom.w.taiga || 0) + (dom.w.tundra || 0) > 0.4 ? 'reindeer' : 'deer';
+        const cx0 = Math.floor(sx / CHUNK) + ',' + Math.floor(sz / CHUNK);
+        let ch = chunks.get(cx0) || [...chunks.values()][0];
+        for (let i = 0; i < 16; i++) {
+          const a = new Animal(kind, sx + (Math.random() - 0.5) * 26, sz + (Math.random() - 0.5) * 26, { herd, leader: i === 0, adult: i < 3 || Math.random() < 0.7 });
+          if (a.pos.y < WATER_Y + 0.5) { a.dispose(); continue; }
+          herd.members.push(a); ch.animals.push(a);
+          a.setState('migrate');
+        }
+        this.count = () => herd.members.filter(m => !m.dead).length;
+        audio.howl(0.55);
+        toast('🦌 A great migration passes through — follow the herd!', true);
+      },
+      tick() {
+        const alive = this.count ? this.count() : 0;
+        if (!alive || !herd.route) this.done = true;
+      },
+      finish() { delete herd.route; }
+    };
+  },
+  rivalPack() {
+    return {
+      dur: 240,
+      begin() {
+        let x = 0, z = 0;
+        for (let i = 0; i < 30; i++) {
+          const a = Math.random() * 6.28, d = 260 + Math.random() * 110;
+          x = wolf.pos.x + Math.sin(a) * d; z = wolf.pos.z + Math.cos(a) * d;
+          if (heightAt(x, z) > 1.2) break;
+        }
+        WORLD_EVENTS.pack = new RivalPack(x, z);
+        toast('🐺 Another pack prowls these lands…', true);
+      },
+      tick(dt) {
+        const p = WORLD_EVENTS.pack;
+        if (!p) { this.done = true; return; }
+        p.update(dt, tSec);
+        if (p.disbanded) {
+          p.dispose();
+          for (let i = rivals.length - 1; i >= 0; i--) if (rivals[i].dead) rivals.splice(i, 1);
+          WORLD_EVENTS.pack = null;
+          this.done = true;
+        }
+      },
+      finish() {
+        const p = WORLD_EVENTS.pack;
+        if (p) { p.dispose(); WORLD_EVENTS.pack = null; }
+        for (let i = rivals.length - 1; i >= 0; i--) rivals.splice(i, 1);
+      }
+    };
+  }
+};
+
+function charVegetation(fx, fz, fr) {   // scorched earth: char trunks, blacken ground
+  const fr2 = fr * fr;
+  for (const ch of chunks.values()) {
+    const dx = ch.cx * CHUNK + 32 - fx, dz = ch.cz * CHUNK + 32 - fz;
+    if (dx * dx + dz * dz > (fr + 70) * (fr + 70)) continue;
+    // tree canopies -> charcoal instances
+    if (ch.vegItems && ch.lod === 'near') {
+      for (const k in ch.vegItems.trees) {
+        const arr = ch.vegItems.trees[k];
+        let mesh = null;
+        for (const m of ch.vegMeshes) if (m.userData.species === k) { mesh = m; break; }
+        if (!mesh || !mesh.instanceColor) continue;
+        let touched = false;
+        for (let i = 0; i < arr.length; i++) {
+          const it = arr[i];
+          const key = k + ':' + i;
+          if (ch.charred && ch.charred.has(key)) continue;
+          const ddx = it.x - fx, ddz = it.z - fz;
+          if (ddx * ddx + ddz * ddz > fr2) continue;
+          mesh.setColorAt(i, _c3.setRGB(0.16 + Math.random() * 0.05, 0.13 + Math.random() * 0.04, 0.11 + Math.random() * 0.04));
+          touched = true;
+          if (!ch.charred) ch.charred = new Set();
+          ch.charred.add(key);
+        }
+        if (touched) mesh.instanceColor.needsUpdate = true;
+      }
+    }
+    // ground -> ash
+    if (ch.geo && ch.geo.attributes.color) {
+      const pos = ch.geo.attributes.position, col = ch.geo.attributes.color;
+      let touched = false;
+      for (let i = 0; i < pos.count; i++) {
+        const ddx = pos.getX(i) - fx, ddz = pos.getZ(i) - fz;
+        if (ddx * ddx + ddz * ddz > fr2) continue;
+        if (ch.scorched && ch.scorched.has(i)) continue;
+        col.setXYZ(i, col.getX(i) * 0.3, col.getY(i) * 0.28, col.getZ(i) * 0.26);
+        touched = true;
+        if (!ch.scorched) ch.scorched = new Set();
+        ch.scorched.add(i);
+      }
+      if (touched) col.needsUpdate = true;
+    }
+  }
+}
+
 let envToastT = 0, emberT = 0;
 function updateEnvironment(dt) {      // regional hazards: scorching ash, bitter cold, dry heat, mire
   if (state !== 'play' || wolf.deadT > 0) return;
@@ -3382,9 +3835,22 @@ function updateEnvironment(dt) {      // regional hazards: scorching ash, bitter
       if (envToastT <= 0) { toast('🌋 Scorching ground — move off the embers!', true); envToastT = 9; }
     }
   } else emberT = 0;
-  if (cl.temp < -0.5 && dayF < 0.3) {
-    wolf.stamina = Math.max(0, wolf.stamina - 1.6 * dt);
-    if (envToastT <= 0 && cl.temp < -0.62) { toast('🥶 Bitter cold — keep moving'); envToastT = 22; }
+  const felt = cl.temp - WORLD_EVENTS.chill;
+  if (felt < -0.5 && dayF < 0.3) {
+    wolf.stamina = Math.max(0, wolf.stamina - (1.6 + WORLD_EVENTS.chill * 4) * dt);
+    if (envToastT <= 0 && felt < -0.62) { toast('🥶 Bitter cold — keep moving'); envToastT = 22; }
+  }
+  if (WORLD_EVENTS.name === 'blizzard') {
+    wolf.stamina = Math.max(0, wolf.stamina - 0.9 * dt);   // fighting the whiteout
+    if (envToastT <= 0 && coverAt(wolf.pos.x, wolf.pos.z) < 0.35) { toast('❄️ The blizzard bites — find the lee of the trees'); envToastT = 18; }
+  }
+  if (weather.storm > 0.6 && weather.rain > 0.5) {         // exposed in the storm
+    const cover = coverAt(wolf.pos.x, wolf.pos.z);
+    if (cover < 0.35) {
+      wolf.hp = Math.max(20, wolf.hp - 1.1 * dt);          // battered, not slain
+      wolf.stamina = Math.max(0, wolf.stamina - 2.2 * dt);
+      if (envToastT <= 0) { toast('🌩️ The storm batters you — take shelter under cover!'); envToastT = 14; }
+    }
   }
   if ((w.dry || 0) > 0.5 && dayF > 0.55) {
     wolf.stamina = Math.max(0, wolf.stamina - 1.1 * dt);
@@ -3458,6 +3924,7 @@ function updateAtmosphere(dt) {
 
   let far = 184 * (1 - 0.32 * weather.rain - 0.42 * weather.snow - 0.16 * weather.cloud) * (1 - 0.12 * (1 - dayF));
   far = Math.max(85, far);
+  if (WORLD_EVENTS.name === 'blizzard') far *= 0.5;
   scene.fog.far += (far * (window.__biomeFogMul || 1) - scene.fog.far) * Math.min(1, dt * 2);
   scene.fog.near = scene.fog.far * 0.42;
 
@@ -3552,6 +4019,7 @@ const audio = {
       this.leafG = mk('bandpass', 900, 0.0);   // wind in the crowns
       this.shoreG = mk('lowpass', 240, 0.0);    // distant surf
       this.rumbleG = mk('lowpass', 55, 0.0);     // volcanic tremor
+      this.fireG = mk('bandpass', 1350, 0.0);    // crackling flames
       this.ready = true;
     } catch (e) { }
   },
@@ -3604,15 +4072,16 @@ const audio = {
     src.connect(f); f.connect(g); g.connect(this.master);
     src.start(t); src.stop(t + dur + 0.02);
   },
-  howl() {
+  howl(pitch) {
+    pitch = pitch || 1;   // rival packs howl lower
     if (!this.ready) return;
     const t = this.ctx.currentTime;
     const o = this.ctx.createOscillator();
     o.type = 'sine';
-    o.frequency.setValueAtTime(290, t);
-    o.frequency.exponentialRampToValueAtTime(620, t + 0.55);
-    o.frequency.setValueAtTime(620, t + 1.15);
-    o.frequency.exponentialRampToValueAtTime(230, t + 2.3);
+    o.frequency.setValueAtTime(290 * pitch, t);
+    o.frequency.exponentialRampToValueAtTime(620 * pitch, t + 0.55);
+    o.frequency.setValueAtTime(620 * pitch, t + 1.15);
+    o.frequency.exponentialRampToValueAtTime(230 * pitch, t + 2.3);
     const vib = this.ctx.createOscillator();
     vib.frequency.value = 5.2;
     const vibG = this.ctx.createGain(); vibG.gain.value = 7;
@@ -4131,7 +4600,7 @@ function updateHUD(dt) {
   ui.weatherLabel.textContent = weather.label;
   const info = biomeInfoAt(wolf.pos.x, wolf.pos.z);
   curBiomeKey = info === BIOME_INFO.shore ? 'shore' : Object.keys(BIOME_INFO).find(k => BIOME_INFO[k] === info);
-  const tC = Math.round(climateAt(wolf.pos.x, wolf.pos.z, heightAt(wolf.pos.x, wolf.pos.z)).temp * 28);
+  const tC = Math.round((climateAt(wolf.pos.x, wolf.pos.z, heightAt(wolf.pos.x, wolf.pos.z)).temp - WORLD_EVENTS.chill) * 28);
   ui.biome.textContent = `${info.icon} ${info.name} · ${tC}°C`;
   ui.pos.textContent = `${wolf.pos.x | 0}, ${wolf.pos.z | 0} · ${fpsShow} fps`;
   ui.seed.textContent = 'seed ' + SEED;
@@ -4511,7 +4980,13 @@ function tick() {
   updateSense(dt);
   updateMagicGlow(dt);
   pool.update(Math.max(dt, 0.0001));
+  WORLD_EVENTS.update(dt);
   updateEnvironment(dt);
+  if (audio.ready && audio.fireG) {
+    const f = WORLD_EVENTS.fireAt;
+    const g = f ? Math.max(0, 1 - Math.hypot(wolf.pos.x - f.x, wolf.pos.z - f.z) / 130) * 0.1 : 0;
+    audio.fireG.gain.setTargetAtTime(g, audio.ctx.currentTime, 0.4);
+  }
   audio.setAmbient(weather.wind + weather.storm * 0.4 + (wolf.flyT > 0 ? 1.3 : 0), weather.rain);
   const wCov = coverAt(wolf.pos.x, wolf.pos.z);
   audio.setForest(wCov, weather.wind + weather.storm * 0.4);
