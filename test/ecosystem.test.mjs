@@ -65,18 +65,33 @@ const R = await page.evaluate(() => {
   while (goat.state === 'protect' && guard++ < 120) { wolf.pos.x = goat.pos.x + 3; wolf.pos.z = goat.pos.z; wolf.pos.y = goat.pos.y; wolf.invulnT = 0; goat.update(dt, tSec); }
   R.goatChargeHit = wolf.hp < hp0 || wolf.invulnT > 0;
 
-  // health bar: revealed on first player strike; turns red near the end
+  // health bar: revealed on first player strike; hugs the head; reddens as life drains
+  const colOf = str => { const m = /\((\d+),\s*(\d+),\s*(\d+)/.exec(str || ''); return m ? [+m[1], +m[2], +m[3]] : null; };
   const hba = new Animal('elk', wolf.pos.x + 55, wolf.pos.z, { adult: true });
   hba.aware = 1; hba.hit();                                  // aware hit: 1 dmg, elk 4 → 3
   R.barRevealed = !!hba.bar && hba.bar.parent === hba.model && !!hba.barCol;
-  R.barHealthy = hba.barCol === '#7ec84a';
-  hba.hp = 1; AnimalHealthBar.show(hba);                     // f = 0.25 → death's door
-  R.barCritical = hba.barCol === '#e04328';
-  hba.hp = 2; AnimalHealthBar.show(hba);
-  R.barHurt = hba.barCol === '#e8b53a';
+  hba.model.remove(hba.bar); hba.model.updateMatrixWorld(true);   // crown without the bar in the box
+  const topH = new THREE.Box3().setFromObject(hba.model).max.y - hba.model.position.y;
+  hba.model.add(hba.bar);
+  const barWy = hba.bar.position.y * hba.model.scale.x;            // world-space seat
+  R.barHugHead = barWy - topH <= 0.25 && barWy >= topH - 0.3;
+  let c = colOf(hba.barCol);
+  R.barHealthy = !!c && c[1] > c[0];                                         // f 0.75 — green on top
+  hba.hp = 2; AnimalHealthBar.show(hba); c = colOf(hba.barCol);
+  R.barHurt = !!c && Math.abs(c[0] - c[1]) < 60 && c[0] > c[2] * 1.8;       // f 0.5 — amber blend
+  hba.hp = 1; AnimalHealthBar.show(hba); c = colOf(hba.barCol);
+  R.barCritical = !!c && c[0] > c[1] * 1.5;                                  // f 0.25 — red rules
+  hba.hp = 1.4; AnimalHealthBar.show(hba); const cA = colOf(hba.barCol);
+  hba.hp = 2.4; AnimalHealthBar.show(hba); const cB = colOf(hba.barCol);
+  R.barGradual = !!cA && !!cB && (cA[0] - cA[1]) > (cB[0] - cB[1]);         // steadily redder as it drains
   hba.dispose();
   const pb = new Predator('bear', wolf.pos.x + 45, wolf.pos.z); pb.hit();
-  R.predBar = !!pb.bar && pb.bar.parent === pb.model;
+  pb.model.updateMatrixWorld(true);
+  const barP = pb.bar; pb.model.remove(barP);
+  const topP = new THREE.Box3().setFromObject(pb.model).max.y - pb.model.position.y;
+  pb.model.add(barP);
+  const barWyP = barP.position.y * pb.model.scale.x;
+  R.predBar = !!pb.bar && pb.bar.parent === pb.model && barWyP - topP <= 0.25 && barWyP >= topP - 0.3;
   pb.dispose();
 
   // sleep at night (diurnal deer), wake on threat
@@ -201,7 +216,9 @@ if (!R.preyTires) F.push('prey stamina');
 if (!R.herdPanic) F.push('herd panic');
 if (!R.goatRetaliates || !R.goatChargeHit) F.push('goat retaliation');
 if (!R.barRevealed || !R.predBar) F.push('health bar reveal');
+if (!R.barHugHead) F.push('health bar floats too high');
 if (!R.barHealthy || !R.barHurt || !R.barCritical) F.push('health bar colours');
+if (!R.barGradual) F.push('health bar not gradually red');
 if (!R.sleepsAtNight || !R.wakesOnThreat) F.push('sleep');
 if (!R.rainMasks || !R.nocturnalKeen) F.push('detection mods');
 if (!R.predatorHunts) F.push('predator hunt');

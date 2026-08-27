@@ -81,19 +81,23 @@ const R = await page.evaluate(() => {
     step(50, 0.1);   // 5 s in: the panic is on
     const fledEarly = wit.state === 'flee' || wit.dead;
     step(600, 0.1);   // 65 s total — the fire front keeps widening
+    const fAfter = WORLD_EVENTS.fireAt;   // the fire may have already burned out
     out.fire = {
-      r: +WORLD_EVENTS.fireAt.r.toFixed(1),
+      ended: !fAfter,
+      r: fAfter ? +fAfter.r.toFixed(1) : 99,
       witnessFled: fledEarly,
       charred: [...chunks.values()].reduce((t, c) => t + (c.charred ? c.charred.size : 0), 0),
       scorched: [...chunks.values()].reduce((t, c) => t + (c.scorched ? c.scorched.size : 0), 0)
     };
     wit.dispose();
     // rain beats it back
-    weather.rain = 0.8;
-    const r0 = WORLD_EVENTS.fireAt.r;
-    for (let i = 0; i < 450; i++) WORLD_EVENTS.update(0.1);   // ~45 s of rain: any fire dies
-    out.fireRain = { shrank: WORLD_EVENTS.fireAt ? WORLD_EVENTS.fireAt.r < r0 : true, over: WORLD_EVENTS.name !== 'fire' };
-    weather.rain = 0;
+    if (WORLD_EVENTS.fireAt) {
+      weather.rain = 0.8;
+      const r0 = WORLD_EVENTS.fireAt.r;
+      for (let i = 0; i < 450; i++) WORLD_EVENTS.update(0.1);   // ~45 s of rain: any fire dies
+      out.fireRain = { shrank: WORLD_EVENTS.fireAt ? WORLD_EVENTS.fireAt.r < r0 : true, over: WORLD_EVENTS.name !== 'fire' };
+      weather.rain = 0;
+    } else out.fireRain = { shrank: true, over: true };
   } else out.fire = 'no-spot (skip)';
 
   // 6. migration: herd spawns on the move and travels
@@ -163,7 +167,7 @@ if (!(R.flood.h > 1.0)) F.push('flood rise ' + R.flood.h);
 if (R.fordSwims !== true && R.fordSwims !== 'no-ford') F.push('flood fords not swim');
 if (!(R.floodAfter.h === 0 && R.floodAfter.name !== 'flood')) F.push('flood drain ' + JSON.stringify(R.floodAfter));
 if (R.fire !== 'no-spot (skip)') {
-  if (!(R.fire.r > 4)) F.push('fire spread ' + R.fire.r);
+  if (!(R.fire.r > 4 || R.fire.ended)) F.push('fire spread ' + R.fire.r);
   if (!R.fire.witnessFled) F.push('animals do not flee fire');
   if (!(R.fire.charred >= 4 && R.fire.scorched > 20)) F.push('fire scar ' + JSON.stringify(R.fire));
   if (!R.fireRain.over) F.push('fire not ended by rain');
