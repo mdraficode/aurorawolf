@@ -443,6 +443,7 @@ const nRiver = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // river bands
 const nMagic = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // enchanted grove fields
 const nClr   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // forest clearings
 const nPath  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // winding animal paths
+const nVol   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // volcanic fields
 
 /* ---------------- terrain shape ---------------- */
 const CHUNK = 64, SEG = 32, VIEW_R = 3;
@@ -485,8 +486,14 @@ const BIOME_INFO = {
   mountain: { name: 'Frostpeak Mountains', icon: '⛰️' },
   swamp:    { name: 'Murky Swamp',      icon: '🪵' },
   enchanted:{ name: 'Enchanted Grove',   icon: '✨' },
+  coast:    { name: 'Coastal Reach',     icon: '🏖️' },
+  dry:      { name: 'Dry Valley',        icon: '🏜️' },
+  highland: { name: 'Rocky Highlands',   icon: '🪨' },
+  volcanic: { name: 'Ember Wastes',      icon: '🌋' },
   shore:    { name: 'Wild Shoreline',   icon: '🌊' }
 };
+function volField(x, z) { return fbm(nVol, x * 0.0016, z * 0.0016, 2); }   // broad fields, soft fringes
+function volcanicAt(x, z) { return ss(0.75, 0.82, volField(x, z)); }   // 1 on the hot ember core
 function biomeWeights(x, z, h, temp, moist) {
   const cold = 1 - ss(-0.42, -0.10, temp);
   const warm = ss(0.10, 0.40, temp);
@@ -496,6 +503,9 @@ function biomeWeights(x, z, h, temp, moist) {
   let forest = mid * wet, grove = warm * wet;
   let meadow = mid * (1 - wet) * 0.85 + warm * (1 - wet);
   const mt = ss(27, 38, h);
+  // dry valley — parched steppe carved out of meadow in arid noise troughs
+  let dry = meadow * ss(-0.25, -0.42, moist) * (1 - mt);
+  meadow *= 1 - dry * 0.9;
   // swamp — saturated lowlands: murky pools, mist, dead trees
   let swamp = ss(0.55, 0.8, moist) * ss(6.8, 3.0, h) * ss(0.35, 0.6, wet) * (1 - mt);
   swamp = Math.max(0, swamp - mt);
@@ -503,10 +513,19 @@ function biomeWeights(x, z, h, temp, moist) {
   const magicN = fbm(nMagic, x * 0.00085 + 91.7, z * 0.00085 - 45.2, 3);
   let enchanted = ss(0.60, 0.70, magicN) * wet * ss(1.2, 2.6, h) * (1 - mt);
   enchanted *= enchanted > 0 ? (0.55 + 0.45 * ss(0.2, 0.5, forest + grove)) : 1;
-  if (swamp > 0) { const k = 1 - swamp * 0.8; forest *= k; grove *= k; taiga *= k; meadow *= k; }
+  // rocky highlands — bare scree shoulders above the treeline
+  let highland = mt * ss(38, 44, h);
+  let mountain = mt * (1 - highland);
+  // coastal reach — low shorelines, dunes & stream banks
+  let coast = ss(4.6, 0.5, h) * (1 - mt);
+  if (swamp > 0) { const k = 1 - swamp * 0.8; forest *= k; grove *= k; taiga *= k; meadow *= k; dry *= k; }
   if (enchanted > 0) { const k = 1 - enchanted; forest *= k; grove *= k; swamp *= 1 - enchanted; }
-  if (mt > 0) { const k = 1 - mt; tundra *= k; taiga *= k; forest *= k; grove *= k; meadow *= k; }
-  return { tundra, taiga, forest, grove, meadow, mountain: mt, swamp, enchanted };
+  if (mt > 0) { const k = 1 - mt; tundra *= k; taiga *= k; forest *= k; grove *= k; meadow *= k; dry *= k; }
+  if (coast > 0) { const k = 1 - coast * 0.7; forest *= k; grove *= k; meadow *= k; dry *= k; tundra *= k; taiga *= k; }
+  // ember wastes — rare scorched volcanic fields
+  let vol = ss(0.66, 0.86, volField(x, z)) * ss(0.5, 3.4, h) * (1 - mt);
+  if (vol > 0) { const k = 1 - vol; tundra *= k; taiga *= k; forest *= k; grove *= k; meadow *= k; swamp *= k; enchanted *= k; coast *= k; dry *= k; mountain *= k; highland *= k; }
+  return { tundra, taiga, forest, grove, meadow, mountain, swamp, enchanted, coast, dry, highland, volcanic: vol };
 }
 function biomeInfoAt(x, z, h) {
   if (h === undefined) h = heightAt(x, z);
@@ -1776,8 +1795,11 @@ const SPECIES_TABLE = {
   forest:   [['deer', 0.35], ['rabbit', 0.4], ['fox', 0.25]],
   grove:    [['deer', 0.3], ['rabbit', 0.45], ['fox', 0.25]],
   meadow:   [['rabbit', 0.6], ['deer', 0.25], ['fox', 0.15]],
-  mountain: [['goat', 1]]
-};
+  mountain: [['goat', 1]],
+  coast:    [['hare', 0.45], ['arcticFox', 0.3], ['rabbit', 0.25]],   // dunes & driftwood
+  dry:      [['rabbit', 0.5], ['fox', 0.3], ['goat', 0.2]],           // steppe scrub
+  highland: [['goat', 0.55], ['hare', 0.3], ['reindeer', 0.15]]       // crag dwellers
+};  // ember wastes stay lifeless — nothing grazes on ash
 
 /* ---- territorial predators: rare, dangerous, rich bounty ---- */
 const PREDATORS = {
@@ -1790,7 +1812,8 @@ const PREDATORS = {
 };
 const PREDATOR_TABLE = {
   taiga: [['bear', 1]], forest: [['bear', 0.6], ['tiger', 0.4]],
-  grove: [['tiger', 0.7], ['bear', 0.3]], mountain: [['snowLeopard', 1]], tundra: [['snowLeopard', 0.65], ['bear', 0.35]]
+  grove: [['tiger', 0.7], ['bear', 0.3]], mountain: [['snowLeopard', 1]], tundra: [['snowLeopard', 0.65], ['bear', 0.35]],
+  highland: [['snowLeopard', 1]]
 };
 
 function buildAnimal(sp) {
@@ -2666,6 +2689,8 @@ const GROUND = {
   forest: new THREE.Color(0x4e7a40), grove: new THREE.Color(0x7d8a45),
   meadow: new THREE.Color(0x86a94f), mountain: new THREE.Color(0x8b8e93),
   swamp: new THREE.Color(0x4c5c38), enchanted: new THREE.Color(0x3f7a5c),
+  coast: new THREE.Color(0xcabb8e), dry: new THREE.Color(0xb3a066),
+  highland: new THREE.Color(0x9a9da0), volcanic: new THREE.Color(0x453934),
   sand: new THREE.Color(0xd2c39a), snow: new THREE.Color(0xf3f6f9),
   bed: new THREE.Color(0x8c8468)
 };
@@ -2683,7 +2708,11 @@ const BIOME_CONFIG = {
   meadow:    { weather: { clear: 0.4 }, magic: 0.1,  treeDens: 0.25, grassDens: 1.4, fog: 1.1 },
   mountain:  { weather: { snow: 0.5 },  magic: 0,    treeDens: 0.4, grassDens: 0.3, fog: 0.95 },
   swamp:     { weather: { fog: 0.6, rain: 0.35 }, magic: 0.3, treeDens: 0.55, grassDens: 1.15, fog: 0.62, tint: 0x5a6b4a },
-  enchanted: { weather: { mist: 0.8 },  magic: 5.0, treeDens: 1.05, grassDens: 1.1, fog: 0.7, tint: 0x8a7ad0 }
+  enchanted: { weather: { mist: 0.8 },  magic: 5.0, treeDens: 1.05, grassDens: 1.1, fog: 0.7, tint: 0x8a7ad0 },
+  coast:     { weather: { clear: 0.5, fog: 0.15 }, magic: 0, treeDens: 0.3,  grassDens: 1.3, fog: 1.12 },
+  dry:       { weather: { clear: 0.6 },  magic: 0,   treeDens: 0.25, grassDens: 0.7, fog: 1.08, tint: 0xb8a878 },
+  highland:  { weather: { snow: 0.45 },  magic: 0,   treeDens: 0.15, grassDens: 0.25, fog: 0.95, tint: 0x9aa0a8 },
+  volcanic:  { weather: { fog: 0.5 },    magic: 0,   treeDens: 0.1,  grassDens: 0.1, fog: 0.8,  tint: 0x4a3833 }
 };
 function dominantBiomeAt(x, z) {
   const h = heightAt(x, z);
@@ -2756,7 +2785,11 @@ const FOREST = {
     meadow:    [['oakTall', .34, 'canopy'], ['oak', .30, 'mid'], ['birch', .22, 'mid'], ['youngBroad', .14, 'young']],
     tundra:    [['deadPine', .30, 'canopy'], ['deadTree', .30, 'mid'], ['dwarfPine', .40, 'mid']],
     swamp:     [['deadPine', .26, 'canopy'], ['deadTree', .26, 'mid'], ['dwarfPine', .22, 'mid'], ['birch', .26, 'mid']],
-    mountain:  [['spruce', .40, 'mid'], ['snowSpruce', .28, 'mid'], ['fir', .20, 'mid'], ['spruceTall', .12, 'canopy']]
+    mountain:  [['spruce', .40, 'mid'], ['snowSpruce', .28, 'mid'], ['fir', .20, 'mid'], ['spruceTall', .12, 'canopy']],
+    coast:     [['pine', .32, 'mid'], ['fallenTree', .28, 'mid'], ['youngConifer', .40, 'young']],
+    dry:       [['deadTree', .40, 'mid'], ['dwarfPine', .30, 'mid'], ['birch', .30, 'mid']],
+    highland:  [['dwarfPine', .50, 'mid'], ['deadTree', .30, 'mid'], ['spruce', .20, 'mid']],
+    volcanic:  [['deadPine', .55, 'canopy'], ['deadTree', .45, 'mid']]
   },
   pick(pool, rng) {
     let tot = 0; for (const e of pool) tot += e[1];
@@ -2819,7 +2852,8 @@ const FOREST = {
       const dens = ss(-0.35, 0.55, fbm(nF, x * 0.012, z * 0.012, 2));
       const open = this.clearingAt(x, z), path = this.pathAt(x, z);
       const bf = (s.w.forest || 0) + (s.w.taiga || 0) + (s.w.grove || 0) * 0.9 + (s.w.enchanted || 0) * 0.95 +
-                 (s.w.swamp || 0) * 0.5 + (s.w.mountain || 0) * (s.h < 40 ? 0.35 : 0.05) + (s.w.meadow || 0) * 0.16 + (s.w.tundra || 0) * 0.22;
+                 (s.w.swamp || 0) * 0.5 + (s.w.mountain || 0) * (s.h < 40 ? 0.35 : 0.05) + (s.w.meadow || 0) * 0.16 + (s.w.tundra || 0) * 0.22 +
+                 (s.w.coast || 0) * 0.16 + (s.w.dry || 0) * 0.2 + (s.w.highland || 0) * 0.18 + (s.w.volcanic || 0) * 0.12;
       let p = (0.1 + 0.92 * dens) * bf * (1 - open * 0.95) * (1 - path * 0.93);
       if ((s.w.meadow || 0) > 0.5) p *= 0.32;          // meadows stay airy
       if (rng() > p || !slopeOK(x, z, s.h) || crowded(x, z, 1.5)) continue;
@@ -2836,6 +2870,8 @@ const FOREST = {
       const tv = 0.86 + rng() * 0.28;
       const tint = _c2.setRGB(tv * (0.9 + rng() * 0.2), tv, tv * (0.85 + rng() * 0.25)).clone();
       if ((s.w.enchanted || 0) > 0.4) tint.setRGB(0.62 + rng() * 0.25, 0.58 + rng() * 0.2, 0.85 + rng() * 0.3);
+      else if ((s.w.volcanic || 0) > 0.4) tint.multiplyScalar(0.45);
+      else if ((s.w.dry || 0) > 0.45) tint.setRGB(tv * 0.98, tv * 0.82, tv * 0.5);
       else if (type === 'birch' && (s.w.swamp || 0) > 0.4) tint.multiplyScalar(0.82);
       treeSets[type].push({ x, y: s.h - 0.12, z, ry: rng() * 6.283, rx: type === 'deadPine' ? (rng() - 0.5) * 0.12 : 0, sx: sxv, sy, sz: sxv * (0.9 + rng() * 0.2), tint });
       mark(x, z);
@@ -2848,7 +2884,7 @@ const FOREST = {
       const s = sample(x, z);
       if (s.h < 1.2) continue;
       const dens = ss(-0.35, 0.55, fbm(nF, x * 0.012, z * 0.012, 2));
-      const p = ((s.w.forest || 0) * 0.62 + (s.w.taiga || 0) * 0.55 + (s.w.grove || 0) * 0.5 + (s.w.enchanted || 0) * 0.5 + (s.w.meadow || 0) * 0.18) *
+      const p = ((s.w.forest || 0) * 0.62 + (s.w.taiga || 0) * 0.55 + (s.w.grove || 0) * 0.5 + (s.w.enchanted || 0) * 0.5 + (s.w.meadow || 0) * 0.18 + (s.w.coast || 0) * 0.14 + (s.w.dry || 0) * 0.16) *
                 (0.5 + 0.75 * dens) * (1 - this.clearingAt(x, z) * 0.55) * (1 - this.pathAt(x, z) * 0.75);
       if (rng() > p) continue;
       const dst = rng() < 0.42 + (s.w.taiga || 0) * 0.25 ? ferns : bushes;
@@ -2861,10 +2897,11 @@ const FOREST = {
       const x = x0 + rng() * CHUNK, z = z0 + rng() * CHUNK;
       const s = sample(x, z);
       if (s.h < 1.2) continue;
-      const p = (0.85 * (s.w.meadow || 0) + 0.7 * (s.w.forest || 0) + 0.5 * (s.w.grove || 0) + 0.32 * (s.w.taiga || 0) + 0.3 * (s.w.enchanted || 0)) * (1 - this.pathAt(x, z) * 0.5);
+      const p = (0.85 * (s.w.meadow || 0) + 0.7 * (s.w.forest || 0) + 0.5 * (s.w.grove || 0) + 0.32 * (s.w.taiga || 0) + 0.3 * (s.w.enchanted || 0) + 0.5 * (s.w.coast || 0) + 0.42 * (s.w.dry || 0)) * (1 - this.pathAt(x, z) * 0.5);
       if (rng() > p) continue;
       const gv = 0.75 + rng() * 0.45;
-      grass.push({ x, y: s.h - 0.05, z, ry: rng() * 6.283, s: 0.7 + rng() * 0.85, tint: _c2.setRGB(gv * (0.9 + (s.w.grove || 0) * 0.35), gv, gv * (0.85 + (s.w.taiga || 0) * 0.2)).clone() });
+      const dried = (s.w.dry || 0) + (s.w.coast || 0) * 0.5;
+      grass.push({ x, y: s.h - 0.05, z, ry: rng() * 6.283, s: 0.7 + rng() * 0.85, tint: _c2.setRGB(gv * (0.9 + (s.w.grove || 0) * 0.35 + dried * 0.12), gv * (1 - dried * 0.22), gv * (0.85 + (s.w.taiga || 0) * 0.2 - dried * 0.45)).clone() });
       stats.floor++;
     }
     const LEAF_TINTS = [0x8a6a34, 0x6d5a30, 0x9c7a3c, 0xb0803f, 0x5d4a2a];
@@ -2891,7 +2928,7 @@ const FOREST = {
       const x = x0 + rng() * CHUNK, z = z0 + rng() * CHUNK;
       const s = sample(x, z);
       if (s.h < 1.2) continue;
-      const p = 0.34 * ((s.w.taiga || 0) + (s.w.swamp || 0) * 0.9 + (s.w.forest || 0) * 0.5 + (s.w.mountain || 0) * 0.25);
+      const p = 0.34 * ((s.w.taiga || 0) + (s.w.swamp || 0) * 0.9 + (s.w.forest || 0) * 0.5 + (s.w.mountain || 0) * 0.25 + (s.w.highland || 0) * 0.22);
       if (rng() > p) continue;
       leafPatches.push({ x, y: s.h - 0.015, z, ry: rng() * 6.283, s: 0.6 + rng() * 0.9, tint: _c2.setHex(MOSS_TINTS[(rng() * MOSS_TINTS.length) | 0]).clone() });
       stats.floor++;
@@ -2959,7 +2996,9 @@ function groundStepType(x, z) {      // footstep timbre by ground cover
   const cl = climateAt(x, z, h);
   if (weather.snow > 0.25 || cl.temp < -0.45) return 'snow';
   const w = biomeWeights(x, z, h, cl.temp, cl.moist);
-  if ((w.mountain || 0) > 0.45) return 'rock';
+  if ((w.volcanic || 0) > 0.45) return 'ash';
+  if (h < 2.6 && (w.coast || 0) > 0.45) return 'sand';
+  if ((w.mountain || 0) > 0.45 || (w.highland || 0) > 0.4) return 'rock';
   if (coverAt(x, z) > 0.35 || (w.taiga || 0) > 0.4) return 'forest';
   return 'meadow';
 }
@@ -3035,7 +3074,7 @@ function genChunk(cx, cz) {
     const x = cx * CHUNK + rng() * CHUNK, z = cz * CHUNK + rng() * CHUNK;
     const s = sample(x, z);
     if (s.h < 0.6) continue;
-    const p = 0.5 * s.w.mountain + 0.28 * s.w.tundra + 0.1;
+    const p = 0.5 * s.w.mountain + 0.28 * s.w.tundra + 0.42 * s.w.highland + 0.3 * s.w.dry + 0.5 * s.w.volcanic + 0.16 * s.w.coast + 0.1;
     if (rng() < p) {
       const white = Math.max(s.w.tundra, s.w.mountain * ss(38, 48, s.h)) > 0.45;
       const g = 0.75 + rng() * 0.35;
@@ -3055,11 +3094,11 @@ function genChunk(cx, cz) {
   }
   let lastSample = null;
   const pkTries = {
-    berryBush: s => 0.42 * (s.w.taiga + s.w.forest + s.w.meadow * 0.7 + s.w.grove * 0.6),
+    berryBush: s => 0.42 * (s.w.taiga + s.w.forest + s.w.meadow * 0.7 + s.w.grove * 0.6 + s.w.coast * 0.55),
     mushroom:  s => 0.4 * (s.w.forest + s.w.grove * 0.8),
-    herb:      s => 0.5 * s.w.meadow,
-    stick:     s => 0.38 * (s.w.forest + s.w.taiga + s.w.grove),
-    stoneP:    s => 0.5 * (s.w.tundra + s.w.mountain)
+    herb:      s => 0.5 * s.w.meadow + 0.3 * s.w.dry,
+    stick:     s => 0.38 * (s.w.forest + s.w.taiga + s.w.grove) + 0.4 * s.w.coast,
+    stoneP:    s => 0.5 * (s.w.tundra + s.w.mountain) + 0.32 * s.w.highland + 0.3 * s.w.volcanic + 0.18 * s.w.dry
   };
   for (const type in pkTries) {
     for (let i = 0; i < 6; i++) {
@@ -3305,7 +3344,7 @@ function pickWeather() {
   const dom = dominantBiomeAt(wolf.pos.x, wolf.pos.z);
   const bw = BIOME_CONFIG[dom.key] && BIOME_CONFIG[dom.key].weather;
   if (bw) {
-    if (bw.snow && (dom.w.tundra + dom.w.taiga + dom.w.mountain) > 0.45) cold = true;
+    if (bw.snow && (dom.w.tundra + dom.w.taiga + dom.w.mountain + dom.w.highland) > 0.45) cold = true;
     if (bw.fog && Math.random() < bw.fog) weatherT.mistBias = 1; else weatherT.mistBias = 0;
     if (bw.clear && Math.random() < bw.clear) weatherT.cloud = Math.min(weatherT.cloud, 0.25);
   } else weatherT.mistBias = 0;
@@ -3324,6 +3363,34 @@ function pickWeather() {
     else { weatherT.rain = amount; weatherT.snow = 0; weatherT.label = w.label; weatherT.icon = w.icon; }
   } else { weatherT.rain = 0; weatherT.snow = 0; weatherT.label = w.label; weatherT.icon = w.icon; }
   weather.timer = 40 + Math.random() * 75;
+}
+let envToastT = 0, emberT = 0;
+function updateEnvironment(dt) {      // regional hazards: scorching ash, bitter cold, dry heat, mire
+  if (state !== 'play' || wolf.deadT > 0) return;
+  const h = heightAt(wolf.pos.x, wolf.pos.z);
+  const cl = climateAt(wolf.pos.x, wolf.pos.z, h);
+  const w = biomeWeights(wolf.pos.x, wolf.pos.z, h, cl.temp, cl.moist);
+  envToastT -= dt;
+  const ember = volcanicAt(wolf.pos.x, wolf.pos.z);
+  if (ember > 0.5 && wolf.pos.y < h + 0.5) {
+    emberT += dt;
+    if (emberT > 1.2) {               // a breath of grace before the burn
+      wolf.hp = Math.max(1, wolf.hp - 2.4 * dt);      // staggers, never kills outright
+      wolf.stamina = Math.max(0, wolf.stamina - 6 * dt);
+      vignetteA = Math.min(0.7, vignetteA + dt * 0.5);
+      if (Math.random() < dt * 2.5) pool.burst(V3(wolf.pos.x, h + 0.3, wolf.pos.z), 2, 0xff8030, 0.9, 1.8, 1.4);
+      if (envToastT <= 0) { toast('🌋 Scorching ground — move off the embers!', true); envToastT = 9; }
+    }
+  } else emberT = 0;
+  if (cl.temp < -0.5 && dayF < 0.3) {
+    wolf.stamina = Math.max(0, wolf.stamina - 1.6 * dt);
+    if (envToastT <= 0 && cl.temp < -0.62) { toast('🥶 Bitter cold — keep moving'); envToastT = 22; }
+  }
+  if ((w.dry || 0) > 0.5 && dayF > 0.55) {
+    wolf.stamina = Math.max(0, wolf.stamina - 1.1 * dt);
+    if (envToastT <= 0) { toast('☀️ The dry heat saps your strength'); envToastT = 22; }
+  }
+  if ((w.swamp || 0) > 0.55) wolf.stamina = Math.max(0, wolf.stamina - 0.7 * dt);   // wading the mire
 }
 function updateWeather(dt) {
   weather.timer -= dt;
@@ -3370,7 +3437,7 @@ function updateAtmosphere(dt) {
     if (cfg.fog !== 1) fogMul *= 1 - (1 - cfg.fog) * (w0[bk] || 0);
     if (cfg.tint) { _biomeTint.setHex(cfg.tint); tintAmt = Math.max(tintAmt, (w0[bk] || 0) * 0.5); }
   }
-  window.__biomeFogMul = fogMul; window.__biomeTintAmt = tintAmt;
+  window.__biomeFogMul = fogMul; window.__biomeTintAmt = tintAmt; window.__biomeW = w0;
   const prev = tDay;
   tDay = (tDay + dt * timeScale / DAY_LEN) % 1;
   if (tDay < prev) dayCount++;
@@ -3483,6 +3550,8 @@ const audio = {
       this.windG = mk('bandpass', 360, 0.05);
       this.rainG = mk('highpass', 1600, 0.0);
       this.leafG = mk('bandpass', 900, 0.0);   // wind in the crowns
+      this.shoreG = mk('lowpass', 240, 0.0);    // distant surf
+      this.rumbleG = mk('lowpass', 55, 0.0);     // volcanic tremor
       this.ready = true;
     } catch (e) { }
   },
@@ -3497,12 +3566,35 @@ const audio = {
     if (!this.ready || !this.leafG) return;
     this.leafG.gain.setTargetAtTime((0.012 + wind * 0.055) * (0.35 + 0.65 * cover), this.ctx.currentTime, 1.0);
   },
+  setBiome(w) {              // regional beds: surf on the shore, tremor in the wastes
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    if (this.shoreG) this.shoreG.gain.setTargetAtTime(0.05 * (w.coast || 0), t, 1.2);
+    if (this.rumbleG) this.rumbleG.gain.setTargetAtTime(0.075 * (w.volcanic || 0), t, 1.2);
+  },
+  croak() {                  // swamp nights
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    for (let i = 0; i < 2; i++) {
+      const o = this.ctx.createOscillator(); o.type = 'square';
+      const f = 84 + Math.random() * 26;
+      o.frequency.setValueAtTime(f, t + i * 0.16);
+      o.frequency.exponentialRampToValueAtTime(f * 0.72, t + i * 0.16 + 0.11);
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t + i * 0.16);
+      g.gain.exponentialRampToValueAtTime(0.028, t + i * 0.16 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.16 + 0.13);
+      const fl = this.ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 420;
+      o.connect(g); g.connect(fl); fl.connect(this.master);
+      o.start(t + i * 0.16); o.stop(t + i * 0.16 + 0.15);
+    }
+  },
   step(type) {               // footstep timbre by ground: soft moss, crunching snow, clicks on rock
     if (!this.ready || this.muted) return;
     const t = this.ctx.currentTime;
     const src = this.ctx.createBufferSource(); src.buffer = this.noiseBuf;
     src.playbackRate.value = 0.7 + Math.random() * 0.5;
-    const P = { forest: ['lowpass', 420, 0.055], meadow: ['lowpass', 640, 0.05], rock: ['bandpass', 1500, 0.05], snow: ['lowpass', 900, 0.065], water: ['bandpass', 700, 0.05] }[type] || ['lowpass', 500, 0.04];
+    const P = { forest: ['lowpass', 420, 0.055], meadow: ['lowpass', 640, 0.05], rock: ['bandpass', 1500, 0.05], snow: ['lowpass', 900, 0.065], water: ['bandpass', 700, 0.05], ash: ['lowpass', 520, 0.07], sand: ['lowpass', 820, 0.045] }[type] || ['lowpass', 500, 0.04];
     const f = this.ctx.createBiquadFilter(); f.type = P[0]; f.frequency.value = P[1]; f.Q.value = 0.9;
     const g = this.ctx.createGain();
     const dur = type === 'snow' ? 0.14 : 0.09;
@@ -3656,7 +3748,7 @@ const audio = {
     return this.muted;
   }
 };
-let chirpT = 5;
+let chirpT = 5, croakT = 4;
 
 /* ---------------- UI ---------------- */
 const el = id => document.getElementById(id);
@@ -4039,7 +4131,8 @@ function updateHUD(dt) {
   ui.weatherLabel.textContent = weather.label;
   const info = biomeInfoAt(wolf.pos.x, wolf.pos.z);
   curBiomeKey = info === BIOME_INFO.shore ? 'shore' : Object.keys(BIOME_INFO).find(k => BIOME_INFO[k] === info);
-  ui.biome.textContent = `${info.icon} ${info.name}`;
+  const tC = Math.round(climateAt(wolf.pos.x, wolf.pos.z, heightAt(wolf.pos.x, wolf.pos.z)).temp * 28);
+  ui.biome.textContent = `${info.icon} ${info.name} · ${tC}°C`;
   ui.pos.textContent = `${wolf.pos.x | 0}, ${wolf.pos.z | 0} · ${fpsShow} fps`;
   ui.seed.textContent = 'seed ' + SEED;
   biomeToastT -= 0.25;
@@ -4418,9 +4511,15 @@ function tick() {
   updateSense(dt);
   updateMagicGlow(dt);
   pool.update(Math.max(dt, 0.0001));
+  updateEnvironment(dt);
   audio.setAmbient(weather.wind + weather.storm * 0.4 + (wolf.flyT > 0 ? 1.3 : 0), weather.rain);
   const wCov = coverAt(wolf.pos.x, wolf.pos.z);
   audio.setForest(wCov, weather.wind + weather.storm * 0.4);
+  audio.setBiome(window.__biomeW || {});
+  if (audio.ready && curBiomeKey === 'swamp' && dayF < 0.35) {
+    croakT -= dt;
+    if (croakT <= 0) { croakT = 2.5 + Math.random() * 5; audio.croak(); }
+  }
 
   if (audio.ready && dayF > 0.5 && weather.rain < 0.15 && curBiomeKey !== 'tundra' && curBiomeKey !== 'mountain') {
     chirpT -= dt;
