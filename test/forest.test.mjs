@@ -95,13 +95,8 @@ const R = await page.evaluate(() => {
 await page.waitForTimeout(6000);   // regenerate chunks around the new position
 
 // ---- camera view tests (spec 17): eye-level, third-person, looking up ----
-async function shot(pitch, dist, name) {
-  await page.evaluate(({ p, d }) => {
-    camPitch = p; camDist = d; camYaw = 0.8;
-    for (let i = 0; i < 30; i++) updateCamera(0.05);   // settle
-  }, { p: pitch, d: dist });
-  await page.waitForTimeout(250);
-  const buf = await page.screenshot();
+async function classify() {
+  const buf = await page.screenshot({ timeout: 90000 });
   const png = PNG.sync.read(buf);
   let veg = 0, sky = 0, n = 0;
   for (let y = 0; y < png.height; y += 4) for (let x = 0; x < png.width; x += 4) {
@@ -110,21 +105,89 @@ async function shot(pitch, dist, name) {
     if (g > r * 1.12 && g > b * 1.02 && g > 38) veg++;
     else if (b > 110 && b > g * 1.12 && b > r * 1.08) sky++;
   }
-  return { name, vegFrac: +(veg / n).toFixed(3), skyFrac: +(sky / n).toFixed(3) };
+  return { vegFrac: +(veg / n).toFixed(3), skyFrac: +(sky / n).toFixed(3) };
 }
-R.eyeView = await shot(0.06, 6, 'eye');          // eye level, close cam
-if (R.clrX !== undefined) {                       // sky openings: look up from the clearing
+async function shot(pitch, dist, name) {
+  await page.evaluate(({ p, d }) => {
+    camPitch = p; camDist = d; camYaw = 0.8;
+    for (let i = 0; i < 30; i++) updateCamera(0.05);   // settle
+  }, { p: pitch, d: dist });
+  await page.waitForTimeout(250);
+  const c = await classify();
+  return { name, ...c };
+}
+R.eyeView = await shot(0.06, 6, 'eye');          // eye level, close cam (deep stand)
+R.thirdPerson = await shot(0.42, 10, 'third');   // normal play view
+R.upView = await shot(-0.9, 5, 'up');            // camera low behind, gaze up into the canopy (deep stand)
+if (R.clrX !== undefined) {                       // sky openings: same upward gaze from the clearing
   await page.evaluate(({ x, z }) => { wolf.pos.x = x; wolf.pos.z = z; wolf.pos.y = heightAt(x, z); }, { x: R.clrX, z: R.clrZ });
   await page.waitForTimeout(900);
 }
-R.thirdPerson = await shot(0.42, 10, 'third');   // normal play view
-R.upView = await shot(-0.9, 5, 'up');            // camera low behind, gaze up into the canopy
+R.clearUp = await shot(-0.9, 5, 'clearing');
+R.clearSkyFrac = R.clearUp ? R.clearUp.skyFrac : 0;
+
+// ---- walking view: stride through the stand at walking pace ----
 if (R.standX !== undefined) {
   await page.evaluate(({ x, z }) => { wolf.pos.x = x; wolf.pos.z = z; wolf.pos.y = heightAt(x, z); }, { x: R.standX, z: R.standZ });
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(1500);
 }
-R.clearUp = await shot(-0.9, 5, 'clearing');      // same upward gaze from the clearing
-R.clearSkyFrac = R.clearUp ? R.clearUp.skyFrac : 0;
+await page.evaluate(() => {
+  camPitch = 0.18; camDist = 8.5; camYaw = 1.6;
+  for (let i = 0; i < 90; i++) {
+    wolf.pos.x += Math.sin(1.1) * 0.9; wolf.pos.z += Math.cos(1.1) * 0.9;
+    wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z);
+    wolf.yaw = 1.1; wolf.speed = 4;
+    updateCamera(1 / 30);
+  }
+});
+await page.waitForTimeout(400);
+R.walkView = await classify();
+
+
+// ---- LOD: distance system flips chunks; builder swaps impostors <-> meshes ----
+R.lod = await page.evaluate(async () => {
+  let target = null;
+  for (const ch of chunks.values()) if (ch.lod === 'near' && ch.veg && ch.veg.trees.length > 40) { target = ch; break; }
+  if (!target) return { skip: true };
+  const cx = target.cx * 64 + 32, cz = target.cz * 64 + 32;
+  const home = { x: wolf.pos.x, z: wolf.pos.z, y: wolf.pos.y };
+  const nearKeys = new Set([...chunks.values()].filter(c => c.lod === 'near').map(c => c.key));   // all boot-near chunks; some must flip far as we walk away
+  wolf.pos.x = cx + 160; wolf.pos.z = cz; wolf.pos.y = heightAt(cx + 160, cz);
+  await new Promise(r => setTimeout(r, 12000));
+  let farOthers = 0;
+  for (const k of nearKeys) { const ch = chunks.get(k); if (ch && ch.lod === 'far') farOthers++; }
+  const probe = ch => ({ lod: ch.lod, imp: ch.vegMeshes.filter(m => m.userData.impostor).length, floor: ch.vegMeshes.filter(m => m.userData.floor).length });
+  buildChunkVeg(target, true);          // deterministic builder check: impostors + no floor
+  const forced = probe(target);
+  buildChunkVeg(target, false);         // and back: full meshes + floor layers
+  const restored = probe(target);
+  wolf.pos.x = home.x; wolf.pos.z = home.z; wolf.pos.y = home.y;
+  return { farOthers, forced, restored, draws: renderer.info.render.calls };
+});
+
+// ---- footsteps: timbre follows terrain ----
+R.steps = await page.evaluate(() => {
+  const keep = weather.snow;
+  weather.snow = 0.6; const snow = groundStepType(0, 0) === 'snow';
+  weather.snow = keep;
+  const ok = ['forest', 'rock', 'snow', 'meadow', 'water'].every(t => { audio.step(t); return true; });
+  return { snow, ok, fn: typeof groundStepType === 'function' };
+});
+
+// ---- second procedurally generated region (different seed) ----
+await page.goto('file:///home/user/index.html?autostart=1&seed=424242&quality=low');
+await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
+await page.waitForFunction(() => typeof chunks !== 'undefined' && chunks.size >= 35, null, { timeout: 90000 });
+await page.waitForTimeout(2500);
+R.region2 = await page.evaluate(() => {
+  const dom = (x, z) => { const h = heightAt(x, z), cl = climateAt(x, z, h); const w = biomeWeights(x, z, h, cl.temp, cl.moist); let b = '?', bv = 0; for (const k in w) if (w[k] > bv) { bv = w[k]; b = k; } return { b, v: bv }; };
+  let dense = 0, trees = 0, hMax = 0;
+  for (const ch of chunks.values()) {
+    const d = dom(ch.cx * 64 + 32, ch.cz * 64 + 32);
+    if (['forest', 'taiga'].includes(d.b) && d.v > 0.75 && ch.veg) { dense++; trees += ch.veg.trees.length; for (const t of ch.veg.trees) if (t.h > hMax) hMax = t.h; }
+  }
+  return { dense, avg: dense ? trees / dense : 0, hMax };
+});
 await page.screenshot({ path: 'shots/forest.jpg' });
 
 console.log(JSON.stringify(R, null, 1));
@@ -151,5 +214,15 @@ if (R.tris > 3000000) F.push('triangles ' + R.tris);
 if (R.eyeView.vegFrac < 0.42) F.push('eye-level view not immersive (veg ' + R.eyeView.vegFrac + ')');
 if (R.upView.vegFrac < 0.35) F.push('no dense canopy overhead (veg ' + R.upView.vegFrac + ')');
 if (R.clearSkyFrac === undefined || R.clearSkyFrac < 0.07) F.push('no sky opening in clearing');
+if (!R.lod || R.lod.skip) F.push('no chunk to LOD-test');
+else {
+  if (R.lod.farOthers < 1) F.push('distance LOD system never flipped');
+  if (R.lod.forced.lod !== 'far' || R.lod.forced.imp < 1 || R.lod.forced.floor !== 0) F.push('far LOD not impostors ' + JSON.stringify(R.lod.forced));
+  if (R.lod.restored.lod !== 'near' || R.lod.restored.imp !== 0 || R.lod.restored.floor < 1) F.push('near LOD not restored ' + JSON.stringify(R.lod.restored));
+  if (R.lod.draws > 700) F.push('draw calls after LOD ' + R.lod.draws);
+}
+if (!R.walkView || R.walkView.vegFrac < 0.27) F.push('walking view not immersive ' + JSON.stringify(R.walkView));
+if (!R.steps || !R.steps.snow || !R.steps.ok || !R.steps.fn) F.push('footsteps ' + JSON.stringify(R.steps));
+if (!R.region2 || R.region2.dense < 1 || R.region2.avg < 24 || R.region2.hMax < 28) F.push('second region thin ' + JSON.stringify(R.region2));
 if (F.length) { console.log('FOREST FAIL:', F.join(', ')); process.exit(1); }
 console.log('FOREST TEST PASS');
