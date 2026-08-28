@@ -3858,6 +3858,7 @@ bindHold('tSense', () => wolf.wolfSense());
 
 /* -------- camera: multi-touch drag look + pinch zoom -------- */
 const cv = renderer.domElement;
+const PITCH_MAX = Math.PI / 2 - 0.001;   // true straight-up / straight-down
 const camPointers = new Map();
 let pinch0 = 0, pinchDist0 = 8.5;
 cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -3879,7 +3880,7 @@ addEventListener('pointermove', e => {
   if (camPointers.size === 1) {
     const sens = 0.0078 * clamp(viewDist / 8.5, 0.55, 1.5);
     camYaw -= dx * sens;
-    camPitch = clamp(camPitch + dy * sens * 0.8, -1.5, 1.5);   // free look — sky to soil, horizon to horizon
+    camPitch = clamp(camPitch + dy * sens, -PITCH_MAX, PITCH_MAX);   // free look — the full 90°, soil to zenith
   } else if (camPointers.size === 2 && pinch0 > 40) {
     const pts = [...camPointers.values()];
     const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
@@ -3888,6 +3889,13 @@ addEventListener('pointermove', e => {
 });
 const camPtrEnd = e => { camPointers.delete(e.pointerId); };
 addEventListener('pointerup', camPtrEnd);
+function camEdgeHold(dt) {   // thumb parked at the top/bottom edge: keep tilting to the full 90°
+  if (state !== 'play' || camPointers.size !== 1) return;
+  const p = [...camPointers.values()][0];
+  const EDGE = 16, RATE = 1.5;   // rad/s while held at the edge
+  if (p.y < EDGE) camPitch = clamp(camPitch - RATE * dt, -PITCH_MAX, PITCH_MAX);
+  else if (p.y > innerHeight - EDGE) camPitch = clamp(camPitch + RATE * dt, -PITCH_MAX, PITCH_MAX);
+}
 addEventListener('pointercancel', camPtrEnd);
 cv.addEventListener('wheel', e => {
   e.preventDefault();
@@ -4115,6 +4123,7 @@ function tick() {
   }
   updatePawPrints(dt);   // the wolf writes its passage, sound or silence
 
+  camEdgeHold(rdt);
   updateCamera(rdt);
   updateHUD(rdt);
   renderer.render(scene, camera);

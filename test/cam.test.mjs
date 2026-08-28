@@ -19,7 +19,8 @@ try {
     const ev = (t, x, y) => (t === 'pointerdown' ? cv : window).dispatchEvent(new PointerEvent(t, { pointerId: 1, bubbles: true, clientX: x, clientY: y }));
     ev('pointerdown', cx, cy);
     for (let i = 1; i <= 90; i++) ev('pointermove', cx, cy - i * 6);   // a long, deliberate upward drag
-    await new Promise(r => setTimeout(r, 700));
+    const t0 = performance.now();
+    while (Math.abs(viewPitch - camPitch) > 0.004 && performance.now() - t0 < 6000) await new Promise(r => setTimeout(r, 120));   // let the view ease onto the target
     const pitch = camPitch, tgt = camTarget.y, camY = camera.position.y;
     const look = new THREE.Vector3(-Math.sin(viewYaw) * Math.cos(viewPitch), -Math.sin(viewPitch), -Math.cos(viewYaw) * Math.cos(viewPitch));
     const toWolf = new THREE.Vector3().copy(camTarget).sub(camera.position).normalize();
@@ -27,11 +28,27 @@ try {
     ev('pointerup', cx, 0);
     return { pitch, tgt, camY, lookY: look.y, offAxis, groundOK: camera.position.y >= groundAt(camera.position.x, camera.position.z) + 0.6 };
   });
-  ck('drag up: pitch goes negative past the old floor', up.pitch < -1.2, `camPitch=${up.pitch.toFixed(2)} (old floor 0.06)`);
-  ck('view tilts skyward', up.lookY > 0.9, `view dir y=${up.lookY.toFixed(2)}`);
+  ck('drag up: pitch reaches TRUE zenith (90°)', up.pitch <= -(Math.PI / 2 - 0.003), `camPitch=${up.pitch.toFixed(3)} (limit ${(-Math.PI / 2).toFixed(3)})`);
+  ck('view points straight up', up.lookY > 0.999, `view dir y=${up.lookY.toFixed(4)}`);
   ck('wolf out of the frame at zenith', up.offAxis > 32, `${up.offAxis.toFixed(0)}° off-center (half-FOV ≈ 31°)`);
   ck('camera stays near the wolf, not under it', up.camY > up.tgt - 3.2, `camY ${up.camY.toFixed(1)} vs target ${up.tgt.toFixed(1)}`);
   ck('camera never sinks into the ground', up.groundOK);
+
+  // ---- edge-hold: a thumb parked at the top edge glides to zenith ----
+  await page.evaluate(() => { camPitch = -0.4; });
+  const edge = await page.evaluate(async () => {
+    const cx = innerWidth / 2;
+    const cv = renderer.domElement;
+    const ev = (t, x, y) => (t === 'pointerdown' ? cv : window).dispatchEvent(new PointerEvent(t, { pointerId: 7, bubbles: true, clientX: x, clientY: y }));
+    ev('pointerdown', cx, innerHeight / 2);
+    ev('pointermove', cx, 5);          // drag to the very top edge and…
+    await new Promise(r => setTimeout(r, 1600));   // …hold: the view keeps tilting
+    const pitch = camPitch;
+    const look = new THREE.Vector3(-Math.sin(viewYaw) * Math.cos(viewPitch), -Math.sin(viewPitch), -Math.cos(viewYaw) * Math.cos(viewPitch));
+    ev('pointerup', cx, 5);
+    return { pitch, lookY: look.y };
+  });
+  ck('edge-hold tilts to true zenith without stroking', edge.pitch <= -(Math.PI / 2 - 0.01) && edge.lookY > 0.999, `camPitch=${edge.pitch.toFixed(3)}, view y=${edge.lookY.toFixed(4)}`);
 
   // ---- mid sky-tilt: wolf sinks to the BOTTOM of the frame, not the middle ----
   await page.evaluate(() => { camPitch = -0.6; });
@@ -57,16 +74,20 @@ try {
     ev('pointerup', cx, innerHeight);
     return { pitch, tgt, camY, lookY: dir.y };
   });
-  ck('drag down: pitch reaches the top of its range', down.pitch > 1.35, `camPitch=${down.pitch.toFixed(2)}`);
+  ck('drag down: pitch reaches straight-down (90°)', down.pitch >= Math.PI / 2 - 0.003, `camPitch=${down.pitch.toFixed(3)}`);
   ck('camera above the wolf, looking down', down.camY > down.tgt && down.lookY < 0, `lookY=${down.lookY.toFixed(2)}`);
 
   // ---- clamp sanity: no gimbal flip, yaw still free ----
   const sane = await page.evaluate(() => ({
     finite: [camPitch, viewPitch, camYaw, camera.position.x, camera.position.y, camera.position.z].every(Number.isFinite),
-    pitchBound: Math.abs(camPitch) <= 1.51,
+    pitchBound: Math.abs(camPitch) <= Math.PI / 2 + 0.001,
     yawFree: true
   }));
-  ck('angles finite & clamped at ±86°', sane.finite && sane.pitchBound);
+  ck('angles finite & clamped at ±90°', sane.finite && sane.pitchBound);
+
+  const camera_fov = await page.evaluate(() => camera.fov);
+  const skyBottom = Math.asin(Math.min(1, up.lookY)) * 180 / Math.PI - camera_fov / 2;
+  ck('whole frame is sky at zenith', skyBottom > 20, `bottom edge of frame at ${skyBottom.toFixed(0)}° elevation`);
 
   // ---- gameplay unharmed: flight follows the freed pitch ----
   await page.evaluate(() => {
