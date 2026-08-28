@@ -12,7 +12,7 @@ try {
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
   await page.waitForTimeout(1200);
 
-  // ---- drag UP: the camera must dive below the target and look at the sky ----
+  // ---- drag UP: the VIEW tilts to the sky while the wolf drops out of frame ----
   const up = await page.evaluate(async () => {
     const cx = innerWidth / 2, cy = innerHeight / 2;
     const cv = renderer.domElement;
@@ -21,14 +21,28 @@ try {
     for (let i = 1; i <= 90; i++) ev('pointermove', cx, cy - i * 6);   // a long, deliberate upward drag
     await new Promise(r => setTimeout(r, 700));
     const pitch = camPitch, tgt = camTarget.y, camY = camera.position.y;
-    const dir = new THREE.Vector3().subVectors(camTarget, camera.position).normalize();
+    const look = new THREE.Vector3(-Math.sin(viewYaw) * Math.cos(viewPitch), -Math.sin(viewPitch), -Math.cos(viewYaw) * Math.cos(viewPitch));
+    const toWolf = new THREE.Vector3().copy(camTarget).sub(camera.position).normalize();
+    const offAxis = look.angleTo(toWolf) * 180 / Math.PI;   // 0 = wolf dead center
     ev('pointerup', cx, 0);
-    return { pitch, tgt, camY, lookY: dir.y, groundOK: camera.position.y >= groundAt(camera.position.x, camera.position.z) + 0.6 };
+    return { pitch, tgt, camY, lookY: look.y, offAxis, groundOK: camera.position.y >= groundAt(camera.position.x, camera.position.z) + 0.6 };
   });
   ck('drag up: pitch goes negative past the old floor', up.pitch < -1.2, `camPitch=${up.pitch.toFixed(2)} (old floor 0.06)`);
-  ck('camera rides below the wolf to see the sky', up.camY < up.tgt, `camY ${up.camY.toFixed(1)} < target ${up.tgt.toFixed(1)}`);
-  ck('view tilts skyward', up.lookY > 0.55, `view dir y=${up.lookY.toFixed(2)}`);
+  ck('view tilts skyward', up.lookY > 0.9, `view dir y=${up.lookY.toFixed(2)}`);
+  ck('wolf out of the frame at zenith', up.offAxis > 32, `${up.offAxis.toFixed(0)}° off-center (half-FOV ≈ 31°)`);
+  ck('camera stays near the wolf, not under it', up.camY > up.tgt - 3.2, `camY ${up.camY.toFixed(1)} vs target ${up.tgt.toFixed(1)}`);
   ck('camera never sinks into the ground', up.groundOK);
+
+  // ---- mid sky-tilt: wolf sinks to the BOTTOM of the frame, not the middle ----
+  await page.evaluate(() => { camPitch = -0.6; });
+  await page.waitForFunction(() => Math.abs(viewPitch - (-0.6)) < 0.05, null, { timeout: 20000 });
+  const mid = await page.evaluate(() => {
+    const look = new THREE.Vector3(-Math.sin(viewYaw) * Math.cos(viewPitch), -Math.sin(viewPitch), -Math.cos(viewYaw) * Math.cos(viewPitch));
+    const toWolf = new THREE.Vector3().copy(camTarget).sub(camera.position).normalize();
+    return { lookY: look.y, offAxis: look.angleTo(toWolf) * 180 / Math.PI, belowCenter: toWolf.y < look.y - 0.05, camY: camera.position.y, tgt: camTarget.y };
+  });
+  ck('mid-tilt: looking up ~35°', mid.lookY > 0.5, `view dir y=${mid.lookY.toFixed(2)}`);
+  ck('mid-tilt: wolf sits below center, never blocking', mid.belowCenter && mid.offAxis > 8, `${mid.offAxis.toFixed(0)}° below center`);
 
   // ---- drag DOWN: still looks from above, same freedom ----
   const down = await page.evaluate(async () => {

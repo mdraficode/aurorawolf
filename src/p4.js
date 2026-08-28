@@ -3912,7 +3912,7 @@ function readInput() {
 
 /* ---------------- camera ---------------- */
 const camTarget = V3(0, 0, 0);
-const _v1 = new THREE.Vector3();
+const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
 let viewYaw = Math.PI, viewPitch = 0.42, viewDist = 8.5;
 function updateCamera(dt) {
   // fast, jitter-free smoothing: view angles chase the raw input values
@@ -3921,13 +3921,22 @@ function updateCamera(dt) {
   viewDist += (camDist - viewDist) * (1 - Math.exp(-dt * 12));
   const target = _v1.copy(wolf.pos); target.y += 1.5;
   camTarget.lerp(target, 1 - Math.exp(-dt * 16));
-  const cp = Math.cos(viewPitch), sp = Math.sin(viewPitch);
+  // free look with a decoupled orbit: the camera itself never dives deep under
+  // the wolf — pan to the sky and the VIEW tilts up instead, so the wolf drops
+  // to the bottom of the frame (and out of it near zenith), sky unobstructed
+  const posPitch = Math.max(viewPitch, -0.35);
+  const cp = Math.cos(posPitch), sp = Math.sin(posPitch);
   const px = camTarget.x + Math.sin(viewYaw) * cp * viewDist;
   const pz = camTarget.z + Math.cos(viewYaw) * cp * viewDist;
   const py = camTarget.y + sp * viewDist;
   const gh = groundAt(px, pz) + 0.65;
   camera.position.set(px, Math.max(py, gh), pz);
-  camera.lookAt(camTarget);
+  const look = _v2.set(
+    -Math.sin(viewYaw) * Math.cos(viewPitch),
+    -Math.sin(viewPitch),
+    -Math.cos(viewYaw) * Math.cos(viewPitch)
+  );
+  camera.lookAt(_v3.copy(camTarget).add(look.multiplyScalar(4)));
   const fovT = (wolf.flyT > 0 && wolf.speed > 10) ? 80 : wolf.speed > 9 ? 70 : 62;
   camera.fov = lerp(camera.fov, fovT, Math.min(1, dt * 6));
   camera.updateProjectionMatrix();
