@@ -588,26 +588,22 @@ class Wolf {
     this.pos.z += dirZ * this.speed * dt;
     this.distance += this.speed * dt;
     if (this.speed > 0.5) collideSolids(this, dirX, dirZ);   // big trunks & boulders are solid
-    // going-nowhere watchdog: pressing on but the world won't let you — lend a shoulder.
-    // long window + displacement (NOT odometer): catches wedges AND orbit-pins
-    // (the pin jitters ±0.7 m in place, so short windows see fake "progress")
+    // wedge escape: pressing on but going nowhere — the wild lends a shoulder
     if (moving && this.grounded && this.flyT <= 0) {
       if (this._wkx === undefined) { this._wkx = this.pos.x; this._wkz = this.pos.z; this._wkt = 0; }
       this._wkt += dt;
       this._wkcd = Math.max(0, (this._wkcd || 0) - dt);
-      if (this._wkt >= 3.0) {
-        if (Math.hypot(this.pos.x - this._wkx, this.pos.z - this._wkz) < 1.2 && this._wkcd <= 0) {
-          this._wkcd = 2.8;
+      if (this._wkt >= 1.15) {
+        if (Math.hypot(this.pos.x - this._wkx, this.pos.z - this._wkz) < 0.55 && this._wkcd <= 0) {
+          this._wkcd = 2.5;
           let nx = -Math.sin(this.yaw), nz = -Math.cos(this.yaw), bd = 99;
           for (const [, ch] of chunks) for (const sol of (ch.solids || [])) {
             const ddx = this.pos.x - sol.x, ddz = this.pos.z - sol.z, dd = Math.hypot(ddx, ddz);
-            if (dd < 4.2 && dd < bd) { bd = dd; const l = dd || 1; nx = ddx / l; nz = ddz / l; }
+            if (dd < 3.4 && dd < bd) { bd = dd; const l = dd || 1; nx = ddx / l; nz = ddz / l; }
           }
-          // no solid nearby? it's an orbit-pin — break out sideways, harder
-          const push = bd < 99 ? 0.8 : 1.6;
-          this.pos.x += nx * push; this.pos.z += nz * push;
-          this.vy = Math.max(this.vy, 3.6); this.grounded = false;
-          this.yaw += (0.8 + Math.random() * 0.5) * (Math.random() < 0.5 ? 1 : -1);   // turn aside and try again
+          this.pos.x += nx * 0.55; this.pos.z += nz * 0.55;
+          this.vy = Math.max(this.vy, 3.2); this.grounded = false;
+          this.yaw += 0.7 * (Math.random() < 0.5 ? 1 : -1);   // turn aside and try again
         }
         this._wkx = this.pos.x; this._wkz = this.pos.z; this._wkt = 0;
       }
@@ -906,8 +902,9 @@ class RivalWolf {
       }
     } else if (this.state === 'attack') {
       faceWolf();
-      speed = 12.2;                     // just slower than the player's sprint — a real chase
-      if (dWolf < 2.1 && this.atkCd <= 0) {
+      // a real chase to close in — then plant feet and bite, from any side
+      speed = dWolf > 1.8 ? 12.2 : 0;   // just slower than the player's sprint
+      if (dWolf < 2.4 && this.atkCd <= 0) {
         this.atkCd = 1.15;
         wolfTakeDamage(this.leader ? 9 : 6, this.pos, this.sp.label, '🐺');
       }
@@ -1886,11 +1883,16 @@ class Predator {
       this.atkCd -= dt;
       if (dWolf > this.sp.reach * 1.35) {
         this.state = dWolfHome > this.territory * 1.5 ? 'return' : 'chase';
-      } else if (this.atkCd <= 0) {
-        this.atkCd = this.sp.atkCd;
-        this.biteT = 0.32;
-        pool.burst(V3(this.pos.x + dxw / (dWolf || 1) * 1.2, this.pos.y + 1, this.pos.z + dzw / (dWolf || 1) * 1.2), 8, 0xff5040, 0.8, 1.6, 2.2);
-        if (dWolf < this.sp.reach) wolfTakeDamage(this.sp.dmg, this.pos, this.sp.label, this.sp.icon);
+      } else {
+        // close the last strides, plant your feet, THEN bite — a bite from any
+        // side (behind, flank, face) lands the same; no more orbiting past
+        speed = dWolf > this.sp.reach * 0.6 ? this.sp.walk * 2.6 : 0;
+        if (this.atkCd <= 0) {
+          this.atkCd = this.sp.atkCd;
+          this.biteT = 0.32;
+          pool.burst(V3(this.pos.x + dxw / (dWolf || 1) * 1.2, this.pos.y + 1, this.pos.z + dzw / (dWolf || 1) * 1.2), 8, 0xff5040, 0.8, 1.6, 2.2);
+          wolfTakeDamage(this.sp.dmg, this.pos, this.sp.label, this.sp.icon);
+        }
       }
     } else if (this.state === 'hunt') {
       const prey = this.huntTarget;

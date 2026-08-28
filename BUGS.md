@@ -93,3 +93,33 @@ _Fresh worlds, seeds 60606 + 4242 (the original wedge world), ~19 min of play + 
 - **N1 (polish, fixed):** rival-pack deeds could wait on the random pack event (240 s life, ~5 min cadence). Now an active rival deed triples the pack-event weight — the wild answers your quest.
 - **N2 (observation, no fix needed):** bot deaths to predators are legit gameplay (one at t=155 s, predator at 1 m — the bot fled at low HP and escaped on respawn). HP audit ran clean: no unexplained damage.
 - **Bot v6 behavior verified:** obstacle probes steer around trunks/boulders/deep water (9 candidate headings, clarity-first), smooth eased turning instead of snapping, hops over near blockers and bounds up rises (14 hops logged on one hillside climb), and gives predators a 48 m berth in its pathing.
+
+---
+
+## 🔄 Mission 3 — Combat-Fairness Round (user report: "attacked from behind → no damage")
+
+### The bug
+**Player-reported:** enemies attacking from behind dealt no damage. Reproduced dynamically (holding a predator at 1 m directly behind the wolf for 12 s): **0 hits from the rear** while frontal attacks landed normally. Static point-blank tests passed — the bug only showed in live engagement, because it was a *movement* bug, not a damage bug.
+
+### Root cause
+In `attack` state, neither predators nor rival wolves ever set `speed` — they inherited **chase speed** (11.8–12.2 m/s) while already at bite range, so every frame they overshot the wolf, orbited around/through it, and the bite check only connected if the orbit happened to cross bite-range on the exact frame the cooldown expired. From the front the closing arc usually clipped the cone; from the rear the orbit swept the bite window almost every time — hence the asymmetry.
+
+### Fix (src/p3.js)
+- **Predator:** close the last strides, then *plant feet and bite* — `speed = dWolf > reach*0.6 ? walk*2.6 : 0`, and bite unconditionally on cooldown while within `reach*1.35`.
+- **Rival wolf:** `speed = dWolf > 1.8 ? 12.2 : 0`, bite at `dWolf < 2.4` (was 2.1).
+
+### Verification (test/combat.test.mjs — permanent suite, 8/8)
+Held-distance 5 s windows, attacker kept at a fixed offset by side, damage counted through a `wolfTakeDamage` wrapper:
+
+| Attacker / side | bites | dmg |
+|---|---|---|
+| predator · behind 1.2 m | 3 | 45 |
+| predator · front 1.2 m | 4 | 60 |
+| predator · flank 1.8 m | 6 | 90 |
+| predator · behind 3.0 m | 8 | 120 |
+| **rival wolf · directly behind** | **10** | ✔ |
+| player bite on predator | lands | ✔ |
+
+Rear damage is not weaker than front (3 vs 4, within fairness tolerance); zero page errors. The player's own bite cone is untouched.
+
+_Suite-harness note (for future tests): `RivalWolf`/`Pack` members only tick via a **live** `WORLD_EVENTS` event — use `WORLD_EVENTS.force('rivalPack')`, not `new RivalWolf()` or a bare `EVENTS.rivalPack().begin()` (the pack never updates that way)._
