@@ -201,6 +201,53 @@ console.log('joyHalo:', JSON.stringify(R.joyHalo));
   console.log('multitouch:', JSON.stringify(R.multitouch));
 }
 
+// ---- quadrant joystick + satchel ----
+{
+  const Q = await page.evaluate(() => {
+    const z = document.getElementById('joyZone').getBoundingClientRect();
+    return {
+      shareW: z.width / innerWidth, shareH: z.height / innerHeight,
+      atCorner: z.left === 0 && Math.abs(z.bottom - innerHeight) < 2,
+      invHiddenAtRest: document.getElementById('inv').getBoundingClientRect().width === 0,
+      invBtn: !!document.getElementById('invBtn'),
+      invInPanel: document.getElementById('inv').parentElement.id === 'invBox'
+    };
+  });
+  R.quadrant = {
+    coversQuadrant: Q.shareW >= 0.4 && Q.shareH >= 0.4 && Q.atCorner,
+    satchelButton: Q.invBtn && Q.invInPanel && Q.invHiddenAtRest
+  };
+  // the ring springs up under a thumb landing far from home
+  const ringAt = await page.evaluate(async () => {
+    const z = document.getElementById('joyZone');
+    const r = z.getBoundingClientRect();
+    const x = r.left + r.width * 0.7, y = r.top + r.height * 0.6;
+    z.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 31, bubbles: true, clientX: x, clientY: y }));
+    await new Promise(r2 => setTimeout(r2, 250));
+    const jr = document.getElementById('joy').getBoundingClientRect();
+    const at = { dx: Math.abs(jr.left + jr.width / 2 - x) < 4, dy: Math.abs(jr.top + jr.height / 2 - y) < 4, live: document.getElementById('joy').classList.contains('live') };
+    z.dispatchEvent(new PointerEvent('pointerup', { pointerId: 31, bubbles: true }));
+    return at;
+  });
+  R.quadrant.ringUnderThumb = ringAt.dx && ringAt.dy && ringAt.live;
+  // satchel: opens from the bag, updates live, closes
+  const bag = await page.evaluate(async () => {
+    document.getElementById('invBtn').click();
+    await new Promise(r2 => setTimeout(r2, 250));
+    const chip = document.getElementById('chip-meat');
+    const open = document.getElementById('invWrap').classList.contains('show');
+    const before = chip.textContent;
+    inv.meat += 2; updateInv();
+    const updated = chip.textContent !== before && chip.textContent === '2';
+    document.getElementById('invClose').click();
+    await new Promise(r2 => setTimeout(r2, 200));
+    const closed = !document.getElementById('invWrap').classList.contains('show');
+    return { open, updated, closed };
+  });
+  R.quadrant.satchelWorks = bag.open && bag.updated && bag.closed;
+  console.log('quadrant+satchel:', JSON.stringify(R.quadrant));
+}
+
 R.errors = errors;
 console.log(JSON.stringify(R, null, 1));
 await browser.close();

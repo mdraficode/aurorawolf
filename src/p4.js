@@ -3740,6 +3740,7 @@ addEventListener('keydown', e => {
       case 'KeyE': doGather(); break;
       case 'KeyF': wolf.attack(); break;
       case 'KeyJ': toggleQuestLog(); break;
+      case 'KeyI': if (typeof toggleInv === 'function') toggleInv(); break;
       case 'KeyX': wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾 Prowling — low, quiet, hard to see' : '🐾 Standing tall'); break;
       case 'KeyH': wolf.howl(); break;
       case 'KeyQ': wolf.wolfSense(); break;
@@ -3793,8 +3794,18 @@ function joyDown(e) {
   const zr = joyZone ? joyZone.getBoundingClientRect() : null;
   joy.zt = zr ? zr.top : -99; joy.zb = zr ? zr.bottom : 1e9;
   try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { }
+  // the ring springs up under the thumb, wherever in the field it landed
+  const R = 66;
+  const cx = Math.max(R + 8, Math.min(innerWidth - R - 8, e.clientX));
+  const cy = Math.max(R + 8, Math.min(innerHeight - R - 8, e.clientY));
+  joyEl.style.left = (cx - R) + 'px';
+  joyEl.style.top = (cy - R) + 'px';
   joyEl.classList.add('live');   // the stick wakes under your thumb
   joySetFromEvent(e);
+}
+function joyHome() {   // back to the corner until called again
+  joyEl.style.left = '88px';
+  joyEl.style.top = 'calc(100vh - 156px)';
 }
 function joyMove(e) {
   if (joyHanded === e.pointerId) return;   // this finger belongs to the lens now — let the window handler see it
@@ -3813,7 +3824,7 @@ function joyMove(e) {
   joySetFromEvent(e);
 }
 const joyEnd = e => {
-  if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); }
+  if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); joyHome(); }
   if (e.pointerId === joyHanded) joyHanded = null;
 };
 for (const jt of [joyEl, joyZone]) {
@@ -3887,6 +3898,20 @@ bindHold('tGather', () => doGather());
 bindHold('tAttack', () => wolf.attack());
 bindHold('tHowl', () => wolf.howl());
 bindHold('tProwl', () => { wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾 Prowling' : '🐾 Standing'); });
+(function () {
+  const ib = el('invBtn'), iw = el('invWrap');
+  const toggleInv = f => {
+    if (!iw) return;
+    const show = f !== undefined ? f : !iw.classList.contains('show');
+    iw.classList.toggle('show', show);
+    if (show) { audio.uiClick(); updateInv(); }
+  };
+  window.toggleInv = toggleInv;
+  if (ib) ib.addEventListener('click', () => toggleInv());
+  const ic = el('invClose');
+  if (ic) ic.addEventListener('click', () => toggleInv(false));
+  if (iw) iw.addEventListener('pointerdown', e => { if (e.target === iw) toggleInv(false); });   // tap the shade to close
+})();
 (function () {
   const qb = el('questBtn');
   if (qb) qb.addEventListener('click', () => toggleQuestLog());
