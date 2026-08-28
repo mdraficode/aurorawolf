@@ -116,6 +116,32 @@ R.faintControls = {
 };
 console.log('faintControls:', JSON.stringify(R.faintControls));
 
+// ---- joystick halo: a near-miss thumb still grabs the stick ----
+await page.waitForFunction(() => getComputedStyle(document.getElementById('joy')).opacity === '0', null, { timeout: 20000 });
+const jc = await page.evaluate(() => {
+  const r = document.getElementById('joy').getBoundingClientRect();
+  const z = document.getElementById('joyZone').getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2, ringR: r.width / 2, zoneL: z.left, zoneR: z.right, left: r.left };
+});
+await page.mouse.move(jc.x + jc.ringR + 42, jc.y + 18);   // outside the ring, inside the halo
+await page.mouse.down();
+await page.waitForFunction(() => joy.id !== null && document.getElementById('joy').classList.contains('live'), null, { timeout: 20000 });
+R.haloActivated = true;
+await page.mouse.move(jc.x + 12, jc.y - 24, { steps: 4 });
+await page.waitForTimeout(500);
+R.haloSteers = await page.evaluate(() => joy.mag > 0.1);
+await page.mouse.up();
+await page.waitForFunction(() => joy.id === null && joy.mag === 0, null, { timeout: 20000 });
+R.haloReleased = true;
+R.joyHalo = {
+  ringMovedRight: jc.left >= 80,
+  zoneWiderThanRing: jc.zoneR - jc.zoneL > 200,
+  nearMissActivates: R.haloActivated,
+  nearMissSteers: R.haloSteers,
+  releasesClean: R.haloReleased
+};
+console.log('joyHalo:', JSON.stringify(R.joyHalo));
+
 R.errors = errors;
 console.log(JSON.stringify(R, null, 1));
 await browser.close();

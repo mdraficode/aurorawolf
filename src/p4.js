@@ -3755,23 +3755,29 @@ function joyRelease() {
   joy.id = null; joy.x = 0; joy.y = 0; joy.mag = 0;
   joyKnob.style.transform = 'translate(0px, 0px)';
 }
+const joyZone = el('joyZone');
+function joyDown(e) {
+  e.preventDefault(); e.stopPropagation();
+  audio.resume();
+  joy.id = e.pointerId;
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { }
+  joyEl.classList.add('live');   // the stick wakes under your thumb
+  joySetFromEvent(e);
+}
+function joyMove(e) {
+  if (e.pointerId !== joy.id) return;
+  e.stopPropagation();
+  joySetFromEvent(e);
+}
+const joyEnd = e => { if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); } };
+for (const jt of [joyEl, joyZone]) {
+  if (!jt) continue;
+  jt.addEventListener('pointerdown', joyDown);
+  jt.addEventListener('pointermove', joyMove);
+  jt.addEventListener('pointerup', joyEnd);
+  jt.addEventListener('pointercancel', joyEnd);
+}
 if (joyEl) {
-  joyEl.addEventListener('pointerdown', e => {
-    e.preventDefault(); e.stopPropagation();
-    audio.resume();
-    joy.id = e.pointerId;
-    try { joyEl.setPointerCapture(e.pointerId); } catch (err) { }
-    joyEl.classList.add('live');   // the stick wakes under your thumb
-    joySetFromEvent(e);
-  });
-  joyEl.addEventListener('pointermove', e => {
-    if (e.pointerId !== joy.id) return;
-    e.stopPropagation();
-    joySetFromEvent(e);
-  });
-  const joyEnd = e => { if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); } };
-  joyEl.addEventListener('pointerup', joyEnd);
-  joyEl.addEventListener('pointercancel', joyEnd);
   // teach once: when play begins, show the stick for a breath — then it stays out of the way
   let joyTaught = false;
   const joyTeach = setInterval(() => {
