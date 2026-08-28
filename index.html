@@ -118,12 +118,18 @@ body.touch #prompt { bottom: 26px; }
 body.touch #toasts { bottom: 86px; }
 #game { touch-action: none; }
 #joy {
-  position: fixed; left: 24px; bottom: 24px; width: 132px; height: 132px; border-radius: 50%;
+  position: fixed; left: 88px; bottom: 24px; width: 132px; height: 132px; border-radius: 50%;
   background: rgba(10, 18, 30, 0.42); border: 1.5px solid rgba(180, 220, 255, 0.28);
   z-index: 12; pointer-events: auto; touch-action: none; backdrop-filter: blur(4px);
   opacity: 0; transition: opacity .28s ease;   /* the stick only shows itself under your thumb */
 }
 #joy.live { opacity: 1; }
+/* the catch field: wider than the ring, invisible — near-miss thumbs still grab the stick */
+#joyZone {
+  position: fixed; left: 34px; bottom: -30px; width: 240px; height: 240px; border-radius: 50%;
+  z-index: 11; display: none; touch-action: none;
+}
+body.touch #joyZone { display: block; pointer-events: auto; }
 #joyKnob {
   position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px;
   border-radius: 50%; background: radial-gradient(circle at 35% 30%, #b8f2da, #3f8f78);
@@ -363,6 +369,7 @@ body.touch #questTracker { display: none; }
   <div id="prompt">E — Gather</div>
   <div id="toasts"></div>
   <div id="touchUI">
+    <div id="joyZone"></div>
     <div id="joy"><div id="joyKnob"></div></div>
     <div id="btns">
       <div class="brow">
@@ -6960,23 +6967,29 @@ function joyRelease() {
   joy.id = null; joy.x = 0; joy.y = 0; joy.mag = 0;
   joyKnob.style.transform = 'translate(0px, 0px)';
 }
+const joyZone = el('joyZone');
+function joyDown(e) {
+  e.preventDefault(); e.stopPropagation();
+  audio.resume();
+  joy.id = e.pointerId;
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { }
+  joyEl.classList.add('live');   // the stick wakes under your thumb
+  joySetFromEvent(e);
+}
+function joyMove(e) {
+  if (e.pointerId !== joy.id) return;
+  e.stopPropagation();
+  joySetFromEvent(e);
+}
+const joyEnd = e => { if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); } };
+for (const jt of [joyEl, joyZone]) {
+  if (!jt) continue;
+  jt.addEventListener('pointerdown', joyDown);
+  jt.addEventListener('pointermove', joyMove);
+  jt.addEventListener('pointerup', joyEnd);
+  jt.addEventListener('pointercancel', joyEnd);
+}
 if (joyEl) {
-  joyEl.addEventListener('pointerdown', e => {
-    e.preventDefault(); e.stopPropagation();
-    audio.resume();
-    joy.id = e.pointerId;
-    try { joyEl.setPointerCapture(e.pointerId); } catch (err) { }
-    joyEl.classList.add('live');   // the stick wakes under your thumb
-    joySetFromEvent(e);
-  });
-  joyEl.addEventListener('pointermove', e => {
-    if (e.pointerId !== joy.id) return;
-    e.stopPropagation();
-    joySetFromEvent(e);
-  });
-  const joyEnd = e => { if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); } };
-  joyEl.addEventListener('pointerup', joyEnd);
-  joyEl.addEventListener('pointercancel', joyEnd);
   // teach once: when play begins, show the stick for a breath — then it stays out of the way
   let joyTaught = false;
   const joyTeach = setInterval(() => {
