@@ -3878,7 +3878,7 @@ addEventListener('pointermove', e => {
   if (camPointers.size === 1) {
     const sens = 0.0078 * clamp(viewDist / 8.5, 0.55, 1.5);
     camYaw -= dx * sens;
-    camPitch = clamp(camPitch + dy * sens * 0.8, 0.06, 1.3);
+    camPitch = clamp(camPitch + dy * sens * 0.8, -1.5, 1.5);   // free look — sky to soil, horizon to horizon
   } else if (camPointers.size === 2 && pinch0 > 40) {
     const pts = [...camPointers.values()];
     const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
