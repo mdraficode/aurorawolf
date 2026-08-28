@@ -42,7 +42,7 @@ build.py                ← assembles index.html from src/ + vendor/
 src/                    ← source: p1 math/terrain · p2 render/veg · p3 wolf+animals+predators · p4 world/HUD/input · shell.html · style.css
 vendor/three.min.js     ← three.js r134 (inlined at build)
 publish.sh              ← publish: `github "msg"` = live update (~1 min) · `archive [alias]` = permanent snapshot
-test/                   ← 21-suite gate incl. quest.test.mjs (quests · spirit · bosses · XP · fast travel) and cam.test.mjs (free-look camera) + on-demand: github (live), snapshots.mjs + analyze.py (regenerate shots)
+test/                   ← 22-suite gate incl. quest.test.mjs (quests · spirit · bosses · XP · fast travel), cam.test.mjs (free-look camera) and freeze.test.mjs (crash-proof loop) + on-demand: github (live), snapshots.mjs + analyze.py (regenerate shots)
 shots/                  ← current-build screenshots (cave crystals · night aurora · waterfall · forest)
 LINKS.md                ← all public links + tokens how-to
 ~/.ghtoken              ← GitHub access (keep! revocable at github.com/settings/tokens)
@@ -81,6 +81,7 @@ Build · test · publish: `npm run build` · `npm test` · `npm run publish`
 - **Resources** — lingonberries, mushrooms, herbs, sticks, stones; gathered spots regrow when you roam far and return
 - **Day/night cycle** — moving sun & moon, dawn/dusk glows, stars, and **aurora borealis** on clear cold nights (this game is from Lapland, after all)
 - **Dynamic weather** — clear / fair / overcast / rain / snow / thunderstorms with lightning, drifting clouds, wind, fog that breathes with the weather; cold biomes get snow instead of rain
+- **🛡 Crash-proofed game loop** — a meteor landing near you once froze the game solid (its map icon crashed the minimap draw); that's fixed, and the main loop is now fault-tolerant: any error is bannered and the game recovers instead of freezing
 - **Synthesized audio** — wind, rain, thunder, birdsong and your howl are generated live with WebAudio (no audio files)
 
 ## 🛠 Rebuilding from source

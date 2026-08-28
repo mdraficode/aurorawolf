@@ -75,7 +75,7 @@ await page.locator('#btnResume').click({ force: true }).catch(() => {});
 await page.waitForTimeout(250);
 R.resumed = await page.evaluate(() => state);
 
-await page.screenshot({ path: 'shots/15_touch.png' });
+await page.screenshot({ path: 'shots/15_touch.png', timeout: 90000 }).catch(() => {});
 
 // ---- controls stay out of the way until touched ----
 // (SwiftShader frames are slow — wait for the transitions, not the clock)
