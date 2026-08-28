@@ -142,6 +142,65 @@ R.joyHalo = {
 };
 console.log('joyHalo:', JSON.stringify(R.joyHalo));
 
+// ---- multitouch: buttons lock on press, slide-off becomes camera, both at once ----
+{
+  const yaw0 = await page.evaluate(() => camYaw);
+  // press SPRINT, slide the finger far away from the button
+  const spr = await page.evaluate(() => {
+    const b = document.getElementById('tSprint');
+    const r = b.getBoundingClientRect();
+    const ev = (t2, x, y) => b.dispatchEvent(new PointerEvent(t2, { pointerId: 21, bubbles: true, clientX: x, clientY: y }));
+    ev('pointerdown', r.left + r.width / 2, r.top + r.height / 2);
+    return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+  });
+  await page.waitForTimeout(350);
+  const heldOff = await page.evaluate(spr => {
+    const b = document.getElementById('tSprint');
+    // captured pointer: moves keep arriving at the button even far away
+    for (let i = 1; i <= 12; i++) b.dispatchEvent(new PointerEvent('pointermove', { pointerId: 21, bubbles: true, clientX: spr.cx + i * 18, clientY: spr.cy - i * 10 }));
+    return { sprintStillOn: touch.sprint === true, onClass: b.classList.contains('on'), lens: camPointers.size };
+  }, spr);
+  await page.waitForTimeout(500);
+  const panned = await page.evaluate(() => camYaw);
+  // a SECOND finger pans on the canvas while the button finger stays held
+  await page.evaluate(() => {
+    const cv2 = renderer.domElement;
+    cv2.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 22, bubbles: true, clientX: 300, clientY: 180 }));
+    for (let i = 1; i <= 8; i++) window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 22, bubbles: true, clientX: 300 - i * 14, clientY: 180 }));
+  });
+  await page.waitForTimeout(450);
+  const after2nd = await page.evaluate(() => ({ yaw: camYaw, sprint: touch.sprint, lens: camPointers.size }));
+  // lifting the button finger releases the hold
+  await page.evaluate(() => {
+    document.getElementById('tSprint').dispatchEvent(new PointerEvent('pointerup', { pointerId: 21, bubbles: true }));
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 22, bubbles: true }));
+  });
+  await page.waitForTimeout(350);
+  const released = await page.evaluate(() => ({ sprint: touch.sprint, lens: camPointers.size }));
+  // sliding over another button must not fire it
+  const stray = await page.evaluate(() => {
+    let atks = 0;
+    const o = wolf.attack; wolf.attack = () => { atks++; return o.apply(wolf, arguments); };
+    const b = document.getElementById('tJump');
+    const r = b.getBoundingClientRect();
+    b.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 23, bubbles: true, clientX: r.left + 5, clientY: r.top + 5 }));
+    for (let i = 1; i <= 6; i++) b.dispatchEvent(new PointerEvent('pointermove', { pointerId: 23, bubbles: true, clientX: r.left + 5 + i * 25, clientY: r.top + 5 }));
+    b.dispatchEvent(new PointerEvent('pointerup', { pointerId: 23, bubbles: true }));
+    wolf.attack = o;
+    return atks;
+  });
+  R.multitouch = {
+    holdKeptAfterSlideOff: heldOff.sprintStillOn && heldOff.onClass,
+    slideOffPansCamera: Math.abs(panned - yaw0) > 0.05,
+    handedToLens: heldOff.lens === 1,
+    secondFingerPansToo: Math.abs(after2nd.yaw - panned) > 0.03,
+    sprintStillOnWithSecond: after2nd.sprint === true,
+    liftReleases: released.sprint === false && released.lens === 0,
+    straySlideFiresNothing: stray === 0
+  };
+  console.log('multitouch:', JSON.stringify(R.multitouch));
+}
+
 R.errors = errors;
 console.log(JSON.stringify(R, null, 1));
 await browser.close();

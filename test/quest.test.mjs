@@ -64,6 +64,31 @@ try {
   ck('addXp levels up (+8 maxHp)', R.lvl === 2 && R.hp === 108, `lvl ${R.lvl}, hp ${R.hp}`);
   ck('title shown in tracker', R.track.includes(R.title), R.title);
 
+  // ---- LIVE kill path: a real bite must advance a real hunt quest (B1 regression) ----
+  await page.evaluate(async () => {
+    let prey = null;
+    for (const [, ch] of chunks) for (const a2 of ch.animals) if (a2.sp.label === 'Rabbit' && !a2.dead) { prey = a2; break; }
+    if (!prey) return 'no-rabbit';
+    QUESTS.active.length = 0;
+    const q = genQuest('hunt'); q.species = 'rabbit'; q.title = 'LIVE KILL'; q.need = 1; q.have = 0; q.biome = 'forest';
+    QUESTS.active.push(q);
+    const xp0 = wolf.xp;
+    for (let i = 0; i < 50 && !prey.dead; i++) {
+      const a0 = Math.random() * 6.28;
+      wolf.pos.set(prey.pos.x + Math.sin(a0) * 1.4, prey.pos.y + 0.8, prey.pos.z + Math.cos(a0) * 1.4);
+      wolf.yaw = Math.atan2(prey.pos.x - wolf.pos.x, prey.pos.z - wolf.pos.z); camYaw = wolf.yaw;
+      wolf.atkCd = 0;
+      wolf.attack();
+      await new Promise(r => setTimeout(r, 220));
+    }
+    await new Promise(r => setTimeout(r, 600));
+    window.__LIVEKILL = { died: prey.dead, have: q.have, xp: wolf.xp - xp0 };
+    QUESTS.active.length = 0; QUESTS.done.length = 0;
+    return 'ok';
+  });
+  R = await page.evaluate(() => window.__LIVEKILL || { died: false, have: -1, xp: 0, skip: 'no-rabbit' });
+  ck('live kill advances quest + pays XP', R.died === true && R.have === 1 && R.xp > 0, `died=${R.died}, have=${R.have}, +${R.xp}xp`);
+
   // ---- questEvent completes a hunt ----
   await page.evaluate(() => {
     QUESTS.active.length = 0;

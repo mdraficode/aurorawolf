@@ -588,6 +588,26 @@ class Wolf {
     this.pos.z += dirZ * this.speed * dt;
     this.distance += this.speed * dt;
     if (this.speed > 0.5) collideSolids(this, dirX, dirZ);   // big trunks & boulders are solid
+    // wedge escape: pressing on but going nowhere — the wild lends a shoulder
+    if (moving && this.grounded && this.flyT <= 0) {
+      if (this._wkx === undefined) { this._wkx = this.pos.x; this._wkz = this.pos.z; this._wkt = 0; }
+      this._wkt += dt;
+      this._wkcd = Math.max(0, (this._wkcd || 0) - dt);
+      if (this._wkt >= 1.15) {
+        if (Math.hypot(this.pos.x - this._wkx, this.pos.z - this._wkz) < 0.55 && this._wkcd <= 0) {
+          this._wkcd = 2.5;
+          let nx = -Math.sin(this.yaw), nz = -Math.cos(this.yaw), bd = 99;
+          for (const [, ch] of chunks) for (const sol of (ch.solids || [])) {
+            const ddx = this.pos.x - sol.x, ddz = this.pos.z - sol.z, dd = Math.hypot(ddx, ddz);
+            if (dd < 3.4 && dd < bd) { bd = dd; const l = dd || 1; nx = ddx / l; nz = ddz / l; }
+          }
+          this.pos.x += nx * 0.55; this.pos.z += nz * 0.55;
+          this.vy = Math.max(this.vy, 3.2); this.grounded = false;
+          this.yaw += 0.7 * (Math.random() < 0.5 ? 1 : -1);   // turn aside and try again
+        }
+        this._wkx = this.pos.x; this._wkz = this.pos.z; this._wkt = 0;
+      }
+    } else this._wkt = 0;
 
     const ground = groundAt(this.pos.x, this.pos.z);
     const wy = groundWaterY();
@@ -936,7 +956,11 @@ class RivalPack {
   setStates(st) { for (const m of this.members) if (!m.dead) m.state = this.stance === 'ignore' && st === 'attack' ? 'attack' : st; }
   memberDown() {
     this.lost++;
-    if (this.lost >= 2 || this.members[0].dead) { this.stance = 'flee'; this.setStates('flee'); }
+    if (this.lost >= 2 || this.members[0].dead) {
+      this.stance = 'flee'; this.setStates('flee');
+      if (typeof questEvent === 'function') questEvent('packDriven', { pos: { x: this.members[0].pos.x, z: this.members[0].pos.z } });
+      if (typeof addXp === 'function') addXp(25);
+    }
   }
   update(dt, tSec) {
     const alive = this.members.filter(m => !m.dead);
@@ -1689,6 +1713,8 @@ class Animal {
     animalTotal--;
     pool.burst(this.pos, 26, 0xffe0a8, 1.8, 3.4, 3.6);
     AnimalLoot.grant(this);
+    if (typeof questEvent === 'function') questEvent('kill', { species: this.name, pos: { x: this.pos.x, z: this.pos.z } });
+    if (typeof addXp === 'function') addXp(this.sp.hp >= 4 ? 12 : 6);   // bigger prey, bigger tale
     scene.remove(this.model);
   }
   dispose() {
@@ -1763,6 +1789,8 @@ class Predator {
     predatorTotal--;
     pool.burst(this.pos, 34, 0xffd9a8, 2.2, 4.0, 4.2);
     audio.cry(0.55);
+    if (typeof questEvent === 'function') questEvent('kill', { species: 'predator', pos: { x: this.pos.x, z: this.pos.z } });
+    if (typeof addXp === 'function') addXp(20);
     let msg = `${this.sp.icon} You slew the ${this.sp.label}! +${this.sp.meat} 🥩`;
     inv.meat += this.sp.meat;
     if (this.sp.pelt) { inv.pelt += this.sp.pelt; msg += ` +${this.sp.pelt} 🧥`; }

@@ -1,0 +1,73 @@
+# 🐞 Bug-Hunt Mission Report — Aurora Wolf
+> ✅ **RESOLVED — all actionable findings fixed, gated, and published.** Details in the Resolution Log at the bottom.
+> Replay any session live: serve the workspace and open `watch.html?autopilot=1` (autopilot build, bot plays on-screen with an event feed).
+_Played autonomously from a fresh start, 3 sessions (~35 min of gameplay) + targeted verification battery. Seeds: 4242, 90210, 1313, 5150. Zero page errors across all play — the crash-proof loop held up._
+
+## Legend
+🔴 critical = breaks core progression · 🟠 major = blocks/misses content · 🟡 minor = polish · 🔵 observation
+
+---
+
+## 🔴 B1 — Kills never count toward quests, and give no XP
+**The hunt loop is dead in live play.**
+- **Proof (live):** bit a Rabbit once → prey died, `meat +1`, kill stat +1 — but the active hunt quest stayed **0/1** and XP gained **0**.
+- **Root cause:** `questEvent('kill', …)` is called **nowhere**. The p3 hooks (Animal.caught, Predator.die, Pack.memberDown → kill/predkill/packDriven) were lost in a patch batch during the quest round — same failure mode as the earlier lost perks constructor (a python patch batch aborted mid-file and the later steps silently never landed).
+- **Blast radius:** HUNT quests uncompletable · SURVIVE (storm-kills) uncompletable · PACK (rival pack driven off) uncompletable · no XP for any prey/predator/rival kill (prey 6 / predator 20 / rival 35 per design) → leveling from combat impossible · boss-awaken gating (3 quests per biome) slows to gather/explore-only.
+- **Fix:** re-apply the p3 hooks: in `Animal.caught()` → `questEvent('kill',{species: key, pos}) + addXp(6)`; in `Predator.die()` → `questEvent('kill',{species:'predator'…}) + addXp(20)`; in `Pack` flee branch → `questEvent('packDriven',{})`; in `RivalWolf.die()` → `addXp(35)` (rival questEvent already wired ✓).
+- **Note:** `test/quest.test.mjs` passed because it calls `questEvent()` directly — the suite can't catch a missing *caller*. Add a live kill-path check.
+
+## 🔴 B2 — Quest generator offers impossible quests (feasibility never checked)
+Three independent flavors, all proven:
+- **a) Hunts in biomes where nothing spawns.** `spawnChunk()` returns early for swamp / enchanted / volcanic / shore (no `SPECIES_TABLE` → **zero animals ever spawn there**), but `genQuest('hunt')` falls back to the *forest* species table for those biomes → "Hunt rabbits in the Ember Wastes" — the code's own comment says nothing grazes on ash. Sampled offer rates: swamp/enchanted/volcanic/shore together ≈ 4 of 13 biome keys × the 40 % "neighbor biome" roll.
+- **b) Neighbor biome pick is arbitrary.** `questBiomePick()` picks `cur ± 1` **by object-key order** — 'volcanic' and 'shore' are legitimate picks while the player stands in a taiga. Quests routinely send you hundreds of meters away for species that do spawn — just not where you are.
+- **c) Explore quests point at landmarks that don't exist.** Sampled 60 explore quests: **58 named landmark types absent from the loaded world** (world held 2 × ancientTree only). Type may exist beyond the streamed area — but see B3: the player gets **no waypoint at all** in that case, so it's indistinguishable from impossible.
+- **Fix:** filter hunt species by `SPECIES_TABLE[questBiome]` actually non-empty AND species present in nearby loaded chunks (or at least same table); pick explore `lmType` from types already present in `landmarkList` (or nearest existing); exclude volcanic/shore from quest biome picks.
+
+## 🟠 B3 — No waypoint for explore quests whose landmark type is absent
+`drawMapOverlays` only draws the gold waypoint when an lm of `q.lmType` exists in `landmarkList`. With B2(c) that means most explore quests show **zero guidance** — not on minimap, not on big map. Fix together with B2(c); as a fallback, waypoint the nearest chunk-biome-match direction.
+
+## 🟠 B4 — "Gather bones" collect quests are surface-impossible
+Bone pickups spawn **only in caves** (cache pickups) — the surface has none. COLLECT_ITEMS includes `bone` (and `wood` only from sticks/meteor sites) without availability checks. Session 3 spent its whole run on "Gather 5 bones" 0/5. **Fix:** gate `bone` behind cave discovery (or drop it from the pool); prefer items with pickups in loaded chunks.
+
+## 🟡 B5 — Quest title pluralization
+"Hunt 3 **Foxs**" (also "Deers" was fine by luck? no — "Deers" also appears). `label + 's'`. Fix: simple pluralizer (Fox→Foxes, Deer→Deer, else +s).
+
+## 🟡 B6 — Terrain/solid wedging (game-feel)
+Session 1: the wolf wedged at (−535, 166) forest, **0 m of movement for 11 minutes** while inputs kept processing (sprint toggling visible in stamina). Sliding exists for head-on solids, but concave pockets (between trunks/boulders, or a bank lip) trap the wolf with no auto-unstick. A human player escapes with camera+strafe; it still feels bad. **Fix idea:** if displacement < ε over N seconds while input active, apply a gentle outward nudge along the surface normal.
+
+## 🔵 B7 — Unexplained HP loss
+Session 2: 100 → 70 HP around t≈180 s in taiga, no predator logged near, no death. Possibly cold/storm drain or an off-screen predator. Needs a damage-source audit line (log every `wolf.hp` decrease with cause) — verify on-device.
+
+## ✅ Verified healthy during play
+- **Zero page errors / zero crash banners** in ~35 min across 3 fresh worlds (fault-tolerant loop works; meteor-freeze fix holds).
+- No NaN in any of ~1,300 samples (positions, HP, stamina, camera angles); chunk streaming stable (16→63 chunks over 640 m, no leak); animal populations healthy (35–47 in range, young spawning: "Young Rabbit/Deer").
+- Gathering works (items, +3 XP, shimmer), landmark discovery works (+10 XP seen live), day-cycle quest tick works, meat/loot works, combat bite-cone works, rival-kill quest hook exists (p3:851).
+- Weather/biome transitions clean across taiga→forest→grove→meadow.
+
+## 🤖 Bot artifacts (NOT game bugs — recorded for honesty)
+- Prey matching by object reference failed silently (`Animal.sp` is a copy, not the SPECIES ref) → "no prey nearby" events in sessions 1–2 were the bot's fault; matching by label fixed it.
+- "Stuck storms" in session 3: headless SwiftShader runs the sim at ~12 % real-time speed, so real-time stuck timers misfired. Session-1's 11-min zero-movement wedge remains a genuine game-feel issue (B6).
+- The bot cannot path-plan; humans detour naturally.
+
+## Suggested fix order
+1. B1 (restore kill/packDriven hooks + kill XP) — unlocks the entire quest loop
+2. B2+B3 (quest feasibility + waypoint) — no more dead-end deeds
+3. B4 (bones gating) — same family, quick
+4. B5, B6, B7 — polish & audit
+
+
+---
+
+## ✅ Resolution Log (post-mission fixes — all verified)
+
+| Bug | Status | Fix shipped |
+|---|---|---|
+| **B1** kills don't count / no XP | ✅ FIXED | Hooks restored in `Animal.caught()` (kill + 6–12 XP by prey size), `Predator.die()` (kill + 20 XP), `Pack.memberDown` flee branch (packDriven + 25 XP). Live-bite regression check added to `quest.test.mjs` — **32/32**, quest completes and pays on a real bite |
+| **B2** impossible quests | ✅ FIXED | `questBiomePick` only picks wildlife biomes (has a SPECIES_TABLE); hunts pick the biome's own table, preferring species alive in loaded chunks; explore quests only name **unfound landmarks that exist in the world** (in-biome first, any-landmark fallback, `peak` if none). Verification battery: 0 invalid offers across all 13 biome keys × 40 rolls |
+| **B3** missing waypoint | ✅ FIXED (via B2) | Waypoint draws whenever the quest's landmark exists — which is now always |
+| **B4** surface-impossible bones | ✅ FIXED | `bone` removed from the collect pool (cave treasure stays a discovery, not a deed). Pool now berry/stone/wood/herb/mushroom |
+| **B5** "Foxs"/"Deers" | ✅ FIXED | `pluralOf()`: Fox→Foxes, Deer→Deer, Hare→Hares. Titles verified |
+| **B6** terrain wedging | ✅ FIXED | Wolf wedge-escape: >1.15 s of pressing-on with <0.55 m progress (game-time) → nudged off the nearest solid + small hop + turn, 2.5 s cooldown. No multi-minute wedges in post-fix autopilot sessions |
+| **B7** unexplained HP loss | 🔍 TOOL SHIPPED | Not reproducible in 12 audited minutes (0 HP drops). `?audit=1` now logs every HP decrease with its call site. Most likely cause: full-speed crash damage (−4 HP, toasted to players) from the bot's blind sprinting |
+
+**Post-fix proof:** fresh-world autopilot sessions run with **0 page errors, 0 crash banners**; quest offers 100 % feasible; live kill → quest complete → XP → level all verified end-to-end. (Bot footnote: an open-field chase of a reindeer can outrun an exhausted wolf — that's the stalking mechanic working as designed, not a bug; the bot just never learned to ambush.)

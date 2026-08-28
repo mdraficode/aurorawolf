@@ -2552,11 +2552,23 @@ const QUESTS = { active: [], avail: [], done: [] };
 let questHudDirty = true, questTab = 'active';
 const questsDoneByBiome = {};
 const COLLECT_ITEMS = { herb: { label: 'herbs', icon: '🌿' }, berry: { label: 'lingonberries', icon: '🍒' }, mushroom: { label: 'mushrooms', icon: '🍄' }, stone: { label: 'stones', icon: '🪨' }, bone: { label: 'bones', icon: '🦴' }, wood: { label: 'sticks', icon: '🪵' } };
-function questBiomePick() {   // quests come from the lands you walk
+function questBiomePick() {   // quests come from the lands you walk — only lands where wildlife actually lives
   const cur = curBiomeKey;
-  const keys = Object.keys(BIOME_INFO);
-  const near = keys[(keys.indexOf(cur) + ((Math.random() * 3) | 0) - 1 + keys.length) % keys.length];
-  return Math.random() < 0.6 && cur ? cur : (near || 'forest');
+  const keys = Object.keys(BIOME_INFO).filter(k => SPECIES_TABLE[k]);   // no hunts in the ember wastes / shores
+  if (cur && SPECIES_TABLE[cur] && Math.random() < 0.6) return cur;
+  return keys[(keys.indexOf(cur) + 1 + ((Math.random() * (keys.length - 1)) | 0)) % keys.length] || 'forest';
+}
+const pluralOf = (label, n) => {   // Fox → Foxes, Deer → Deer, Rabbit → Rabbits
+  if (n === 1) return label;
+  if (/y$/i.test(label)) return label.slice(0, -1) + 'ies';
+  if (/(s|x|ch|sh)$/i.test(label)) return label + 'es';
+  if (/deer|sheep|fish/i.test(label)) return label;
+  return label + 's';
+};
+function nearbySpeciesCounts() {   // what actually roams the loaded world right now
+  const counts = {};
+  for (const [, ch] of chunks) for (const a of ch.animals) if (!a.dead) counts[a.name] = (counts[a.name] || 0) + 1;
+  return counts;
 }
 function genQuest(kind) {
   const biome = questBiomePick();
@@ -2565,22 +2577,37 @@ function genQuest(kind) {
   const kinds = ['hunt', 'explore', 'collect', 'rival', 'survive'];
   kind = kind || kinds[(Math.random() * kinds.length) | 0];
   if (kind === 'hunt') {
-    const table = SPECIES_TABLE[biome] || SPECIES_TABLE.forest;
-    const prey = table.map(e => e[0]).filter(k => SPECIES[k] && (SPECIES[k].hp || 1) <= 3 && !SPECIES[k].huntsWolf);
-    const species = prey.length ? prey[(Math.random() * prey.length) | 0] : 'deer';
+    const table = SPECIES_TABLE[biome];
+    if (!table) return genQuest('explore');   // a land without prey offers a journey instead
+    const live = nearbySpeciesCounts();
+    // prefer quarry you can actually find nearby, then the biome's own table
+    const inBiome = table.map(e => e[0]);
+    const prey = inBiome.filter(k => SPECIES[k] && (SPECIES[k].hp || 1) <= 3 && !SPECIES[k].huntsWolf && live[k] > 0);
+    const fallback = inBiome.filter(k => SPECIES[k] && (SPECIES[k].hp || 1) <= 3 && !SPECIES[k].huntsWolf);
+    const pool = prey.length ? prey : (fallback.length ? fallback : inBiome);
+    const species = pool[(Math.random() * pool.length) | 0] || 'deer';
     const n = 2 + ((Math.random() * 3) | 0);
     const sp = SPECIES[species];
-    return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: sp.icon || '⚔️', title: `Hunt ${n} ${sp.label}${n > 1 ? 's' : ''}`,
-      desc: `Bring down ${n} ${sp.label.toLowerCase()}${n > 1 ? 's' : ''} — they roam the ${bName}. Gold light marks your quarry when it is near.`,
+    const pn = pluralOf(sp.label, n).toLowerCase();
+    return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: sp.icon || '⚔️', title: `Hunt ${n} ${pluralOf(sp.label, n)}`,
+      desc: `Bring down ${n} ${pn} — they roam the ${bName}. Gold light marks your quarry when it is near.`,
       need: n, have: 0, species, rw: { xp: 120 + n * 25, items: { meat: 2 } }, rwText: `${120 + n * 25} XP · 2 🥩` };
   }
   if (kind === 'explore') {
-    if (Math.random() < 0.55) {
-      const types = Object.keys(LANDMARKS).filter(k => { const b = LANDMARKS[k].biomes; return b.any || (b[biome] || 0) > 0.15; });
-      const type = types[(Math.random() * types.length) | 0] || 'cave';
-      const def = LANDMARKS[type];
+    // only promise what the world actually holds: unfound landmarks that exist (in-biome first)
+    const byBiome = [], anywhere = [];
+    for (const lm of landmarkList) {
+      if (lm.found) continue;
+      const b = LANDMARKS[lm.type] && LANDMARKS[lm.type].biomes;
+      if (!b) continue;
+      if (b.any || (b[biome] || 0) > 0.15) byBiome.push(lm); else anywhere.push(lm);
+    }
+    const pick = byBiome.length ? byBiome : anywhere;
+    if (Math.random() < 0.8 && pick.length) {
+      const lm = pick[(Math.random() * pick.length) | 0];
+      const type = lm.type, def = LANDMARKS[type];
       return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: def.icon, title: `Discover: ${def.label}`,
-        desc: `Find a ${def.label} in the ${bName}. A waypoint marks the way on your map. Its site becomes a fast-travel point.`,
+        desc: `Find a ${def.label} — a waypoint marks the way on your map. Its site becomes a fast-travel point.`,
         need: 1, have: 0, lmType: type, rw: { xp: 180, ft: true }, rwText: '180 XP · 🗺️ fast travel unlocked' };
     }
     return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: '⛰️', title: 'Climb a High Peak',
@@ -2588,7 +2615,7 @@ function genQuest(kind) {
       need: 1, have: 0, peak: true, rw: { xp: 200, mapReveal: true }, rwText: '200 XP · 🗺️ wider map' };
   }
   if (kind === 'collect') {
-    const keys2 = Object.keys(COLLECT_ITEMS);
+    const keys2 = Object.keys(COLLECT_ITEMS).filter(k => k !== 'bone');   // bones lie in caves, not on quests
     const item = keys2[(Math.random() * keys2.length) | 0];
     const n = 3 + ((Math.random() * 4) | 0);
     const c = COLLECT_ITEMS[item];
@@ -3807,8 +3834,9 @@ if (joyEl) {
   }, 500);
 }
 
-/* -------- touch buttons -------- */
+/* -------- touch buttons: press-locked, slide-away-friendly -------- */
 let btnsWakeT = 0;
+const btnPointers = new Map();   // pointerId → {btn, rect, handed}
 function wakeBtns() {   // a touched button wakes the whole cluster for a moment
   const root = el('btns');
   if (!root) return;
@@ -3825,11 +3853,33 @@ function bindHold(id, down, up) {
     wakeBtns();
     down();
     b.classList.add('on');
+    // the hold locks on press: this finger owns the button until it lifts,
+    // wherever it wanders — and past the button it becomes a camera drag
+    btnPointers.set(e.pointerId, { btn: b, rect: b.getBoundingClientRect(), handed: false });
+    try { b.setPointerCapture(e.pointerId); } catch (err) { }
   });
-  const end = () => { b.classList.remove('on'); if (up) up(); };
+  b.addEventListener('pointermove', e => {
+    const st = btnPointers.get(e.pointerId);
+    if (!st || st.handed) return;
+    const r = st.rect;
+    if (e.clientX < r.left - 10 || e.clientX > r.right + 10 || e.clientY < r.top - 10 || e.clientY > r.bottom + 10) {
+      st.handed = true;
+      if (camPointers.size === 0) {   // no other finger on the lens — this one takes it
+        pinch0 = 0;   // never a pinch from a button handoff
+        camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY, fromBtn: true });
+      }
+    }
+  });
+  const end = e => {
+    if (btnPointers.has(e.pointerId)) {
+      btnPointers.delete(e.pointerId);
+      camPointers.delete(e.pointerId);
+      b.classList.remove('on');
+      if (up) up();
+    }
+  };
   b.addEventListener('pointerup', end);
   b.addEventListener('pointercancel', end);
-  b.addEventListener('pointerleave', end);
 }
 bindHold('tJump', () => { keys.Space = true; }, () => { keys.Space = false; });
 bindHold('tSprint', () => { touch.sprint = true; }, () => { touch.sprint = false; });
@@ -3883,11 +3933,11 @@ cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
   audio.resume();
   camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (camPointers.size === 2) {
+  if (camPointers.size === 2 && [...camPointers.values()].every(q => !q.fromBtn)) {   // a pinch needs two real canvas fingers
     const pts = [...camPointers.values()];
     pinch0 = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
     pinchDist0 = camDist;
-  }
+  } else pinch0 = 0;
 });
 addEventListener('pointermove', e => {
   const p = camPointers.get(e.pointerId);
@@ -3895,18 +3945,19 @@ addEventListener('pointermove', e => {
   const dx = e.clientX - p.x, dy = e.clientY - p.y;
   p.x = e.clientX; p.y = e.clientY;
   if (state !== 'play') return;
-  if (camPointers.size === 1) {
+  if (camPointers.size === 2 && pinch0 > 40 && [...camPointers.values()].every(q => !q.fromBtn)) {
+    const pts = [...camPointers.values()];
+    const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    camDist = clamp(pinchDist0 * pinch0 / d, 3.5, 19);
+  } else {
+    // pan by whichever finger moves — a held button's finger, a canvas finger, either
     const sens = 0.0078 * clamp(viewDist / 8.5, 0.55, 1.5);
     const vGain = document.body.classList.contains('touch') ? 1.5 : 1;   // a thumb's short swipe = the whole sky
     camYaw -= dx * sens;
     camPitch = clamp(camPitch + dy * sens * vGain, -PITCH_MAX, PITCH_MAX);   // free look — the full 90°, soil to zenith
-  } else if (camPointers.size === 2 && pinch0 > 40) {
-    const pts = [...camPointers.values()];
-    const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-    camDist = clamp(pinchDist0 * pinch0 / d, 3.5, 19);
   }
 });
-const camPtrEnd = e => { camPointers.delete(e.pointerId); };
+const camPtrEnd = e => { camPointers.delete(e.pointerId); btnPointers.delete(e.pointerId); };
 addEventListener('pointerup', camPtrEnd);
 function camEdgeHold(dt) {   // thumb parked at the top/bottom edge: keep tilting to the full 90°
   if (state !== 'play' || camPointers.size !== 1) return;
@@ -3968,6 +4019,14 @@ function updateCamera(dt) {
   const fovT = (wolf.flyT > 0 && wolf.speed > 10) ? 80 : wolf.speed > 9 ? 70 : 62;
   camera.fov = lerp(camera.fov, fovT, Math.min(1, dt * 6));
   camera.updateProjectionMatrix();
+}
+
+// ?audit=1 — every HP drop is logged with its call site (damage-source audit)
+if (/[?&]audit=1/.test(location.search)) {
+  let _hp = wolf.hp;
+  try {
+    Object.defineProperty(wolf, 'hp', { configurable: true, get() { return _hp; }, set(v) { if (v < _hp - 0.01) console.log('[audit] hp ' + _hp.toFixed(1) + ' → ' + v.toFixed(1) + ' @ ' + (new Error().stack.split('\n')[2] || '').trim()); _hp = v; } });
+  } catch (e) { }
 }
 
 /* ---------------- boot & main loop ---------------- */
