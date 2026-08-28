@@ -2,7 +2,7 @@
    Plays the game like a human: takes quests, hunts, gathers, explores, levels.
    Logs everything for bug analysis. Enable with ?autopilot=1 */
 (function () {
-  if (!/[?&]autopilot=1/.test(location.search)) return;
+  if (!/[?&]autopilot=1/.test(location.search) && window.__LIVE_BUILD !== true) return;
   const L = (window.BOTLOG = []);
   const t0 = performance.now();
   const log = (type, data) => {
@@ -23,6 +23,13 @@
       const r = o.apply(this, a);
       const q = typeof a[0] === 'object' ? a[0] : (QUESTS.active.find(x => x.id === a[0]) || QUESTS.done.find(x => x.id === a[0]) || {});
       log('quest-' + fn, { title: q.title || String(a[0]), have: q.have, need: q.need });
+      if (fn === 'acceptQuest' && q && q.kind) {
+        // regression: every accepted deed must be feasible
+        if (q.kind === 'hunt' && !(SPECIES_TABLE[q.biome] || []).some(e => e[0] === q.species)) log('bug-REGRESS-infeasible-hunt', { key: q.title, msg: 'offered prey that cannot spawn in its biome' });
+        if (q.kind === 'explore' && q.lmType && !landmarkList.some(l => l.type === q.lmType)) log('bug-REGRESS-infeasible-explore', { key: q.title, msg: 'landmark type absent from the world' });
+        if (q.kind === 'collect' && q.item === 'bone') log('bug-REGRESS-bone-deed', { key: q.title, msg: 'surface-impossible collect returned' });
+        if (/Foxs|Deers|Goatses|Gooses|Rabbits.*Rabbits/.test(q.title || '')) log('bug-REGRESS-plural', { key: q.title });
+      }
       return r;
     };
   }
@@ -157,9 +164,12 @@
       for (const cq of QUESTS.active) {
         if (cq.kind === 'hunt') {
           const ref = SPECIES[cq.species];
-          const hit = nearestAnimal(a => a.sp === ref || (ref && a.sp.label === ref.label));   // sp is a copy — match by label too
+          // stalk catchable quarry: a wolf sprints ~13-14; dinner doesn't outrun that
+          const hit = nearestAnimal(a => (a.sp === ref || (ref && a.sp.label === ref.label)) && (a.sp.run || 8) <= 12.5);
+          const anyHit = nearestAnimal(a => a.sp === ref || (ref && a.sp.label === ref.label));
+          if (!hit.a && anyHit.a) warnOnce('toofast' + cq.species, 'note-prey-too-fast', { key: cq.species, msg: 'quarry outsprints the wolf — needs an ambush (by design)' });
           if (hit.a && hit.d < bestD) { bestD = hit.d; q = cq; goal = { x: hit.a.pos.x, z: hit.a.pos.z }; targetAnimal = hit.a; mode = 'hunt'; }
-          else if (!hit.a) {
+          else if (!anyHit.a) {
             // a journey: walk to the quarry's homeland
             const t2 = bot.travelToBiome(cq.biome);
             if (t2 && (bestD === 1e9 || t2.d + 120 < bestD)) { bestD = t2.d + 120; q = cq; goal = t2; mode = 'travel'; }
@@ -204,6 +214,8 @@
       keys.KeyS = keys.KeyA = keys.KeyD = false;
       keys.ShiftLeft = (dg > 35 || (targetAnimal && dg < 26)) && wolf.stamina > 20 && !wolf.exhausted;   // burst to close the kill
 
+      // stalk: prowl low when closing on the quarry
+      wolf.crouch = !!(targetAnimal && dg < 16 && dg > 3.5);
       // hunt: bite in reach
       if (targetAnimal && dg < 3.4 + (targetAnimal.sp.scale || 1)) {
         keys.KeyW = false;
@@ -212,7 +224,12 @@
           const hpB = targetAnimal.hp;
           wolf.attack();
           setTimeout(() => {
-            if (targetAnimal.dead) log('kill', { sp: q ? (q.species || q.kind) : '?', msg: 'caught ' + (q && q.species ? q.species : (q ? q.kind : 'target')) + ' → quest ' + (q ? q.have + '/' + q.need : '') + ' · xp ' + (wolf.xp | 0) + ' · meat ' + inv.meat });
+            if (targetAnimal.dead) {
+              log('kill', { sp: q ? (q.species || q.kind) : '?', msg: 'caught ' + (q && q.species ? q.species : (q ? q.kind : 'target')) + ' → quest ' + (q ? q.have + '/' + q.need : '') + ' · xp ' + (wolf.xp | 0) + ' · meat ' + inv.meat });
+              const name = targetAnimal.name || (q && q.species);
+              const hq = QUESTS.active.find(x => x.kind === 'hunt' && x.species === name);
+              if (hq && hq.have === 0) log('bug-REGRESS-kill-not-counted', { key: hq.title, msg: 'prey died but the hunt deed did not progress' });
+            }
             else if (targetAnimal.hp === hpB) warnOnce('miss' + performance.now() | 0, 'bug-bite-no-effect', { key: q.species, msg: 'bite in reach did nothing (hp ' + hpB + ', dist ' + dg.toFixed(1) + ')' });
           }, 350);
         }
@@ -231,6 +248,49 @@
         }
       }
       bot.goalText = mode + ' → ' + dg.toFixed(0) + 'm' + (q ? ' (' + q.have + '/' + q.need + ')' : '');
+
+      // ---- phase: spelunk — a cave mouth nearby is an invitation ----
+      if (mode === 'wander' && !caveState.in && !bot.inCave) {
+        let ce = null, cd = 1e9;
+        for (const [, ch] of chunks) for (const pk of ch.pickups) {
+          if (pk.type !== 'caveEnter' || pk.gathered) continue;
+          const d = Math.hypot(pk.x - wolf.pos.x, pk.z - wolf.pos.z);
+          if (d < cd) { cd = d; ce = pk; }
+        }
+        if (ce && cd < 130) { goal = { x: ce.x, z: ce.z }; bot.caveGoal = ce; mode = 'spelunk'; }
+      }
+      if (bot.caveGoal && !caveState.in) {
+        const d = Math.hypot(bot.caveGoal.x - wolf.pos.x, bot.caveGoal.z - wolf.pos.z);
+        if (d < 2.6) { doGather(); }
+        if (d < 2.6 && !caveState.in && ++bot.caveTries > 4) { warnOnce('cave' + (bot.caveGoal.x | 0), 'bug-cave-wont-open', { msg: 'standing at the mouth, Enter Cave does nothing' }); bot.caveGoal = null; }
+      }
+      if (caveState.in) {
+        bot.inCave = true; bot.caveT = (bot.caveT || 0) + 0.15;
+        // gather the deep dark's bones, then leave
+        let bp = null, bd = 1e9;
+        for (const pk of (caveState.pickups || [])) { if (pk.gathered || pk.type !== 'bone') continue; const d = Math.hypot(pk.x - wolf.pos.x, pk.z - wolf.pos.z); if (d < bd) { bd = d; bp = pk; } }
+        if (bp && inv.bone < 3) { goal = { x: bp.x, z: bp.z }; if (bd < 2.2) { const s0 = invSum(); doGather(); setTimeout(() => { if (invSum() > s0) log('gather', { msg: '🦴 cave bone +1' }); }, 250); } mode = 'spelunk'; }
+        else {
+          let ex = null, xd = 1e9;
+          for (const pk of (caveState.pickups || [])) { if (pk.type !== 'caveExit') continue; const d = Math.hypot(pk.x - wolf.pos.x, pk.z - wolf.pos.z); if (d < xd) { xd = d; ex = pk; } }
+          if (ex) { goal = { x: ex.x, z: ex.z }; if (xd < 2.6) { doGather(); log('cave-run', { msg: 'spelunk done — bones ' + inv.bone }); } mode = 'spelunk'; }
+        }
+        if (bot.caveT > 150) warnOnce('cavestuck' + dayCount, 'bug-cave-stuck', { msg: 'underground for 150s+ — lost in the dark?' });
+      } else if (bot.inCave) { bot.inCave = false; bot.caveT = 0; bot.caveGoal = null; }
+
+      // ---- phase: chaos — every ~3 min, stress the game like an impatient player ----
+      bot.chaosT = (bot.chaosT || 0) + 0.15;
+      if (bot.chaosT > 185) {
+        bot.chaosT = 0; bot.chaosUntil = performance.now() + 18000;
+        log('chaos', { msg: 'stress round: panels, howl, sense, provoke' });
+        try {
+          if (typeof toggleQuestLog === 'function') { toggleQuestLog(true); setTimeout(() => toggleQuestLog(false), 700); }
+          if (typeof toggleInv === 'function') { toggleInv(true); setTimeout(() => toggleInv(false), 600); }
+          wolf.howl(); wolf.wolfSense();
+          const pr = nearestPred();
+          if (pr.a && pr.d < 60) { wolf.pos.x = pr.a.pos.x + 2; wolf.pos.z = pr.a.pos.z + 2; wolf.attack(); }   // poke the bear
+        } catch (e2) { log('bug-chaos-error', { msg: String(e2.message).slice(0, 110) }); }
+      }
 
       // anti-stuck: wants to move but isn't (measured on the game odometer — immune to slow sims)
       const moving = keys.KeyW && dg > 6;
