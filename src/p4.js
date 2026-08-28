@@ -3757,20 +3757,38 @@ function joyRelease() {
   joyKnob.style.transform = 'translate(0px, 0px)';
 }
 const joyZone = el('joyZone');
+let joyHanded = null;   // a flung pointer handed over to the camera
 function joyDown(e) {
   e.preventDefault(); e.stopPropagation();
   audio.resume();
   joy.id = e.pointerId;
+  joy.sx = e.clientX; joy.sy = e.clientY; joy.t0 = performance.now(); joy.fling = false;
+  const zr = joyZone ? joyZone.getBoundingClientRect() : null;
+  joy.zt = zr ? zr.top : -99; joy.zb = zr ? zr.bottom : 1e9;
   try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { }
   joyEl.classList.add('live');   // the stick wakes under your thumb
   joySetFromEvent(e);
 }
 function joyMove(e) {
+  if (joyHanded === e.pointerId) return;   // this finger belongs to the lens now — let the window handler see it
   if (e.pointerId !== joy.id) return;
   e.stopPropagation();
+  // a steep slide that EXITS the field is a sky-pan fling, not steering — hand it to the camera
+  const dyT = e.clientY - joy.sy, dxT = e.clientX - joy.sx;
+  const leftField = e.clientY < joy.zt + 24 || e.clientY > joy.zb - 24;
+  if (!joy.fling && leftField && Math.abs(dyT) > 90 && Math.abs(dyT) > 2 * Math.abs(dxT) && camPointers.size === 0) {
+    joy.fling = true; joyHanded = e.pointerId;
+    joyRelease(); joyEl.classList.remove('live');
+    pinch0 = 0;   // no phantom pinch from a hybrid gesture
+    camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    return;
+  }
   joySetFromEvent(e);
 }
-const joyEnd = e => { if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); } };
+const joyEnd = e => {
+  if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); }
+  if (e.pointerId === joyHanded) joyHanded = null;
+};
 for (const jt of [joyEl, joyZone]) {
   if (!jt) continue;
   jt.addEventListener('pointerdown', joyDown);
@@ -3879,8 +3897,9 @@ addEventListener('pointermove', e => {
   if (state !== 'play') return;
   if (camPointers.size === 1) {
     const sens = 0.0078 * clamp(viewDist / 8.5, 0.55, 1.5);
+    const vGain = document.body.classList.contains('touch') ? 1.5 : 1;   // a thumb's short swipe = the whole sky
     camYaw -= dx * sens;
-    camPitch = clamp(camPitch + dy * sens, -PITCH_MAX, PITCH_MAX);   // free look — the full 90°, soil to zenith
+    camPitch = clamp(camPitch + dy * sens * vGain, -PITCH_MAX, PITCH_MAX);   // free look — the full 90°, soil to zenith
   } else if (camPointers.size === 2 && pinch0 > 40) {
     const pts = [...camPointers.values()];
     const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
@@ -3892,7 +3911,7 @@ addEventListener('pointerup', camPtrEnd);
 function camEdgeHold(dt) {   // thumb parked at the top/bottom edge: keep tilting to the full 90°
   if (state !== 'play' || camPointers.size !== 1) return;
   const p = [...camPointers.values()][0];
-  const EDGE = 16, RATE = 1.5;   // rad/s while held at the edge
+  const EDGE = Math.max(48, innerHeight * 0.12), RATE = 1.5;   // rad/s while held near the edge
   if (p.y < EDGE) camPitch = clamp(camPitch - RATE * dt, -PITCH_MAX, PITCH_MAX);
   else if (p.y > innerHeight - EDGE) camPitch = clamp(camPitch + RATE * dt, -PITCH_MAX, PITCH_MAX);
 }

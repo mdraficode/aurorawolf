@@ -101,6 +101,45 @@ try {
   const climbed = await page.evaluate(() => { wolf.flyT = 0; keys.KeyW = false; return wolf.pos.y > window.__yClimb0 + 0.9; });
   ck('flight: look down dives, look up climbs', dived && climbed);
 
+  // ---- real-touch (CDP): sky pan must work even from the joystick field, and in one short swipe ----
+  {
+    const mctx = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+    const mp = await mctx.newPage();
+    const merrs = [];
+    mp.on('pageerror', e => merrs.push(e.message));
+    await mp.goto('file:///home/user/index.html?autostart=1&seed=2026&quality=low', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await mp.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
+    await mp.waitForTimeout(900);
+    const cdp = await mctx.newCDPSession(mp);
+    // a steep, fast upward fling that BEGINS inside the joystick field: camera, not the wolf
+    const p0 = await mp.evaluate(() => camPitch);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 150, y: 320 }] });
+    for (let y = 320; y >= 90; y -= 20) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 150, y }] });
+      await mp.waitForTimeout(18);
+    }
+    const mid = await mp.evaluate(() => ({ pitch: camPitch, stick: joy.id, lens: camPointers.size }));
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await mp.waitForTimeout(400);
+    const p1 = await mp.evaluate(() => camPitch);
+    ck('fling from the joystick field pans the camera', mid.stick === null && p1 - p0 < -1.0, `Δpitch=${(p1 - p0).toFixed(2)}, stick=${mid.stick}`);
+    // one SHORT mid-screen swipe on touch spans most of the sky
+    await mp.evaluate(() => { camPitch = 0.42; });
+    await mp.waitForTimeout(250);
+    const q0 = await mp.evaluate(() => camPitch);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 420, y: 300 }] });
+    for (let y = 300; y >= 150; y -= 15) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 420, y }] });
+      await mp.waitForTimeout(18);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await mp.waitForTimeout(300);
+    const q1 = await mp.evaluate(() => camPitch);
+    ck('short touch swipe covers most of the sky', q0 - q1 > 1.3, `Δpitch=${(q0 - q1).toFixed(2)}`);
+    ck('real-touch section: zero page errors', merrs.length === 0, merrs.slice(0, 2).join(' | '));
+    await mctx.close();
+  }
+
   ck('zero page errors', errs.length === 0, errs.slice(0, 2).join(' | '));
 } finally {
   await browser.close();
