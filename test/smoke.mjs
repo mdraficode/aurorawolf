@@ -13,7 +13,7 @@ await page.waitForFunction(() => {
   return b && !b.disabled;
 }, null, { timeout: 40000 });
 R.bootOk = true;
-await page.screenshot({ path: 'shots/12_menu2.png' });
+await page.screenshot({ path: 'shots/12_menu2.png', timeout: 90000 });
 
 // real click on Start
 await page.click('#btnStart');
@@ -30,7 +30,7 @@ R.moved = await page.evaluate(() => wolf.distance.toFixed(1));
 R.chunks = await page.evaluate(() => chunks.size);
 R.animals = await page.evaluate(() => animalTotal);
 R.fps = await page.evaluate(() => fpsShow);
-await page.screenshot({ path: 'shots/13_play2.png' });
+await page.screenshot({ path: 'shots/13_play2.png', timeout: 90000 });
 
 // pause overlay
 await page.keyboard.press('KeyP');
