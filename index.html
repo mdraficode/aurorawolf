@@ -4202,7 +4202,7 @@ function makeMeteorSite(ix, iz) {   // star-metal on the earth
   g.add(pit);
   scene.add(g);
   pool.burst(V3(ix, heightAt(ix, iz) + 1, iz), 30, 0xffb36a, 2, 4, 3);
-  const lm = { type: 'meteor', x: ix, z: iz, model: g, chunkKey: null, ember: null, mist: null, found: false, tier: 'rare', label: 'Fallen Star' };
+  const lm = { type: 'meteor', x: ix, z: iz, model: g, chunkKey: null, ember: null, mist: null, found: false, tier: 'rare', label: 'Fallen Star', mapIcon: '☄️' };
   landmarkList.push(lm);
   const loose = [];
   const drop = (type, x, z) => {
@@ -6619,9 +6619,10 @@ function drawMapOverlays(ctx, S, range, opts) {
     ctx.fillStyle = '#ffd76a';
     ctx.beginPath(); ctx.arc(mx, my, opts.big ? 4.4 : 3.2, 0, 6.29); ctx.fill();
     ctx.strokeStyle = 'rgba(40,28,0,.85)'; ctx.lineWidth = 1; ctx.stroke();
+    const ldef = LANDMARKS[lm.type];   // event landmarks (meteor…) live outside the table
     ctx.fillStyle = '#3a2c08';
-    ctx.fillText(LANDMARKS[lm.type].icon, mx + 6, my + 3);
-    if (opts.big) { ctx.fillStyle = '#ffe9b0'; ctx.font = '10px system-ui'; ctx.fillText(LANDMARKS[lm.type].label, mx + 7, my + 14); ctx.font = '13px system-ui'; }
+    ctx.fillText(ldef ? ldef.icon : (lm.mapIcon || '✦'), mx + 6, my + 3);
+    if (opts.big) { ctx.fillStyle = '#ffe9b0'; ctx.font = '10px system-ui'; ctx.fillText(ldef ? ldef.label : (lm.label || lm.type), mx + 7, my + 14); ctx.font = '13px system-ui'; }
   }
   // ---- hunting predators ----
   for (const ch of chunks.values())
@@ -7172,8 +7173,21 @@ let perfT = 0, perfN = 0, perfDone = false;
   if (AUTOSTART) ui.overlay.classList.add('hidden');
 })();
 
+let lastErrShown = '', lastErrT = -9;
+function errShow(msg) {   // banner an error but never kill the loop
+  const d = document.getElementById('err');
+  if (!d) return;
+  const t = performance.now() / 1000;
+  if (msg === lastErrShown && t - lastErrT < 2) return;   // no spamming every frame
+  lastErrShown = msg; lastErrT = t;
+  d.style.display = 'block';
+  d.textContent = '⚠ ' + msg + ' — recovering';
+  clearTimeout(errShow._t);
+  errShow._t = setTimeout(() => { d.style.display = 'none'; }, 6000);
+}
 function tick() {
   requestAnimationFrame(tick);
+  try {
   const rdt = Math.min(clock.getDelta(), 0.05);
   if (state === 'boot') {
     for (let i = 0; i < 2 && bootDone < bootList.length; i++) {
@@ -7316,6 +7330,9 @@ function tick() {
   updateCamera(rdt);
   updateHUD(rdt);
   renderer.render(scene, camera);
+  } catch (ex) {
+    errShow(ex && ex.message ? ex.message : String(ex));
+  }
 }
 window.addEventListener('error', e => {
   const d = document.getElementById('err');
