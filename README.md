@@ -28,7 +28,7 @@ cp ~/.revontulet.keystore android/revontulet.keystore   # never committed
 | **E** | Gather (berries, mushrooms, herbs, wood, stones) & drink at water |
 | **Q** | Wolf sense — the ground lights up: 🐾 tracks, scent clouds (green prey · red predators · violet rivals), blood trails, resources |
 | **H** | Howl (scares every animal within earshot) |
-| **Drag mouse / wheel** | Orbit + zoom camera, **free through the full 90° — drag up (or park the drag at the top edge) and the view points straight at the zenith, frame full of sky, wolf out of sight: auroras, stars and moon, nothing in the way** · **C** snap behind wolf |
+| **Drag mouse / wheel** | Orbit + zoom camera, **free through the full 90°** — pan upward and the camera glides in over the wolf's shoulder: by ~40° up the wolf has slipped out of the bottom of the frame, and at the full 90° the camera sits just above its head looking straight up — **nothing but sky, horizon to zenith** (auroras, stars, moon) · **C** snap behind wolf |
 | **T** | Time ×8 (watch sunsets, seasons & auroras) |
 | **M** | Big centered map — live terrain, landmarks, territories |
 | **K / N / P** | Sound · minimap · pause (+ stats, new world) |

@@ -4025,16 +4025,22 @@ function updateCamera(dt) {
   viewDist += (camDist - viewDist) * (1 - Math.exp(-dt * 12));
   const target = _v1.copy(wolf.pos); target.y += 1.5;
   camTarget.lerp(target, 1 - Math.exp(-dt * 16));
-  // free look with a decoupled orbit: the camera itself never dives deep under
-  // the wolf — pan to the sky and the VIEW tilts up instead, so the wolf drops
-  // to the bottom of the frame (and out of it near zenith), sky unobstructed
+  // free look with a decoupled orbit AND a sky-gaze: as the view climbs, the
+  // camera glides in above the wolf's head — at the full 90° it looks straight
+  // up from just above the wolf, so the wolf is BEHIND the camera: nothing but
+  // sky in the whole frame, exactly like craning your head back yourself
   const posPitch = Math.max(viewPitch, -0.35);
   const cp = Math.cos(posPitch), sp = Math.sin(posPitch);
   const px = camTarget.x + Math.sin(viewYaw) * cp * viewDist;
   const pz = camTarget.z + Math.cos(viewYaw) * cp * viewDist;
   const py = camTarget.y + sp * viewDist;
-  const gh = groundAt(px, pz) + 0.65;
-  camera.position.set(px, Math.max(py, gh), pz);
+  const bt = clamp((-viewPitch - 0.3) / 0.45, 0, 1);   // starts just above level, complete by ~43° up
+  const skyB = bt * bt * (3 - 2 * bt);   // smooth glide: orbit → above-the-head
+  const fx = px + (camTarget.x - px) * skyB;
+  const fz = pz + (camTarget.z - pz) * skyB;
+  const fy = py + (camTarget.y + 0.85 - py) * skyB;
+  const gh = groundAt(fx, fz) + 0.65;
+  camera.position.set(fx, Math.max(fy, gh), fz);
   const look = _v2.set(
     -Math.sin(viewYaw) * Math.cos(viewPitch),
     -Math.sin(viewPitch),

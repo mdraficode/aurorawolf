@@ -85,6 +85,36 @@ try {
   }));
   ck('angles finite & clamped at ±90°', sane.finite && sane.pitchBound);
 
+  // ---- THE requirement: at deep pan / zenith, NO part of the wolf projects into the viewport ----
+  // (its bounding points are pushed through the live camera matrices — the same
+  //  math the renderer uses to draw it; zero inside = the wolf is truly invisible)
+  const wolfVis = pitch => page.evaluate(p => {
+    camPitch = p;
+    return new Promise(res => {
+      const wait = () => {
+        if (Math.abs(viewPitch - camPitch) < 0.004) {
+          camera.updateMatrixWorld();
+          const r = 1.1, h = 1.35;   // bounding cylinder: body width + ear tips
+          let inside = 0, total = 0;
+          for (const dx of [-r, 0, r]) for (const dz of [-r, 0, r]) for (const dy of [0, h]) {
+            total++;
+            const v2 = new THREE.Vector3(wolf.pos.x + dx, wolf.pos.y + dy, wolf.pos.z + dz).project(camera);
+            const cs = new THREE.Vector3(wolf.pos.x + dx, wolf.pos.y + dy, wolf.pos.z + dz).applyMatrix4(camera.matrixWorldInverse);
+            if (cs.z < -0.1 && v2.z < 1 && Math.abs(v2.x) < 1 && Math.abs(v2.y) < 1) inside++;   // in front AND in the viewport
+          }
+          res({ inside, total, pitch: camPitch, camY: camera.position.y, tgtY: camTarget.y });
+        } else setTimeout(wait, 90);
+      };
+      wait();
+    });
+  }, pitch);
+  const v80 = await wolfVis(-0.8);
+  const v120 = await wolfVis(-1.2);
+  const vZen = await wolfVis(-Math.PI / 2 + 0.001);
+  ck('wolf fully out of frame at 46° up', v80.inside === 0, `${v80.inside}/${v80.total} points in frame`);
+  ck('wolf fully out of frame at 69° up', v120.inside === 0, `${v120.inside}/${v120.total} points in frame`);
+  ck('wolf fully out of frame at TRUE 90°', vZen.inside === 0, `${vZen.inside}/${vZen.total} points in frame · camera ${vZen.camY > vZen.tgtY ? 'above' : 'below'} the wolf's head`);
+
   const camera_fov = await page.evaluate(() => camera.fov);
   const skyBottom = Math.asin(Math.min(1, up.lookY)) * 180 / Math.PI - camera_fov / 2;
   ck('whole frame is sky at zenith', skyBottom > 20, `bottom edge of frame at ${skyBottom.toFixed(0)}° elevation`);
