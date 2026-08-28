@@ -33,7 +33,7 @@ cp ~/.revontulet.keystore android/revontulet.keystore   # never committed
 | **M** | Big centered map — live terrain, landmarks, territories |
 | **K / N / P** | Sound · minimap · pause (+ stats, new world) |
 
-**Touch devices** get an on-screen controller: left **virtual joystick** (partial deflection = quieter stalking), right-side **ATTACK / JUMP / GATHER / SPRINT / HOWL / SENSE / PROWL** buttons, top-right **minimap**, drag to look, pinch to zoom, ⏸ pause. The controls stay out of your way: the joystick is invisible until your thumb lands on it (it shows once when play begins, then fades), and the action buttons rest faint — touching any of them wakes the whole cluster for a moment.
+**Touch devices** get an on-screen controller: left **virtual joystick** (partial deflection = quieter stalking), right-side **ATTACK / JUMP / GATHER / SPRINT / HOWL / SENSE / PROWL** buttons, top-right **minimap**, drag to look, pinch to zoom, ⏸ pause. The controls stay out of your way: the joystick is invisible until your thumb lands on it (it shows once when play begins, then fades), and the action buttons rest faint — touching any of them wakes the whole cluster for a moment. The **HP/stamina bars sit in the upper-left corner** (stacked under the quest book, above the inventory), leaving the whole lower-left free for the stick.
 
 ## 📁 Project structure
 ```

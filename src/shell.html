@@ -42,7 +42,23 @@
       <div id="bigmapLegend">🟡 landmark · 🟣 magic mushroom · 🔴 hunting predator · ⭕ dashed = its territory<br>gold chevron = nearest landmark · white arrow = you · tiny dots = nearby resources (M / Esc closes)</div>
     </div>
   </div>
-  <div id="vignette"></div>
+  <button id="questBtn" title="Quest Log (J)">📜</button>
+    <div id="questTracker"></div>
+    <div id="questLog">
+      <div id="questLogHead"><span>📜 QUEST LOG</span><span id="questX">✕</span></div>
+      <div id="questTabs">
+        <button class="qtab on" data-t="active">Active</button>
+        <button class="qtab" data-t="avail">Available</button>
+        <button class="qtab" data-t="done">Completed</button>
+      </div>
+      <div id="questList"></div>
+    </div>
+    <div id="bossBar"><div id="bossName"></div><div id="bossTrack"><div id="bossFill"></div></div></div>
+    <div id="cineTop" class="cine"></div>
+    <div id="cineBot" class="cine"></div>
+    <div id="spiritCard"></div>
+    <div id="lvCard"></div>
+<div id="vignette"></div>
   <div id="threatArrow"><div class="ta-ring"></div><div class="ta-arrow"></div></div>
   <div id="threatWarn">⚠️ Territory</div>
   <div id="deathOv"><div id="deathMsg"></div></div>

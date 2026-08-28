@@ -475,6 +475,7 @@ class Wolf {
     this.atkT = 0;
     this.flyT = 0;
     this.hp = 100; this.maxHp = 100;
+    this.xp = 0; this.level = 1; this.xpNext = 250; this.perks = {}; this.title = 'Young Pup';
     this.lastHurt = -99;
     this.invulnT = 0;
     this.deadT = 0;
@@ -518,7 +519,7 @@ class Wolf {
       if (this.stamina <= 0) { this.stamina = 0; this.exhausted = true; sprint = false; }
     } else if (!this.swimming) {
       // no regen while swimming — the swim block drains it instead
-      this.stamina = Math.min(100, this.stamina + 11 * dt);
+      this.stamina = Math.min(100, this.stamina + 11 * dt * (this.perks.sandStride ? 1.25 : 1));
       if (this.exhausted && this.stamina > 26) this.exhausted = false;
     }
     this.atkCd = Math.max(0, this.atkCd - dt);
@@ -749,7 +750,7 @@ class Wolf {
       const twl = Math.hypot(twx, twz) || 1;
       const facing = (tfx * twx + tfz * twz) / twl;   // 1 = it stares at you, -1 = you're behind it
       const behind = facing < -0.35, front = facing > 0.45;
-      let dmg = behind ? 3 : front ? 1 : 2;
+      let dmg = (behind ? 3 : front ? 1 : 2) + (this.perks.strongJaw ? 1 : 0);
       const unaware = best.aware === undefined || best.aware < 0.25;
       const ambush = behind && unaware;
       if (ambush) dmg += 1;
@@ -847,6 +848,8 @@ class RivalWolf {
     pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
     inv.meat += 1; stats.slain++; updateInv();
     audio.cry(0.7);
+    if (typeof questEvent === 'function') questEvent('rival', { pos: this.pos });
+    if (typeof addXp === 'function') addXp(35);
     toast(`⚔️ Bested a ${this.sp.label}! +1 🥩`, true);
     scene.remove(this.model);
     this.pack.memberDown(this);
