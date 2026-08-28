@@ -673,6 +673,8 @@ function gather(p) {
     return;
   }
   inv[def.inv]++;
+  questEvent('gather', { item: def.inv });
+  addXp(3);
   stats.gathered++;
   pool.burst(V3(p.x, p.y + 0.4, p.z), 14, def.color, 0.7, 2.4, 2.2);
   toast(`${def.icon} +1 ${def.label.replace('Gather ', '').replace('Pick up ', '').replace('Grab ', '').replace('Pick ', '')}`);
@@ -829,6 +831,8 @@ function updateSense(dt) {
       if (lm.found) continue;
       if (Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z) > 19) continue;
       lm.found = true;
+      questEvent('discover', { type: lm.type, x: lm.x, z: lm.z });
+      addXp(lm.tier === 'epic' ? 60 : lm.tier === 'rare' ? 25 : 10);
       const first = !stats.discoveries.has(lm.type);
       stats.discoveries.add(lm.type);
       if (first) {
@@ -1443,6 +1447,7 @@ function caveFloorAt(x, z) {
 }
 function enterCave(lm) {
   if (caveState.in || caveState.reentryCd > 0 || !lm) return;
+  for (const q of QUESTS.active) if (q.kind === 'survive' && q.days && q.have > 0) { q.have = 0; q.prog0 = dayCount; toast('🌗 You den in a cave — the sky-survival count begins again'); questHudDirty = true; }
   const rng = mulberry32((hash2(lm.x | 0, lm.z | 0, SEED ^ 0xc0ffee) >>> 0) || 1234);
   const surfY = heightAt(lm.x, lm.z);
   caveState.in = true;
@@ -1660,9 +1665,9 @@ function updateEnvironment(dt) {      // regional hazards: scorching ash, bitter
       if (envToastT <= 0) { toast('🌋 Scorching ground — move off the embers!', true); envToastT = 9; }
     }
   } else emberT = 0;
-  const felt = cl.temp - WORLD_EVENTS.chill;
+  const felt = cl.temp - WORLD_EVENTS.chill * (wolf.perks.winterCoat ? 0.5 : 1) * (wolf.perks.stormborn ? 0.8 : 1);
   if (felt < -0.5 && dayF < 0.3) {
-    wolf.stamina = Math.max(0, wolf.stamina - (1.6 + WORLD_EVENTS.chill * 4) * dt);
+    wolf.stamina = Math.max(0, wolf.stamina - (1.6 + WORLD_EVENTS.chill * 4) * dt * (wolf.perks.winterCoat ? 0.5 : 1));
     if (envToastT <= 0 && felt < -0.62) { toast('🥶 Bitter cold — keep moving'); envToastT = 22; }
   }
   if (WORLD_EVENTS.name === 'blizzard') {
@@ -1672,7 +1677,7 @@ function updateEnvironment(dt) {      // regional hazards: scorching ash, bitter
   if (weather.storm > 0.6 && weather.rain > 0.5) {         // exposed in the storm
     const cover = coverAt(wolf.pos.x, wolf.pos.z);
     if (cover < 0.35) {
-      wolf.hp = Math.max(20, wolf.hp - 1.1 * dt);          // battered, not slain
+      wolf.hp = Math.max(20, wolf.hp - 1.1 * dt * (wolf.perks.skywatcher ? 0.5 : 1));          // battered, not slain — storms respect the sky-worn
       wolf.stamina = Math.max(0, wolf.stamina - 2.2 * dt);
       if (envToastT <= 0) { toast('🌩️ The storm batters you — take shelter under cover!'); envToastT = 14; }
     }
@@ -1731,7 +1736,8 @@ function updateAtmosphere(dt) {
   window.__biomeFogMul = fogMul; window.__biomeTintAmt = tintAmt; window.__biomeW = w0;
   const prev = tDay;
   tDay = (tDay + dt * timeScale / DAY_LEN) % 1;
-  if (tDay < prev) dayCount++;
+  if (tDay < prev) { dayCount++; questEvent('day', {}); }
+  questEvent('height', { y: wolf.pos.y });
   const th = (tDay - 0.25) * Math.PI * 2;
   const sunAlt = Math.sin(th);
   const sunDir = V3(Math.cos(th) * 0.62, sunAlt, 0.35);
@@ -2413,6 +2419,7 @@ const music = {
   /* ---- the director: what does this moment need to sound like? ---- */
   direct() {
     let st = 'explore', it = 0.22, epic = false;
+    if (this.boss) { this.state = 'combat'; this.epic = true; this.intensity = 0.95; return; }   // a legend demands its own music
     if (!caveState.in) {
       for (const ch of chunks.values())
         for (const pr of ch.predators)
@@ -2519,6 +2526,622 @@ function nearestPrey() {
 }
 let chirpT = 5, croakT = 4, breathT = 0, pantT = 0, whimperT = 0, owlT = 6, cricketT = 3, eagleT = 10, farHowlT = 15;
 let dawnMistA = 0, pawPrints = null, flareGrp = null, raysGrp = null, mistGrp = null;
+
+/* ============================================================
+   PURPOSE — quests, bosses, the Spirit Wolf, and the wisdom
+   of the wild. The open world gains a memory of your deeds.
+   ============================================================ */
+const TITLES = ['Young Pup', 'Wanderer', 'Hunter', 'Stalker', 'Storm-Woolf', 'Legend of the Aurora'];
+function addXp(n) {
+  wolf.xp += n;
+  while (wolf.xp >= wolf.xpNext) {
+    wolf.xp -= wolf.xpNext;
+    wolf.level++;
+    wolf.xpNext = 220 + wolf.level * 90;
+    wolf.maxHp += 8; wolf.hp = Math.min(wolf.maxHp, wolf.hp + 8);
+    wolf.title = TITLES[Math.min(TITLES.length - 1, (wolf.level / 2) | 0)] || 'Legend of the Aurora';
+    toast(`🎉 Level ${wolf.level} — ${wolf.title}! +8 max HP`, true);
+    music.fanfare();
+    const lv = el('lvCard');
+    if (lv) { lv.textContent = `⭐ LEVEL ${wolf.level} — ${wolf.title}`; lv.classList.remove('show'); void lv.offsetWidth; lv.classList.add('show'); }
+  }
+  questHudDirty = true;
+}
+/* ---- the quest engine ---- */
+const QUESTS = { active: [], avail: [], done: [] };
+let questHudDirty = true, questTab = 'active';
+const questsDoneByBiome = {};
+const COLLECT_ITEMS = { herb: { label: 'herbs', icon: '🌿' }, berry: { label: 'lingonberries', icon: '🍒' }, mushroom: { label: 'mushrooms', icon: '🍄' }, stone: { label: 'stones', icon: '🪨' }, bone: { label: 'bones', icon: '🦴' }, wood: { label: 'sticks', icon: '🪵' } };
+function questBiomePick() {   // quests come from the lands you walk
+  const cur = curBiomeKey;
+  const keys = Object.keys(BIOME_INFO);
+  const near = keys[(keys.indexOf(cur) + ((Math.random() * 3) | 0) - 1 + keys.length) % keys.length];
+  return Math.random() < 0.6 && cur ? cur : (near || 'forest');
+}
+function genQuest(kind) {
+  const biome = questBiomePick();
+  const info = BIOME_INFO[biome] || BIOME_INFO.forest;
+  const bName = info.name, bIcon = info.icon;
+  const kinds = ['hunt', 'explore', 'collect', 'rival', 'survive'];
+  kind = kind || kinds[(Math.random() * kinds.length) | 0];
+  if (kind === 'hunt') {
+    const table = SPECIES_TABLE[biome] || SPECIES_TABLE.forest;
+    const prey = table.map(e => e[0]).filter(k => SPECIES[k] && (SPECIES[k].hp || 1) <= 3 && !SPECIES[k].huntsWolf);
+    const species = prey.length ? prey[(Math.random() * prey.length) | 0] : 'deer';
+    const n = 2 + ((Math.random() * 3) | 0);
+    const sp = SPECIES[species];
+    return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: sp.icon || '⚔️', title: `Hunt ${n} ${sp.label}${n > 1 ? 's' : ''}`,
+      desc: `Bring down ${n} ${sp.label.toLowerCase()}${n > 1 ? 's' : ''} — they roam the ${bName}. Gold light marks your quarry when it is near.`,
+      need: n, have: 0, species, rw: { xp: 120 + n * 25, items: { meat: 2 } }, rwText: `${120 + n * 25} XP · 2 🥩` };
+  }
+  if (kind === 'explore') {
+    if (Math.random() < 0.55) {
+      const types = Object.keys(LANDMARKS).filter(k => { const b = LANDMARKS[k].biomes; return b.any || (b[biome] || 0) > 0.15; });
+      const type = types[(Math.random() * types.length) | 0] || 'cave';
+      const def = LANDMARKS[type];
+      return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: def.icon, title: `Discover: ${def.label}`,
+        desc: `Find a ${def.label} in the ${bName}. A waypoint marks the way on your map. Its site becomes a fast-travel point.`,
+        need: 1, have: 0, lmType: type, rw: { xp: 180, ft: true }, rwText: '180 XP · 🗺️ fast travel unlocked' };
+    }
+    return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: '⛰️', title: 'Climb a High Peak',
+      desc: 'Reach a height of 50 meters — stand where the eagles do and watch the world unroll.',
+      need: 1, have: 0, peak: true, rw: { xp: 200, mapReveal: true }, rwText: '200 XP · 🗺️ wider map' };
+  }
+  if (kind === 'collect') {
+    const keys2 = Object.keys(COLLECT_ITEMS);
+    const item = keys2[(Math.random() * keys2.length) | 0];
+    const n = 3 + ((Math.random() * 4) | 0);
+    const c = COLLECT_ITEMS[item];
+    return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: c.icon, title: `Gather ${n} ${c.label}`,
+      desc: `Gather ${n} ${c.label} from the wild. Related finds shimmer with faint gold light.`, need: n, have: 0, item,
+      rw: { xp: 110 + n * 15, boost: 'maxHp' }, rwText: `${110 + n * 15} XP · ❤️ +5 max HP (permanent)` };
+  }
+  if (kind === 'rival') {
+    if (Math.random() < 0.5) return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: '🐺', title: 'Drive Off a Rival Pack',
+      desc: 'Stand your ground: defeat two wolves of a rival pack and the rest will flee before you.', need: 1, have: 0, pack: true,
+      rw: { xp: 240, boost: 'strongJaw' }, rwText: '240 XP · 🦷 +1 bite damage (permanent)' };
+    return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: '🐺', title: 'Defeat 2 Rival Wolves',
+      desc: 'Other wolves hunt these lands too. Best two of them in honest combat.', need: 2, have: 0, rival: true,
+      rw: { xp: 260, boost: 'strongJaw' }, rwText: '260 XP · 🦷 +1 bite damage (permanent)' };
+  }
+  if (kind === 'survive') {
+    if (Math.random() < 0.5) {
+      const n = 2 + ((Math.random() * 2) | 0);
+      return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: '🌗', title: `Survive ${n} days under the open sky`,
+        desc: `Endure ${n} full day-night cycles without once denning in a cave. The sky is your roof.`, need: n, have: 0, days: true, prog0: dayCount,
+        rw: { xp: 230, perk: 'skywatcher' }, rwText: '230 XP · 🌩️ storm resistance (permanent)' };
+    }
+    const n = 2 + ((Math.random() * 2) | 0);
+    return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: '⛈️', title: `Hunt ${n} beasts in foul weather`,
+      desc: `Rain, storm or blizzard — the true hunter does not wait for clear skies. Kill ${n} animals in bad weather.`, need: n, have: 0, stormy: true,
+      rw: { xp: 210, perk: 'stormborn' }, rwText: '210 XP · 🌩️ weather resistance (permanent)' };
+  }
+  return null;
+}
+function refillQuests() {
+  let guard = 0;
+  while (QUESTS.avail.length < 3 && guard++ < 20) {
+    const q = genQuest();
+    if (q && !QUESTS.avail.some(o => o.title === q.title) && !QUESTS.active.some(o => o.title === q.title)) QUESTS.avail.push(q);
+  }
+}
+function acceptQuest(id) {
+  if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
+  const i = QUESTS.avail.findIndex(q => q.id === id);
+  if (i < 0) return;
+  const q = QUESTS.avail.splice(i, 1)[0];
+  q.acceptedDay = dayCount;
+  QUESTS.active.push(q);
+  audio.uiClick();
+  toast(`${q.icon} Quest accepted: ${q.title}`);
+  questHudDirty = true; renderQuests();
+}
+function abandonQuest(id) {
+  const i = QUESTS.active.findIndex(q => q.id === id);
+  if (i < 0) return;
+  const q = QUESTS.active.splice(i, 1)[0];
+  QUESTS.avail.push(q); q.have = q.days ? 0 : q.have;
+  toast(`📋 Set aside: ${q.title}`);
+  questHudDirty = true; renderQuests();
+}
+function completeQuest(q) {
+  const i = QUESTS.active.indexOf(q);
+  if (i >= 0) QUESTS.active.splice(i, 1);
+  q.doneT = tSec;
+  QUESTS.done.push(q);
+  questsDoneByBiome[q.biome] = (questsDoneByBiome[q.biome] || 0) + 1;
+  addXp(q.rw.xp || 100);
+  if (q.rw.items) for (const k in q.rw.items) { inv[k] = (inv[k] || 0) + q.rw.items[k]; }
+  updateInv();
+  if (q.rw.boost === 'maxHp') { wolf.maxHp += 5; wolf.hp += 5; toast('❤️ The wild hardens you: +5 max HP (permanent)', true); }
+  if (q.rw.boost === 'strongJaw') { wolf.perks.strongJaw = true; toast('🦷 Your bite deepens: +1 damage (permanent)', true); }
+  if (q.rw.perk === 'skywatcher') { wolf.perks.skywatcher = true; toast('🌩️ Storms bite you less now (permanent)', true); }
+  if (q.rw.perk === 'stormborn') { wolf.perks.stormborn = true; toast('🌨️ Weather-worn: cold and wet cost less (permanent)', true); }
+  if (q.rw.mapReveal) { BIG.range = Math.min(700, BIG.range + 130); toast('🗺️ Your map reaches further', true); }
+  if (q.rw.ft && q.ftPos) { FAST_TRAVEL.push({ name: q.title.replace('Discover: ', ''), x: q.ftPos.x, z: q.ftPos.z }); toast('🗺️ Fast-travel point unlocked — click it on the big map', true); }
+  toast(`✅ Quest complete: ${q.title} · +${q.rw.xp} XP`, true);
+  music.fanfare();
+  refillQuests();
+  maybeAwakenBoss(q.biome);
+  questHudDirty = true; renderQuests();
+}
+let caveDaysLock = -1;   // survival quests reset if you den
+function questEvent(kind, data) {
+  for (const q of [...QUESTS.active]) {
+    if (q.kind === 'hunt' && kind === 'kill' && data.species === q.species) {
+      const bk = dominantBiomeAt(data.pos.x, data.pos.z).key;
+      if (bk === q.biome || data.species !== 'deer') { q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); } }
+    } else if (q.kind === 'explore' && q.lmType && kind === 'discover' && data.type === q.lmType) {
+      q.have = 1; q.ftPos = { x: data.x, z: data.z }; completeQuest(q);
+    } else if (q.kind === 'explore' && q.peak && kind === 'height' && data.y > 50) {
+      q.have = 1; completeQuest(q);
+    } else if (q.kind === 'collect' && kind === 'gather' && data.item === q.item) {
+      q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); }
+    } else if (q.kind === 'rival' && q.pack && kind === 'packDriven') {
+      q.have = 1; completeQuest(q);
+    } else if (q.kind === 'rival' && q.rival && kind === 'rival') {
+      q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); }
+    } else if (q.kind === 'survive' && q.days && kind === 'day') {
+      const since = dayCount - (q.prog0 !== undefined ? q.prog0 : q.acceptedDay);
+      q.have = Math.min(q.need, since);
+      if (since >= q.need) completeQuest(q); else questHudDirty = true;
+    } else if (q.kind === 'survive' && q.stormy && kind === 'kill' && (weather.rain > 0.35 || weather.storm > 0.4 || weather.snow > 0.5)) {
+      q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); }
+    }
+  }
+}
+/* ---- quest log UI ---- */
+function renderQuests() {
+  const list = el('questList');
+  if (!list) return;
+  const src = questTab === 'active' ? QUESTS.active : questTab === 'avail' ? QUESTS.avail : QUESTS.done;
+  list.innerHTML = '';
+  if (!src.length) list.innerHTML = '<div class="qcard" style="opacity:.6">' + (questTab === 'active' ? 'No deeds underway. Seek the wild.' : questTab === 'avail' ? 'The wild is quiet… for now.' : 'Nothing written yet.') + '</div>';
+  for (const q of src) {
+    const d = document.createElement('div');
+    d.className = 'qcard';
+    const pct = Math.min(100, (q.have / q.need) * 100);
+    d.innerHTML = `<div class="qt">${q.icon} ${q.title}</div><div class="qd">${q.desc}</div>` +
+      `<div class="qr">Rewards: ${q.rwText || ''}</div><div class="qbar"><div style="width:${pct}%"></div></div>` +
+      (questTab === 'active' ? `<button class="qact" data-ab="${q.id}">Set aside</button>` :
+       questTab === 'avail' ? `<button class="qact" data-ac="${q.id}">Accept</button>` :
+       `<span class="qdone">✓ done — the wild remembers</span>`);
+    list.appendChild(d);
+  }
+}
+function questHudTick() {
+  if (questHudDirty) {
+    questHudDirty = false;
+    const tr = el('questTracker');
+    if (tr) {
+      let h = `<div class="qt-line">⭐ Lv ${wolf.level} <b>${wolf.title}</b> · ${wolf.xp | 0}/${wolf.xpNext} XP</div>`;
+      for (const q of QUESTS.active) h += `<div class="qt-line">${q.icon} ${q.title} — <b>${q.have}/${q.need}</b></div>`;
+      tr.innerHTML = h;
+    }
+  }
+}
+function toggleQuestLog(force) {
+  const q = el('questLog');
+  if (!q) return;
+  const show = force !== undefined ? force : !q.classList.contains('show');
+  q.classList.toggle('show', show);
+  if (show) { audio.uiClick(); renderQuests(); }
+}
+
+/* ---- fast travel: the paths you have earned ---- */
+const FAST_TRAVEL = [];
+let FT_HITS = [];
+function bigMapTravel(e) {
+  const cv = el('bigmap');
+  if (!cv || !BIG.open) return;
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (cv.width / r.width), y = (e.clientY - r.top) * (cv.height / r.height);
+  for (const f of FT_HITS) {
+    if (Math.hypot(f.sx - x, f.sy - y) < 16) {
+      if (caveState.in) { toast('🕳️ Not from under the earth'); return; }
+      if (bosses.length) { toast('💀 Not while a legend watches'); return; }
+      wolf.pos.x = f.x; wolf.pos.z = f.z; wolf.pos.y = heightAt(f.x, f.z) + 1;
+      pool.burst(wolf.pos, 14, 0xbfe0ff, 1, 2, 2);
+      toggleBigMap(false);
+      toast(`🗺️ You take the old paths to ${f.name}`);
+      return;
+    }
+  }
+}
+/* ============================================================
+   LEGENDS — one beast per wild land, woken by your deeds
+   ============================================================ */
+const BOSSES = {
+  forest:   { name: 'The Ancient Stag',  icon: '🦌', hp: 60,  dmg: 16, speed: 9.6, scale: 2.5, build: 'reindeer', glow: 0xffe2a0, special: 'summon',  ability: 'springSteps',  abilityName: 'Spring Steps',  abilityDesc: 'sprint stamina drains 25% slower' },
+  mountain: { name: 'The Frost Bear',    icon: '🐻‍❄️', hp: 95, dmg: 21, speed: 8.4, scale: 2.7, build: 'bearP',    glow: 0xbfe8ff, special: 'ice',      ability: 'winterCoat',  abilityName: 'Winter Coat',  abilityDesc: 'blizzards and bitter cold bite half as deep' },
+  tundra:   { name: 'The Frost Bear',    icon: '🐻‍❄️', hp: 95, dmg: 21, speed: 8.4, scale: 2.7, build: 'bearP',    glow: 0xbfe8ff, special: 'ice',      ability: 'winterCoat',  abilityName: 'Winter Coat',  abilityDesc: 'blizzards and bitter cold bite half as deep' },
+  swamp:    { name: 'The Hydra Croc',    icon: '🐊', hp: 80,  dmg: 18, speed: 8.9, scale: 2.2, build: 'croc',     glow: 0x9fe89a, special: 'submerge', ability: 'secondWind',  abilityName: 'Second Wind',  abilityDesc: 'health regenerates 50% faster' },
+  dry:      { name: 'The Thunder Bison', icon: '🐃', hp: 110, dmg: 24, speed: 8.0, scale: 2.4, build: 'bison',    glow: 0xffcf8a, special: 'charge',   ability: 'thunderCharge', abilityName: 'Thunder Charge', abilityDesc: 'sprint 12% faster' },
+  grove:    { name: 'The Shadow Wolf',   icon: '🐺', hp: 70,  dmg: 19, speed: 10.4, scale: 1.9, build: 'shadow',  glow: 0x9a7aff, special: 'shadow',   ability: 'shadowStep',  abilityName: 'Shadow Step',  abilityDesc: 'prowling is nearly invisible' },
+  volcanic: { name: 'The Sand Wyrm',     icon: '🐍', hp: 85,  dmg: 22, speed: 8.6, scale: 2.3, build: 'wyrm',     glow: 0xffb060, special: 'burrow',  ability: 'sandStride',  abilityName: 'Sand Stride',  abilityDesc: 'stamina returns 25% faster' }
+};
+const bosses = [];
+let bossSlowmoT = 0;
+function buildBossModel(def) {
+  let g;
+  if (def.build === 'shadow') {
+    const w = buildWolf().group;
+    w.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.color.setHex(0x14101c); o.material.transparent = true; o.material.opacity = 0.72; o.material.emissive = new THREE.Color(0x3a2a66); o.material.emissiveIntensity = 0.5; } });
+    g = w;
+  } else if (def.build === 'croc') {
+    g = new THREE.Group();
+    const bodyM = matColor(0x3a5a3a);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 4.4), bodyM); body.position.y = 0.5; g.add(body);
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.4, 1.6), matColor(0x466846)); jaw.position.set(0, 0.45, 2.9); g.add(jaw);
+    for (const s of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.14, 6, 5), new THREE.MeshBasicMaterial({ color: def.glow })); eye.position.set(0.42 * s, 0.95, 1.9); g.add(eye); }
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.55, 2.2, 5), bodyM); tail.rotation.x = Math.PI / 2; tail.position.set(0, 0.5, -3.1); g.add(tail);
+    for (let i = 0; i < 4; i++) { const ridge = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 4), matColor(0x2c442c)); ridge.position.set(0, 0.98, -0.4 - i * 0.8); g.add(ridge); }
+  } else if (def.build === 'wyrm') {
+    g = new THREE.Group();
+    const segs = 7;
+    for (let i = 0; i < segs; i++) {
+      const r = 0.85 - i * 0.09;
+      const seg = new THREE.Mesh(new THREE.SphereGeometry(r, 7, 6), matColor(0x8a6a42));
+      seg.position.set(0, 0.8, -i * 1.05);
+      seg.scale.set(1, 0.85, 1.15);
+      g.add(seg);
+      if (i < 4) { const fin = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.7, 4), matColor(0x6a4c2e)); fin.position.set(0, 0.8 + r, -i * 1.05); g.add(fin); }
+    }
+    const head = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 1.6), matColor(0x9a7850)); head.position.set(0, 0.9, 1.4); g.add(head);
+    for (const s of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), new THREE.MeshBasicMaterial({ color: def.glow })); eye.position.set(0.5 * s, 1.25, 2.0); g.add(eye); }
+  } else if (def.build === 'bison') {
+    const built = buildAnimal(SPECIES.elk);
+    g = built.group || built;
+    g.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color.setHex(0x4a3626); } });
+    const hump = new THREE.Mesh(new THREE.SphereGeometry(1.15, 7, 6), matColor(0x3c2c1e)); hump.position.set(0, 1.9, 0.6); hump.scale.set(1, 0.8, 1.2); g.add(hump);
+  } else if (def.build === 'bearP') {
+    const built = buildPredator(PREDATORS.bear);
+    g = built.group;
+    g.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color.setHex(0xe8f0f4); } });
+  } else {
+    const built = buildAnimal(SPECIES.reindeer);
+    g = built.group || built;
+    g.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color.lerp(new THREE.Color(0xd8c9a8), 0.5); } });
+  }
+  g.scale.setScalar(def.scale);
+  // the mark of a legend: a crown of light
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: texGlow, color: def.glow, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
+  halo.scale.setScalar(3.6);
+  halo.position.y = 2.6;
+  halo.userData.halo = true;
+  g.add(halo);
+  g.userData.halo = halo;
+  return g;
+}
+class Boss {
+  constructor(biomeKey, x, z, isClone) {
+    this.biome = biomeKey;
+    this.def = BOSSES[biomeKey];
+    this.isClone = !!isClone;
+    this.sp = { label: this.def.name, scale: this.def.scale * 0.5, reach: 3.4, icon: this.def.icon };   // sp.scale*0.7 sets bite range for the player
+    this.model = buildBossModel(this.def);
+    if (isClone) this.model.scale.setScalar(this.def.scale * 0.66);
+    scene.add(this.model);
+    this.pos = V3(x, heightAt(x, z), z);
+    this.heading = 0;
+    this.hp = isClone ? 8 : this.def.hp;
+    this.maxHp = this.hp;
+    this.dead = false;
+    this.state = 'stalk';
+    this.atkCd = 0;
+    this.specT = 5 + Math.random() * 3;
+    this.subT = 0;          // submerge/burrow timer
+    this.invuln = false;
+    this.chargeT = 0;       // bison telegraph/dash
+    this.charging = false;
+    this.icePatches = [];
+    this.phase = 0;
+    this.chunkKey = ck(Math.floor(x / CHUNK), Math.floor(z / CHUNK));
+    const ch = chunks.get(this.chunkKey);
+    if (ch) ch.predators.push(this);
+    if (!isClone) {
+      toast(`💀 ${this.def.name} has come!`, true);
+      audio.growlVar('aggressive');
+      const q = { id: 'boss' + (Math.random() * 1e9 | 0), kind: 'boss', biome: biomeKey, icon: this.def.icon, title: `Legend: ${this.def.name}`,
+        desc: `Defeat ${this.def.name}. Its gift will be yours forever.`, need: 1, have: 0, rw: { xp: 400 }, rwText: `400 XP · ✨ ${this.def.abilityName} — ${this.def.abilityDesc}` };
+      QUESTS.active.push(q);
+      this.quest = q;
+      questHudDirty = true;
+    }
+  }
+  hit(dmg, behind, ambush) {
+    if (this.dead || this.invuln) return;
+    this.hp -= dmg * (ambush ? 1.5 : 1);
+    this.flinchT = 0.2;
+    pool.burst(this.pos, 10 + dmg * 3, ambush ? 0xd23a2a : 0xffb3a0, 1.2, 2.4, 2.6);
+    audio.boneCrunch();
+    music.hitStab();
+    const bb = el('bossBar');
+    if (bb) el('bossFill').style.width = Math.max(0, this.hp / this.maxHp * 100) + '%';
+    // phases: the legend will not fall quietly
+    const f = this.hp / this.maxHp;
+    if (!this.isClone && this.phase < 1 && f < 0.5) { this.phase = 1; toast(`💀 ${this.def.name} rears — the fight deepens`, true); audio.growlVar('aggressive'); }
+    if (!this.isClone && this.phase < 2 && f < 0.25) { this.phase = 2; toast(`💀 ${this.def.name} is frenzied!`, true); }
+    if (this.hp <= 0) this.die();
+  }
+  die() {
+    if (this.dead) return;
+    this.dead = true;
+    pool.burst(this.pos, 60, this.def.glow, 3, 5, 4);
+    pool.burst(this.pos, 40, 0xffe9b0, 2, 4, 3.4);
+    bossSlowmoT = 1.5;                    // the world holds its breath
+    audio.cry(0.4); audio.thud(); music.fanfare();
+    if (!this.isClone) {
+      this.def.slain = true; this.def.awake = false; this.def.live = false;   // a legend falls but once
+      wolf.perks[this.def.ability] = true;
+      addXp(400);
+      toast(`✨ ${this.def.name} falls — its gift is yours: ${this.def.abilityName} (${this.def.abilityDesc})`, true);
+      if (this.quest) { const i = QUESTS.active.indexOf(this.quest); if (i >= 0) QUESTS.active.splice(i, 1); QUESTS.done.push(this.quest); questsDoneByBiome[this.biome] = (questsDoneByBiome[this.biome] || 0) + 1; questHudDirty = true; }
+      const bb = el('bossBar'); if (bb) bb.classList.remove('show');
+      music.boss = false;
+    }
+    this.dispose();
+  }
+  dispose() {
+    const ch = chunks.get(this.chunkKey);
+    if (ch) { const i = ch.predators.indexOf(this); if (i >= 0) ch.predators.splice(i, 1); }
+    scene.remove(this.model);
+    for (const p of this.icePatches) scene.remove(p);
+    this.icePatches.length = 0;
+    const i = bosses.indexOf(this);
+    if (i >= 0) bosses.splice(i, 1);
+    if (bosses.length === 0) { music.boss = false; const bb = el('bossBar'); if (bb) bb.classList.remove('show'); }
+  }
+  update(dt, tSec) {
+    if (this.dead) return;
+    const dx = wolf.pos.x - this.pos.x, dz = wolf.pos.z - this.pos.z;
+    const d = Math.hypot(dx, dz);
+    const sp = this.def.speed * (1 + this.phase * 0.14);
+    // submerged / burrowed: unhittable, repositions, then strikes
+    if (this.subT > 0) {
+      this.subT -= dt;
+      this.model.visible = this.def.special === 'ice';
+      if (this.subT <= 0) {
+        this.invuln = false; this.model.visible = true;
+        const a = Math.random() * 6.28;
+        this.pos.x = wolf.pos.x + Math.sin(a) * 3.4; this.pos.z = wolf.pos.z + Math.cos(a) * 3.4;
+        this.pos.y = heightAt(this.pos.x, this.pos.z);
+        pool.burst(this.pos, 26, this.def.special === 'burrow' ? 0xc2a266 : 0x5a8a6a, 2, 3.4, 3);
+        audio.thud();
+        if (Math.hypot(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z) < 3.2) wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon);
+      }
+      this.model.position.copy(this.pos);
+      return;
+    }
+    // the bison's charge: telegraph, then thunder
+    if (this.charging) {
+      this.chargeT -= dt;
+      this.pos.x += Math.sin(this.chargeDir) * 19 * dt;
+      this.pos.z += Math.cos(this.chargeDir) * 19 * dt;
+      this.pos.y = heightAt(this.pos.x, this.pos.z);
+      pool.burst(this.pos, 3, 0xc2a273, 1.4, 2.2, 1.8);
+      if (Math.hypot(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z) < 2.6 && !this.chargeHit) { this.chargeHit = true; wolfTakeDamage(this.def.dmg + 6, this.pos, this.def.name, this.def.icon); }
+      if (this.chargeT <= 0) { this.charging = false; this.atkCd = 1.6; }
+      this.model.position.copy(this.pos); this.model.rotation.y = this.chargeDir;
+      return;
+    }
+    // approach
+    this.heading = Math.atan2(dx, dz);
+    if (d > this.sp.reach + 0.6) {
+      this.pos.x += Math.sin(this.heading) * sp * dt;
+      this.pos.z += Math.cos(this.heading) * sp * dt;
+      this.pos.y = heightAt(this.pos.x, this.pos.z);
+    } else if (this.atkCd <= 0) {
+      this.atkCd = 1.25 - this.phase * 0.15;
+      wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon);
+      audio.growlVar('aggressive');
+    }
+    this.atkCd -= dt;
+    // the special, each legend its own
+    this.specT -= dt * (1 + this.phase * 0.3);
+    if (this.specT <= 0 && d < 60) {
+      this.specT = this.def.special === 'shadow' ? 7 : 11 - this.phase * 2;
+      const sp2 = this.def.special;
+      if (sp2 === 'summon') {
+        for (let i = 0; i < 2; i++) {
+          const a = Math.random() * 6.28;
+          const f2 = new Animal('deer', this.pos.x + Math.sin(a) * 5, this.pos.z + Math.cos(a) * 5);
+          f2.startFlee(this.pos);
+          const chp = chunks.get(ck(Math.floor(f2.pos.x / CHUNK), Math.floor(f2.pos.z / CHUNK)));
+          if (chp) chp.animals.push(f2);
+        }
+        pool.burst(this.pos, 14, 0xd8c9a8, 1.4, 2.6, 2.2);
+      } else if (sp2 === 'ice') {
+        const p = new THREE.Mesh(new THREE.CircleGeometry(2.6, 14), new THREE.MeshBasicMaterial({ color: 0xbfe4f4, transparent: true, opacity: 0.4, depthWrite: false }));
+        p.rotation.x = -Math.PI / 2;
+        p.position.set(wolf.pos.x, heightAt(wolf.pos.x, wolf.pos.z) + 0.05, wolf.pos.z);
+        scene.add(p); this.icePatches.push(p);
+      } else if (sp2 === 'submerge' || sp2 === 'burrow') {
+        this.subT = 3.2; this.invuln = true; this.model.visible = false;
+        pool.burst(this.pos, 20, sp2 === 'burrow' ? 0xc2a266 : 0x4a6a5a, 1.6, 2.6, 2.4);
+      } else if (sp2 === 'charge') {
+        this.charging = true; this.chargeHit = false;
+        this.chargeT = 1.15;
+        this.chargeDir = Math.atan2(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
+        pool.burst(this.pos, 16, 0xc2a273, 1.4, 2.4, 2);   // dust flies: the ground warns you
+        audio.thud();
+      } else if (sp2 === 'shadow') {
+        pool.burst(this.pos, 22, 0x6a4ac2, 1.6, 2.8, 2.4);
+        const a = Math.random() * 6.28;
+        this.pos.x = wolf.pos.x + Math.sin(a) * 13; this.pos.z = wolf.pos.z + Math.cos(a) * 13;
+        this.pos.y = heightAt(this.pos.x, this.pos.z);
+        pool.burst(this.pos, 22, 0x8a6ae2, 1.6, 2.8, 2.4);
+        if (this.phase >= 1 && bosses.filter(b => !b.dead && b.isClone).length < 2) bosses.push(new Boss(this.biome, this.pos.x + 2, this.pos.z, true));   // shadows breed shadows
+      }
+    }
+    // fade ice patches
+    for (let i = this.icePatches.length - 1; i >= 0; i--) {
+      const p = this.icePatches[i];
+      p.material.opacity -= dt * 0.05;
+      if (p.material.opacity <= 0.05) { scene.remove(p); this.icePatches.splice(i, 1); }
+    }
+    // the halo breathes
+    if (this.model.userData.halo) this.model.userData.halo.material.opacity = 0.35 + 0.2 * Math.sin(tSec * 2.4);
+    this.model.position.copy(this.pos);
+    this.model.rotation.y = this.heading;
+  }
+}
+function maybeAwakenBoss(biome) {
+  const def = BOSSES[biome];
+  if (!def || def.awake || def.slain) return;
+  if ((questsDoneByBiome[biome] || 0) < 3) return;
+  if (!SPIRIT.met) return;
+  def.awake = true;
+  toast(`💀 A legend stirs: ${def.name} in the ${BIOME_INFO[biome].name}…`, true);
+  audio.growlVar('warning');
+}
+function bossTick(dt) {
+  // spawn the awakened legend when you walk its land
+  for (const k in BOSSES) {
+    const def = BOSSES[k];
+    if (def.awake && !def.slain && !def.live && curBiomeKey === k && !caveState.in) {
+      def.live = true;
+      const a = Math.random() * 6.28;
+      const x = wolf.pos.x + Math.sin(a) * 65, z = wolf.pos.z + Math.cos(a) * 65;
+      bosses.push(new Boss(k, x, z));
+    }
+  }
+  for (const b of [...bosses]) b.update(dt, tSec);
+  // the bar and the music of legends
+  let show = null;
+  for (const b of bosses) if (!b.isClone && !b.dead) { const d = Math.hypot(b.pos.x - wolf.pos.x, b.pos.z - wolf.pos.z); if (d < 120) show = b; }
+  const bb = el('bossBar');
+  if (bb) {
+    if (show) {
+      bb.classList.add('show');
+      el('bossName').textContent = `${show.def.icon} ${show.def.name}${show.phase >= 2 ? ' — FRENZIED' : show.phase >= 1 ? ' — ENRAGED' : ''}`;
+      el('bossFill').style.width = Math.max(0, show.hp / show.maxHp * 100) + '%';
+    } else bb.classList.remove('show');
+  }
+  music.boss = !!show;
+}
+/* ============================================================
+   THE SPIRIT WOLF — an old ghost who remembers everything
+   ============================================================ */
+const SPIRIT = { met: false, active: null, cd: 60, lines: [
+  'The lands keep count of your deeds, little hunter. Three in one land, and its legend wakes.',
+  'I ran these hills when the ice was young. The stag with the burning crown still owes me a race.',
+  'Caves remember. Sleep in one and the sky forgets you for a day.',
+  'When the pack that is not yours flees before you, you are beginning to be a wolf worth fearing.',
+  'The white stag is old and clever. Come from behind, as I taught your grandsire.',
+  'The wyrm under the ember wastes feels your footsteps through the sand. Keep moving.',
+  'Storms are loud. Loud things cannot hear you prowl.'
+] };
+let CINEMA = { active: false, t: 0, dur: 10 };
+function spiritTick(dt) {
+  if (CINEMA.active) {
+    CINEMA.t += dt;
+    inputClear();
+    const k = Math.min(1, CINEMA.t / CINEMA.dur);
+    const a = k * Math.PI * 2 - Math.PI / 2;
+    camera.position.set(wolf.pos.x + Math.sin(a) * 150, Math.max(wolf.pos.y + 80, 70), wolf.pos.z + Math.cos(a) * 150);
+    camera.lookAt(wolf.pos.x, wolf.pos.y + 4, wolf.pos.z);
+    if (CINEMA.t >= CINEMA.dur) {
+      CINEMA.active = false;
+      el('cineTop').classList.remove('on'); el('cineBot').classList.remove('on');
+      toast('🐺 The Spirit Wolf: "Three deeds in one land wake its legend. Seek the ghost-lights."', true);
+    }
+    return;
+  }
+  SPIRIT.cd -= dt;
+  if (SPIRIT.active) {
+    const sp = SPIRIT.active;
+    sp.t += dt;
+    sp.model.position.y = heightAt(sp.x, sp.z) + 0.15 + Math.sin(sp.t * 1.7) * 0.12;
+    sp.model.rotation.y = Math.atan2(wolf.pos.x - sp.x, wolf.pos.z - sp.z);
+    if (sp.t > 12) {   // the message fades with the mist
+      pool.burst(V3(sp.x, heightAt(sp.x, sp.z) + 1, sp.z), 30, 0xcfe4ff, 1.4, 2.6, 2.6);
+      scene.remove(sp.model);
+      SPIRIT.active = null;
+      el('spiritCard').classList.remove('show');
+    }
+    return;
+  }
+  if (SPIRIT.cd > 0 || caveState.in) return;
+  SPIRIT.cd = 90 + Math.random() * 60;
+  // he waits by the mouths of caves
+  for (const lm of landmarkList) {
+    if (lm.type !== 'cave') continue;
+    const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
+    if (d > 55 && d < 90 && Math.random() < 0.5) {
+      const g = buildWolf().group;
+      g.traverse(o => {
+        if (o.isMesh) { o.material = o.material.clone(); o.material.color.setHex(0xdde8f2); o.material.transparent = true; o.material.opacity = 0.55; o.material.emissive = new THREE.Color(0x9fd0ff); o.material.emissiveIntensity = 0.35; }
+      });
+      g.scale.setScalar(1.06);
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: texGlow, color: 0xbfe0ff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }));
+      halo.scale.setScalar(3.2); halo.position.y = 1.4; g.add(halo);
+      const a = Math.random() * 6.28;
+      const sx = lm.x + Math.sin(a) * 7, sz = lm.z + Math.cos(a) * 7;
+      g.position.set(sx, heightAt(sx, sz) + 0.15, sz);
+      scene.add(g);
+      pool.burst(V3(sx, heightAt(sx, sz) + 1, sz), 18, 0xcfe4ff, 1.2, 2.2, 2.4);
+      audio.howl(0.5);
+      SPIRIT.active = { model: g, x: sx, z: sz, t: 0 };
+      const card = el('spiritCard');
+      if (card) {
+        const line = SPIRIT.lines[(Math.random() * SPIRIT.lines.length) | 0];
+        card.innerHTML = `<div class="who">🐺 THE SPIRIT WOLF</div>${line}`;
+        card.classList.add('show');
+        setTimeout(() => card.classList.remove('show'), 9000);
+      }
+      if (!SPIRIT.met) {
+        SPIRIT.met = true;
+        CINEMA.active = true; CINEMA.t = 0;
+        el('cineTop').classList.add('on'); el('cineBot').classList.add('on');
+        audio.howl(0.55);
+        setTimeout(() => audio.ready && audio.howl(0.62), 2800);
+        toast('🐺 An old wolf of light looks at you — and the world opens…', true);
+      } else {
+        toast('🐺 The Spirit Wolf fades into the mist…');
+      }
+      break;
+    }
+  }
+}
+/* ---- quest cadence: markers, waypoints, the golden quarry ---- */
+let questMarkT = 0, questMarks = [];
+function questTick(dt) {
+  questHudTick();
+  questMarkT -= dt;
+  if (questMarkT <= 0) {
+    questMarkT = 0.5;
+    // hunt targets glow gold through the trees
+    for (const m of questMarks) scene.remove(m);
+    questMarks.length = 0;
+    for (const q of QUESTS.active) {
+      if (q.kind !== 'hunt') continue;
+      for (const ch of chunks.values())
+        for (const a of ch.animals) {
+          if (a.dead || a.name !== q.species) continue;
+          const d = a.pos.distanceTo(wolf.pos);
+          if (d > 50) continue;
+          const mk = new THREE.Sprite(new THREE.SpriteMaterial({ map: texGlow, color: 0xffd76a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false }));
+          mk.scale.setScalar(1.6);
+          mk.position.set(a.pos.x, a.pos.y + 2.2 + a.sp.scale, a.pos.z);
+          mk.renderOrder = 6;
+          scene.add(mk);
+          questMarks.push(mk);
+        }
+    }
+  }
+  // collection finds shimmer
+  for (const q of QUESTS.active) {
+    if (q.kind !== 'collect' || Math.random() > 0.3) continue;
+    for (const ch of chunks.values()) {
+      if (Math.abs(ch.cx * CHUNK + 32 - wolf.pos.x) > 60 || Math.abs(ch.cz * CHUNK + 32 - wolf.pos.z) > 60) continue;
+      for (const p of ch.pickups) {
+        if (p.gathered || (PICKUP_DEF[p.type] || {}).inv !== q.item) continue;
+        if (Math.hypot(p.x - wolf.pos.x, p.z - wolf.pos.z) < 26) pool.burst(V3(p.x, p.y + 0.5, p.z), 1, 0xffd76a, 0.4, 0.9, 0.8);
+      }
+    }
+  }
+}
 
 /* ---------------- UI ---------------- */
 const el = id => document.getElementById(id);
@@ -2698,6 +3321,44 @@ function mapTerrainPass(ctx, px, range, cx, cz) {
 function drawMapOverlays(ctx, S, range, opts) {
   const half = S / 2;
   const toMap = (wx, wz) => [half + (wx - wolf.pos.x) / (range * 2) * S, half + (wz - wolf.pos.z) / (range * 2) * S];
+  // ---- quest waypoint: where the deed calls you ----
+  for (const q of QUESTS.active) {
+    if (q.kind !== 'explore' || !q.lmType) continue;
+    let tgt = null, bd = 1e9;
+    for (const lm of landmarkList) {
+      if (lm.type !== q.lmType) continue;
+      const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
+      if (d < bd) { bd = d; tgt = lm; }
+    }
+    if (!tgt) continue;
+    const [qx, qy] = toMap(tgt.x, tgt.z);
+    const cx = Math.max(10, Math.min(S - 10, qx)), cy = Math.max(10, Math.min(S - 10, qy));
+    const pulse = 5 + Math.sin(tSec * 4) * 1.6;
+    ctx.save();
+    ctx.strokeStyle = '#ffd76a'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(cx, cy, pulse + 3, 0, 6.29); ctx.stroke();
+    ctx.fillStyle = '#ffd76a';
+    ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 6.29); ctx.fill();
+    if (opts.big) { ctx.font = 'bold 11px system-ui'; ctx.fillText('✦', cx + 8, cy + 4); }
+    ctx.restore();
+  }
+  // ---- fast travel: the paths you have earned (big map only) ----
+  if (opts.big) {
+    FT_HITS = [];
+    for (const f of FAST_TRAVEL) {
+      const [fx, fy] = toMap(f.x, f.z);
+      if (fx < -10 || fx > S + 10 || fy < -10 || fy > S + 10) continue;
+      ctx.save();
+      ctx.fillStyle = '#8fd8ff';
+      ctx.beginPath(); ctx.arc(fx, fy, 5.4, 0, 6.29); ctx.fill();
+      ctx.strokeStyle = 'rgba(210,240,255,.9)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(fx, fy, 8.4, 0, 6.29); ctx.stroke();
+      ctx.font = '10px system-ui'; ctx.fillStyle = '#bfe8ff'; ctx.textAlign = 'center';
+      ctx.fillText('travel', fx, fy + 19);
+      ctx.restore();
+      FT_HITS.push({ sx: fx, sy: fy, x: f.x, z: f.z });
+    }
+  }
   // ---- predator territory rings ----
   ctx.save();
   ctx.setLineDash([5, 4]);
@@ -2881,7 +3542,7 @@ function updateHUD(dt) {
   }
   // health
   if (wolf.hp < wolf.maxHp && tSec - wolf.lastHurt > 6 && wolf.deadT <= 0)
-    wolf.hp = Math.min(wolf.maxHp, wolf.hp + 3 * dt);
+    wolf.hp = Math.min(wolf.maxHp, wolf.hp + 3 * dt * (wolf.perks.secondWind ? 1.5 : 1));
   const hpEl = el('hpFill');
   if (hpEl) {
     hpEl.style.width = (wolf.hp / wolf.maxHp * 100).toFixed(0) + '%';
@@ -2980,7 +3641,10 @@ let state = 'boot';
 function setState(s) {
   state = s;
   if (s === 'play') { hideOverlay(); ui.hud.classList.remove('hidden'); }
-  else if (s === 'pause') { showOverlay('pause'); inputClear(); }
+  else {
+    if (typeof toggleQuestLog === 'function') toggleQuestLog(false);
+    if (s === 'pause') { showOverlay('pause'); inputClear(); }
+  }
 }
 function enterLandscape() {
   try {
@@ -3047,6 +3711,7 @@ addEventListener('keydown', e => {
     switch (e.code) {
       case 'KeyE': doGather(); break;
       case 'KeyF': wolf.attack(); break;
+      case 'KeyJ': toggleQuestLog(); break;
       case 'KeyX': wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾 Prowling — low, quiet, hard to see' : '🐾 Standing tall'); break;
       case 'KeyH': wolf.howl(); break;
       case 'KeyQ': wolf.wolfSense(); break;
@@ -3096,6 +3761,7 @@ if (joyEl) {
     audio.resume();
     joy.id = e.pointerId;
     try { joyEl.setPointerCapture(e.pointerId); } catch (err) { }
+    joyEl.classList.add('live');   // the stick wakes under your thumb
     joySetFromEvent(e);
   });
   joyEl.addEventListener('pointermove', e => {
@@ -3103,18 +3769,35 @@ if (joyEl) {
     e.stopPropagation();
     joySetFromEvent(e);
   });
-  const joyEnd = e => { if (e.pointerId === joy.id) joyRelease(); };
+  const joyEnd = e => { if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); } };
   joyEl.addEventListener('pointerup', joyEnd);
   joyEl.addEventListener('pointercancel', joyEnd);
+  // teach once: when play begins, show the stick for a breath — then it stays out of the way
+  let joyTaught = false;
+  const joyTeach = setInterval(() => {
+    if (joyTaught || state !== 'play') return;
+    joyTaught = true; clearInterval(joyTeach);
+    joyEl.classList.add('live');
+    setTimeout(() => { if (joy.id == null) joyEl.classList.remove('live'); }, 2600);
+  }, 500);
 }
 
 /* -------- touch buttons -------- */
+let btnsWakeT = 0;
+function wakeBtns() {   // a touched button wakes the whole cluster for a moment
+  const root = el('btns');
+  if (!root) return;
+  root.classList.add('wake');
+  clearTimeout(btnsWakeT);
+  btnsWakeT = setTimeout(() => root.classList.remove('wake'), 2200);
+}
 function bindHold(id, down, up) {
   const b = el(id);
   if (!b) return;
   b.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation();
     audio.resume(); audio.uiClick();
+    wakeBtns();
     down();
     b.classList.add('on');
   });
@@ -3129,12 +3812,38 @@ bindHold('tGather', () => doGather());
 bindHold('tAttack', () => wolf.attack());
 bindHold('tHowl', () => wolf.howl());
 bindHold('tProwl', () => { wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾 Prowling' : '🐾 Standing'); });
+(function () {
+  const qb = el('questBtn');
+  if (qb) qb.addEventListener('click', () => toggleQuestLog());
+  const qx = el('questX');
+  if (qx) qx.addEventListener('click', () => toggleQuestLog(false));
+  const tabs = document.querySelectorAll('.qtab');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('on'));
+    t.classList.add('on');
+    questTab = t.dataset.t;
+    audio.uiClick();
+    renderQuests();
+  }));
+  const ql = el('questList');
+  if (ql) ql.addEventListener('click', e => {
+    const ac = e.target.getAttribute && e.target.getAttribute('data-ac');
+    const ab = e.target.getAttribute && e.target.getAttribute('data-ab');
+    if (ac) acceptQuest(ac);
+    else if (ab) abandonQuest(ab);
+  });
+  const bm = el('bigmap');
+  if (bm) bm.addEventListener('click', bigMapTravel);
+  refillQuests();   // the wild offers its first deeds
+})();
 bindHold('tSense', () => wolf.wolfSense());
 (function () {
   const b = el('tPause');
   if (!b) return;
   b.addEventListener('pointerdown', e => {
     e.preventDefault(); e.stopPropagation();
+    b.classList.add('on');
+    setTimeout(() => b.classList.remove('on'), 350);
     if (state === 'play') setState('pause');
     else if (state === 'pause') setState('play');
   });
@@ -3265,7 +3974,8 @@ function tick() {
   const wantBlur = (state === 'pause' || document.getElementById('bigmapWrap').classList.contains('show')) ? 'blur(5px) brightness(0.85)' : '';   // gameplay suspended — the world steps back (not the live menu vista: too costly to composite)
   if (renderer.domElement.style.filter !== wantBlur) renderer.domElement.style.filter = wantBlur;
   const running = state === 'play';
-  const dt = running || state === 'menu' ? rdt : 0;
+  if (bossSlowmoT > 0) bossSlowmoT -= rdt;   // a legend's death: the world holds its breath
+  const dt = (running || state === 'menu' ? rdt : 0) * (bossSlowmoT > 0 ? 0.3 : 1);
   tSec += dt;
   if (running) stats.playT += rdt;
 
@@ -3309,6 +4019,7 @@ function tick() {
   if (caveState.in) caveTick(dt);
   updateSeasons();
   if (!caveState.in) updateEco(dt);
+  if (running) { bossTick(dt); spiritTick(rdt); questTick(dt); }
   updateEnvironment(dt);
   if (audio.ready && audio.fireG) {
     const f = WORLD_EVENTS.fireAt;

@@ -76,6 +76,46 @@ await page.waitForTimeout(250);
 R.resumed = await page.evaluate(() => state);
 
 await page.screenshot({ path: 'shots/15_touch.png' });
+
+// ---- controls stay out of the way until touched ----
+// (SwiftShader frames are slow — wait for the transitions, not the clock)
+await page.waitForFunction(() => {
+  const j = document.getElementById('joy');
+  return !j.classList.contains('live') && getComputedStyle(j).opacity === '0';
+}, null, { timeout: 20000 });
+R.joyHidden = await page.evaluate(() => getComputedStyle(document.getElementById('joy')).opacity);
+const jb2 = await page.locator('#joy').boundingBox();
+await page.mouse.move(jb2.x + jb2.width / 2, jb2.y + jb2.height / 2);
+await page.mouse.down();
+await page.waitForFunction(() => getComputedStyle(document.getElementById('joy')).opacity > 0.9, null, { timeout: 20000 });
+R.joyLive = await page.evaluate(() => getComputedStyle(document.getElementById('joy')).opacity);
+await page.mouse.up();
+await page.waitForFunction(() => getComputedStyle(document.getElementById('joy')).opacity === '0', null, { timeout: 20000 });
+R.joyFaded = await page.evaluate(() => getComputedStyle(document.getElementById('joy')).opacity);
+R.btnFaint = await page.evaluate(() => getComputedStyle(document.getElementById('tAttack')).opacity);
+await page.locator('#tHowl').dispatchEvent('pointerdown');
+await page.waitForFunction(() => {
+  const h = getComputedStyle(document.getElementById('tHowl')).opacity;
+  const a = getComputedStyle(document.getElementById('tAttack')).opacity;
+  return h > 0.9 && a > 0.9;
+}, null, { timeout: 20000 });
+R.btnAwake = await page.evaluate(() => ({
+  howl: getComputedStyle(document.getElementById('tHowl')).opacity,
+  attack: getComputedStyle(document.getElementById('tAttack')).opacity
+}));
+await page.locator('#tHowl').dispatchEvent('pointerup');
+await page.waitForFunction(() => getComputedStyle(document.getElementById('tAttack')).opacity < 0.4, null, { timeout: 20000 });
+R.btnFaded = await page.evaluate(() => getComputedStyle(document.getElementById('tAttack')).opacity);
+R.faintControls = {
+  joyHiddenAtRest: +R.joyHidden < 0.1,
+  joyVisibleWhileHeld: +R.joyLive > 0.9,
+  joyFadesAfterRelease: +R.joyFaded < 0.1,
+  buttonsFaintAtRest: +R.btnFaint < 0.4,
+  buttonsWakeOnTouch: +R.btnAwake.howl > 0.9 && +R.btnAwake.attack > 0.9,
+  buttonsFadeAfterIdle: +R.btnFaded < 0.4
+};
+console.log('faintControls:', JSON.stringify(R.faintControls));
+
 R.errors = errors;
 console.log(JSON.stringify(R, null, 1));
 await browser.close();
