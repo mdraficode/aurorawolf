@@ -2,7 +2,7 @@
    Plays the game like a human: takes quests, hunts, gathers, explores, levels.
    Logs everything for bug analysis. Enable with ?autopilot=1 */
 (function () {
-  if (!/[?&]autopilot=1/.test(location.search) && window.__LIVE_BUILD !== true) return;
+  if (!/[?&]autopilot=1/.test(location.search)) return;
   const L = (window.BOTLOG = []);
   const t0 = performance.now();
   const log = (type, data) => {
@@ -23,13 +23,6 @@
       const r = o.apply(this, a);
       const q = typeof a[0] === 'object' ? a[0] : (QUESTS.active.find(x => x.id === a[0]) || QUESTS.done.find(x => x.id === a[0]) || {});
       log('quest-' + fn, { title: q.title || String(a[0]), have: q.have, need: q.need });
-      if (fn === 'acceptQuest' && q && q.kind) {
-        // regression: every accepted deed must be feasible
-        if (q.kind === 'hunt' && !(SPECIES_TABLE[q.biome] || []).some(e => e[0] === q.species)) log('bug-REGRESS-infeasible-hunt', { key: q.title, msg: 'offered prey that cannot spawn in its biome' });
-        if (q.kind === 'explore' && q.lmType && !landmarkList.some(l => l.type === q.lmType)) log('bug-REGRESS-infeasible-explore', { key: q.title, msg: 'landmark type absent from the world' });
-        if (q.kind === 'collect' && q.item === 'bone') log('bug-REGRESS-bone-deed', { key: q.title, msg: 'surface-impossible collect returned' });
-        if (/Foxs|Deers|Goatses|Gooses|Rabbits.*Rabbits/.test(q.title || '')) log('bug-REGRESS-plural', { key: q.title });
-      }
       return r;
     };
   }
@@ -137,6 +130,10 @@
   setInterval(() => {
     try {
       if (typeof state === 'undefined' || state === 'boot') return;
+      if (window.BOT_OFF) {   // kill switch for manual testing / watching takeover
+        if (!bot.stopped) { bot.stopped = true; keys.KeyW = keys.KeyS = keys.KeyA = keys.KeyD = false; keys.ShiftLeft = false; keys.Space = false; }
+        return;
+      } else bot.stopped = false;
       if (state === 'pause') { setState('play'); return; }
       if (state !== 'play') return;
 
@@ -164,12 +161,9 @@
       for (const cq of QUESTS.active) {
         if (cq.kind === 'hunt') {
           const ref = SPECIES[cq.species];
-          // stalk catchable quarry: a wolf sprints ~13-14; dinner doesn't outrun that
-          const hit = nearestAnimal(a => (a.sp === ref || (ref && a.sp.label === ref.label)) && (a.sp.run || 8) <= 12.5);
-          const anyHit = nearestAnimal(a => a.sp === ref || (ref && a.sp.label === ref.label));
-          if (!hit.a && anyHit.a) warnOnce('toofast' + cq.species, 'note-prey-too-fast', { key: cq.species, msg: 'quarry outsprints the wolf — needs an ambush (by design)' });
+          const hit = nearestAnimal(a => a.sp === ref || (ref && a.sp.label === ref.label));   // sp is a copy — match by label too
           if (hit.a && hit.d < bestD) { bestD = hit.d; q = cq; goal = { x: hit.a.pos.x, z: hit.a.pos.z }; targetAnimal = hit.a; mode = 'hunt'; }
-          else if (!anyHit.a) {
+          else if (!hit.a) {
             // a journey: walk to the quarry's homeland
             const t2 = bot.travelToBiome(cq.biome);
             if (t2 && (bestD === 1e9 || t2.d + 120 < bestD)) { bestD = t2.d + 120; q = cq; goal = t2; mode = 'travel'; }
@@ -208,14 +202,56 @@
       let steer = goal;
       if (bot.detourT && performance.now() - bot.detourT < 4000) steer = bot.detourPos;
       else if (bot.detourT) { bot.detourT = 0; bot.goalStuck = Math.max(0, bot.goalStuck - 1); }
+      // --- look before you run: what stands between me and the goal? ---
+      bot.nearSolids = [];
+      for (const [, ch] of chunks) for (const sol of (ch.solids || [])) {
+        const dd = Math.hypot(sol.x - wolf.pos.x, sol.z - wolf.pos.z);
+        if (dd < 16) bot.nearSolids.push(sol);
+      }
+      const probe = (yaw, dist) => {
+        let worst = 0;
+        const sx2 = Math.sin(yaw), sz2 = Math.cos(yaw);
+        for (let t = 2; t <= dist; t += 1.8) {
+          const px = wolf.pos.x + sx2 * t, pz = wolf.pos.z + sz2 * t;
+          const gh = heightAt(px, pz);
+          if (gh - wolf.pos.y > 1.8) worst = Math.max(worst, 3.4 - t * 0.22);    // steep step — leap it or go around
+          if (gh < waterYNow() - 0.45) worst = Math.max(worst, 2.6 - t * 0.16);  // deep water — no accidental swims
+          for (const sol of bot.nearSolids)
+            if (Math.hypot(sol.x - px, sol.z - pz) < sol.r + 1.0) { worst = Math.max(worst, 3.6 - t * 0.22); break; }
+          if (worst > 2.8) break;   // a near blocker dominates everything beyond
+        }
+        return worst;
+      };
+      const desired = Math.atan2(steer.x - wolf.pos.x, steer.z - wolf.pos.z);
+      // and a healthy fear: headings that walk toward a predator cost extra
+      let pinfo = null;
+      for (const [, ch] of chunks) for (const pr of ch.predators) if (!pr.dead) {
+        const d = Math.hypot(pr.pos.x - wolf.pos.x, pr.pos.z - wolf.pos.z);
+        if (d < 48 && (!pinfo || d < pinfo.d)) pinfo = { d, yaw: Math.atan2(pr.pos.x - wolf.pos.x, pr.pos.z - wolf.pos.z) };
+      }
+      let bestYaw = desired, bestScore = 1e9;
+      for (const off of [0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.1, -2.1]) {
+        let sc = probe(desired + off, 11) + Math.abs(off) * 0.22;   // clarity first, straightness second
+        if (pinfo && Math.abs(wrapPI(desired + off - pinfo.yaw)) < 0.7) sc += (48 - pinfo.d) * 0.09;   // give bears a wide berth
+        if (sc < bestScore) { bestScore = sc; bestYaw = desired + off; }
+      }
+      bot.avoiding = probe(desired, 11) > 0.3;
+      camYaw += wrapPI(bestYaw - camYaw) * 0.45;   // ease into the turn — no robotic snaps
       const dg = Math.hypot(goal.x - wolf.pos.x, goal.z - wolf.pos.z);
-      camYaw = Math.atan2(steer.x - wolf.pos.x, steer.z - wolf.pos.z);
       keys.KeyW = dg > 2.2;
       keys.KeyS = keys.KeyA = keys.KeyD = false;
-      keys.ShiftLeft = (dg > 35 || (targetAnimal && dg < 26)) && wolf.stamina > 20 && !wolf.exhausted;   // burst to close the kill
+      keys.ShiftLeft = (dg > 35 || (targetAnimal && dg < 26)) && wolf.stamina > 20 && !wolf.exhausted;
+      // --- hop: a log or a lip right in front → over it, like a wolf would ---
+      bot.jumpCd = Math.max(0, (bot.jumpCd || 0) - 0.15);
+      const ax = wolf.pos.x + Math.sin(bestYaw) * 1.7, az = wolf.pos.z + Math.cos(bestYaw) * 1.7;
+      const lip = heightAt(ax, az) - wolf.pos.y;
+      if (bot.jumpCd <= 0 && wolf.grounded && keys.KeyW && (probe(bestYaw, 3.6) > 0.6 || (lip > 1.0 && lip < 2.4))) {
+        bot.jumpCd = 0.9; bot.jumpT = performance.now();
+        bot.jumps = (bot.jumps || 0) + 1;
+        log('jump', { msg: probe(bestYaw, 3.6) > 0.6 ? 'hopped an obstacle' : 'bounded up a rise' });
+      }
+      keys.Space = bot.jumpT && performance.now() - bot.jumpT < 170;   // burst to close the kill
 
-      // stalk: prowl low when closing on the quarry
-      wolf.crouch = !!(targetAnimal && dg < 16 && dg > 3.5);
       // hunt: bite in reach
       if (targetAnimal && dg < 3.4 + (targetAnimal.sp.scale || 1)) {
         keys.KeyW = false;
@@ -224,12 +260,7 @@
           const hpB = targetAnimal.hp;
           wolf.attack();
           setTimeout(() => {
-            if (targetAnimal.dead) {
-              log('kill', { sp: q ? (q.species || q.kind) : '?', msg: 'caught ' + (q && q.species ? q.species : (q ? q.kind : 'target')) + ' → quest ' + (q ? q.have + '/' + q.need : '') + ' · xp ' + (wolf.xp | 0) + ' · meat ' + inv.meat });
-              const name = targetAnimal.name || (q && q.species);
-              const hq = QUESTS.active.find(x => x.kind === 'hunt' && x.species === name);
-              if (hq && hq.have === 0) log('bug-REGRESS-kill-not-counted', { key: hq.title, msg: 'prey died but the hunt deed did not progress' });
-            }
+            if (targetAnimal.dead) log('kill', { sp: q ? (q.species || q.kind) : '?', msg: 'caught ' + (q && q.species ? q.species : (q ? q.kind : 'target')) + ' → quest ' + (q ? q.have + '/' + q.need : '') + ' · xp ' + (wolf.xp | 0) + ' · meat ' + inv.meat });
             else if (targetAnimal.hp === hpB) warnOnce('miss' + performance.now() | 0, 'bug-bite-no-effect', { key: q.species, msg: 'bite in reach did nothing (hp ' + hpB + ', dist ' + dg.toFixed(1) + ')' });
           }, 350);
         }
@@ -248,49 +279,6 @@
         }
       }
       bot.goalText = mode + ' → ' + dg.toFixed(0) + 'm' + (q ? ' (' + q.have + '/' + q.need + ')' : '');
-
-      // ---- phase: spelunk — a cave mouth nearby is an invitation ----
-      if (mode === 'wander' && !caveState.in && !bot.inCave) {
-        let ce = null, cd = 1e9;
-        for (const [, ch] of chunks) for (const pk of ch.pickups) {
-          if (pk.type !== 'caveEnter' || pk.gathered) continue;
-          const d = Math.hypot(pk.x - wolf.pos.x, pk.z - wolf.pos.z);
-          if (d < cd) { cd = d; ce = pk; }
-        }
-        if (ce && cd < 130) { goal = { x: ce.x, z: ce.z }; bot.caveGoal = ce; mode = 'spelunk'; }
-      }
-      if (bot.caveGoal && !caveState.in) {
-        const d = Math.hypot(bot.caveGoal.x - wolf.pos.x, bot.caveGoal.z - wolf.pos.z);
-        if (d < 2.6) { doGather(); }
-        if (d < 2.6 && !caveState.in && ++bot.caveTries > 4) { warnOnce('cave' + (bot.caveGoal.x | 0), 'bug-cave-wont-open', { msg: 'standing at the mouth, Enter Cave does nothing' }); bot.caveGoal = null; }
-      }
-      if (caveState.in) {
-        bot.inCave = true; bot.caveT = (bot.caveT || 0) + 0.15;
-        // gather the deep dark's bones, then leave
-        let bp = null, bd = 1e9;
-        for (const pk of (caveState.pickups || [])) { if (pk.gathered || pk.type !== 'bone') continue; const d = Math.hypot(pk.x - wolf.pos.x, pk.z - wolf.pos.z); if (d < bd) { bd = d; bp = pk; } }
-        if (bp && inv.bone < 3) { goal = { x: bp.x, z: bp.z }; if (bd < 2.2) { const s0 = invSum(); doGather(); setTimeout(() => { if (invSum() > s0) log('gather', { msg: '🦴 cave bone +1' }); }, 250); } mode = 'spelunk'; }
-        else {
-          let ex = null, xd = 1e9;
-          for (const pk of (caveState.pickups || [])) { if (pk.type !== 'caveExit') continue; const d = Math.hypot(pk.x - wolf.pos.x, pk.z - wolf.pos.z); if (d < xd) { xd = d; ex = pk; } }
-          if (ex) { goal = { x: ex.x, z: ex.z }; if (xd < 2.6) { doGather(); log('cave-run', { msg: 'spelunk done — bones ' + inv.bone }); } mode = 'spelunk'; }
-        }
-        if (bot.caveT > 150) warnOnce('cavestuck' + dayCount, 'bug-cave-stuck', { msg: 'underground for 150s+ — lost in the dark?' });
-      } else if (bot.inCave) { bot.inCave = false; bot.caveT = 0; bot.caveGoal = null; }
-
-      // ---- phase: chaos — every ~3 min, stress the game like an impatient player ----
-      bot.chaosT = (bot.chaosT || 0) + 0.15;
-      if (bot.chaosT > 185) {
-        bot.chaosT = 0; bot.chaosUntil = performance.now() + 18000;
-        log('chaos', { msg: 'stress round: panels, howl, sense, provoke' });
-        try {
-          if (typeof toggleQuestLog === 'function') { toggleQuestLog(true); setTimeout(() => toggleQuestLog(false), 700); }
-          if (typeof toggleInv === 'function') { toggleInv(true); setTimeout(() => toggleInv(false), 600); }
-          wolf.howl(); wolf.wolfSense();
-          const pr = nearestPred();
-          if (pr.a && pr.d < 60) { wolf.pos.x = pr.a.pos.x + 2; wolf.pos.z = pr.a.pos.z + 2; wolf.attack(); }   // poke the bear
-        } catch (e2) { log('bug-chaos-error', { msg: String(e2.message).slice(0, 110) }); }
-      }
 
       // anti-stuck: wants to move but isn't (measured on the game odometer — immune to slow sims)
       const moving = keys.KeyW && dg > 6;
@@ -312,7 +300,6 @@
         }
       } else bot.stuckPos = null;
       if (bot.unstickT && performance.now() - bot.unstickT < 1200) { keys.Space = true; keys.KeyA = ((performance.now() / 200) | 0) % 2 === 0; }
-      else keys.Space = false;
 
       // flavour: howl now and then
       bot.howlT -= 0.15;

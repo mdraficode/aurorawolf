@@ -71,3 +71,25 @@ Session 2: 100 → 70 HP around t≈180 s in taiga, no predator logged near, no 
 | **B7** unexplained HP loss | 🔍 TOOL SHIPPED | Not reproducible in 12 audited minutes (0 HP drops). `?audit=1` now logs every HP decrease with its call site. Most likely cause: full-speed crash damage (−4 HP, toasted to players) from the bot's blind sprinting |
 
 **Post-fix proof:** fresh-world autopilot sessions run with **0 page errors, 0 crash banners**; quest offers 100 % feasible; live kill → quest complete → XP → level all verified end-to-end. (Bot footnote: an open-field chase of a reindeer can outrun an exhausted wolf — that's the stalking mechanic working as designed, not a bug; the bot just never learned to ambush.)
+
+
+---
+
+## 🔄 Mission 2 — Verification Round (bot v6: obstacle-avoiding, hopping, predator-wary)
+_Fresh worlds, seeds 60606 + 4242 (the original wedge world), ~19 min of play + a 325-roll verification battery. **0 page errors, 0 crash banners.**
+
+### Previous fixes — all re-verified ✅
+| Check | Result |
+|---|---|
+| B1 kill→quest→XP (live bite) | ✅ prey died, quest 1/1, +188 XP |
+| B2 quest feasibility (325 rolls × 13 biomes) | ✅ 0 impossible hunts / explores / collects |
+| B4 bone deeds | ✅ 0 offered |
+| B5 plurals | ✅ no "Foxs/Deers" in 30 titles |
+| B6 wedge spots (−535,166 · 0,−293 · 467,317) | ✅ all three move; the 11-min wedge world (seed 4242) played clean — one 9 s pause, self-recovered |
+| Satchel + quadrant joystick | ✅ intact |
+| Fault-tolerant loop | ✅ zero errors across both sessions |
+
+### New findings
+- **N1 (polish, fixed):** rival-pack deeds could wait on the random pack event (240 s life, ~5 min cadence). Now an active rival deed triples the pack-event weight — the wild answers your quest.
+- **N2 (observation, no fix needed):** bot deaths to predators are legit gameplay (one at t=155 s, predator at 1 m — the bot fled at low HP and escaped on respawn). HP audit ran clean: no unexplained damage.
+- **Bot v6 behavior verified:** obstacle probes steer around trunks/boulders/deep water (9 candidate headings, clarity-first), smooth eased turning instead of snapping, hops over near blockers and bounds up rises (14 hops logged on one hillside climb), and gives predators a 48 m berth in its pathing.

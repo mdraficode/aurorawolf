@@ -1035,7 +1035,7 @@ const WORLD_EVENTS = {
     const opts = [];
     const push = (name, wt, make) => { if (wt > 0 && !this.recent.includes(name)) opts.push({ name, wt, make }); };
     push('storm', 1.0, () => EVENTS.storm());
-    push('rivalPack', 0.85, () => EVENTS.rivalPack());
+    push('rivalPack', (typeof QUESTS !== 'undefined' && QUESTS.active.some(q => q.kind === 'rival')) ? 2.6 : 0.85, () => EVENTS.rivalPack());   // a deed to drive them off calls the pack
     push('migration', (w.forest || 0) + (w.taiga || 0) + (w.meadow || 0) + (w.grove || 0) > 0.5 ? 0.8 : 0.15, () => EVENTS.migration());
     push('blizzard', (k === 'tundra' || k === 'taiga' || k === 'mountain' || k === 'highland') ? 0.9 : (weather.snow > 0.2 ? 0.5 : 0.08), () => EVENTS.blizzard());
     push('fire', weather.rain < 0.15 && dayF > 0.4 && ((w.forest || 0) + (w.grove || 0) + (w.taiga || 0) > 0.55) ? 0.7 : 0, () => EVENTS.fire());
