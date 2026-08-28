@@ -2222,8 +2222,9 @@ class RivalWolf {
       }
     } else if (this.state === 'attack') {
       faceWolf();
-      speed = 12.2;                     // just slower than the player's sprint — a real chase
-      if (dWolf < 2.1 && this.atkCd <= 0) {
+      // a real chase to close in — then plant feet and bite, from any side
+      speed = dWolf > 1.8 ? 12.2 : 0;   // just slower than the player's sprint
+      if (dWolf < 2.4 && this.atkCd <= 0) {
         this.atkCd = 1.15;
         wolfTakeDamage(this.leader ? 9 : 6, this.pos, this.sp.label, '🐺');
       }
@@ -3202,11 +3203,16 @@ class Predator {
       this.atkCd -= dt;
       if (dWolf > this.sp.reach * 1.35) {
         this.state = dWolfHome > this.territory * 1.5 ? 'return' : 'chase';
-      } else if (this.atkCd <= 0) {
-        this.atkCd = this.sp.atkCd;
-        this.biteT = 0.32;
-        pool.burst(V3(this.pos.x + dxw / (dWolf || 1) * 1.2, this.pos.y + 1, this.pos.z + dzw / (dWolf || 1) * 1.2), 8, 0xff5040, 0.8, 1.6, 2.2);
-        if (dWolf < this.sp.reach) wolfTakeDamage(this.sp.dmg, this.pos, this.sp.label, this.sp.icon);
+      } else {
+        // close the last strides, plant your feet, THEN bite — a bite from any
+        // side (behind, flank, face) lands the same; no more orbiting past
+        speed = dWolf > this.sp.reach * 0.6 ? this.sp.walk * 2.6 : 0;
+        if (this.atkCd <= 0) {
+          this.atkCd = this.sp.atkCd;
+          this.biteT = 0.32;
+          pool.burst(V3(this.pos.x + dxw / (dWolf || 1) * 1.2, this.pos.y + 1, this.pos.z + dzw / (dWolf || 1) * 1.2), 8, 0xff5040, 0.8, 1.6, 2.2);
+          wolfTakeDamage(this.sp.dmg, this.pos, this.sp.label, this.sp.icon);
+        }
       }
     } else if (this.state === 'hunt') {
       const prey = this.huntTarget;
