@@ -66,9 +66,9 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #bigmap { width: min(62vmin, 460px); height: min(62vmin, 460px); border-radius: 10px; display: block; }
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
 body.touch #minimap { top: 14px; right: 14px; width: 118px; height: 118px; }   /* the corner belongs to the map */
-body.touch #btns { width: 100px; height: 100px; right: 37px; bottom: 37px; }   /* edge gap == arch gap == 27px */
+body.touch #btns { width: 100px; height: 100px; right: 28px; bottom: 28px; }   /* snug to the corner */
 body.touch #tAttack { width: 120px; height: 120px; margin: -60px 0 0 -60px; font-size: 40px; }   /* overtakes the 118px map */
-body.touch #btns .tbtn:not(#tAttack) { width: 42px; height: 42px; margin: -21px 0 0 -21px; --orb: 108%; }
+body.touch #btns .tbtn:not(#tAttack) { width: 42px; height: 42px; margin: -21px 0 0 -21px; --orb: 103%; }
 body.touch #mmOrbit { top: 14px; right: 14px; width: 118px; height: 118px; }
 body.touch #topbar { top: 14px; left: 50%; transform: translateX(-50%); }   /* upper center on every layout */
 #hpWrap { position: absolute; top: 98px; left: 60px; transform: none;
@@ -159,8 +159,8 @@ body.touch #joyZone { display: block; pointer-events: auto; }
   box-shadow: 0 3px 16px rgba(0, 0, 0, 0.35); will-change: transform;
 }
 /* ---- the attack orbit: a big strike anchor in the corner, its company on the upper-left arch ---- */
-#btns { position: fixed; right: 38px; bottom: 38px; z-index: 12; width: 120px; height: 120px; pointer-events: none; }   /* equal air: 27px to the corner edges, 27px to the arch */
-#btns .tbtn { position: absolute; left: calc(50% + var(--mx, 0) * var(--orb, 98%)); top: calc(50% + var(--my, 0) * var(--orb, 98%)); }
+#btns { position: fixed; right: 30px; bottom: 30px; z-index: 12; width: 120px; height: 120px; pointer-events: none; }   /* closer to the corner, arch drawn closer too */
+#btns .tbtn { position: absolute; left: calc(50% + var(--mx, 0) * var(--orb, 96%)); top: calc(50% + var(--my, 0) * var(--orb, 96%)); }
 #tAttack { left: 50%; top: 50%; width: 142px; height: 142px; margin: -71px 0 0 -71px; font-size: 48px; z-index: 1; }   /* a touch larger than the minimap itself */
 #tAttack span { font-size: 12px; }
 #btns .tbtn:not(#tAttack) { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
@@ -244,9 +244,9 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   body.touch #minimap { top: 14px; width: 84px; height: 84px; }
   body.touch #mmOrbit { top: 14px; width: 84px; height: 84px; --orb: 105%; }
   #mmOrbit button { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 15px; }
-  body.touch #btns { width: 72px; height: 72px; right: 34px; bottom: 34px; }   /* edge gap == arch gap == 27px */
+  body.touch #btns { width: 72px; height: 72px; right: 26px; bottom: 26px; }   /* snug to the corner */
   body.touch #tAttack { width: 86px; height: 86px; margin: -43px 0 0 -43px; font-size: 31px; }   /* overtakes the 84px map */
-  body.touch #btns .tbtn:not(#tAttack) { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 14px; --orb: 119%; }
+  body.touch #btns .tbtn:not(#tAttack) { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 14px; --orb: 112%; }
   body.touch #btns .tbtn span { display: none; }   /* tiny screens: glyphs only */
 }
 @media (max-width: 600px) {
