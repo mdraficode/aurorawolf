@@ -130,3 +130,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - New stamina icon: a minimalist SPRINGING WOLF in the game's stroke style (teal #7ef0c0): body arc + snout + ear, four gallop legs, streaming tail, two speed lines, two ground lines. First attempt (filled 20-point polygon) read as a blob at 38px — redrawn bold stroke-based, legibility verified by ASCII-reading the rendered badge (body/head/3 leg groups clearly separable).
 - Stamina number REMOVED (per request): stamPct span deleted + its update line; heart % and star level remain.
 - quest 32/32. Live: byte-verified.
+
+### Mission 23 — the stamina icon IS the reference
+- The M22 freehand wolf was judged wrong. Rigorous re-read of uploads/image-1.png: connected-component decomposition (34 comps) + magnified region renders — head blob, thick diagonal torso, bent limbs, a leg extended along a skid-line, speed streaks, ground line. Verdict: too specific to redraw.
+- Exact-match approach: the reference bitmap itself is now the icon — darkness->alpha extraction, recolored solid teal #7ef0c0, 96x96 optimized PNG (8.4KB) embedded as a base64 data URI in #icoRun (img, not svg). Shape match VERIFIED by IoU 0.936 between the embedded PNG's alpha and the reference mask (48x48, diffs = anti-alias edges only). DOM: svg gone, no stamina text, heart%/star level intact.
+- Probe lessons: pixel-threshold masks of a transparent badge over the live world catch background pixels (bogus 0.32 IoU) — compare the embedded asset's alpha in-page instead; ESM has no require().
+- quest 32/32. Live: byte-verified.
