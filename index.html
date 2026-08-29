@@ -43,11 +43,12 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
   text-shadow: 0 0 12px rgba(176, 122, 255, 0.9);
 }
 #mmOrbit { position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; pointer-events: none; z-index: 12; }
-#mmOrbit button { position: absolute; pointer-events: auto; border-radius: 50%; }
-#invBtn  { left: -19.9%; top: 64.9%; margin: -20px 0 0 -20px; }   /* west of the ring */
-#questBtn{ left: -6.3%;  top: 94%;    margin: -20px 0 0 -20px; }
-#btnAI   { left: 18.7%;  top: 114.2%; margin: -20px 0 0 -20px; }
-#tPause  { left: 50%;    top: 121.4%; margin: -21px 0 0 -21px; }   /* due south — the end of the arc */
+#mmOrbit button { position: absolute; pointer-events: auto; border-radius: 50%;
+  left: calc(50% + var(--mx, 0) * var(--orb, 84.3%)); top: calc(50% + var(--my, 0) * var(--orb, 84.3%)); }   /* satellites on the arc — --orb sets the radius */
+#invBtn  { --mx: -0.990; --my: 0.139; margin: -20px 0 0 -20px; }   /* west of the ring */
+#questBtn{ --mx: -0.809; --my: 0.588; margin: -20px 0 0 -20px; }
+#btnAI   { --mx: -0.438; --my: 0.899; margin: -20px 0 0 -20px; }
+#tPause  { --mx: 0.035;  --my: 0.999; margin: -21px 0 0 -21px; }   /* due south — the end of the arc */
 #minimap {
   position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; z-index: 8;
   border-radius: 50%; background: rgba(8, 14, 22, 0.55); pointer-events: auto; cursor: pointer;
@@ -64,8 +65,9 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
   border-radius: 8px; min-width: 36px; min-height: 36px; font-size: 15px; cursor: pointer; }
 #bigmap { width: min(62vmin, 460px); height: min(62vmin, 460px); border-radius: 10px; display: block; }
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
-body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
-body.touch #mmOrbit { top: 112px; right: 14px; width: 118px; height: 118px; }
+body.touch #minimap { top: 14px; right: 14px; width: 118px; height: 118px; }   /* the corner belongs to the map */
+body.touch #mmOrbit { top: 14px; right: 14px; width: 118px; height: 118px; }
+body.touch #topbar { top: 188px; left: 16px; transform: none; }   /* the pills step below the status column */
 #hpWrap { position: absolute; top: 98px; left: 60px; transform: none;
   width: 156px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
   border: 1px solid rgba(255, 120, 100, 0.35); overflow: hidden; }
@@ -222,8 +224,9 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 }
 @media (max-width: 860px) and (max-height: 400px) {
   /* small landscape phones: slimmer buttons + minimap so nothing collides */
-  body.touch #minimap { top: 108px; width: 84px; height: 84px; }
-  body.touch #mmOrbit { top: 108px; width: 84px; height: 84px; }
+  body.touch #minimap { top: 14px; width: 84px; height: 84px; }
+  body.touch #mmOrbit { top: 14px; width: 84px; height: 84px; --orb: 105%; }
+  #mmOrbit button { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 15px; }
     .tbtn { width: 54px; height: 54px; font-size: 19px; }
   .tbtn.small { width: 44px; height: 44px; font-size: 16px; }
   .brow, #btns { gap: 8px; }
