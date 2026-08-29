@@ -95,7 +95,7 @@ body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
   font: 700 10.5px/1 system-ui, sans-serif; letter-spacing: -.02em; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
 #icoXp { top: 55px; } #icoRun { top: 85px; } #icoHp { top: 115px; }
 #icoXp span { color: #4a3506; font-size: 12px; font-weight: 800; text-shadow: 0 1px 1px rgba(255,244,214,.4); }
-#icoRun svg { opacity: .55; } #icoRun span { color: #eafff6; }
+#icoRun svg { opacity: .95; }
 #icoHp span { color: #fff; padding-top: 3px; }
 #xpWrap { position: absolute; top: 71px; left: 60px; transform: none; width: 156px; height: 5px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(255, 215, 106, 0.28); overflow: hidden; }
 #xpFill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffd76a, #ffb347); box-shadow: 0 0 6px rgba(255, 215, 106, 0.5); }
@@ -423,7 +423,7 @@ body.touch #questTracker { display: none; }
   <div id="hpWrap"><div id="hpFill"></div></div>
   <div class="statIco" id="icoXp"><svg viewBox="0 0 13 13" aria-hidden="true"><path d="M6.5 .8 L8.1 4.4 L12 4.9 L9.2 7.6 L9.9 11.5 L6.5 9.6 L3.1 11.5 L3.8 7.6 L1 4.9 L4.9 4.4 Z" fill="#ffd76a"/></svg><span id="xpLvl">0</span></div>
   <div id="xpWrap"><div id="xpFill"></div></div>
-  <div class="statIco" id="icoRun"><svg viewBox="0 0 13 13" aria-hidden="true"><circle cx="9.6" cy="1.9" r="1.35" fill="#7ef0c0"/><path d="M8.9 3.5 L5.2 6.6 M8.6 4.5 L11.4 5.6 M8.4 4.7 L5.0 5.4 M5.2 6.6 L9.0 8.7 L9.9 11.9 M5.2 6.6 L2.9 9.2 L1.1 11.7" stroke="#7ef0c0" stroke-width="1.2" stroke-linecap="round" fill="none"/></svg><span id="stamPct">100%</span></div>
+  <div class="statIco" id="icoRun"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3.1 4.3 C5 3.1 7.6 3.0 9.3 3.9 M9.3 3.9 L11.7 3.0 L13.3 3.6 M9.5 3.7 L8.8 2.2" stroke="#7ef0c0" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M9.5 4.5 L11.9 7.3 M9.9 4.7 L10.3 7.6 M3.6 4.9 L1.1 7.5 M4.0 5.1 L5.9 7.6 M3.1 4.3 L0.9 2.6" stroke="#7ef0c0" stroke-width="1.1" stroke-linecap="round" fill="none"/><path d="M0.6 5.7 L2.5 5.7 M1.2 6.7 L3.1 6.7" stroke="#7ef0c0" stroke-width="0.7" stroke-linecap="round" opacity=".8"/><path d="M1.6 9.8 L12.4 9.8 M2.6 10.9 L11.2 10.9" stroke="#7ef0c0" stroke-width="0.6" stroke-linecap="round" opacity=".6"/></svg></div>
   <div id="stamWrap"><div id="stamFill"></div></div>
   <div id="prompt">E — Gather</div>
   <div id="toasts"></div>
@@ -7289,7 +7289,6 @@ function updateHUD(dt) {
   const xpF = el('xpFill'); if (xpF) xpF.style.width = Math.min(100, wolf.xp / wolf.xpNext * 100).toFixed(1) + '%';
   const _st = (id, v) => { const e2 = el(id); if (e2 && e2.textContent !== v) e2.textContent = v; };
   _st('hpPct', Math.max(0, Math.round(wolf.hp)) + '%');            // the heart beats the number
-  _st('stamPct', Math.max(0, Math.round(wolf.stamina)) + '%');     // the runner carries it
   const _xl = el('xpLvl');
   if (_xl) { const v2 = String(wolf.level); if (_xl.textContent !== v2) { _xl.textContent = v2; _xl.style.fontSize = v2.length > 2 ? '9px' : '12px'; } }   // the star counts the climb
   ui.stam.style.background = wolf.exhausted ? '#c95b4a' : 'linear-gradient(90deg,#7ef0c0,#4db8e8)';
