@@ -92,3 +92,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 ### Mission 15 — workspace cleanup
 - Full-source sync f2f0b78 (103 files; caught src/ being 2 missions stale in the repo) + fresh-clone byte-verification of every tracked file (9 shots diffs = regenerable captures by design, repo copies canonical).
 - Workspace stripped to the ungettable minimum: .ghtoken + RESTORE.md. Everything else re-fetched from the repo on demand. Sandbox freed ~892 MB (.cache/.npm/node_modules + re-fetchable work files).
+
+### Mission 16 — the arrow that drapes over the land
+- Rebuilt as SIX articulated slices (4 shaft + chevron head in 2) sharing adaptive fill+halo materials: every VERTEX is dropped onto heightAt() terrain each frame (MeshBasicMaterial → no normals needed) — TRUE ground attachment on any slope/brow/cliff. Measured: max gap 0.26 m rolling / median 0.06 m; on a 64° cliff face median 0.064 m (one halo corner bridges a fold at 1.3 m — cosmetic, behind the fill).
+- Never through the wolf: the whole drawn span (halo included) starts at 2.35 m along the bearing — min planar clearance 1.15 m = the body radius; the arrow pours out from underneath the chest/nose, hugs the ground to the goal. M12 partial billboard retired (superseded by the ground-attachment requirement).
+- Probe lessons recorded: transformed-point sampling cannot see vertex-buffer draping; halo twins must be transformed by the child matrixWorld alone; outline sweeps must sample real geometry, not phantom rectangles.
+- quest 32/32, ai 15/15. Live: byte-verified.
