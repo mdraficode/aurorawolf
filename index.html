@@ -89,6 +89,8 @@ body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
   background: radial-gradient(ellipse at center, rgba(30, 4, 2, 0.25) 20%, rgba(15, 2, 1, 0.92) 100%);
   opacity: 0; transition: opacity 0.7s; color: #f2c9c0; font-size: 22px; letter-spacing: .04em; }
 #deathOv.show { opacity: 1; }
+#xpWrap { position: absolute; top: 48px; left: 16px; transform: none; width: 180px; height: 5px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(255, 215, 106, 0.28); overflow: hidden; }
+#xpFill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffd76a, #ffb347); box-shadow: 0 0 6px rgba(255, 215, 106, 0.5); }
 #stamWrap { position: absolute; top: 60px; left: 16px; transform: none; width: 180px; height: 8px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(180, 220, 255, 0.16); overflow: hidden; }
 #stamFill { height: 100%; width: 100%; border-radius: 6px; background: linear-gradient(90deg, #7ef0c0, #4db8e8); transition: background .3s; }
 
@@ -206,6 +208,7 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   .chip { font-size: 11px; padding: 3px 7px; gap: 5px; }
   #topStats { font-size: 10px; }
   #topbar { gap: 6px; }
+  #xpWrap { top: 48px; width: 150px; }
   #stamWrap { top: 60px; width: 150px; }
   #hpWrap { top: 72px; width: 150px; }
 }
@@ -409,6 +412,7 @@ body.touch #questTracker { display: none; }
   <div id="deathOv"><div id="deathMsg"></div></div>
   <div id="flyTimer">✨ Flight 10s</div>
   <div id="hpWrap"><div id="hpFill"></div></div>
+  <div id="xpWrap"><div id="xpFill"></div></div>
   <div id="stamWrap"><div id="stamFill"></div></div>
   <div id="prompt">E — Gather</div>
   <div id="toasts"></div>
@@ -1819,7 +1823,8 @@ class Wolf {
     this.atkT = 0;
     this.flyT = 0;
     this.hp = 100; this.maxHp = 100;
-    this.xp = 0; this.level = 1; this.xpNext = 250; this.perks = {}; this.title = 'Young Pup';
+    this.xp = 0; this.level = 0; this.xpNext = 70; this.perks = {}; this.title = 'Young Pup';   // levels begin at ZERO — the wild owes no head start
+    this.maxStam = 100;   // the sprint pool — it grows with every level earned
     this.lastHurt = -99;
     this.invulnT = 0;
     this.deadT = 0;
@@ -1863,7 +1868,7 @@ class Wolf {
       if (this.stamina <= 0) { this.stamina = 0; this.exhausted = true; sprint = false; }
     } else if (!this.swimming) {
       // no regen while swimming — the swim block drains it instead
-      this.stamina = Math.min(100, this.stamina + 11 * dt * (this.perks.sandStride ? 1.25 : 1));
+      this.stamina = Math.min(this.maxStam, this.stamina + 11 * dt * (this.perks.sandStride ? 1.25 : 1));
       if (this.exhausted && this.stamina > 26) this.exhausted = false;
     }
     this.atkCd = Math.max(0, this.atkCd - dt);
@@ -1872,7 +1877,7 @@ class Wolf {
     // ---- magic flight ----
     if (this.flyT > 0) {
       this.flyT -= dt;
-      this.stamina = Math.min(100, this.stamina + 22 * dt);
+      this.stamina = Math.min(this.maxStam, this.stamina + 22 * dt);
       if (this.exhausted && this.stamina > 26) this.exhausted = false;
       const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
       const rx = Math.sin(camYaw - Math.PI / 2), rz = Math.cos(camYaw - Math.PI / 2);
@@ -4129,7 +4134,7 @@ function updateSense(dt) {
       if (first) {
         stats.firstFinds++;
         toast(`📍 First discovery: ${lm.label}! ${lm.tier === 'epic' ? '✨ A sight few wolves ever see…' : lm.tier === 'rare' ? 'A rare find.' : ''}`, true);
-        if (lm.tier !== 'common') { wolf.hp = Math.min(wolf.maxHp, wolf.hp + 25); wolf.stamina = 100; audio.chime(); }   // the wild rewards curiosity
+        if (lm.tier !== 'common') { wolf.hp = Math.min(wolf.maxHp, wolf.hp + 25); wolf.stamina = wolf.maxStam; audio.chime(); }   // the wild rewards curiosity
         music.fanfare();
       } else toast(`📍 ${lm.label}`);
     }
@@ -4931,7 +4936,7 @@ function caveTick(dt) {
   // drips & cold
   caveState.dripT -= dt;
   if (caveState.dripT <= 0) { caveState.dripT = 1.5 + Math.random() * 4; audio.drip(); }
-  if (wolf.stamina < 100) wolf.stamina = Math.min(100, wolf.stamina + dt * 0.5);   // still, cold air: slow recovery
+  if (wolf.stamina < wolf.maxStam) wolf.stamina = Math.min(wolf.maxStam, wolf.stamina + dt * 0.5);   // still, cold air: slow recovery
 }
 
 let envToastT = 0, emberT = 0;
@@ -5900,18 +5905,27 @@ let dawnMistA = 0, pawPrints = null, flareGrp = null, raysGrp = null, mistGrp = 
    of the wild. The open world gains a memory of your deeds.
    ============================================================ */
 const TITLES = ['Young Pup', 'Wanderer', 'Hunter', 'Stalker', 'Storm-Woolf', 'Legend of the Aurora'];
+const xpNeed = L => Math.round(70 * Math.pow(1.24, L));   // each level ~24% dearer — no cap, ever
+function recalcWolfLevel() {   // strength flows FROM the level — so death can take it all back cleanly
+  wolf.maxStam = 100 * (1 + 0.05 * wolf.level);    // +5% sprint pool per level, unbounded
+  wolf.maxHp = 100 + 8 * wolf.level;               // +8 max HP per level
+}
+const wolfDamageMul = () => Math.pow(0.982, wolf.level);   // damage taken shrinks 1.8% a level — always less, never zero
 function addXp(n) {
   wolf.xp += n;
   while (wolf.xp >= wolf.xpNext) {
     wolf.xp -= wolf.xpNext;
     wolf.level++;
-    wolf.xpNext = 220 + wolf.level * 90;
-    wolf.maxHp += 8; wolf.hp = Math.min(wolf.maxHp, wolf.hp + 8);
+    wolf.xpNext = xpNeed(wolf.level);
+    recalcWolfLevel();
+    wolf.hp = Math.min(wolf.maxHp, wolf.hp + 8);
+    wolf.stamina = Math.min(wolf.maxStam, wolf.stamina + 5);
     wolf.title = TITLES[Math.min(TITLES.length - 1, (wolf.level / 2) | 0)] || 'Legend of the Aurora';
-    toast(`🎉 Level ${wolf.level} — ${wolf.title}! +8 max HP`, true);
+    const dr = (1 - wolfDamageMul()) * 100, sp = 5 * wolf.level;
+    toast(`🎉 CONGRATULATIONS! Level ${wolf.level} — damage taken −${dr.toFixed(1)}% · sprint stamina +${sp}%`, true);
     music.fanfare();
     const lv = el('lvCard');
-    if (lv) { lv.textContent = `⭐ LEVEL ${wolf.level} — ${wolf.title}`; lv.classList.remove('show'); void lv.offsetWidth; lv.classList.add('show'); }
+    if (lv) { lv.textContent = `⭐ LEVEL ${wolf.level} — ${wolf.title} · damage −${dr.toFixed(1)}% · sprint +${sp}%`; lv.classList.remove('show'); void lv.offsetWidth; lv.classList.add('show'); }
   }
   questHudDirty = true;
 }
@@ -6628,12 +6642,12 @@ function wolfDie(label, icon) {
   wolf.deadT = 2.6;
   wolf.killerPos = null;
   const ov = el('deathOv');
-  if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… you wake far away, alive.</span>`; ov.classList.add('show'); }
+  if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… you wake far away — every level lost, back to 0.</span>`; ov.classList.add('show'); }
   vignetteA = 0.9;
 }
 function wolfTakeDamage(dmg, fromPos, label, icon) {
   if (state !== 'play' || wolf.deadT > 0 || wolf.invulnT > 0 || wolf.flyT > 0) return;
-  wolf.hp -= dmg;
+  wolf.hp -= dmg * wolfDamageMul();   // an experienced wolf stiffens against the blow
   wolf.lastHurt = tSec;
   wolf.invulnT = 0.6;
   vignetteA = Math.min(0.85, vignetteA + 0.45);
@@ -6656,14 +6670,17 @@ function wolfRespawn() {
     if (heightAt(tx, tz) > WATER_Y + 0.8) { rx = tx; rz = tz; break; }
   }
   wolf.pos.x = rx; wolf.pos.z = rz; wolf.pos.y = heightAt(rx, rz) + 0.2;
+  wolf.level = 0; wolf.xp = 0; wolf.xpNext = xpNeed(0);   // death takes everything earned — the record stands, the wolf restarts
+  recalcWolfLevel();
   wolf.hp = wolf.maxHp;
   wolf.invulnT = 3;
   wolf.deadT = 0;
-  wolf.stamina = 100; wolf.exhausted = false;
+  wolf.stamina = wolf.maxStam; wolf.exhausted = false;
   const ov = el('deathOv');
   if (ov) ov.classList.remove('show');
   vignetteA = 0;
-  toast('🐾 You awaken, shaken but alive — your bounty is safe', true);
+  questHudDirty = true;
+  toast('🐾 You awaken, shaken but alive — your levels are lost: Level 0 again', true);
 }
 function showTerritoryWarning(sp) {
   const w = el('threatWarn');
@@ -7257,7 +7274,8 @@ function updateHUD(dt) {
   updateQuestArrow(dt);
   updateMinimap(dt);
   if (BIG.open) updateBigMap(dt);
-  ui.stam.style.width = wolf.stamina.toFixed(0) + '%';
+  ui.stam.style.width = (wolf.stamina / wolf.maxStam * 100).toFixed(0) + '%';
+  const xpF = el('xpFill'); if (xpF) xpF.style.width = Math.min(100, wolf.xp / wolf.xpNext * 100).toFixed(1) + '%';
   ui.stam.style.background = wolf.exhausted ? '#c95b4a' : 'linear-gradient(90deg,#7ef0c0,#4db8e8)';
   hudT -= dt; fpsAcc += dt; fpsN++;
   if (hudT > 0) return;
@@ -7382,7 +7400,7 @@ function doGather() {
   if (p) { gather(p); return; }
   if (drinkCd <= 0 && !wolf.swimming && wolf.grounded && wolf.flyT <= 0 && nearWaterEdge()) {
     drinkCd = 6;
-    wolf.stamina = 100; wolf.exhausted = false;
+    wolf.stamina = wolf.maxStam; wolf.exhausted = false;
     wolf.hp = Math.min(wolf.maxHp, wolf.hp + 6);
     audio.chime();
     toast('💧 You drink the cold water — stamina restored');
