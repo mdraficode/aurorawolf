@@ -71,3 +71,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - The guide arrow now SAMPLES the world it lies on: 5 terrain points around the wolf, shaded through the exact mesh pipeline (groundColor + biomeWeights + climateAt + slope), multiplied by live sun.intensity (night dims even snow — effective luminance is what matters).
 - Adaptive fill with hysteresis (flip >0.47 / <0.37, resample 4×/s, color glide k=7): bright ground → DEEP EMBER HSL(.07,.88,.27) lum 0.28 (snow/sand/sun-grass); dark ground → LUMINOUS GOLD HSL(.10,.95,.62) lum 0.72 (night/spruce/peat). A near-black underlay halo (0x140d06, op ~.55, renderOrder 998, slightly oversized) guarantees contrast even at the seam. Fill opacity raised 0.14–0.21 → 0.36–0.49 breathing.
 - Verified live by teleport: bright patch (raw .65) → mode dark, contrast 0.30 + halo; darkest patch (raw .28, eff .31) → bright gold, contrast 0.42, converged; palette lums 0.28/0.72; sweep worst outside seam 0.31; quest 32/32, ai 15/15. Live: 357f17a byte-verified.
+
+### Mission 12 — the arrow that never collapses
+- Root cause #2 of 'vanishing': the arrow was a FLAT ground decal — whenever the camera swung toward the horizon the projection collapsed edge-on (measured 37 px at 10° elevation). No color survives that.
+- Fix: PARTIAL BILLBOARD — heading stays locked to the quest bearing (rotation.y), but the plane tips toward the camera (rotation.x = −clamp(atan2(camΔy, camΔhorizontal), 24°..72°), order YXZ), floating at ground+0.55. Projected length measured across 10°/25°/40°/60° cameras: 116/127/187/236 px vs flat 37/67/104/153 (gain 1.5–3.2×).
+- Darker still (asked twice): ember L .27→.21 (sat .92, hue .068), gold L .62→.54 (luma .72→.67), halo 0x0d0803 op .62 scale 1.24. Terrain sampling + hysteresis + glide unchanged from M11.
+- quest 32/32, ai 15/15. Live: 7179799 byte-verified.
