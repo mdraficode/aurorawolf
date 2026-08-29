@@ -114,3 +114,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 ### Mission 19 — the XP bar no longer rides the quest button
 - The M18 XP bar (top:48) slid under #questBtn (y 14-54). Left column re-flowed: questBtn 14-54 · xpWrap 58 · stamWrap 70 · hpWrap 82 · questTracker 98 (media variants too). Verified by rect probe: zero overlaps anywhere in the stack, 4px button-to-bar gap, order preserved (xp above stam above hp).
 - quest 32/32. Live: ff3662b byte-verified.
+
+### Mission 20 — the bars speak their purpose
+- Minimalist inline-SVG icons at the left of each bar (13px, drop-shadow, pointer-events:none so they can never steal camera swipes): gold STAR at the XP bar, teal RUNNER (head + leaning torso + stride) at the stamina bar, red HEART at the health bar. Bars shifted to left:34 (mobile too); icons vertically centered on each bar.
+- Verified: rect probe (each icon left of its bar, centered +/-3px, no overlaps) + pixel proof (each icon paints its signature color in its box: 23%/15%/30% fill). quest 32/32. Live: byte-verified.
