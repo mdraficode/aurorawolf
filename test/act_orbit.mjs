@@ -8,7 +8,7 @@ const run = async (w, h, touch) => {
   if (touch) await pg.evaluate(() => document.body.classList.add('touch'));
   const R = await pg.evaluate(() => {
     const r = id => { const x = document.getElementById(id).getBoundingClientRect(); return { id, cx: x.left + x.width / 2, cy: x.top + x.height / 2, rr: x.width / 2, w: x.width, t: x.top, l: x.left, b2: x.bottom, r2: x.right }; };
-    const A = r('tAttack'), sats = ['tGather', 'tJump', 'tSprint', 'tProwl', 'tHowl', 'tSense'].map(r);
+    const A0 = r('tAttack'), A = { ...A0, rGap: innerWidth - A0.r2, bGap: innerHeight - A0.b2 }, sats = ['tGather', 'tJump', 'tSprint', 'tProwl', 'tHowl', 'tSense'].map(r);
     const mm = document.getElementById('minimap').getBoundingClientRect();
     const arc = sats.map(s => { const dx = s.cx - A.cx, dy = s.cy - A.cy; return { id: s.id, ang: Math.atan2(-dy, -dx) * 57.3, d: +Math.hypot(dx, dy).toFixed(0) }; });
     let minGap = 1e9;
@@ -18,7 +18,7 @@ const run = async (w, h, touch) => {
       minimapW: mm.width > 0 ? mm.width : 'hidden',
       biggerThanMap: mm.width > 0 ? A.w > mm.width : null, ratio: mm.width > 0 ? +(A.w / mm.width).toFixed(2) : null,
       arc, archOK: arc.every(a2 => a2.ang > -20 && a2.ang < 105), orderOK: arc.every((a2, i) => i === 0 || a2.ang > arc[i - 1].ang),
-      minGap: +minGap.toFixed(1), insideViewport: sats.every(s => s.l >= 0 && s.t >= 0 && s.r2 <= innerWidth && s.b2 <= innerHeight),
+      minGap: +minGap.toFixed(1), archGap: +(Math.hypot(sats[0].cx - A.cx, sats[0].cy - A.cy) - sats[0].rr - A.rr).toFixed(1), edgeGap: Math.min(A.rGap, A.bGap), insideViewport: sats.every(s => s.l >= 0 && s.t >= 0 && s.r2 <= innerWidth && s.b2 <= innerHeight),
       clearOfJoystick: A.l > innerWidth * 0.4 };
   });
   await pg.close();

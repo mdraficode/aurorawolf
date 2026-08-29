@@ -196,3 +196,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 ### Mission 35 — the strike disc overtakes the map
 - New rule (supersedes 'smaller than the minimap'): the attack anchor is now A BIT BIGGER than the minimap — 120 vs 118 (touch), 86 vs 84 (small landscape), 142 vs 140 (desktop) = ratio 1.02. The arch gap closes 30 -> 27px; satellite spacing unchanged (4.3-4.8px); corner insets 4-7px.
 - quest 32/32. Live: byte-verified.
+
+### Mission 36 — equal air all around the strike disc
+- The grown attack disc sat 4-7px off the corner edges (looked 'touching'). The whole cluster now floats at the midpoint between the corner and the arch: corner inset 14 -> 37 (touch) / 34 (small landscape) / 38 (latent desktop), making the edge gap EQUAL the arch gap — measured portrait 27 vs 27, landscape 27 vs 26.7. Same space on every side of the button.
+- quest 32/32. Live: byte-verified.
