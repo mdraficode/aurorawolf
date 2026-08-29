@@ -148,3 +148,8 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 
 ### Mission 26 — the 1px seam
 - Icon gaps 2px -> 1px (pitch 35: xp 55 / run 90 / hp 125), bars re-centered (stam 103, hp 140), tracker 157, mobile synced. Verified: 1/1px seams, zero overlap, bars centered. quest 32/32. Live: byte-verified.
+
+### Mission 27 — the button row finds its order
+- Quest button moved from the top-left corner into the minimap-side row. Final order left-to-right: [Satchel invBtn right:258] [Quest questBtn right:212] [AI btnAI right:166 — the end, at the minimap's side] [minimap]. Touch variants reordered too (btnAI end, quest middle, satchel left-most in both breakpoints).
+- Verified: rects 202-242 / 248-288 / 294-334 / minimap 344-484, all top:56, gaps 6/6/10px, zero overlaps, top-left corner freed; quest suite 32/32 with real clicks on the relocated button. Probe note: btnAI read 0-rect once at 1.5s after boot (transient) — settled state verified at 3s.
+- Live: byte-verified.
