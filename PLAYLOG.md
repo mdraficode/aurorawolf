@@ -53,3 +53,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - **Why the hiss persisted:** the leaf bed hissed in fair weather (bandpass noise 0.004–0.024) and the river bed hissed near water. Now: leaves silent below wind 0.45 (whisper only in storms, 0.0012), river lowpassed 520→330 Hz at 35% gain (murmur), surf halved. Fair-weather probe: leaf 0 · wind 0 · shore 0 · river 0.004.
 - **Soothing pass:** bpm 44 explore, pad-centric mix (0.5), melody sparse (0.3) with long gentle notes (2.0 s, softer), reverb space opened (0.28 day / 0.40 night). Probe: bus 0.85 · pad 0.45 · bpm 44 · scheduling true.
 - Gates: audio ALL PASS · ai 15/15. Live: 325ae93 byte-verified.
+
+### Mission 9 — the signature tune & the guiding arrow
+- **The tune:** A minor AABA' lullaby (16-beat phrases over Am–Am–F–Am drones) on a new soft plucked 'guitar' voice (pick transient + warm saw/triangle body, cycle-free), 0.26 melody lead, night −2 semis, bells sparkle on mystical events. Deterministic leitmotif across ALL biomes — the pads keep local character underneath.
+- **KS lesson:** first attempt used a Karplus-Strong feedback loop — WebAudio cycle semantics made it exponentially unstable (peak 10³¹, rail-to-rail square = the 'hissing' the earlier probes kept measuring). Replaced with a cycle-free voice; master DynamicsCompressor limiter added as a permanent ear-safety ceiling.
+- **Arrow:** ×1.8 longer, depthTest:false + renderOrder 999 — no hill, tree or wall hides it; still faint (breathing ~0.19).
+- Verified: full phrase event-trace (A4…A5 + A2 drone + F2=92 Hz turn), score peak 0.11 vs 0.062 ambient floor, no rail; arrow props all asserted; audio ALL PASS · ai 15/15. Live: 970b5bd.
