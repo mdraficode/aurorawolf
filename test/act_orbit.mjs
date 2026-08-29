@@ -16,7 +16,7 @@ const run = async (w, h, touch) => {
       for (let j = i + 1; j < sats.length; j++) minGap = Math.min(minGap, Math.hypot(sats[i].cx - sats[j].cx, sats[i].cy - sats[j].cy) - sats[i].rr - sats[j].rr); }
     return { attack: { w: +A.w.toFixed(0), rightGap: +(innerWidth - A.r2).toFixed(0), bottomGap: +(innerHeight - A.b2).toFixed(0) },
       minimapW: mm.width > 0 ? mm.width : 'hidden',
-      smallerThanMap: mm.width > 0 ? A.w < mm.width : null, ratio: mm.width > 0 ? +(A.w / mm.width).toFixed(2) : null,
+      biggerThanMap: mm.width > 0 ? A.w > mm.width : null, ratio: mm.width > 0 ? +(A.w / mm.width).toFixed(2) : null,
       arc, archOK: arc.every(a2 => a2.ang > -20 && a2.ang < 105), orderOK: arc.every((a2, i) => i === 0 || a2.ang > arc[i - 1].ang),
       minGap: +minGap.toFixed(1), insideViewport: sats.every(s => s.l >= 0 && s.t >= 0 && s.r2 <= innerWidth && s.b2 <= innerHeight),
       clearOfJoystick: A.l > innerWidth * 0.4 };

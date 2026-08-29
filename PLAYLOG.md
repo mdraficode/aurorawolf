@@ -192,3 +192,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 ### Mission 34 — the strike disc grows again
 - Attack anchor 110->114 (touch), 78->80 (small landscape), 132->136 (latent desktop) — still under the minimap (ratio 0.95-0.97). --orb rebalanced to 108/119/98 percent so the satellite-to-anchor gap stays at 30px (parity with the minimap arch); satellite-to-satellite 4.3-4.8px. Confirmed --orb is % of the FULL #btns box width (the M31 lesson generalized: % vars are of the box, not the radius).
 - quest 32/32. Live: byte-verified.
+
+### Mission 35 — the strike disc overtakes the map
+- New rule (supersedes 'smaller than the minimap'): the attack anchor is now A BIT BIGGER than the minimap — 120 vs 118 (touch), 86 vs 84 (small landscape), 142 vs 140 (desktop) = ratio 1.02. The arch gap closes 30 -> 27px; satellite spacing unchanged (4.3-4.8px); corner insets 4-7px.
+- quest 32/32. Live: byte-verified.
