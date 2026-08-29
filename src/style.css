@@ -161,6 +161,25 @@ body.touch #tPause { display: block; }
   border: 1px solid rgba(126, 240, 192, 0.55); color: #d9fbe9; font-family: inherit;
   background: rgba(10, 18, 30, 0.55);
 }
+/* ---- 🤖 AI watch mode: the wolf plays itself ---- */
+#btnAI {
+  position: absolute; top: 56px; right: 212px; width: 40px; height: 40px; border-radius: 10px;
+  pointer-events: auto; cursor: pointer; z-index: 12; font-size: 19px; line-height: 1; padding: 0;
+  border: 1px solid rgba(190, 150, 255, 0.45); color: #ead9ff; font-family: inherit;
+  background: rgba(10, 18, 30, 0.55);
+}
+#btnAI.on { background: rgba(112, 74, 210, 0.6); border-color: rgba(196, 160, 255, 0.9); box-shadow: 0 0 14px rgba(160, 110, 255, 0.35); }
+#btnAI:active { transform: scale(.94); }
+body.touch #btnAI { top: 112px; right: 186px; }
+.btn.ai { border-color: rgba(190, 150, 255, 0.5); color: #ead9ff; }
+.btn.ai:hover { background: rgba(112, 74, 210, 0.35); }
+body.aiOn #btns, body.aiOn #joyZone, body.aiOn #joy { display: none !important; }   /* spectator: controls step aside */
+body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important; }
+#botPanel { max-height: 40vh; overflow: hidden; }
+@media (max-width: 860px) and (max-height: 400px) {
+  body.touch #btnAI { top: 108px; right: 152px; }
+  #botPanel { top: 196px; width: 200px; font-size: 10px; }
+}
 #invWrap { position: absolute; inset: 0; z-index: 56; display: none; align-items: center; justify-content: center; pointer-events: auto; background: rgba(4, 8, 16, 0.45); }
 #invWrap.show { display: flex; }
 #invBox {

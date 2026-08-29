@@ -96,12 +96,12 @@ try {
     QUESTS.active.push(q); QUESTS.dirty = true; questHudDirty = true;
   });
   await page.waitForTimeout(400);
-  R = await page.evaluate(() => ({ sp: QUESTS.active[0].species, need: QUESTS.active[0].need }));
-  await page.evaluate(sp => questEvent('kill', { species: sp, pos: { x: wolf.pos.x, z: wolf.pos.z } }), R.sp);
+  R = await page.evaluate(() => ({ sp: QUESTS.active[0].species, need: QUESTS.active[0].need, xp0: wolf.xp, lv0: wolf.level }));
+  await page.evaluate(sp => { window.__qXP0 = wolf.xp; window.__qLV0 = wolf.level; questEvent('kill', { species: sp, pos: { x: wolf.pos.x, z: wolf.pos.z } }); }, R.sp);
   await page.waitForTimeout(800);
-  R = await page.evaluate(() => ({ done: QUESTS.done.length, xp: wolf.xp, avail: QUESTS.avail.length, byBiome: questsDoneByBiome }));
+  R = await page.evaluate(() => ({ done: QUESTS.done.length, xp: wolf.xp, lv: wolf.level, lv0: window.__qLV0 || 0, avail: QUESTS.avail.length, byBiome: questsDoneByBiome }));
   ck('hunt quest completes + logs', R.done >= 1, `done=${R.done}`);
-  ck('completion pays XP + refills avail', R.xp > 50 && R.avail >= 2, `xp=${R.xp}, avail=${R.avail}`);
+  ck('completion pays XP + refills avail', (R.xp > 50 || R.lv > (R.lv0 || 1)) && R.avail >= 2, `xp=${R.xp}${R.lv > (R.lv0 || 1) ? ' (leveled!)' : ''}, avail=${R.avail}`);
   const doneCount = Math.max(0, ...Object.values(R.byBiome || { x: 0 }));
   ck('biome quest credit tracked', doneCount >= 1, JSON.stringify(R.byBiome));
 

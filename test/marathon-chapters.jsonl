@@ -1,0 +1,17 @@
+{"ch":1,"seed":26061,"level":3,"kills":6,"deeds":4,"deaths":0,"note":"reconstructed from relay after workspace incident"}
+{"ch":2,"seed":91229,"level":2,"kills":5,"deeds":3,"deaths":0}
+{"ch":3,"seed":78307,"level":7,"kills":75,"deeds":12,"deaths":1}
+{"ch":4,"seed":81603,"level":2,"kills":5,"deeds":1,"deaths":0}
+{"ch":5,"seed":63264,"level":1,"kills":0,"deeds":1,"deaths":0}
+{"ch":6,"seed":92398,"level":1,"kills":0,"deeds":0,"deaths":1}
+{"ch":7,"seed":38877,"level":1,"kills":0,"deeds":0,"deaths":0}
+{"ch":8,"seed":88152,"level":1,"kills":0,"deeds":0,"deaths":0}
+{"ch":9,"seed":20971,"level":1,"kills":0,"deeds":0,"deaths":0,"note":"pre-fix era"}
+{"ch":10,"seed":59013,"level":4,"kills":58,"deeds":6,"deaths":0}
+{"ch":11,"seed":70225,"level":3,"kills":69,"deeds":4,"deaths":0,"perks":["both"]}
+{"ch":12,"seed":74991,"level":7,"kills":102,"deeds":14,"deaths":0,"spirit":"met","note":"salvaged; spirit-met milestone"}
+{"ch":13,"seed":97437,"level":2,"kills":9,"deeds":1,"deaths":0,"note":"3 ambush crits"}
+{"ch":14,"seed":96394,"level":2,"kills":39,"deeds":1,"deaths":1,"note":"v7.18 fix chapter; water-orbit stall manual close"}
+{"ch":15,"seed":50041,"level":6,"kills":138,"deeds":12,"deaths":0,"perks":["both"],"gameMin":63,"note":"salvaged; ALL-TIME RECORD"}
+{"ch":16,"seed":24801,"note":"LOST mid-chapter to accidental workspace deletion (raw event stream unrecoverable); last seen L2 27k/2d at 4.3 min wall"}
+{"ch": 17, "seed": 70702, "wallMin": 2, "note": "harness-restore sanity chapter (close-snapshot perks bug fixed post-run); stats from live relay", "pageErrors": 0, "ts": "2026-08-29T08:30", "level": 3, "kills": 21, "deeds": 0, "deaths": 0, "goals": 0}

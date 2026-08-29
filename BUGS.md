@@ -123,3 +123,23 @@ Held-distance 5 s windows, attacker kept at a fixed offset by side, damage count
 Rear damage is not weaker than front (3 vs 4, within fairness tolerance); zero page errors. The player's own bite cone is untouched.
 
 _Suite-harness note (for future tests): `RivalWolf`/`Pack` members only tick via a **live** `WORLD_EVENTS` event — use `WORLD_EVENTS.force('rivalPack')`, not `new RivalWolf()` or a bare `EVENTS.rivalPack().begin()` (the pack never updates that way)._
+
+---
+
+## 🔄 Mission 4 — Marathon long-run findings (bot v7, hours of autonomous play)
+
+### Game-side (candidates for fixes)
+- **M1 · Explore dead-ends (🟠):** a "Discover X" deed offered while X is already found (or found before completing) can have NO completable target — the deed stalls forever. genQuest should re-check `!lm.found` at accept/complete time or reroll.
+- **M2 · Biome-locked deer deeds, untitled (🟡):** "Hunt N Deer" only counts in the deed's biome; nothing in the title/desc says which land. Players will kill deer that don't count.
+- **M3 · Legend-less lands (🟡):** taiga/coast/meadow have no BOSSES entry — 3 deeds there wake nothing. Progression feedback ("a legend stirs") never comes for ~¼ of the map.
+- **M4 · Spawn-adjacent terrain traps (🟠):** seeds 88152, 81603 — spawn-adjacent bowls where wedge-escape + sustained flanking both fail (bot needed a 220 m random breakout). Worth adding a spawn-point reachability check or strengthening escape.
+- **M5 · No storm shelter (🔵):** storm HP ticks are unavoidable; resting in cover changes nothing.
+
+### Bot v7 bugs found & fixed during the run (the upgrade was the bug-hunt)
+steering inversion (v1-v6 all ran backwards) · drown-loop fleeing · hunt/drink goal flapping · out-of-biome deer waste · found-landmark standing · tree-crash bleeding (decisions must run at sim cadence under boost) · terrain-bowl grind (flank + hard-trap breaker) · rival-passivity · quest starvation via over-strict scoring · quest re-accept loops after abandonment (shunning + relief).
+
+*Zero page errors, zero crash banners across every chapter.*
+
+---
+## ✅ Mission 5 — AI watch mode (feature ship, not bugs)
+Shipped cleanly; the only suite churn was quest.test.mjs's XP check, which didn't account for level-up boundaries (game paid correctly — test now level-aware). Bot brain runs at true game cadence; boost (?speed=) remains a URL-only harness tool and never activates in normal play.

@@ -8,7 +8,7 @@ src = root / 'src'
 shell = (src / 'shell.html').read_text()
 css = (src / 'style.css').read_text()
 three = (root / 'vendor' / 'three.min.js').read_text()
-game = '\n'.join((src / f'p{i}.js').read_text() for i in (1, 2, 3, 4))
+game = '\n'.join((src / f'p{i}.js').read_text() for i in (1, 2, 3, 4)) + '\n' + (src / 'autopilot.js').read_text()
 
 for blob, name in ((three, 'three'), (game, 'game')):
     assert '</script' not in blob.lower(), f'{name} contains a closing script tag!'
