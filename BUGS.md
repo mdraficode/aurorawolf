@@ -174,3 +174,17 @@ Shipped cleanly; the only suite churn was quest.test.mjs's XP check, which didn'
 4. 🟢 Naturalness: finish-line sprint (runs the last 40 m of a deed goal), stall detector now ignores survival deeds (false bug-quest-stalled on "Survive 2 days").
 **Verified at true cadence (test/real1x.mjs):** goal-mode switches 1.3/min (from constant), zero 20 s stall windows (was chronic), deeds flowing (5/6 gather in 4 min at 2–4 FPS starvation = sub-2-min in real play), stamina holds 55 floor. ai.test 15/15. Live: d98c2ee byte-verified.
 **Standing lesson: never verify 1×-gameplay behavior with the boost harness alone — keep real1x.mjs probes in the loop.**
+
+---
+## Mission 6.2 — v7.23 "One Deed At A Time" (persistent loop: TRUE root cause + quest guidance features)
+**User report:** bot still circles one region, ignores the quest. **True root cause found via BOTDBG live-brain forensics:** the brain juggled BOTH active quests as competing attractors — every tick's nearest-goal comparison flips priority as the wolf moves, so it orbits the ground BETWEEN two goals forever (observed: travel→124m ↔ explore→152m alternating for 3 min, net displacement 11 m). All previous detectors were per-goal and blind to this.
+**Fixes (v7.22→v7.23):**
+1. 🔴 **Quest lock** — ONE deed at a time (60 s renewable on progress); switch only on completion/abandon/expiry. Attractor cycling is structurally impossible now.
+2. 🔴 **Hard deadline** — the 150 s 'quest-drive' soft retry was RESETTING the 240 s stall-abandon timer → stuck quests never rotated. Now: absolute 5 min no-progress deadline → abandon + quest-KIND shunned 10 min (region stops offering the same failing deed type).
+3. 🔴 **Doorstep windows per-QUEST** (goal-cell keying reset on goal wobble — never fired; observed 5 min at constant 30 m).
+4. 🔴 **River ping-pong** — prey fleeing across water lured the wolf into endless cross-river chases. Fix: never target quarry across water; release any quarry that makes the far bank ('chase-river').
+5. 🟠 **Ford mode** — deliberate shallow crossings (≤34 m water) toward deeds, shore-instinct suppressed mid-ford; travelToBiome now prefers DRY ring points (ford-set spam 13→0 in verification).
+6. 🟠 Peak quests: hill-climb ascent goal ("y 34/50 m"); hunt quests with no quarry in range guide to the species' biome.
+**New game features (user request):** `window.questGuide()` = single source of quest intent → **dotted gold guide line on minimap & big map** (player → completion site, with 📜 distance tag) + **faint breathing ground arrow under the wolf** pointing quest-ward (opacity ~0.14-0.21). Arrow verified yaw-correct; map line pixel-verified.
+**Verification (real-speed, default density, seed 606061 river terrain):** before: 0-1 quests/8 min, permanent 30 m orbit, two-attractor cycling. after: 3 deeds completed + level-up per 7 min, gathers 4/5·4/5·2/3 flowing, hunts rotate out via chase-giveup/hard deadline, goal switches 1.8/min, zero stall windows, zero ford spam, 0 page errors. ai 15/15 · quest 32/32 · layout PASS. (touch suite: environmental flake this session — fails identically on the PREVIOUS published build; wake mechanic verified working in isolation.)
+Live: commit 8109c8B byte-verified.

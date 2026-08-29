@@ -33,7 +33,7 @@ while ((Date.now() - t0) / 1000 < DUR) {
         goal: ((L.filter(e => e.type === 'goal').slice(-1)[0] || {}).msg || '').replace(/ · hp.*$/, ''),
         crouch: !!wolf.crouch, swim: !!wolf.swimming, grounded: !!wolf.grounded, y: +wolf.pos.y.toFixed(1),
         wy: +(typeof waterYNow === 'function' ? waterYNow() : -99).toFixed(1),
-        fps: +(window.__fpsProbe || 0), keysW: !!(window.keysRef ? true : (typeof keys !== 'undefined' ? keys.KeyW : false)), quest: q ? q.icon + ' ' + q.title + ' ' + q.have + '/' + q.need : 'none',
+        fps: +(window.__fpsProbe || 0), keysW: !!(window.keysRef ? true : (typeof keys !== 'undefined' ? keys.KeyW : false)), quest: (QUESTS.active.length ? QUESTS.active.map(q2 => q2.icon + ' ' + q2.title + ' ' + q2.have + '/' + q2.need).join(' | ') : 'none'),
         evts: evts.map(e => e.type + (e.msg ? ':' + String(e.msg).slice(0, 60) : '')).slice(-40)
       };
     });
