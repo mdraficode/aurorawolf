@@ -67,7 +67,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
 body.touch #minimap { top: 14px; right: 14px; width: 118px; height: 118px; }   /* the corner belongs to the map */
 body.touch #mmOrbit { top: 14px; right: 14px; width: 118px; height: 118px; }
-body.touch #topbar { top: 188px; left: 16px; transform: none; }   /* the pills step below the status column */
+body.touch #topbar { top: 14px; left: 50%; transform: translateX(-50%); }   /* upper center on every layout */
 #hpWrap { position: absolute; top: 98px; left: 60px; transform: none;
   width: 156px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
   border: 1px solid rgba(255, 120, 100, 0.35); overflow: hidden; }
@@ -218,6 +218,10 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   #controls { display: none; }
     .chip { font-size: 11px; padding: 3px 7px; gap: 5px; }
   #topbar { gap: 6px; }
+  .pill { font-size: 10px; padding: 3px 7px; }
+  #weatherIcon { font-size: 13px; margin-right: 4px; }
+  .pill { max-width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mmOrbit { --orb: 75%; }   /* pull the arc in a touch so the centered pills always fit */
   #xpWrap { top: 29px; left: 60px; width: 126px; }
   #stamWrap { top: 62px; left: 60px; width: 126px; }
   #hpWrap { top: 98px; left: 60px; width: 126px; }
