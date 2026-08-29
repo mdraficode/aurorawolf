@@ -124,9 +124,9 @@ body.touch #toasts { bottom: 86px; }
   opacity: 0; transition: opacity .12s ease;
 }
 #joy.live { opacity: 1; }   /* visible = only the knob tip beneath the thumb */
-/* the catch field: most of the LEFT SIDE of the screen — land a thumb anywhere there */
+/* the catch field: the LEFT 40% — the right 60% of the screen belongs to the camera, always */
 #joyZone {
-  position: fixed; left: 0; top: 0; bottom: 0; width: 62vw; max-width: 780px;
+  position: fixed; left: 0; top: 0; bottom: 0; width: 40vw; max-width: 420px;
   z-index: 11; display: none; touch-action: none;
 }
 body.touch #joyZone { display: block; pointer-events: auto; }
@@ -136,7 +136,7 @@ body.touch #joyZone { display: block; pointer-events: auto; }
   border: 1px solid rgba(190, 240, 220, .35);
   box-shadow: 0 3px 16px rgba(0, 0, 0, 0.35); will-change: transform;
 }
-#btns { position: fixed; right: 18px; bottom: 20px; z-index: 12; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+#btns { position: fixed; right: 18px; bottom: 20px; z-index: 12; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }   /* gaps fall through to the camera */
 .brow { display: flex; gap: 10px; }
 .tbtn {
   pointer-events: auto; touch-action: none; width: 64px; height: 64px; border-radius: 50%;
@@ -147,6 +147,7 @@ body.touch #joyZone { display: block; pointer-events: auto; }
   opacity: .28; transition: opacity .28s ease;   /* faint at rest — they wake at a touch */
 }
 #btns.wake .tbtn, .tbtn.on, .tbtn:active { opacity: 1; }
+#btns .tbtn { pointer-events: auto; }
 .tbtn span { font-size: 8.5px; letter-spacing: 0.09em; margin-top: 3px; color: #9fc3b8; }
 .tbtn.small { width: 50px; height: 50px; font-size: 18px; }
 .tbtn.small span { font-size: 7.5px; }
@@ -7485,6 +7486,8 @@ let pinch0 = 0, pinchDist0 = 8.5;
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
   audio.resume();
+  if (camPointers.has(e.pointerId)) camPointers.delete(e.pointerId);   // a reused id starts clean
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }           // the swipe stays ours wherever it slides
   camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (camPointers.size === 2 && [...camPointers.values()].every(q => !q.fromBtn)) {   // a pinch needs two real canvas fingers
     const pts = [...camPointers.values()];
@@ -7520,6 +7523,14 @@ function camEdgeHold(dt) {   // thumb parked at the top/bottom edge: keep tiltin
   else if (p.y > innerHeight - EDGE) camPitch = clamp(camPitch + RATE * dt, -PITCH_MAX, PITCH_MAX);
 }
 addEventListener('pointercancel', camPtrEnd);
+/* ghost sweep: touch events carry the authoritative list of fingers still down —
+   a swallowed pointerup can never leave a stale "pinch partner" that kills the next swipe */
+const camSweep = e => {
+  const ids = new Set([...(e.touches || [])].map(t => t.identifier));
+  for (const k of [...camPointers.keys()]) if (!ids.has(k)) camPointers.delete(k);
+};
+addEventListener('touchend', camSweep, { passive: true });
+addEventListener('touchcancel', camSweep, { passive: true });
 cv.addEventListener('wheel', e => {
   e.preventDefault();
   camDist = clamp(camDist + e.deltaY * 0.012, 3.5, 19);
