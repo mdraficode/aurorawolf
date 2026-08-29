@@ -6013,12 +6013,17 @@ function genQuest(kind) {
   }
   return null;
 }
-function refillQuests() {
-  let guard = 0;
-  while (QUESTS.avail.length < 3 && guard++ < 20) {
-    const q = genQuest();
-    if (q && !QUESTS.avail.some(o => o.title === q.title) && !QUESTS.active.some(o => o.title === q.title)) QUESTS.avail.push(q);
+function refillQuests() {   // a FULL board: every kind of deed the land can offer, always visible
+  const BOARD = ['survive', 'hunt', 'explore', 'collect', 'rival', 'hunt', 'collect', 'explore'];
+  const dup = q => QUESTS.avail.some(o => o.title === q.title) || QUESTS.active.some(o => o.title === q.title);
+  for (const kind of BOARD) {
+    if (QUESTS.avail.length >= BOARD.length) break;
+    let q = null, tries = 0;
+    while (!q && tries++ < 10) { const c = genQuest(kind); if (c && !dup(c)) q = c; }
+    if (q) QUESTS.avail.push(q);
   }
+  let guard = 0;   // top up if the land is poor in some kind
+  while (QUESTS.avail.length < 6 && guard++ < 30) { const q = genQuest(); if (q && !dup(q)) QUESTS.avail.push(q); }
 }
 function acceptQuest(id) {
   if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
@@ -8122,7 +8127,19 @@ tick();
   // convert once at the end of the tick. v6/v7.0 steered camYaw directly = ran backwards.
   let aimYaw = null, aimEase = 0.45;
   const aim = (yaw, ease) => { aimYaw = yaw; if (ease !== undefined) aimEase = ease; };
-  const applyAim = () => { if (aimYaw !== null) camYaw += wrapPI(aimYaw + Math.PI - camYaw) * aimEase; aimYaw = null; aimEase = 0.45; };
+  const applyAim = () => { };   // the per-frame glider below does the turning — no more 150 ms lurches
+  // ---- the glider: every rendered frame, ease the camera toward the chosen heading ----
+  const steerGlide = () => {
+    try {
+      if (aimYaw !== null && !window.BOT_OFF && typeof state !== 'undefined' && state === 'play') {
+        const err = wrapPI(aimYaw + Math.PI - camYaw);
+        const rate = 0.028 + 0.085 * (aimEase || 0.45);        // rad/frame: gentle walk-turns, quick bite-turns
+        camYaw += Math.sign(err) * Math.min(Math.abs(err) * 0.18, rate);
+      }
+    } catch (e) { }
+    requestAnimationFrame(steerGlide);
+  };
+  requestAnimationFrame(steerGlide);
 
   /* ---------------- quest selection: score offers like a player reading the board ---------------- */
   const questScore = q => {
@@ -8612,26 +8629,36 @@ tick();
       let steer = goal;
       if (bot.detourT && SIMNOW() - bot.detourT < (bot.detourPos && bot.detourPos.wide ? 25000 : 4000)) steer = bot.detourPos;
       else if (bot.detourT) { bot.detourT = 0; bot.goalStuck = Math.max(0, bot.goalStuck - 1); }
+      const LOOK = Math.min(34, 7 + wolf.speed * 1.5);   // eyes scale with speed: the faster, the further ahead
       bot.nearSolids = [];
       for (const [, ch] of chunks) for (const sol of (ch.solids || [])) {
         const dd = Math.hypot(sol.x - wolf.pos.x, sol.z - wolf.pos.z);
-        if (dd < 16) bot.nearSolids.push(sol);
+        if (dd < LOOK + 8) bot.nearSolids.push(sol);
       }
-      const probe = (yaw, dist) => {
+      const clearAt = (px, pz, t) => {   // clearance of a corridor point: nearest trunk surface distance
+        let c = 9;
+        for (const sol of bot.nearSolids) {
+          const d = Math.hypot(sol.x - px, sol.z - pz) - (sol.r || 0.5);
+          if (d < c) c = d;
+        }
+        return c;
+      };
+      const probe = (yaw, dist) => {   // a true corridor walk: ground, water AND every trunk, every 1.2 m
         let worst = 0;
         const sx2 = Math.sin(yaw), sz2 = Math.cos(yaw);
-        const step2 = 1.8;
-        for (let t = 2; t <= dist; t += step2) {
+        const WOLF = 0.85;   // shoulder width — a wolf is not a ray
+        for (let t = 1.6; t <= dist; t += 1.2) {
           const px = wolf.pos.x + sx2 * t, pz = wolf.pos.z + sz2 * t;
           const gh = heightAt(px, pz);
           if (gh - wolf.pos.y > 1.8) worst = Math.max(worst, 3.4 - t * 0.22);
           if (gh < waterYNow() - 0.45) worst = Math.max(worst, 2.6 - t * 0.16);
-          for (const sol of bot.nearSolids)
-            if (Math.hypot(sol.x - px, sol.z - pz) < sol.r + 1.0) { worst = Math.max(worst, 3.6 - t * 0.22); break; }
-          if (worst > 2.8) break;
+          const c = clearAt(px, pz, t);
+          if (c < WOLF) worst = Math.max(worst, 3.8 - t * 0.2 + (WOLF - c) * 1.4);   // nearer & tighter = worse
+          if (worst > 3.2) break;
         }
         return worst;
       };
+      if (!bot.sideT) bot.sideT = 0;
       const desired = Math.atan2(steer.x - wolf.pos.x, steer.z - wolf.pos.z);
       let pinfo = null;
       const fear = wolf.level < 3 ? 68 : 55;
@@ -8639,9 +8666,18 @@ tick();
       for (const [, ch] of chunks) for (const pr of ch.predators) if (!pr.dead) fearOf(pr.pos.x, pr.pos.z);
       for (const rv of rivals) if (!rv.dead && ((rv.pack && rv.pack.stance === 'attack') || Math.hypot(rv.pos.x - wolf.pos.x, rv.pos.z - wolf.pos.z) < 24)) fearOf(rv.pos.x, rv.pos.z);
       let bestYaw = desired, bestScore = 1e9;
-      const look = keys.ShiftLeft ? 15 : 11;   // sprint needs runway — crashing into trunks costs 4 HP a hit
-      for (const off of [0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.1, -2.1]) {
+      const look = keys.ShiftLeft ? Math.max(16, LOOK * 0.8) : Math.max(10, LOOK * 0.6);   // sprint needs runway — trunks cost 4 HP a hit
+      // commit to an overtake side for 2.5 s once blocked — eyes that pick a side and COMMIT (no dither)
+      if (probe(desired, look) > 0.3 && SIMNOW() - (bot.sideT || 0) > 2500) {
+        let l = 0, r = 0;
+        for (let t = 4; t <= look; t += 2) { l += clearAt(wolf.pos.x + Math.sin(desired - 1.1) * t, wolf.pos.z + Math.cos(desired - 1.1) * t, t); r += clearAt(wolf.pos.x + Math.sin(desired + 1.1) * t, wolf.pos.z + Math.cos(desired + 1.1) * t, t); }
+        bot.side = r >= l ? 1 : -1; bot.sideT = SIMNOW();
+      }
+      if (SIMNOW() - (bot.sideT || 0) > 6000) bot.side = null;
+      const offs = bot.side === null ? [0, 0.4, -0.4, 0.8, -0.8, 1.25, -1.25, 1.7, -1.7] : [0, 0.45 * bot.side, 0.9 * bot.side, 1.35 * bot.side, 1.8 * bot.side, 2.3 * bot.side, -0.6 * bot.side];
+      for (const off of offs) {
         let sc = probe(desired + off, look) + Math.abs(off) * 0.22 + (bot.lastYaw === undefined ? 0 : Math.abs(wrapPI(desired + off - bot.lastYaw)) * 0.18);
+        if (bot.side !== null && Math.sign(off || 1) === bot.side) sc -= 0.12;   // the committed side is trusted
         if (pinfo && Math.abs(wrapPI(desired + off - pinfo.yaw)) < 0.7) sc += (fear - pinfo.d) * 0.11 * (wolf.level < 3 ? 2.2 : 1.2);
         if (sc < bestScore) { bestScore = sc; bestYaw = desired + off; }
       }
@@ -8766,7 +8802,7 @@ tick();
         else if (SIMNOW() - bot.stuckPos.t > 12000) {
           if (wolf.distance - (bot.stuckPos.od || 0) < 4) {
             log('stuck', { x: +wolf.pos.x.toFixed(0), z: +wolf.pos.z.toFixed(0), biome: curBiomeKey, goal: bot.goalKey, msg: 'wanted to move, went nowhere for 9s' });
-            bot.unstickT = SIMNOW();
+            bot.unstickT = SIMNOW(); bot.unstickA = undefined;
             bot.stuckPos = null;
             if (bot.goalStuck >= 1 && bot.goalKey) {
               const side = Math.random() < 0.5 ? 1 : -1;
@@ -8778,7 +8814,7 @@ tick();
           } else bot.stuckPos = { x: wolf.pos.x, z: wolf.pos.z, t: SIMNOW(), od: wolf.distance };
         }
       } else bot.stuckPos = null;
-      if (bot.unstickT && SIMNOW() - bot.unstickT < 1200) { keys.Space = true; keys.KeyA = ((SIMNOW() / 200) | 0) % 2 === 0; }
+      if (bot.unstickT && SIMNOW() - bot.unstickT < 1500) { keys.Space = true; keys.KeyA = bot.unstickA !== undefined ? bot.unstickA : (bot.unstickA = Math.random() < 0.5); }   // one calm side, no shudder
 
       /* ---------- 9. flavour: the wolf's voice ---------- */
       bot.howlT -= 0.15;
