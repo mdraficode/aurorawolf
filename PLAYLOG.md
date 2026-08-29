@@ -177,3 +177,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Overlap-proofing the center: under 860px the pills compact (font 10, padding 3/7, per-pill max-width 118 + ellipsis) and the orbit arc pulls to --orb 75%% (105px) — verified clear at 900 desktop (pills 240-660 vs cluster 677), 700 desktop (218-482 vs 490), 800 touch-landscape (268-532 vs 641): centered within 2px, clear of the left column and the map orbit everywhere.
 - Lesson: --orb is a % of the 140px box, NOT of radius — 100%% widened the arc (first attempt overlapped worse); 75%% = 105px radius.
 - quest 32/32. Live: byte-verified.
+
+### Mission 32 — the attack orbit
+- The bottom-right action cluster rebuilt like the minimap orbit: BIG round ATTACK anchor (desktop 120px, touch 100, small-landscape 72) in the lower-right-most corner (14/14 gaps), a little smaller than the minimap (ratio 0.85-0.86 at every breakpoint). The six companions — Gather, Jump, Sprint, Prowl, Howl, Sense — ride the upper-left arch (-14 deg at the left hip to +98 deg past the crown, step 22.4 deg) at radius ~1.18x the box via the same --mx/--my/--orb CSS-var pattern, margin-centered (the quad-honest lesson).
+- Two geometry fights: (1) six 42px discs on a 90 deg arc need R>=140px at 17deg spacing (chord math) — solved by widening the span to 112 deg and radius 118%% (min gaps 3.7px touch / 2.6px small); (2) media-query rules lost to body.touch specificity (attack measured BIGGER than the map) — the small-landscape overrides are body.touch-prefixed now.
+- #touchUI gate untouched: the cluster stays touch-only (desktop = keyboard), hidden in watch mode (body.aiOn). Bindings by id unchanged; CAM_CTRL still exempts .tbtn so the camera never claims them.
+- Verified: landscape 800x390 attack 72 vs map 84 (0.86), corners 14/14, arc ordered -14..98, all inside viewport, clear of the joystick zone; portrait 390x844 attack 100, gaps 3.7. quest 32/32. Live: 91cc3ca byte-verified.
