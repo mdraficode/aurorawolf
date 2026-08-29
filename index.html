@@ -178,6 +178,8 @@ body.touch #tPause { display: block; }
 #btnAI.on { background: rgba(112, 74, 210, 0.6); border-color: rgba(196, 160, 255, 0.9); box-shadow: 0 0 14px rgba(160, 110, 255, 0.35); }
 #btnAI:active { transform: scale(.94); }
 body.touch #btnAI { top: 112px; right: 186px; }
+.btn.ai { border-color: rgba(190, 150, 255, 0.5); color: #ead9ff; }
+.btn.ai:hover { background: rgba(112, 74, 210, 0.35); }
 body.aiOn #btns, body.aiOn #joyZone, body.aiOn #joy { display: none !important; }   /* spectator: controls step aside */
 body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important; }
 #botPanel { max-height: 40vh; overflow: hidden; }
@@ -342,6 +344,7 @@ body.touch #questTracker { display: none; }
 <body>
 <div id="err"></div>
 
+<button id="btnAI" title="AI plays (watch mode)">🤖</button>
 <div id="hud" class="hidden">
   <div id="topbar">
     <div class="pill"><span id="weatherIcon">🌤️</span><span id="weatherLabel">Fair</span></div>
@@ -352,7 +355,6 @@ body.touch #questTracker { display: none; }
     <div id="statSeed">seed —</div>
     <div id="statPos">0, 0</div>
   </div>
-  <button id="btnAI" title="AI plays (watch mode)">🤖</button>
   <button id="invBtn" title="Satchel (I)">🎒</button>
   <div id="invWrap">
     <div id="invBox">
@@ -456,6 +458,7 @@ body.touch #questTracker { display: none; }
   <div class="progress"><i id="bootBar"></i></div>
   <div id="bootLine">Growing the forest…</div>
   <div style="margin-top:26px"><button class="btn" id="btnStart" disabled>SUMMONING THE WILD…</button></div>
+  <div style="margin-top:12px"><button class="btn ai" id="btnMenuAI" style="font-size:15px;padding:8px 22px" title="The wolf plays itself — you watch">🤖 Watch the AI play</button></div>
   <div class="ov-tip">Every world is unique — endless terrain, weather and auroras.<br>
   Hunt with <b>F</b>: small prey falls in one bite, elk take four — bigger prey, bigger bounty.<br>
   🐻 Beware <b>territorial predators</b> — bear, tiger, snow leopard. Heed the red warning and the threat arrow; fight back or flee!<br>
@@ -8326,7 +8329,11 @@ tick();
   window.AI_PLAY = setAI;              // public API: AI_PLAY(true) / AI_PLAY(false)
   window.AI_ON = () => aiOn;
   if (aiBtn) aiBtn.addEventListener('click', () => setAI(!aiOn));
+  const menuBtn = document.getElementById('btnMenuAI');
+  if (menuBtn) menuBtn.addEventListener('click', () => setAI(true));   // the menu's front door
   if (URL_ON) setAI(true);
+  // the corner 🤖 belongs to the game screen — at the menu, the menu entry is the front door
+  if (aiBtn) setInterval(() => { try { aiBtn.style.display = (state === 'play' || aiOn) ? '' : 'none'; } catch (e) { } }, 500);
 })();
 
 </script>
