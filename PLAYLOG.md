@@ -124,3 +124,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Bars re-flowed with real air: row pitch 30px (xp 71 / stam 99 / hp 130) -> 23px clear gaps between bars; badges at left:16 centered on each bar, bars at left:60 width 156 (mobile 126); tracker to 150. Badge probe: gaps 23/23, no overlap with the quest button, badges left of bars, centered +/-6px.
 - Verified: live values (hp 100->70 incl. level-up +8 & regen, stam 100->50, level 0->1 -> instant on set 55); pixel cores of all three texts found (338 dark in star, 218 pink-white in heart, 81 warm-white in runner). Probe env note: headless rAF throttles to ~4Hz — per-frame code verified via 100ms-poll reads.
 - quest 32/32. Live: byte-verified.
+
+### Mission 22 — the stamina badge becomes the wolf
+- Reference image decoded programmatically (no vision: alpha/luminance ASCII renderings at 36/48/64 cols): a galloping quadruped facing right — head block + snout, stretched diagonal body, legs in stride, speed streaks behind, ground line under.
+- New stamina icon: a minimalist SPRINGING WOLF in the game's stroke style (teal #7ef0c0): body arc + snout + ear, four gallop legs, streaming tail, two speed lines, two ground lines. First attempt (filled 20-point polygon) read as a blob at 38px — redrawn bold stroke-based, legibility verified by ASCII-reading the rendered badge (body/head/3 leg groups clearly separable).
+- Stamina number REMOVED (per request): stamPct span deleted + its update line; heart % and star level remain.
+- quest 32/32. Live: byte-verified.
