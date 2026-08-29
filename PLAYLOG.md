@@ -104,3 +104,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - TWO-PASS SELECTIVE OCCLUSION: pass 2 renders arrowScene after clearDepth() — its depth buffer holds ONLY a wolf-silhouette occluder (colorWrite:false sphere at wolf.model). Arrow now depthTest:true: the WOLF overlaps it (tail tucked at 1.05 m, hidden under the body, emerging at the silhouette = from underneath), while terrain/trees/walls can never occlude (their depth is cleared). Render hook added at both render sites.
 - Pixel-level proof: arrow painted magenta, top-down centerline walk 1.55..4.90 m — 28/28 samples painted (one stretched unbroken line); low camera behind wolf: tail-under-body HIDDEN, shaft-beyond VISIBLE.
 - quest 32/32, ai 15/15 (one stale-chromium hang, clean rerun). Live: byte-verified.
+
+### Mission 18 — the XP engine: strength earned, strength lost
+- Levels begin at 0. Curve xpNeed(L)=round(70·1.24^L) — strictly escalating, NO cap (L50 needs 3.28M XP): always a new record.
+- Per level (recomputed FROM the level, so death can take it back): sprint pool +5% (maxStam=100·(1+.05L), unbounded), damage taken ×0.982^L (−1.8

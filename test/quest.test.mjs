@@ -21,7 +21,7 @@ try {
     logHidden: !document.getElementById('questLog').classList.contains('show')
   }));
   ck('boot: quests offered at start', R.avail >= 2, `${R.avail} available`);
-  ck('boot: level card in tracker', R.tracker.includes('Lv 1') && R.tracker.includes('Young Pup'));
+  ck('boot: level card in tracker', R.tracker.includes('Lv 0') && R.tracker.includes('Young Pup'));
   ck('boot: quest log starts hidden', R.logHidden);
 
   // ---- log open via book button; Available tab; accept; abandon ----
@@ -61,7 +61,7 @@ try {
   await page.evaluate(() => addXp(300));
   await page.waitForTimeout(600);
   R = await page.evaluate(() => ({ lvl: wolf.level, hp: wolf.maxHp, title: wolf.title, track: document.getElementById('questTracker').textContent }));
-  ck('addXp levels up (+8 maxHp)', R.lvl === 2 && R.hp === 108, `lvl ${R.lvl}, hp ${R.hp}`);
+  ck('addXp levels up (3 levels, +8 maxHp each)', R.lvl === 3 && R.hp === 124, `lvl ${R.lvl}, hp ${R.hp}`);
   ck('title shown in tracker', R.track.includes(R.title), R.title);
 
   // ---- LIVE kill path: a real bite must advance a real hunt quest (B1 regression) ----
