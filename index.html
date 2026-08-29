@@ -7535,10 +7535,12 @@ const PITCH_MAX = Math.PI / 2 - 0.001;   // true straight-up / straight-down
 const camPointers = new Map();
 let pinch0 = 0, pinchDist0 = 8.5;
 cv.addEventListener('contextmenu', e => e.preventDefault());
-const CAM_CTRL = '#btns, .tbtn, #minimap, #bigmapWrap, #joyZone, #joy, #btnAI, #invBtn, #questBtn, #invWrap, .btn, #toasts, #boot';
-addEventListener('pointerdown', e => {   // window level: ANY free area is the camera — overlays can never starve it again
+const CAM_CTRL = '#btns, .tbtn, #minimap, #bigmapWrap, #joyZone, #joy, #btnAI, #invBtn, #questBtn, #questLog, #invWrap, .btn, #toasts, #boot, #deathOv';
+addEventListener('pointerdown', e => {   // the camera owns the RAW WORLD — and never steals a single UI click
   audio.resume();
-  if (e.target && e.target.closest && e.target.closest(CAM_CTRL)) return;   // designated controls keep their touches
+  const t = e.target;
+  const rawWorld = t === cv || t === document.body || t === document.documentElement || (t && t.id === 'hud');
+  if (!rawWorld || (t && t.closest && t.closest(CAM_CTRL))) return;   // buttons, tabs, cards, overlays keep their touches
   if (camPointers.has(e.pointerId)) camPointers.delete(e.pointerId);   // a reused id starts clean
   try { cv.setPointerCapture(e.pointerId); } catch (err) { }           // the swipe stays ours wherever it slides
   camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
