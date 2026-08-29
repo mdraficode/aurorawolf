@@ -1897,7 +1897,9 @@ const audio = {
       this.ctx = new AC();
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.55;
-      this.master.connect(this.ctx.destination);
+      const lim = this.ctx.createDynamicsCompressor();   // a gentle ceiling — the wild may swell, never blast
+      lim.threshold.value = -7; lim.knee.value = 5; lim.ratio.value = 14; lim.attack.value = 0.004; lim.release.value = 0.26;
+      this.master.connect(lim); lim.connect(this.ctx.destination);
       const len = this.ctx.sampleRate * 2;
       const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
       const d = buf.getChannelData(0);
@@ -1913,13 +1915,13 @@ const audio = {
         src.start();
         return g;
       };
-      this.windG = mk('bandpass', 360, 0.05);
+      this.windG = mk('bandpass', 360, 0.0);   // retired haze — kept wired for weather sweeps only
       this.rainG = mk('highpass', 1600, 0.0);
       this.leafG = mk('bandpass', 900, 0.0);   // wind in the crowns
-      this.shoreG = mk('lowpass', 240, 0.0);    // distant surf
+      this.shoreG = mk('lowpass', 200, 0.0);    // distant surf, soft
       this.rumbleG = mk('lowpass', 55, 0.0);     // volcanic tremor
       this.roarG = mk('lowpass', 300, 0.0);       // a waterfall's weight
-      this.riverG = mk('bandpass', 520, 0.0);      // living water nearby
+      this.riverG = mk('lowpass', 330, 0.0);        // living water nearby — a murmur, never a hiss
       this.fireG = mk('bandpass', 1350, 0.0);    // crackling flames
       this.ready = true;
     } catch (e) { }
@@ -1928,17 +1930,18 @@ const audio = {
   setAmbient(wind, rain) {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    this.windG.gain.setTargetAtTime(0.02 + wind * 0.1, t, 0.8);
+    this.windG.gain.setTargetAtTime(0, t, 0.8);   // the constant hiss is retired — ambience lives in music and weather
     this.rainG.gain.setTargetAtTime(rain * 0.14, t, 0.9);
   },
-  setForest(cover, wind) {   // denser canopy = louder rustling overhead
+  setForest(cover, wind) {   // crowns stir only when the wind truly blows — silence in still air
     if (!this.ready || !this.leafG) return;
-    this.leafG.gain.setTargetAtTime((0.012 + wind * 0.055) * (0.35 + 0.65 * cover), this.ctx.currentTime, 1.0);
+    const gust = wind > 0.45 ? (wind - 0.45) * 0.022 * (0.35 + 0.65 * cover) : 0;
+    this.leafG.gain.setTargetAtTime(gust, this.ctx.currentTime, 1.2);
   },
   setBiome(w) {              // regional beds: surf on the shore, tremor in the wastes
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    if (this.shoreG) this.shoreG.gain.setTargetAtTime(0.05 * (w.coast || 0), t, 1.2);
+    if (this.shoreG) this.shoreG.gain.setTargetAtTime(0.025 * (w.coast || 0), t, 1.2);
     if (this.rumbleG) this.rumbleG.gain.setTargetAtTime(0.075 * (w.volcanic || 0), t, 1.2);
   },
   drip() {                   // caves: water counting the centuries
@@ -2129,8 +2132,8 @@ const audio = {
   setWater(roar, river) {    // falling water has weight; rivers murmur by proximity
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    this.roarG.gain.setTargetAtTime(roar, t, 0.6);
-    this.riverG.gain.setTargetAtTime(river, t, 0.6);
+    this.roarG.gain.setTargetAtTime(roar * 0.8, t, 0.6);
+    this.riverG.gain.setTargetAtTime(river * 0.35, t, 0.6);   // water keeps its voice, loses the edge
   },
   growlVar(kind) {           // aggressive · warning · pain — three voices of the wolf
     if (!this.ready || this.muted) return;
@@ -2279,6 +2282,40 @@ const audio = {
     src.connect(f); f.connect(g); g.connect(this.master);
     src.start(t); src.stop(t + 0.65);
   },
+  speciesCall(label, vol) {      // the wild speaks: each animal its own voice, heard when you're near
+    if (!this.ready || this.muted) return;
+    vol = vol == null ? 0.5 : vol;
+    const t = this.ctx.currentTime;
+    const V = {
+      Rabbit:      () => { this.tone('sine', 1100, t, 0.07, 0.035 * vol); this.tone('sine', 1500, t + 0.09, 0.06, 0.025 * vol); },
+      'Snow Hare': () => this.speciesCall('Rabbit', vol),
+      Fox:         () => { this.tone('triangle', 620, t, 0.1, 0.04 * vol); this.tone('triangle', 830, t + 0.12, 0.12, 0.035 * vol); },
+      'Arctic Fox': () => this.speciesCall('Fox', vol),
+      'Mountain Goat': () => { for (let i = 0; i < 3; i++) this.tone('square', 300 + Math.random() * 40, t + i * 0.13, 0.1, 0.018 * vol); },
+      Deer:        () => { this.tone('sawtooth', 190, t, 0.22, 0.03 * vol, 150); },
+      Reindeer:    () => { this.tone('sawtooth', 160, t, 0.26, 0.032 * vol, 120); },
+      Elk:         () => { this.tone('sawtooth', 140, t, 0.5, 0.04 * vol, 95); this.tone('sawtooth', 180, t + 0.3, 0.4, 0.03 * vol, 120); }
+    }[label];
+    if (V) { try { V(); } catch (e) { } }
+  },
+  tone(type, f, t, dur, vol, glideTo) {   // one clean note — the voice battery's atom
+    if (!this.ready || this.muted) return;
+    const o = this.ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f, t);
+    if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, t + dur);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.001, vol), t + dur * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t + dur + 0.02);
+  },
+  birdPeep(vol) {                // the flock overhead
+    if (!this.ready || this.muted) return;
+    const t = this.ctx.currentTime;
+    this.tone('sine', 2600 + Math.random() * 700, t, 0.05, 0.02 * vol);
+    this.tone('sine', 3200 + Math.random() * 600, t + 0.07, 0.04, 0.016 * vol);
+  },
   toggleMute() {
     this.muted = !this.muted;
     if (this.master) this.master.gain.value = this.muted ? 0 : 0.55;
@@ -2309,8 +2346,24 @@ const music = {
     enchanted:{ root: 392.00, scale: [0, 2, 4, 7, 9, 11],    instr: 'bells',   pad: 'choir', perc: 'none',  bass: 0 },
     coast:    { root: 261.63, scale: [0, 2, 4, 7, 9],        instr: 'none',    pad: 'warm',  perc: 'none',  bass: 0 }
   },
+  SIG: null, sigLen: 64,
+  buildSig() {   // semitones from A4 · [offset, lengthInBeats] · a tune that belongs to these wilds
+    const A = [[0, 2], [3, 2], [7, 3], [5, 1], [3, 2], [2, 2], [0, 4]];
+    const B = [[7, 2], [10, 2], [12, 3], [10, 1], [7, 2], [5, 2], [3, 2], [2, 2]];
+    const A2 = [[0, 2], [3, 2], [7, 2], [5, 2], [3, 2], [2, 2], [0, 4]];
+    const DRONE = [-24, -24, -27, -24];   // A · A · F · A — the bittersweet turn under B
+    const seq = [], phrases = [A, A, B, A2];
+    let at = 0;
+    phrases.forEach((ph, pi) => {
+      seq.push({ at, drone: DRONE[pi], len: 16 });
+      for (const [semi, len] of ph) { seq.push({ at, semi, len }); at += len; }
+      at = 16 * (pi + 1);
+    });
+    this.SIG = seq; this.sigLen = at;
+  },
   init() {
     if (this.bus || !audio.ctx) return;
+    if (!this.SIG) this.buildSig();
     const ctx = audio.ctx;
     this.bus = ctx.createGain(); this.bus.gain.value = 0.0;
     this.bus.connect(audio.master);
@@ -2336,14 +2389,28 @@ const music = {
       const vg = ctx.createGain(); vg.gain.value = f * 0.006; vib.connect(vg); vg.connect(os.frequency);
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.12);
       g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      os.connect(g); o.push(os, vib); this.stop(o, t + dur + 0.05);
+      os.connect(g); o.push(os, vib); this.stop(o, t, t + dur + 0.05);
+    } else if (instrument === 'guitar') {   // a soft plucked string — the game's signature voice (cycle-free: always stable)
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.4; lp.frequency.value = 1250 + f * 0.35;   // the wooden body
+      const o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = f;
+      const g1 = ctx.createGain(); g1.gain.value = 0.62; o1.connect(g1); g1.connect(lp);
+      const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = f * 2.003;   // a soft shimmer string
+      const g2 = ctx.createGain(); g2.gain.value = 0.2; o2.connect(g2); g2.connect(lp);
+      const pick = ctx.createBufferSource(); pick.buffer = audio.noiseBuf; pick.playbackRate.value = 3;   // the fingernail
+      const pg = ctx.createGain(); pg.gain.setValueAtTime(0.5, t); pg.gain.linearRampToValueAtTime(0, t + 0.014);
+      const ph = ctx.createBiquadFilter(); ph.type = 'highpass'; ph.frequency.value = 1500;
+      pick.connect(ph); ph.connect(pg); pg.connect(g);
+      lp.connect(g);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.012);
+      g.gain.setValueAtTime(vol, t + dur * 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1.1);   // a long wooden ring
+      o.push(o1, o2, pick); this.stop(o, t, t + dur + 1.2);
     } else if (instrument === 'piano') {
       for (const [m, a] of [[1, 1], [2, 0.35], [3, 0.12]]) {
         const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.value = f * m;
         const gg = ctx.createGain(); gg.gain.setValueAtTime(a * vol, t); gg.gain.exponentialRampToValueAtTime(0.0001, t + dur * (m === 1 ? 1 : 0.5));
         os.connect(gg); gg.connect(g); o.push(os);
       }
-      g.gain.value = 1; this.stop(o, t + dur + 0.05);
+      g.gain.value = 1; this.stop(o, t, t + dur + 0.05);
     } else if (instrument === 'strings') {
       for (const dt2 of [-6, 5]) {
         const os = ctx.createOscillator(); os.type = 'sawtooth'; os.frequency.value = f; os.detune.value = dt2 + (detune || 0);
@@ -2352,21 +2419,21 @@ const music = {
       }
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.45);
       g.gain.linearRampToValueAtTime(vol * 0.7, t + dur * 0.85); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      this.stop(o, t + dur + 0.05);
+      this.stop(o, t, t + dur + 0.05);
     } else if (instrument === 'oud') {
       const os = ctx.createOscillator(); os.type = 'sawtooth';
       os.frequency.setValueAtTime(f * 0.985, t); os.frequency.exponentialRampToValueAtTime(f, t + 0.05);
       const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1600;
       g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
       g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      os.connect(lp); lp.connect(g); o.push(os); this.stop(o, t + dur + 0.05);
+      os.connect(lp); lp.connect(g); o.push(os); this.stop(o, t, t + dur + 0.05);
     } else if (instrument === 'kalimba') {
       for (const [m, a] of [[1, 1], [2.76, 0.2]]) {
         const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.value = f * m;
         const gg = ctx.createGain(); gg.gain.setValueAtTime(a * vol, t); gg.gain.exponentialRampToValueAtTime(0.0001, t + dur * (m === 1 ? 1 : 0.35));
         os.connect(gg); gg.connect(g); o.push(os);
       }
-      g.gain.value = 1; this.stop(o, t + dur + 0.05);
+      g.gain.value = 1; this.stop(o, t, t + dur + 0.05);
     } else if (instrument === 'bells') {
       for (const [m, a, d2] of [[1, 1, 1], [2.76, 0.4, 0.7], [5.4, 0.15, 0.4]]) {
         const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.value = f * m;
@@ -2374,7 +2441,7 @@ const music = {
         gg.gain.exponentialRampToValueAtTime(0.0001, t + dur * d2 + 0.1);
         os.connect(gg); gg.connect(g); o.push(os);
       }
-      g.gain.value = 1; this.stop(o, t + dur + 0.2);
+      g.gain.value = 1; this.stop(o, t, t + dur + 0.2);
     } else if (instrument === 'choir') {
       for (const dt2 of [-8, 6, 0]) {
         const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.value = f; os.detune.value = dt2;
@@ -2382,22 +2449,22 @@ const music = {
         os.connect(lp); lp.connect(g); o.push(os);
       }
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.5);
-      g.gain.linearRampToValueAtTime(0.0001, t + dur); this.stop(o, t + dur + 0.05);
+      g.gain.linearRampToValueAtTime(0.0001, t + dur); this.stop(o, t, t + dur + 0.05);
     } else if (instrument === 'kick') {
       const os = ctx.createOscillator(); os.type = 'sine';
       os.frequency.setValueAtTime(130, t); os.frequency.exponentialRampToValueAtTime(44, t + 0.16);
       g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-      os.connect(g); o.push(os); this.stop(o, t + 0.25);
+      os.connect(g); o.push(os); this.stop(o, t, t + 0.25);
     } else if (instrument === 'tom') {
       const os = ctx.createOscillator(); os.type = 'sine';
       os.frequency.setValueAtTime(f, t); os.frequency.exponentialRampToValueAtTime(f * 0.55, t + 0.2);
       g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
-      os.connect(g); o.push(os); this.stop(o, t + 0.32);
+      os.connect(g); o.push(os); this.stop(o, t, t + 0.32);
     } else if (instrument === 'shaker') {
       const src = ctx.createBufferSource(); src.buffer = audio.noiseBuf; src.playbackRate.value = 1.4;
       const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 5200;
       g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-      src.connect(hp); hp.connect(g); o.push(src); this.stop(o, t + 0.1);
+      src.connect(hp); hp.connect(g); o.push(src); this.stop(o, t, t + 0.1);
     } else if (instrument === 'stab') {   // brass hit on landed bites
       for (const dt2 of [0, -7, -12]) {
         const os = ctx.createOscillator(); os.type = 'sawtooth'; os.frequency.value = f; os.detune.value = dt2;
@@ -2406,11 +2473,11 @@ const music = {
         os.connect(lp); lp.connect(g); o.push(os);
       }
       g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
-      this.stop(o, t + 0.34);
+      this.stop(o, t, t + 0.34);
     }
     g.connect(wet2);
   },
-  stop(list, t) { for (const n of list) { try { n.start(t); } catch (e) {} try { n.stop(t); } catch (e) {} } },
+  stop(list, t0, t1) { for (const n of list) { try { n.start(t0); } catch (e) {} try { n.stop(t1); } catch (e) {} } },   // a note must BEGIN before it ends — this bug muted the entire score
   chordF(root, semis) { return semis.map(s => root * Math.pow(2, s / 12)); },
   note(th, deg, oct) {
     const sc = th.scale, n = sc[((deg % sc.length) + sc.length) % sc.length] + 12 * Math.floor(deg / sc.length);
@@ -2449,17 +2516,17 @@ const music = {
     const night = dayF < 0.3, mystical = ['aurora', 'whiteStag', 'meteor'].includes(WORLD_EVENTS.name);
     const th = this.THEMES[this.theme] || this.THEMES.forest;
     const cave = caveState.in;
-    this.bpm = (st => st === 'combat' ? 96 + this.intensity * 60 : st === 'hunt' ? 66 : 58)(this.state) - (night ? 4 : 0);
+    this.bpm = (st => st === 'combat' ? 96 + this.intensity * 60 : st === 'hunt' ? 56 : 44)(this.state) - (night ? 3 : 0);   // slow, breathing days
     const T = {
-      explore: { pad: cave ? 0.5 : 0.34, melody: cave ? 0 : 0.2, perc: 0.05, bass: th.bass ? 0.3 : 0.12, choir: th.pad === 'choir' ? 0.16 : 0, bells: 0 },
-      hunt:    { pad: 0.1, melody: 0.05, perc: 0.16, bass: 0.1, choir: 0, bells: 0 },   // percussion is the heartbeat
+      explore: { pad: cave ? 0.52 : 0.44, melody: cave ? 0 : 0.3, perc: 0, bass: cave ? 0.06 : 0.24, choir: th.pad === 'choir' ? 0.16 : 0, bells: 0 },   // the signature guitar sings over warm pads
+      hunt:    { pad: 0.12, melody: 0.06, perc: 0.08, bass: 0.08, choir: 0, bells: 0 },   // a soft pulse under the stalk
       combat:  { pad: 0.22, melody: 0.12, perc: 0.34, bass: 0.2, choir: this.epic ? 0.3 : 0, bells: 0 }
     }[this.state];
     if (mystical && this.state === 'explore') T.bells = 0.2, T.choir = Math.max(T.choir, 0.2);
     const k = Math.min(1, dt * 1.6);
     for (const key in this.layers) this.layers[key].gain.value += ((T[key] || 0) * 0.9 - this.layers[key].gain.value) * k;
-    this.wet.gain.value += ((cave ? 0.5 : night ? 0.36 : this.state === 'combat' ? 0.12 : 0.18) - this.wet.gain.value) * k;
-    this.bus.gain.value += (0.3 - this.bus.gain.value) * k;
+    this.wet.gain.value += ((cave ? 0.5 : night ? 0.4 : this.state === 'combat' ? 0.12 : 0.28) - this.wet.gain.value) * k;   // a softer, larger space
+    this.bus.gain.value += (0.85 - this.bus.gain.value) * k;   // the score stands in the mix, not under it
     // schedule ahead
     const ctx = audio.ctx, ahead = ctx.currentTime + 1.1;
     let guard = 0;
@@ -2472,18 +2539,28 @@ const music = {
         const deg = [0, 3, 4, 2][this.bar % 4];
         const chordSemis = [0, 2, 4].map(x => th.scale[(deg + x) % th.scale.length] + (deg + x >= th.scale.length ? 12 : 0));
         const fs = this.chordF(th.root * pitchMul, [chordSemis[0], chordSemis[1] + 0, chordSemis[2]]);
-        this.v(th.pad === 'dark' ? 'strings' : th.pad === 'choir' ? 'choir' : 'strings', fs[0] / 2, t, 8 * 60 / this.bpm * 0.98, 0.16, 'pad', night ? 12 : 0);
-        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[1], t + 0.05, 8 * 60 / this.bpm * 0.95, 0.1, 'pad');
-        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[2] / 2, t, 8 * 60 / this.bpm * 0.95, 0.08, 'bass');
+        this.v(th.pad === 'dark' ? 'strings' : th.pad === 'choir' ? 'choir' : 'strings', fs[0] / 2, t, 8 * 60 / this.bpm * 0.99, 0.24, 'pad', night ? 12 : 0);
+        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[1], t + 0.05, 8 * 60 / this.bpm * 0.97, 0.16, 'pad');
+        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[2] / 2, t, 8 * 60 / this.bpm * 0.97, 0.12, 'bass');
         if (this.epic) this.v('choir', fs[0], t, 8 * 60 / this.bpm, 0.14, 'choir');
       }
-      // melody walks the scale — sparse at night, silent in the cave
-      if (inst !== 'none' && !cave) {
-        const dens = this.state === 'explore' ? (night ? 0.24 : 0.42) : this.state === 'hunt' ? 0.1 : 0.3;
+      // THE SIGNATURE TUNE: a plucked-string lullaby that follows the player everywhere
+      if (this.state === 'explore' && !cave) {
+        if (!this.SIG) this.buildSig();
+        const bb = this.beat % this.sigLen;
+        for (const nt of this.SIG) {
+          if (nt.at !== bb) continue;
+          if (nt.drone !== undefined) this.v('guitar', 440 * Math.pow(2, nt.drone / 12) * pitchMul, t, 15 * 60 / this.bpm, 0.15, 'bass');   // the low string hums
+          else {
+            this.v('guitar', 440 * Math.pow(2, nt.semi / 12) * pitchMul, t, nt.len * 60 / this.bpm * 0.94, 0.26, 'melody');   // the tune leads
+            if (mystical && Math.random() < 0.35) this.v('bells', 440 * Math.pow(2, (nt.semi + 12) / 12) * pitchMul, t + 0.24, 1.8, 0.06, 'bells');   // aurora evenings sparkle
+          }
+        }
+      } else if (inst !== 'none' && !cave && this.state !== 'explore') {   // the pulse states keep their sparse walk
+        const dens = this.state === 'hunt' ? 0.08 : 0.28;
         if (Math.random() < dens && b % 2 === 0) {
           const deg = (Math.random() * 8) | 0, oct = Math.random() < 0.25 ? 1 : 0;
-          this.v(inst, this.note(th, deg, oct) * pitchMul, t, inst === 'piano' ? 1.4 : 1.1, 0.11, 'melody');
-          if (mystical && Math.random() < 0.4) this.v('bells', this.note(th, deg + 2, 1) * pitchMul, t + 0.22, 1.6, 0.07, 'bells');
+          this.v(inst, this.note(th, deg, oct) * pitchMul, t, inst === 'piano' ? 2.2 : 2.0, 0.085, 'melody');
         }
       }
       // percussion speaks the state
@@ -2524,7 +2601,7 @@ function nearestPrey() {
     }
   return best;
 }
-let chirpT = 5, croakT = 4, breathT = 0, pantT = 0, whimperT = 0, owlT = 6, cricketT = 3, eagleT = 10, farHowlT = 15;
+let chirpT = 5, croakT = 4, breathT = 0, pantT = 0, whimperT = 0, owlT = 6, cricketT = 3, eagleT = 10, farHowlT = 15, voiceT = 2; const voiceCd = {};
 let dawnMistA = 0, pawPrints = null, flareGrp = null, raysGrp = null, mistGrp = null;
 
 /* ============================================================
@@ -2645,12 +2722,26 @@ function genQuest(kind) {
   }
   return null;
 }
-function refillQuests() {
-  let guard = 0;
-  while (QUESTS.avail.length < 3 && guard++ < 20) {
-    const q = genQuest();
-    if (q && !QUESTS.avail.some(o => o.title === q.title) && !QUESTS.active.some(o => o.title === q.title)) QUESTS.avail.push(q);
+window.questSize = function (q) {   // the weight of a deed — errand, journey, or trial
+  if (!q) return 'small';
+  if (q.kind === 'survive') return 'big';                             // outlast the sky or the storm — a trial
+  if (q.kind === 'explore' || q.kind === 'rival') return 'medium';    // a journey, or a pack to face
+  const n = q.need || 0;
+  if (q.kind === 'hunt') return n >= 4 ? 'medium' : 'small';
+  if (q.kind === 'collect') return n >= 5 ? 'medium' : 'small';
+  return 'small';
+};
+function refillQuests() {   // a FULL board: every kind of deed the land can offer, always visible
+  const BOARD = ['survive', 'hunt', 'explore', 'collect', 'rival', 'hunt', 'collect', 'explore'];
+  const dup = q => QUESTS.avail.some(o => o.title === q.title) || QUESTS.active.some(o => o.title === q.title);
+  for (const kind of BOARD) {
+    if (QUESTS.avail.length >= BOARD.length) break;
+    let q = null, tries = 0;
+    while (!q && tries++ < 10) { const c = genQuest(kind); if (c && !dup(c)) q = c; }
+    if (q) QUESTS.avail.push(q);
   }
+  let guard = 0;   // top up if the land is poor in some kind
+  while (QUESTS.avail.length < 6 && guard++ < 30) { const q = genQuest(); if (q && !dup(q)) QUESTS.avail.push(q); }
 }
 function acceptQuest(id) {
   if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
@@ -3345,6 +3436,93 @@ function mapTerrainPass(ctx, px, range, cx, cz) {
   }
   ctx.putImageData(img, 0, 0);
 }
+/* ---------------- quest guidance: one source of truth ----------------
+   Returns the nearest known point that completes the first guidable active quest.
+   The map line, the ground arrow — and the autopilot — all read this. */
+window.__qgLock = null;   // the committed destination — held until reached, done, or lost
+window.questGuide = function () {
+  try {
+    const dist2 = (x, z) => Math.hypot(x - wolf.pos.x, z - wolf.pos.z);
+    const L = window.__qgLock;
+    if (L) {   // ---- keep pointing at the SAME place: validate, track, never wander ----
+      const q = QUESTS.active.find(a => a.id === L.qid);
+      let live = !!q;
+      if (live) {
+        if (L.an) { if (L.an.dead) live = false; else { L.x = L.an.pos.x; L.z = L.an.pos.z; } }          // quarry roams — follow THAT animal
+        else if (L.pk) { if (L.pk.gathered) live = false; }
+        else if (L.rv) { if (L.rv.dead) live = false; else { L.x = L.rv.pos.x; L.z = L.rv.pos.z; } }
+        else if (L.lm && L.lm.found) live = false;
+        if (live && !L.an && !L.rv && dist2(L.x, L.z) < 9) live = false;   // arrived at a fixed place — decide the next
+      }
+      if (live) return { x: L.x, z: L.z, d: dist2(L.x, L.z), label: L.label, kind: L.kind };
+      window.__qgLock = null;
+    }
+    // ---- decide ONCE: the NEAREST reachable place among all active quests — then commit to it ----
+    let best = null;
+    for (const q of QUESTS.active) {
+      let c = null;
+      if (q.kind === 'explore' && q.lmType) {
+        for (const lm of landmarkList) {
+          if (lm.type !== q.lmType || lm.found) continue;
+          const d = dist2(lm.x, lm.z);
+          if (!c || d < c.d) c = { x: lm.x, z: lm.z, d, label: q.title, kind: 'explore', lm };
+        }
+      } else if (q.kind === 'explore' && q.peak) {
+        let t = null, bh = wolf.pos.y;
+        for (let k = 0; k < 12; k++) {
+          const ang = k / 12 * 6.2832;
+          for (const r of [90, 160, 240]) {
+            const x = wolf.pos.x + Math.sin(ang) * r, z = wolf.pos.z + Math.cos(ang) * r;
+            const h = heightAt(x, z);
+            if (h > bh) { bh = h; t = { x, z }; }
+          }
+        }
+        if (t && bh > wolf.pos.y + 6) c = { x: t.x, z: t.z, d: dist2(t.x, t.z), label: q.title, kind: 'peak', peak: true };
+      } else if (q.kind === 'hunt' && q.species) {
+        const want = (SPECIES[q.species] && SPECIES[q.species].label) || q.species;   // label≠key mismatch made the old guide blind to real quarry
+        for (const [, ch] of chunks) for (const an of ch.animals) {
+          if (an.dead || (an.sp && an.sp.label !== want)) continue;
+          const d = dist2(an.pos.x, an.pos.z);
+          if (d < 500 && (!c || d < c.d)) c = { x: an.pos.x, z: an.pos.z, d, label: q.title, kind: 'hunt', an };
+        }
+        if (!c && q.biome) {   // no quarry in range — point the way to the land where it lives (cached 30 s)
+          if (!window.__qgCache || performance.now() - window.__qgCache.t > 30000) {
+            let fb = null, fbd = 1e9;
+            for (let r = 160; r <= 800; r += 120) for (let k = 0; k < 12; k++) {
+              const a2 = k / 12 * 6.2832, x = wolf.pos.x + Math.sin(a2) * r, z = wolf.pos.z + Math.cos(a2) * r;
+              if (dominantBiomeAt(x, z).key === q.biome) { const d = Math.hypot(x - wolf.pos.x, z - wolf.pos.z); if (d < fbd) { fbd = d; fb = { x, z }; } }
+            }
+            window.__qgCache = { t: performance.now(), pt: fb };
+          }
+          const fb = window.__qgCache.pt;
+          if (fb) c = { x: fb.x, z: fb.z, d: dist2(fb.x, fb.z), label: q.title, kind: 'biome' };
+        }
+      } else if (q.kind === 'collect' && q.item) {
+        for (const [, ch] of chunks) for (const pk of ch.pickups) {
+          if (pk.gathered) continue;
+          const def = PICKUP_DEF[pk.type];
+          if (!def || def.inv !== q.item) continue;
+          const d = dist2(pk.x, pk.z);
+          if (d < 320 && (!c || d < c.d)) c = { x: pk.x, z: pk.z, d, label: q.title, kind: 'collect', pk };
+        }
+      } else if (q.kind === 'rival') {
+        for (const rv of rivals) {
+          if (rv.dead) continue;
+          const d = dist2(rv.pos.x, rv.pos.z);
+          if (d < 320 && (!c || d < c.d)) c = { x: rv.pos.x, z: rv.pos.z, d, label: q.title, kind: 'rival', rv };
+        }
+      }
+      if (c && (!best || c.d < best.d)) { c.q = q; best = c; }
+    }
+    if (best) {
+      window.__qgLock = { qid: best.q.id, x: best.x, z: best.z, label: best.label, kind: best.kind,
+        an: best.an || null, pk: best.pk || null, rv: best.rv || null, lm: best.lm || null, peak: !!best.peak };
+      return { x: best.x, z: best.z, d: best.d, label: best.label, kind: best.kind };
+    }
+    return null;
+  } catch (e) { return null; }
+};
+
 function drawMapOverlays(ctx, S, range, opts) {
   const half = S / 2;
   const toMap = (wx, wz) => [half + (wx - wolf.pos.x) / (range * 2) * S, half + (wz - wolf.pos.z) / (range * 2) * S];
@@ -3367,6 +3545,29 @@ function drawMapOverlays(ctx, S, range, opts) {
     ctx.fillStyle = '#ffd76a';
     ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 6.29); ctx.fill();
     if (opts.big) { ctx.font = 'bold 11px system-ui'; ctx.fillText('✦', cx + 8, cy + 4); }
+    ctx.restore();
+  }
+  // ---- quest guide line: follow the dotted path to the deed ----
+  const qg = window.questGuide ? window.questGuide() : null;
+  if (qg) {
+    const ang = Math.atan2(qg.z - wolf.pos.z, qg.x - wolf.pos.x);
+    const ex = half + Math.cos(ang) * (half - 8), ey = half + Math.sin(ang) * (half - 8);
+    const [gx2, gy2] = toMap(qg.x, qg.z);
+    const onMap = gx2 >= 0 && gx2 <= S && gy2 >= 0 && gy2 <= S;
+    ctx.save();
+    ctx.setLineDash([7, 6]);
+    ctx.strokeStyle = 'rgba(255,215,106,.55)';
+    ctx.lineWidth = opts.big ? 2 : 1.5;
+    ctx.beginPath(); ctx.moveTo(half, half);
+    ctx.lineTo(onMap ? gx2 : ex, onMap ? gy2 : ey);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (opts.big) {
+      const lx = half + Math.cos(ang) * (half * 0.55), ly = half + Math.sin(ang) * (half * 0.55);
+      ctx.fillStyle = 'rgba(255,233,176,.95)'; ctx.font = 'bold 11px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText('📜 ' + qg.d.toFixed(0) + 'm', lx, ly - 5);
+      ctx.textAlign = 'start';
+    }
     ctx.restore();
   }
   // ---- fast travel: the paths you have earned (big map only) ----
@@ -3500,6 +3701,171 @@ function drawMinimapOverlay() {
   ctx.fillText('W', 10, half + 4); ctx.fillText('E', S - 10, half + 4);
   ctx.textAlign = 'start';
 }
+let questArrowMesh = null;
+const _agc = new THREE.Color(), _agt = new THREE.Color();
+function arrowGroundLum() {   // what the arrow actually lies on — sampled exactly the way the terrain is shaded
+  let L = 0, n = 0;
+  for (const e of [[0, 0], [1.4, 0], [-1.4, 0], [0, 1.4], [0, -1.4]]) {
+    const x = wolf.pos.x + e[0], z = wolf.pos.z + e[1];
+    const h = heightAt(x, z);
+    const cl = climateAt(x, z, h);
+    const w = biomeWeights(x, z, h, cl.temp, cl.moist);
+    const grade = (Math.abs(heightAt(x + 2, z) - heightAt(x - 2, z)) + Math.abs(heightAt(x, z + 2) - heightAt(x, z - 2))) / 8;
+    groundColor(_agc, x, z, h, w, cl.temp, grade);
+    L += 0.2126 * _agc.r + 0.7152 * _agc.g + 0.0722 * _agc.b; n++;
+  }
+  const light = Math.max(0.15, Math.min(1.15, sun.intensity || 1));   // night dims even snow — the arrow must answer
+  return (L / n) * light;
+}
+window.__arrowGroundLum = () => arrowGroundLum();
+function arrowTargetColor(st) {   // the opposite of the land — darker overall, as demanded twice
+  const BRIGHT = 0.54, DARK = 0.21;
+  if (st.mode === 'dark') _agt.setHSL(0.068, 0.92, DARK);       // deep burnt ember — sinks into snow, sand, sun-grass
+  else _agt.setHSL(0.10, 0.96, BRIGHT);                         // rich gold — glows against night, spruce, peat
+  return _agt;
+}
+function updateQuestArrow(dt) {
+  try {
+    const qg = window.questGuide ? window.questGuide() : null;
+    if (!questArrowMesh) {
+      const g = new THREE.BufferGeometry();
+      const v = new Float32Array([
+        -0.34, 0, -0.5, 0.34, 0, -0.5, 0.34, 0, 1.3,   // shaft half
+        -0.34, 0, -0.5, 0.34, 0, 1.3, -0.34, 0, 1.3,   // shaft half
+        -0.85, 0, 1.3, 0.85, 0, 1.3, 0, 0, 2.5         // head
+      ]);
+      g.setAttribute('position', new THREE.BufferAttribute(v, 3));
+      g.computeVertexNormals();
+      questArrowMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.2, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+      questArrowMesh.renderOrder = 999;   // above the world — no hill, tree or wall hides the way
+      questArrowMesh.scale.set(1.15, 1, 1.6);   // longer — readable at a glance
+      const under = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x0d0803, transparent: true, opacity: 0.62, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+      under.renderOrder = 998; under.position.y = -0.035; under.scale.set(1.24, 1, 1.08);   // the dark halo — bolder, contrast on ANY ground
+      questArrowMesh.add(under);
+      questArrowMesh.userData.st = { mode: 'bright', lum: 0.5, acc: 1 };
+      scene.add(questArrowMesh);
+    }
+    const st = questArrowMesh.userData.st;
+    if (!qg || qg.d < 10) { questArrowMesh.visible = false; return; }
+    const yaw = Math.atan2(qg.x - wolf.pos.x, qg.z - wolf.pos.z);
+    const FWD = 1.45;   // the tail tucks under the chest and the shaft pours out ahead — never drawn through the wolf
+    questArrowMesh.position.set(wolf.pos.x + Math.sin(yaw) * FWD, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.55, wolf.pos.z + Math.cos(yaw) * FWD);
+    // ---- partial billboard: heading locked to the quest, but the face tips toward the camera ----
+    // a flat ground decal collapses edge-on whenever the camera swings toward the horizon — no color survives that.
+    const eyY = camera.position.y - questArrowMesh.position.y;
+    const eyD = Math.hypot(camera.position.x - questArrowMesh.position.x, camera.position.z - questArrowMesh.position.z);
+    const tilt = Math.max(0.42, Math.min(1.25, Math.atan2(eyY, Math.max(1, eyD))));   // 24°..72° — never a sliver, never a signpost
+    questArrowMesh.rotation.order = 'YXZ';
+    questArrowMesh.rotation.y = yaw;
+    questArrowMesh.rotation.x = -tilt;   // the head tips up to meet the eye
+    questArrowMesh.visible = true;
+    // ---- real eyes on the ground: resample every quarter second, then glide the color ----
+    st.acc += dt || 0.016;
+    if (st.acc > 0.25) {
+      st.acc = 0;
+      st.lum = arrowGroundLum();
+      if (st.mode === 'bright' && st.lum > 0.47) st.mode = 'dark';      // hysteresis — no flicker at the seam
+      else if (st.mode === 'dark' && st.lum < 0.37) st.mode = 'bright';
+    }
+    arrowTargetColor(st);
+    questArrowMesh.material.color.lerp(_agt, 1 - Math.exp(-(dt || 0.016) * 7));
+    const breath = 0.5 + 0.5 * Math.sin(tSec * 2.4);
+    questArrowMesh.material.opacity = 0.36 + 0.13 * breath;              // present, breathing — never a ghost again
+    const un = questArrowMesh.children[0];
+    if (un) un.material.opacity = 0.5 + 0.12 * breath;
+  } catch (e) { }
+}
+
+/* ---------------- birds: the living sky ---------------- */
+const BIRDS = { list: [] };
+function makeBird() {
+  const g = new THREE.Group();
+  const col = [0x3a322b, 0x54423a, 0x2b2f38, 0x6b5a4a][(Math.random() * 4) | 0];
+  const mat = new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide });
+  const body = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.42, 4), mat);
+  body.rotation.x = Math.PI / 2;   // beak forward
+  g.add(body);
+  const wingG = new THREE.PlaneGeometry(0.52, 0.2);
+  const wl = new THREE.Mesh(wingG, mat); wl.position.x = -0.26; g.add(wl);
+  const wr = new THREE.Mesh(wingG, mat); wr.position.x = 0.26; g.add(wr);
+  g.userData = { wl, wr, flap: Math.random() * 6 };
+  scene.add(g);
+  return g;
+}
+function birdSpawnPoint() {
+  const a4 = Math.random() * 6.28, r = 30 + Math.random() * 55;
+  const x = wolf.pos.x + Math.sin(a4) * r, z = wolf.pos.z + Math.cos(a4) * r;
+  return { x, z, y: Math.max(heightAt(x, z), WATER_Y) + 4 + Math.random() * 5 };
+}
+function birdTarget(b) {   // alternate between a tree perch and a ground feeding spot
+  b.hop = !b.hop;
+  if (b.hop) {   // a tree crown (or a boulder — birds aren't proud)
+    let best = null, bd = 1e9;
+    for (const [, ch] of chunks) for (const sol of (ch.solids || [])) {
+      const d = Math.hypot(sol.x - b.mesh.position.x, sol.z - b.mesh.position.z);
+      if (d < bd && d < 70 && d > 6) { bd = d; best = sol; }
+    }
+    if (best) return { x: best.x + (Math.random() - 0.5) * 2, z: best.z + (Math.random() - 0.5) * 2, y: heightAt(best.x, best.z) + 4.6 + Math.random() * 1.6, kind: 'perch' };
+  }
+  const a4 = Math.random() * 6.28, r = 8 + Math.random() * 26;
+  const x = b.mesh.position.x + Math.sin(a4) * r, z = b.mesh.position.z + Math.cos(a4) * r;
+  return { x, z, y: Math.max(heightAt(x, z), WATER_Y) + 0.12, kind: 'ground' };
+}
+function updateBirds(dt) {
+  if (state !== 'play') return;
+  // keep a small flock alive near the wolf
+  while (BIRDS.list.length < 7) {
+    const pt = birdSpawnPoint();
+    if (pt.y < WATER_Y + 1.5) continue;
+    const mesh = makeBird();
+    mesh.position.set(pt.x, pt.y, pt.z);
+    const b3 = { mesh, state: 'fly', tgt: { x: pt.x, z: pt.z, y: pt.y, kind: 'ground' }, t: 0, speed: 8 + Math.random() * 4, hop: Math.random() < 0.5, peepT: 2 + Math.random() * 6 };
+    b3.tgt = birdTarget(b3); b3.tgt.y = Math.max(b3.tgt.y, pt.y + 2);   // glide in from the sky
+    BIRDS.list.push(b3);
+    break;
+  }
+  for (let i = BIRDS.list.length - 1; i >= 0; i--) {
+    const b = BIRDS.list[i], m = b.mesh;
+    const dWolf = Math.hypot(m.position.x - wolf.pos.x, m.position.z - wolf.pos.z);
+    if (dWolf > 150) { scene.remove(m); BIRDS.list.splice(i, 1); continue; }
+    b.t += dt;
+    // the wolf's shadow bursts the flock
+    if (dWolf < 11 && b.state !== 'fly') {
+      const away = Math.atan2(m.position.x - wolf.pos.x, m.position.z - wolf.pos.z);
+      b.tgt = { x: m.position.x + Math.sin(away) * 60, z: m.position.z + Math.cos(away) * 60, y: m.position.y + 14, kind: 'fly' };
+      b.state = 'fly'; b.speed = 15 + Math.random() * 4;
+      audio.birdPeep(0.9);
+    }
+    const ud = m.userData;
+    if (b.state === 'fly') {
+      const dx = b.tgt.x - m.position.x, dy = b.tgt.y - m.position.y, dz = b.tgt.z - m.position.z;
+      const d = Math.hypot(dx, dy, dz) || 1;
+      const step = Math.min(d, b.speed * dt);
+      m.position.x += dx / d * step; m.position.y += dy / d * step + Math.sin(b.t * 3) * 0.01; m.position.z += dz / d * step;
+      m.rotation.y = Math.atan2(dx, dz);
+      ud.flap += dt * 22;
+      ud.wl.rotation.y = Math.sin(ud.flap) * 0.9; ud.wr.rotation.y = -Math.sin(ud.flap) * 0.9;
+      if (d < 1.2) {
+        if (b.tgt.kind === 'fly') { b.tgt = birdTarget(b); continue; }
+        b.state = b.tgt.kind === 'perch' ? 'perch' : 'ground';
+        b.t = 0; b.timer = b.state === 'perch' ? 4 + Math.random() * 5 : 3 + Math.random() * 4;
+        if (dWolf < 38 && Math.random() < 0.5) audio.birdPeep(0.5);
+      }
+    } else {
+      ud.flap += dt * 3;   // folded wings, idle stir
+      ud.wl.rotation.y = Math.sin(ud.flap) * 0.12; ud.wr.rotation.y = -Math.sin(ud.flap) * 0.12;
+      m.rotation.y += Math.sin(b.t * 0.7) * dt * 0.6;   // a wary head-turn
+      if (b.state === 'ground') {
+        m.position.y = b.tgt.y + Math.abs(Math.sin(b.t * 6)) * 0.05;   // little hops and pecks
+        m.rotation.x = Math.max(0, Math.sin(b.t * 4)) * 0.5;
+      }
+      b.peepT -= dt;
+      if (b.peepT <= 0 && dWolf < 40) { b.peepT = 4 + Math.random() * 8; audio.birdPeep(0.35); }
+      if (b.t > b.timer) { b.tgt = birdTarget(b); b.state = 'fly'; b.speed = 8 + Math.random() * 4; }
+    }
+  }
+}
+
 function updateMinimap(dt) {
   const cv = el('minimap');
   if (!cv) return;
@@ -3593,6 +3959,7 @@ function updateHUD(dt) {
     }
   }
   updateThreatArrow();
+  updateQuestArrow(dt);
   updateMinimap(dt);
   if (BIG.open) updateBigMap(dt);
   ui.stam.style.width = wolf.stamina.toFixed(0) + '%';
@@ -3808,24 +4175,21 @@ function joyHome() {   // back to the corner until called again
   joyEl.style.top = 'calc(100vh - 156px)';
 }
 function joyMove(e) {
-  if (joyHanded === e.pointerId) return;   // this finger belongs to the lens now — let the window handler see it
   if (e.pointerId !== joy.id) return;
   e.stopPropagation();
-  // a steep slide that EXITS the field is a sky-pan fling, not steering — hand it to the camera
-  const dyT = e.clientY - joy.sy, dxT = e.clientX - joy.sx;
-  const leftField = e.clientY < joy.zt + 24 || e.clientY > joy.zb - 24;
-  if (!joy.fling && leftField && Math.abs(dyT) > 90 && Math.abs(dyT) > 2 * Math.abs(dxT) && camPointers.size === 0) {
-    joy.fling = true; joyHanded = e.pointerId;
-    joyRelease(); joyEl.classList.remove('live');
-    pinch0 = 0;   // no phantom pinch from a hybrid gesture
-    camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    return;
+  // the thumb owns this finger until it lifts — swipe as far as you like, the stick holds on
+  const r = joyEl.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const dx0 = e.clientX - cx, dy0 = e.clientY - cy;
+  const drag = Math.hypot(dx0, dy0);
+  if (drag > r.width * 0.62) {   // thumb roaming past the rim — carry the anchor along beneath it
+    const k = (drag - r.width * 0.62) / drag;
+    joyEl.style.left = (r.left + dx0 * k) + 'px';
+    joyEl.style.top = (r.top + dy0 * k) + 'px';
   }
   joySetFromEvent(e);
 }
 const joyEnd = e => {
   if (e.pointerId === joy.id) { joyRelease(); joyEl.classList.remove('live'); joyHome(); }
-  if (e.pointerId === joyHanded) joyHanded = null;
 };
 for (const jt of [joyEl, joyZone]) {
   if (!jt) continue;
@@ -3955,8 +4319,14 @@ const PITCH_MAX = Math.PI / 2 - 0.001;   // true straight-up / straight-down
 const camPointers = new Map();
 let pinch0 = 0, pinchDist0 = 8.5;
 cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('pointerdown', e => {
+const CAM_CTRL = '#btns, .tbtn, #minimap, #bigmapWrap, #joyZone, #joy, #btnAI, #invBtn, #questBtn, #questLog, #invWrap, .btn, #toasts, #boot, #deathOv';
+addEventListener('pointerdown', e => {   // the camera owns the RAW WORLD — and never steals a single UI click
   audio.resume();
+  const t = e.target;
+  const rawWorld = t === cv || t === document.body || t === document.documentElement || (t && t.id === 'hud');
+  if (!rawWorld || (t && t.closest && t.closest(CAM_CTRL))) return;   // buttons, tabs, cards, overlays keep their touches
+  if (camPointers.has(e.pointerId)) camPointers.delete(e.pointerId);   // a reused id starts clean
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }           // the swipe stays ours wherever it slides
   camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (camPointers.size === 2 && [...camPointers.values()].every(q => !q.fromBtn)) {   // a pinch needs two real canvas fingers
     const pts = [...camPointers.values()];
@@ -3982,6 +4352,7 @@ addEventListener('pointermove', e => {
     camPitch = clamp(camPitch + dy * sens * vGain, -PITCH_MAX, PITCH_MAX);   // free look — the full 90°, soil to zenith
   }
 });
+addEventListener('pointerdown', () => { audio.init(); audio.resume(); }, { capture: true });   // any first touch wakes the score
 const camPtrEnd = e => { camPointers.delete(e.pointerId); btnPointers.delete(e.pointerId); };
 addEventListener('pointerup', camPtrEnd);
 function camEdgeHold(dt) {   // thumb parked at the top/bottom edge: keep tilting to the full 90°
@@ -3992,6 +4363,14 @@ function camEdgeHold(dt) {   // thumb parked at the top/bottom edge: keep tiltin
   else if (p.y > innerHeight - EDGE) camPitch = clamp(camPitch + RATE * dt, -PITCH_MAX, PITCH_MAX);
 }
 addEventListener('pointercancel', camPtrEnd);
+/* ghost sweep: touch events carry the authoritative list of fingers still down —
+   a swallowed pointerup can never leave a stale "pinch partner" that kills the next swipe */
+const camSweep = e => {
+  const ids = new Set([...(e.touches || [])].map(t => t.identifier));
+  for (const k of [...camPointers.keys()]) if (!ids.has(k)) camPointers.delete(k);
+};
+addEventListener('touchend', camSweep, { passive: true });
+addEventListener('touchcancel', camSweep, { passive: true });
 cv.addEventListener('wheel', e => {
   e.preventDefault();
   camDist = clamp(camDist + e.deltaY * 0.012, 3.5, 19);
@@ -4184,6 +4563,23 @@ function tick() {
   if (audio.ready && dayF > 0.5 && weather.rain < 0.15 && curBiomeKey !== 'tundra' && curBiomeKey !== 'mountain') {
     chirpT -= dt;
     if (chirpT <= 0) { chirpT = 2.6 - wCov * 1.2 + Math.random() * 6; audio.chirp(0.45 + 0.45 * wCov); }   // songbirds hold forth in the canopy
+  }
+  updateBirds(dt);
+  // ---- the wild speaks: animals near the wolf answer in their own voices ----
+  voiceT -= dt;
+  if (voiceT <= 0) {
+    voiceT = 0.9 + Math.random() * 0.7;
+    let near = null, nd = 34;
+    for (const [, ch] of chunks) for (const an of ch.animals) {
+      if (an.dead) continue;
+      const d = Math.hypot(an.pos.x - wolf.pos.x, an.pos.z - wolf.pos.z);
+      if (d < nd) { nd = d; near = an; }
+    }
+    if (near) {
+      const lab = near.sp.label, now2 = tSec;
+      const cd = voiceCd[lab] || 0;
+      if (now2 > cd) { voiceCd[lab] = now2 + 9 + Math.random() * 10; audio.speciesCall(lab, 0.85 - nd / 44); }
+    }
   }
 
   /* ---- the living soundtrack: state, theme, body, wild voices ---- */

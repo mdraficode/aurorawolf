@@ -111,6 +111,21 @@
         nan: !Number.isFinite(wolf.pos.x + wolf.pos.y + wolf.pos.z + camPitch + camYaw + wolf.hp + wolf.stamina)
       });
       frames = 0;
+      const qSum = QUESTS.active.reduce((n, qq) => n + (qq.have || 0), 0) + QUESTS.done.length * 100;
+      if (qSum > (bot.qSum || -1)) bot.qProgT = SIMNOW();
+      bot.qSum = qSum;
+      if (!bot.anchor) bot.anchor = { x: wolf.pos.x, z: wolf.pos.z, t: SIMNOW() };
+      else if (SIMNOW() - bot.anchor.t > 180000) {
+        const disp = Math.hypot(wolf.pos.x - bot.anchor.x, wolf.pos.z - bot.anchor.z);
+        if (disp < 140 && SIMNOW() - (bot.qProgT || 0) > 180000) {   // 3 min parked in one region with zero quest progress — leave
+          const qg = window.questGuide ? window.questGuide() : null;
+          const yawT = qg && qg.d > 250 ? Math.atan2(qg.x - wolf.pos.x, qg.z - wolf.pos.z) : Math.random() * 6.28;
+          bot.trek = { x: wolf.pos.x + Math.sin(yawT) * 450, z: wolf.pos.z + Math.cos(yawT) * 450, until: SIMNOW() + 70000 };
+          bot.wander = null; bot.lmStick = null; bot.ford = null;
+          log('tether-break', { disp: +disp.toFixed(0), msg: 'this region is spent — striking out for new ground' });
+        }
+        bot.anchor = { x: wolf.pos.x, z: wolf.pos.z, t: SIMNOW() };
+      }
       const now = performance.now();
       if (now - stat30 > 30000) {   // the runner's heartbeat record
         stat30 = now;
@@ -151,7 +166,7 @@
     goalText: 'waking up…', wander: null, lastAtk: 0, lastGather: 0, howlT: 60, senseT: 0, noPreyT: 0,
     gatherMisses: 0, lastInvSum: -1, stuckPos: null, stuckT: 0, unstickT: 0, detourT: 0, detourPos: null, goalKey: '', goalStuck: 0,
     deadSeen: false, warned: {}, restT: 0, drinkGoal: null, fight: null, bossPilgrim: null, lastHp: 100, noRegenT: 0, shunned: new Set(),
-    trek: null, wanderHist: [], wanderT: 0, pathWin: [], loopN: 0, loopEpoch: 0, loopCd: 0, lmStick: null, preyShun: null, lastYaw: undefined, stalkT0: 0, stalkD0: 0, pauseUntil: 0, pauseWhy: ''
+    trek: null, wanderHist: [], wanderT: 0, pathWin: [], loopN: 0, loopEpoch: 0, loopCd: 0, lmStick: null, lmBlack: null, lmNear: null, lmFails: 0, closeW: null, travStick: null, questLock: null, preyShun: null, lastYaw: undefined, stalkT0: 0, stalkD0: 0, pauseUntil: 0, pauseWhy: ''
   };
   const nearestAnimal = filter => {
     let best = null, bd = 1e9;
@@ -228,14 +243,19 @@
   };
   const invSum = () => inv.berry + inv.mushroom + inv.herb + inv.wood + inv.stone + inv.bone + inv.meat + inv.pelt;
   bot.travelToBiome = (biome, anyHigh) => {
-    let best = null, bd = 1e9;
+    let best = null, bd = 1e9, narrow = null, nd = 1e9;   // narrow = reachable only by fording — last resort
     for (let r = 120; r <= 1000; r += 80)
       for (let a4 = 0; a4 < 6.28; a4 += 0.5) {
         const x = wolf.pos.x + Math.sin(a4) * r, z = wolf.pos.z + Math.cos(a4) * r;
         const ok = anyHigh ? heightAt(x, z) > 38 : dominantBiomeAt(x, z).key === biome;
-        if (ok) { const d = Math.hypot(x - wolf.pos.x, z - wolf.pos.z); if (d < bd) { bd = d; best = { x, z, d }; } }
+        if (!ok) continue;
+        const d = Math.hypot(x - wolf.pos.x, z - wolf.pos.z);
+        let wet = 0;
+        for (let k = 1; k <= 3; k++) if (heightAt(wolf.pos.x + (x - wolf.pos.x) * k / 4, wolf.pos.z + (z - wolf.pos.z) * k / 4) < waterYNow() - 0.35) wet++;
+        if (wet === 0) { if (d < bd) { bd = d; best = { x, z, d }; } }
+        else if (d < nd) { nd = d; narrow = { x, z, d }; }
       }
-    return best;
+    return best || narrow;   // prefer dry routes — ford only when the land itself lies across the water
   };
 
   // press START like a human
@@ -249,7 +269,19 @@
   // convert once at the end of the tick. v6/v7.0 steered camYaw directly = ran backwards.
   let aimYaw = null, aimEase = 0.45;
   const aim = (yaw, ease) => { aimYaw = yaw; if (ease !== undefined) aimEase = ease; };
-  const applyAim = () => { if (aimYaw !== null) camYaw += wrapPI(aimYaw + Math.PI - camYaw) * aimEase; aimYaw = null; aimEase = 0.45; };
+  const applyAim = () => { };   // the per-frame glider below does the turning — no more 150 ms lurches
+  // ---- the glider: every rendered frame, ease the camera toward the chosen heading ----
+  const steerGlide = () => {
+    try {
+      if (aimYaw !== null && !window.BOT_OFF && typeof state !== 'undefined' && state === 'play') {
+        const err = wrapPI(aimYaw + Math.PI - camYaw);
+        const rate = 0.028 + 0.085 * (aimEase || 0.45);        // rad/frame: gentle walk-turns, quick bite-turns
+        camYaw += Math.sign(err) * Math.min(Math.abs(err) * 0.18, rate);
+      }
+    } catch (e) { }
+    requestAnimationFrame(steerGlide);
+  };
+  requestAnimationFrame(steerGlide);
 
   /* ---------------- quest selection: score offers like a player reading the board ---------------- */
   const questScore = q => {
@@ -275,16 +307,50 @@
     if (deeds >= 3 && !legendLand) s -= 0.8;                               // spent lands with no legend — move on
     return s;
   };
+  /* ---- quest discipline: ONE deed at a time — three errands, two journeys, one trial, repeat ---- */
+  const QUEST_SEQ = ['small', 'small', 'small', 'medium', 'medium', 'big'];
   const keepQuestsFilled = () => {
-    let guard = 0;
-    while (QUESTS.active.length < 2 && QUESTS.avail.length && guard++ < 4) {
-      let best = null, bs = -1;
-      for (const q of QUESTS.avail) { if (bot.shunned.has(q.title)) continue; const s = questScore(q); if (s > bs) { bs = s; best = q; } }
-      if (!best && !QUESTS.active.length && QUESTS.avail.length) { bot.shunned.clear(); log('shun-relief', { msg: 'every deed set aside — forgiving and taking the least bad' }); continue; }
-      if (!best) break;
-      if (bs < 0.8 && QUESTS.active.length >= 1) break;   // hold out for better second deeds…
-      acceptQuest(best.id);                               // …but never run deed-less
+    if (bot.seqIx === undefined) bot.seqIx = 0;
+    if (bot.questId === undefined) bot.questId = null;
+    while (QUESTS.active.length > 1) {   // never two at once — an extra (e.g. adopted on restart) goes back
+      const extra = QUESTS.active.find(q => q.id !== bot.questId) || QUESTS.active[QUESTS.active.length - 1];
+      log('quest-extra-back', { msg: 'one deed at a time — ' + extra.title + ' goes back on the board' });
+      abandonQuest(extra.id);
     }
+    if (QUESTS.active.length === 1) {
+      const q = QUESTS.active[0];
+      if (!bot.questId) bot.questId = q.id;   // adopted a deed already underway — finish it
+      const pr = q.have || 0;
+      if (bot.qPr !== pr) { bot.qPr = pr; bot.qPrT = SIMNOW(); }
+      const g = window.questGuide && window.questGuide();   // approaching the mark counts as living progress
+      if (g) { const d = g.d | 0; if (bot.qGd === undefined || d < bot.qGd - 3) { bot.qGd = d; bot.qPrT = SIMNOW(); } bot.qGd = Math.min(bot.qGd === undefined ? d : bot.qGd, d); }
+      if (q.kind !== 'survive' && SIMNOW() - (bot.qPrT || SIMNOW()) > 720000) {   // 12 min utterly flat — the one honest escape
+        log('quest-flatlined', { msg: q.title + ' — no progress nor approach for 12 minutes; setting it aside' });
+        bot.shunned.add(q.title);
+        abandonQuest(q.id);
+        bot.questId = null; bot.qGd = undefined;
+        return;
+      }
+      return;   // committed: finish what was started — no second deed, no shuffling
+    }
+    if (bot.questId) {   // the deed left active — completed (or the rare flatline) — next step of the cycle
+      bot.seqIx = (bot.seqIx + 1) % QUEST_SEQ.length;
+      bot.questId = null; bot.qGd = undefined;
+    }
+    const want = QUEST_SEQ[bot.seqIx];
+    if (typeof refillQuests === 'function') refillQuests();
+    let pool = QUESTS.avail.filter(q => window.questSize(q) === want);
+    if (!pool.length) {   // the land offers no deed of that weight right now — take the nearest weight, keep the rhythm
+      const alt = want === 'big' ? ['medium', 'small'] : want === 'medium' ? ['small', 'big'] : ['medium', 'big'];
+      for (const a of alt) { pool = QUESTS.avail.filter(q => window.questSize(q) === a); if (pool.length) { log('quest-substitute', { msg: 'no ' + want + ' deed on the board — taking a ' + a + ' one' }); break; } }
+    }
+    if (!pool.length) return;
+    let best = null, bs = -1e9;
+    for (const q of pool) { const sc = questScore(q) - (bot.shunned.has(q.title) ? 50 : 0); if (sc > bs) { bs = sc; best = q; } }
+    if (!best) best = pool[0];
+    acceptQuest(best.id);
+    bot.questId = best.id;
+    log('quest-seq', { msg: 'deed ' + (bot.seqIx + 1) + '/6 (' + want + '): ' + best.title });
   };
 
   /* ================= THE BRAIN (every 150 ms) ================= */
@@ -339,9 +405,17 @@
           const h = heightAt(wolf.pos.x + Math.sin(yy) * 10, wolf.pos.z + Math.cos(yy) * 10) - waterYNow();
           if (h > bestH) { bestH = h; shoreYaw = yy; }
         }
+        if (bot.ford && SIMNOW() < bot.ford.until) {   // committed crossing — hold straight for the far bank
+          aim(bot.ford.yaw, 0.85);
+          keys.KeyW = true; keys.ShiftLeft = false; wolf.crouch = false;
+          bot.goalText = '🌊 fording toward the deed';
+          if (!bot.fordLog || SIMNOW() - bot.fordLog > 15000) { bot.fordLog = SIMNOW(); log('ford', { msg: 'crossing the water — the deed waits beyond' }); }
+          applyAim(); return;
+        }
         aim(shoreYaw, 0.9);
         keys.KeyW = true; keys.ShiftLeft = false; wolf.crouch = false;
         bot.goalText = '🌊 swimming to shore';
+        if (targetPk && bot.pkBlack) { bot.pkBlack.add(targetPk); bot.gatherStick = null; log('pickup-skip', { msg: 'pickup across the water — swimming back, trying another' }); }
         if (!bot.swimLog || SIMNOW() - bot.swimLog > 20000) { bot.swimLog = SIMNOW(); log('swim', { msg: 'in deep water — heading for shore' }); }
         applyAim(); return;
       }
@@ -457,7 +531,9 @@
       /* ---------- 4. pick the objective ---------- */
 
       let q = null, goal = bot.goalOverride || null, targetAnimal = null, targetPk = null, mode = goal ? 'drink' : 'wander', bestD = 1e9;
+      if (bot.questLock && !QUESTS.active.some(qq => qq.id === bot.questLock.id)) bot.questLock = null;   // completed/abandoned
       if (!bot.goalOverride) for (const cq of QUESTS.active) {
+        if (bot.questLock && SIMNOW() < bot.questLock.until && cq.id !== bot.questLock.id) continue;   // one deed at a time — juggling two attractors orbits the map between them
         if (cq.kind === 'hunt') {
           if (bot.noHuntUntil && SIMNOW() < bot.noHuntUntil) { const t3 = bot.travelToBiome(cq.biome); if (t3 && bestD === 1e9) { bestD = t3.d + 200; q = cq; goal = t3; mode = 'travel'; } continue; }
           // commitment: keep the same quarry 30 s — no flapping between prey and wander
@@ -465,7 +541,7 @@
             const a2 = bot.huntStick.a;
             if (a2 && !a2.dead) {
               const d2 = Math.hypot(a2.pos.x - wolf.pos.x, a2.pos.z - wolf.pos.z);
-              if (d2 < bestD + 80) { bestD = d2; q = cq; goal = { x: a2.pos.x, z: a2.pos.z }; targetAnimal = a2; mode = 'hunt'; }
+              if (d2 < bestD + 80) { bestD = d2; q = cq; goal = { x: a2.pos.x, z: a2.pos.z }; targetAnimal = a2; mode = 'hunt'; continue; }   // committed — this deed hunts, full stop
             } else bot.huntStick = null;
           } else if (bot.huntStick) {   // 30 s on one quarry — did the chase actually close?
             const a2 = bot.huntStick.a, d0 = bot.huntStick.d0 || 1e9;
@@ -476,7 +552,7 @@
                 log('chase-giveup', { sp: cq.species, d: +d2.toFixed(0), msg: 'chase not closing — letting the herd go (' + bot.huntFails + ')' });
                 bot.noHuntUntil = SIMNOW() + 20000;
                 bot.preyShun = { label: a2.sp.label, until: SIMNOW() + 45000 };
-                if (bot.huntFails >= 3) { bot.huntFails = 0; log('abandon-unfruitful', { title: cq.title, msg: 'the quarry will not be caught today — setting the deed aside' }); bot.shunned.add(cq.title); abandonQuest(cq.id); }
+                if (bot.huntFails >= 3) { bot.huntFails = 0; log('hunt-hard', { title: cq.title, msg: 'the quarry is cagey — the deed stands, and so does the wolf' }); }   // one-at-a-time: no more setting deeds aside
                 bot.huntStick = null;
               } else bot.huntStick = null;
             } else bot.huntStick = null;
@@ -491,13 +567,17 @@
             else deerTravel = true;                        // none here — the herd lives in the deed's land
           }
           if (deerTravel) {   // deer deeds are biome-locked: go to the land where they count
-            const t2 = bot.travelToBiome(cq.biome);
-            if (t2 && (bestD === 1e9 || t2.d + 120 < bestD)) { bestD = t2.d + 120; q = cq; goal = t2; mode = 'travel'; }
+            const t2 = bot.travStick && bot.travStick.qid === cq.id && SIMNOW() < bot.travStick.until ? bot.travStick.pt : bot.travelToBiome(cq.biome);
+            if (t2 && (bestD === 1e9 || t2.d + 120 < bestD)) { bestD = t2.d + 120; q = cq; goal = t2; mode = 'travel'; if (!(bot.travStick && bot.travStick.qid === cq.id && SIMNOW() < bot.travStick.until)) bot.travStick = { qid: cq.id, pt: t2, until: SIMNOW() + 25000 }; }
           }
-          else if (hit.a && hit.d < bestD) { bestD = hit.d; q = cq; goal = { x: hit.a.pos.x, z: hit.a.pos.z }; targetAnimal = hit.a; mode = 'hunt'; bot.huntStick = { a: hit.a, at: SIMNOW(), d0: hit.d }; }
+          else if (hit.a && hit.d < bestD) {
+            const across = hit.d > 25 && heightAt(wolf.pos.x + (hit.a.pos.x - wolf.pos.x) * 0.5, wolf.pos.z + (hit.a.pos.z - wolf.pos.z) * 0.5) < waterYNow() - 0.35;
+            if (!across) { bestD = hit.d; q = cq; goal = { x: hit.a.pos.x, z: hit.a.pos.z }; targetAnimal = hit.a; mode = 'hunt'; bot.huntStick = { a: hit.a, at: SIMNOW(), d0: hit.d }; }
+            else if (bestD === 1e9) { const t4 = bot.travelToBiome(cq.biome); if (t4) { bestD = t4.d + 150; q = cq; goal = t4; mode = 'travel'; } }   // the herd is across the water — hunt this land instead
+          }
           else if (!hit.a) {
-            const t2 = bot.travelToBiome(cq.biome);
-            if (t2 && (bestD === 1e9 || t2.d + 120 < bestD)) { bestD = t2.d + 120; q = cq; goal = t2; mode = 'travel'; }
+            const t2 = bot.travStick && bot.travStick.qid === cq.id && SIMNOW() < bot.travStick.until ? bot.travStick.pt : bot.travelToBiome(cq.biome);
+            if (t2 && (bestD === 1e9 || t2.d + 120 < bestD)) { bestD = t2.d + 120; q = cq; goal = t2; mode = 'travel'; if (!(bot.travStick && bot.travStick.qid === cq.id && SIMNOW() < bot.travStick.until)) bot.travStick = { qid: cq.id, pt: t2, until: SIMNOW() + 25000 }; }
           }
         } else if (cq.kind === 'collect') {
           // pick the nearest REACHABLE pickup — some lie across water or behind cliffs
@@ -524,8 +604,9 @@
             if (!cands.length) cands = cands.slice ? [] : [];
             for (const c2 of cands.slice(0, 5)) {   // nearest 5: first that isn't across deep water
               let blocked = false;
-              for (let k2 = 1; k2 <= 3; k2++) {
-                const mx = wolf.pos.x + (c2.p.x - wolf.pos.x) * k2 / 4, mz = wolf.pos.z + (c2.p.z - wolf.pos.z) * k2 / 4;
+              const steps = Math.max(4, Math.min(14, (c2.d / 18) | 0));   // sample every ~18 m — rivers bend
+              for (let k2 = 1; k2 < steps; k2++) {
+                const mx = wolf.pos.x + (c2.p.x - wolf.pos.x) * k2 / steps, mz = wolf.pos.z + (c2.p.z - wolf.pos.z) * k2 / steps;
                 if (heightAt(mx, mz) < waterYNow() - 0.35) { blocked = true; break; }
               }
               if (!blocked || c2.d < 25) { hit = c2; break; }
@@ -535,6 +616,12 @@
           if (hit.p && hit.d < bestD) { bestD = hit.d; q = cq; goal = { x: hit.p.x, z: hit.p.z }; targetPk = hit.p; mode = 'gather'; }
           else if (!hit.p) warnOnce('nopickup', 'bug-no-pickup-nearby', { key: cq.item, msg: 'collect quest but no ' + cq.item + ' pickups nearby' });
         } else if (cq.kind === 'explore') {
+          if (cq.peak) { if (wolf.pos.y < 49) {   // ⛰️ climb the mountain itself — greedy walkable ascent
+              let by2 = 0, bg2 = -1e9;
+              for (let o = 0; o < 6.28; o += 0.5) { const g2 = heightAt(wolf.pos.x + Math.sin(o) * 14, wolf.pos.z + Math.cos(o) * 14) - wolf.pos.y; if (g2 > bg2) { bg2 = g2; by2 = o; } }
+              goal = { x: wolf.pos.x + Math.sin(by2) * 30, z: wolf.pos.z + Math.cos(by2) * 30 }; q = cq; mode = 'explore'; bestD = 1;
+              bot.goalText = '⛰️ climbing · y ' + wolf.pos.y.toFixed(0) + '/50 m'; bot.lmStick = null;
+            } continue; }
           let best = null, bd2 = 1e9;
           // commit to one landmark per deed (like huntStick) — flipping targets every tick IS the circling spectators see
           if (bot.lmStick && (bot.lmStick.qid !== cq.id || bot.lmStick.lm.found || SIMNOW() - bot.lmStick.at > 45000)) bot.lmStick = null;
@@ -546,7 +633,9 @@
           }
           if (bot.lmStick) { best = bot.lmStick.lm; bd2 = Math.hypot(best.x - wolf.pos.x, best.z - wolf.pos.z); }
           else {
-            const pool2 = unfound.length ? unfound : landmarkList.filter(lm => !cq.lmType || lm.type === cq.lmType);
+            let pool2 = (unfound.length ? unfound : landmarkList.filter(lm => !cq.lmType || lm.type === cq.lmType))
+              .filter(lm => !(bot.lmBlack && bot.lmBlack.has(lm)));
+            if (SIMNOW() - (bot.farBiasT || 0) < 120000) { const far = pool2.filter(lm => Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z) > 180); if (far.length) pool2 = far; }   // this ground yields nothing — reach far
             pool2.sort((a2, b2) => Math.hypot(a2.x - wolf.pos.x, a2.z - wolf.pos.z) - Math.hypot(b2.x - wolf.pos.x, b2.z - wolf.pos.z));
             let lmBlocked = pool2.length > 0;
             for (const lm of pool2.slice(0, 4)) {   // nearest reachable unfound landmark — not one across a fjord
@@ -562,6 +651,15 @@
           }
           if (best && bd2 < bestD + 60) { bestD = bd2; q = cq; goal = { x: best.x, z: best.z }; mode = 'explore';
             if (bd2 < 8 && !best.found) warnOnce('exp' + best.type + ((best.x / 50) | 0), 'bug-explore-no-discover', { key: best.type, msg: 'standing at landmark (' + bd2.toFixed(1) + 'm) but never discovered' });
+            if (bd2 < 40) {   // at its doorstep — a reachable site is FOUND within a minute
+              if (!bot.lmNear || bot.lmNear.lm !== best) bot.lmNear = { lm: best, at: SIMNOW() };
+              else if (SIMNOW() - bot.lmNear.at > 35000) {
+                log('lm-unreachable', { key: best.type, msg: 'the site will not give — marking it, trying another way' });
+                (bot.lmBlack = bot.lmBlack || new Set()).add(best);
+                bot.lmStick = null; bot.lmNear = null; bot.lmFails = (bot.lmFails || 0) + 1;
+                if (bot.lmFails >= 3) { log('lm-hard', { title: cq.title, msg: 'no path yet — the deed stands; another site, another way' }); bot.lmFails = 0; }   // one-at-a-time: keep the deed, keep trying
+              }
+            } else if (bot.lmNear && Math.hypot(wolf.pos.x - bot.lmNear.lm.x, wolf.pos.z - bot.lmNear.lm.z) > 60) bot.lmNear = null;
           } else if (!best && !cq.peak) {
             warnOnce('nolm', 'bug-no-landmark', { key: cq.lmType || 'peak', msg: 'explore quest but no such landmark exists anywhere' });
             log('abandon-impossible', { title: cq.title, msg: 'no ' + (cq.lmType || 'landmark') + ' left to discover — setting the deed aside now' });
@@ -571,6 +669,10 @@
           const hit = nearestRival();
           if (hit.a && frac > 0.75 && hit.d < 160) { bestD = Math.max(0, hit.d - 120); q = cq; goal = { x: hit.a.pos.x, z: hit.a.pos.z }; targetAnimal = hit.a; mode = 'rival'; }   // the pack answers — finish the deed
         }
+      }
+      if (q) {
+        if (!bot.questLock || bot.questLock.id !== q.id) { bot.questLock = { id: q.id, until: SIMNOW() + 60000 }; log('quest-lock', { title: q.title, msg: 'taking up the deed: ' + q.title }); }
+        else if (SIMNOW() > bot.questLock.until - 15000) bot.questLock.until = SIMNOW() + 60000;   // still working it — hold
       }
       // boss pilgrimage: a legend is awake & unslain and I'm strong enough → walk its land
       if (!bot.goalOverride && !targetAnimal && !targetPk && (mode === 'wander' || mode === 'travel') && frac > 0.75 && wolf.level >= 3) {
@@ -589,6 +691,17 @@
         const easy = (SIMNOW() - (bot.wanderT || 0) > 6000 && !bot.trek && shunOk)
           ? nearestAnimal(a => (a.sp.hp || 1) <= 2 && (!a.asleep || true) && !(bot.preyShun && a.sp.label === bot.preyShun.label)) : {};
         if (easy.a && easy.d < 70) { goal = { x: easy.a.pos.x, z: easy.a.pos.z }; targetAnimal = easy.a; mode = 'hunt'; q = null; }
+      }
+      if (goal && !bot.drinking && !targetAnimal && (mode === 'explore' || mode === 'gather' || mode === 'travel')) {
+        const dgF = Math.hypot(goal.x - wolf.pos.x, goal.z - wolf.pos.z);
+        if (dgF > 10 && !(bot.ford && SIMNOW() < bot.ford.until)) {
+          let w0 = -1, w1 = -1;
+          for (let k = 0; k <= 20; k++) {
+            const t = k / 20;
+            if (heightAt(wolf.pos.x + (goal.x - wolf.pos.x) * t, wolf.pos.z + (goal.z - wolf.pos.z) * t) < waterYNow() - 0.35) { if (w0 < 0) w0 = t; w1 = t; }
+          }
+          if (w0 >= 0 && (w1 - w0) * dgF < 34) { bot.ford = { until: SIMNOW() + 30000, at: SIMNOW(), yaw: Math.atan2(goal.x - wolf.pos.x, goal.z - wolf.pos.z) }; log('ford-set', { w: +((w1 - w0) * dgF).toFixed(0), msg: 'a shallow crossing — fording toward the deed' }); }
+        } else if (bot.ford && !wolf.swimming && SIMNOW() - bot.ford.at > 6000) bot.ford = null;   // made it across
       }
       if (bot.trek) {
         if (SIMNOW() > bot.trek.until || Math.hypot(bot.trek.x - wolf.pos.x, bot.trek.z - wolf.pos.z) < 10) bot.trek = null;
@@ -636,13 +749,13 @@
       }
       if (nowS - (bot.loopEpoch || 0) > 300000) { bot.loopEpoch = nowS; bot.loopN = 0; }
       const huntingFresh = targetAnimal && (mode === 'hunt' || mode === 'rival') && (nowS - ((bot.huntStick && bot.huntStick.at) || 0) < 25000);   // stalking curves are natural — not loops
-      if (P.length > 6 && !huntingFresh && !bot.drinking && (mode === 'wander' || mode === 'travel' || dg0 > 60) && nowS - (bot.loopCd || 0) > 90000) {
+      if (P.length > 6 && !huntingFresh && !bot.drinking && (mode === 'wander' || mode === 'travel' || dg0 > 60 || ((mode === 'explore' || mode === 'gather') && wolf.distance - (P[0].od || 0) > 25)) && nowS - (bot.loopCd || 0) > 45000) {
         const o = P[0], odGain = wolf.distance - o.od, net = Math.hypot(wolf.pos.x - o.x, wolf.pos.z - o.z);
         let wind = 0;
         for (let i = 2; i < P.length; i++) { const d1 = P[i - 1].br - P[i - 2].br, d2 = P[i].br - P[i - 1].br; if (d1 !== 0 && d2 !== 0 && Math.sign(d1) === Math.sign(d2)) wind += Math.abs(P[i].br - P[i - 2].br) * 0.5; }
         const eff = odGain > 1 ? net / odGain : 1;
         bot.pathEff = +eff.toFixed(2);
-        if ((odGain > 70 && eff < 0.22) || (odGain > 60 && wind > 14 && eff < 0.45)) {   // true circles only — weaving through trees is not a loop
+        if ((odGain > 30 && eff < 0.25) || (odGain > 25 && wind > 8 && eff < 0.4)) {   // true circles only, at any game speed — weaving through trees is not a loop
           bot.loopN++; bot.loopCd = nowS;
           log('loop-break', { eff: +eff.toFixed(2), net: +net.toFixed(0), od: +odGain.toFixed(0), wind: +wind.toFixed(1), was: bot.goalText, msg: 'broke a circling loop — striking out on a fresh bearing' });
           if (bot.loopN >= 3) warnOnce('loop' + ((bot.loopEpoch / 300000) | 0), 'bug-bot-loop', { key: bot.goalKey, msg: '3+ loops inside 5 min — movement degenerated (eff ' + eff.toFixed(2) + ')' });
@@ -659,6 +772,12 @@
       let stalk = false;
       if (targetAnimal && mode === 'hunt') {
         const an = targetAnimal, d = Math.hypot(an.pos.x - wolf.pos.x, an.pos.z - wolf.pos.z);
+        if (wolf.swimming && (an.pos.y === undefined || an.pos.y > waterYNow() + 0.4)) {   // the quarry crossed the water — a real wolf lets it go
+          bot.preyShun = { label: an.sp.label, until: SIMNOW() + 60000 };
+          bot.huntStick = null; targetAnimal = null; goal = null;
+          log('chase-river', { msg: 'the quarry made the far bank — letting it go' });
+        }
+        else {
         const aware = an.aware || 0;
         // stalk only inside real danger of being noticed: crouch-walk is half speed, prey out-walk it otherwise
         const detect = (an.sp.detect || 12) * (wolf.crouch ? 0.5 : 1);
@@ -676,6 +795,7 @@
         // blind hunter: sniff the wind
         if (d > 150) { bot.noPreyT += 0.15; if (bot.noPreyT > 6 && wolf.senseCd <= 0) { wolf.wolfSense(); bot.noPreyT = 0; log('sense', { msg: 'wolf sense — searching for the quarry' }); } }
         else bot.noPreyT = 0;
+        }
       }
       const wantCrouch = stalk || (mode === 'rival' && targetAnimal && Math.hypot(targetAnimal.pos.x - wolf.pos.x, targetAnimal.pos.z - wolf.pos.z) > 14);
       wolf.crouch = !!wantCrouch;
@@ -685,26 +805,36 @@
       let steer = goal;
       if (bot.detourT && SIMNOW() - bot.detourT < (bot.detourPos && bot.detourPos.wide ? 25000 : 4000)) steer = bot.detourPos;
       else if (bot.detourT) { bot.detourT = 0; bot.goalStuck = Math.max(0, bot.goalStuck - 1); }
+      const LOOK = Math.min(34, 7 + wolf.speed * 1.5);   // eyes scale with speed: the faster, the further ahead
       bot.nearSolids = [];
       for (const [, ch] of chunks) for (const sol of (ch.solids || [])) {
         const dd = Math.hypot(sol.x - wolf.pos.x, sol.z - wolf.pos.z);
-        if (dd < 16) bot.nearSolids.push(sol);
+        if (dd < LOOK + 8) bot.nearSolids.push(sol);
       }
-      const probe = (yaw, dist) => {
+      const clearAt = (px, pz, t) => {   // clearance of a corridor point: nearest trunk surface distance
+        let c = 9;
+        for (const sol of bot.nearSolids) {
+          const d = Math.hypot(sol.x - px, sol.z - pz) - (sol.r || 0.5);
+          if (d < c) c = d;
+        }
+        return c;
+      };
+      const probe = (yaw, dist) => {   // a true corridor walk: ground, water AND every trunk, every 1.2 m
         let worst = 0;
         const sx2 = Math.sin(yaw), sz2 = Math.cos(yaw);
-        const step2 = 1.8;
-        for (let t = 2; t <= dist; t += step2) {
+        const WOLF = 0.85;   // shoulder width — a wolf is not a ray
+        for (let t = 1.6; t <= dist; t += 1.2) {
           const px = wolf.pos.x + sx2 * t, pz = wolf.pos.z + sz2 * t;
           const gh = heightAt(px, pz);
           if (gh - wolf.pos.y > 1.8) worst = Math.max(worst, 3.4 - t * 0.22);
           if (gh < waterYNow() - 0.45) worst = Math.max(worst, 2.6 - t * 0.16);
-          for (const sol of bot.nearSolids)
-            if (Math.hypot(sol.x - px, sol.z - pz) < sol.r + 1.0) { worst = Math.max(worst, 3.6 - t * 0.22); break; }
-          if (worst > 2.8) break;
+          const c = clearAt(px, pz, t);
+          if (c < WOLF) worst = Math.max(worst, 3.8 - t * 0.2 + (WOLF - c) * 1.4);   // nearer & tighter = worse
+          if (worst > 3.2) break;
         }
         return worst;
       };
+      if (!bot.sideT) bot.sideT = 0;
       const desired = Math.atan2(steer.x - wolf.pos.x, steer.z - wolf.pos.z);
       let pinfo = null;
       const fear = wolf.level < 3 ? 68 : 55;
@@ -712,9 +842,18 @@
       for (const [, ch] of chunks) for (const pr of ch.predators) if (!pr.dead) fearOf(pr.pos.x, pr.pos.z);
       for (const rv of rivals) if (!rv.dead && ((rv.pack && rv.pack.stance === 'attack') || Math.hypot(rv.pos.x - wolf.pos.x, rv.pos.z - wolf.pos.z) < 24)) fearOf(rv.pos.x, rv.pos.z);
       let bestYaw = desired, bestScore = 1e9;
-      const look = keys.ShiftLeft ? 15 : 11;   // sprint needs runway — crashing into trunks costs 4 HP a hit
-      for (const off of [0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.1, -2.1]) {
+      const look = keys.ShiftLeft ? Math.max(16, LOOK * 0.8) : Math.max(10, LOOK * 0.6);   // sprint needs runway — trunks cost 4 HP a hit
+      // commit to an overtake side for 2.5 s once blocked — eyes that pick a side and COMMIT (no dither)
+      if (probe(desired, look) > 0.3 && SIMNOW() - (bot.sideT || 0) > 2500) {
+        let l = 0, r = 0;
+        for (let t = 4; t <= look; t += 2) { l += clearAt(wolf.pos.x + Math.sin(desired - 1.1) * t, wolf.pos.z + Math.cos(desired - 1.1) * t, t); r += clearAt(wolf.pos.x + Math.sin(desired + 1.1) * t, wolf.pos.z + Math.cos(desired + 1.1) * t, t); }
+        bot.side = r >= l ? 1 : -1; bot.sideT = SIMNOW();
+      }
+      if (SIMNOW() - (bot.sideT || 0) > 6000) bot.side = null;
+      const offs = bot.side === null ? [0, 0.4, -0.4, 0.8, -0.8, 1.25, -1.25, 1.7, -1.7] : [0, 0.45 * bot.side, 0.9 * bot.side, 1.35 * bot.side, 1.8 * bot.side, 2.3 * bot.side, -0.6 * bot.side];
+      for (const off of offs) {
         let sc = probe(desired + off, look) + Math.abs(off) * 0.22 + (bot.lastYaw === undefined ? 0 : Math.abs(wrapPI(desired + off - bot.lastYaw)) * 0.18);
+        if (bot.side !== null && Math.sign(off || 1) === bot.side) sc -= 0.12;   // the committed side is trusted
         if (pinfo && Math.abs(wrapPI(desired + off - pinfo.yaw)) < 0.7) sc += (fear - pinfo.d) * 0.11 * (wolf.level < 3 ? 2.2 : 1.2);
         if (sc < bestScore) { bestScore = sc; bestYaw = desired + off; }
       }
@@ -724,7 +863,7 @@
       const dg = Math.hypot(goal.x - wolf.pos.x, goal.z - wolf.pos.z);
       keys.KeyW = dg > 2.2;
       keys.KeyS = keys.KeyA = keys.KeyD = false;
-      const closeSprint = targetAnimal && (dg < 34 || (mode === 'hunt' && dg < 90));
+      const closeSprint = (targetAnimal && (dg < 34 || (mode === 'hunt' && dg < 90))) || (dg > 8 && dg < 48 && !stalk && !bot.drinking && wolf.stamina > 65 && (mode === 'explore' || mode === 'gather' || mode === 'travel'));   // run the last stretch like a player would
       keys.ShiftLeft = !stalk && ((dg > 35 && wolf.stamina > 55 && !bot.drinking) || (closeSprint && wolf.stamina > 12)) && !wolf.exhausted;   // travel keeps a reserve — no more lap-tether to the water hole
       bot.jumpCd = Math.max(0, (bot.jumpCd || 0) - 0.15);
       const ax = wolf.pos.x + Math.sin(bestYaw) * 1.7, az = wolf.pos.z + Math.cos(bestYaw) * 1.7;
@@ -795,9 +934,9 @@
             log('detour-wide', { msg: 'terrain trap — flanking 55m to approach from another side (' + bot.grindN + ')' });
             if (targetPk && bot.pkBlack) { bot.pkBlack.add(targetPk); bot.gatherStick = null; log('pickup-skip', { msg: 'pickup unreachable — trying another' }); }
             if (bot.grindN >= 3 && q && (q.kind === 'explore' || q.kind === 'hunt')) {
-              log('abandon-unreachable', { title: q.title, msg: 'ground would not give — setting the deed aside' });
-              bot.shunned.add(q.title); abandonQuest(q.id); bot.grindKey = '';
-            }
+              log('grind-hard', { title: q.title, msg: 'the ground would not give — the deed stands; re-planning the way' });
+              bot.grindKey = '';
+            }   // one-at-a-time: no more setting deeds aside
             if (bot.grindN >= 6) {   // hard trap: even flanks fail — break out anywhere and flag the spot
               log('bug-bot-hardtrap', { x: +wolf.pos.x.toFixed(0), z: +wolf.pos.z.toFixed(0), biome: curBiomeKey, goal: bot.goalKey, msg: 'trapped 4.5+ min despite flanking — wedge-escape insufficient here' });
               const ra = Math.random() * 6.28;
@@ -809,6 +948,26 @@
           bot.grindD0 = dg; bot.grindT0 = SIMNOW();
         }
       } else bot.grindKey = bot.goalKey;
+      const winKey = (q ? q.id : 'x') + ':' + mode; bot.winKey = winKey;   // per-QUEST window — goal wobble must not reset the clock
+      if (dg > 4 && dg < 55 && keys.KeyW) {   // doorstep creep: moving, close, but not ARRIVING (anti-stuck can't see a slow slide)
+        if (!bot.closeW || bot.closeW.gk !== winKey) bot.closeW = { gk: winKey, dg0: dg, at: SIMNOW() };
+        else if (SIMNOW() - bot.closeW.at > 15000) {
+          if (bot.closeW.dg0 - dg < 3) {
+            bot.grindN = (bot.grindN || 0) + 1;
+            const gy2 = Math.atan2(goal.x - wolf.pos.x, goal.z - wolf.pos.z) + (bot.grindN % 2 ? 1.57 : -1.57);   // walk the perimeter like a player seeking the way up
+            bot.detourPos = { x: wolf.pos.x + Math.sin(gy2) * 18, z: wolf.pos.z + Math.cos(gy2) * 18 };
+            bot.detourT = SIMNOW() - 12000;   // short peek (wide-detour window trimmed to ~12 s)
+            log('doorstep-perimeter', { goal: bot.goalKey, d: +dg.toFixed(0), msg: 'no way in from here — flanking for another approach (' + bot.grindN + ')' });
+            if (q && q.kind === 'explore' && bot.lmStick) { (bot.lmBlack = bot.lmBlack || new Set()).add(bot.lmStick.lm); bot.lmStick = null; bot.lmNear = null; }
+            if (targetPk && bot.pkBlack) { bot.pkBlack.add(targetPk); bot.gatherStick = null; }
+            if (bot.grindN >= 3 && q) {
+              log('grind-hard', { title: q.title, msg: 'no way in found yet — the deed stands; another angle' });
+              bot.grindN = 0;
+            }   // one-at-a-time: no more setting deeds aside
+          }
+          bot.closeW = null;
+        }
+      } else bot.closeW = null;
 
       /* ---------- 8. anti-stuck (game-odometer based) ---------- */
       const moving = keys.KeyW && dg > 6;
@@ -817,7 +976,7 @@
         else if (SIMNOW() - bot.stuckPos.t > 12000) {
           if (wolf.distance - (bot.stuckPos.od || 0) < 4) {
             log('stuck', { x: +wolf.pos.x.toFixed(0), z: +wolf.pos.z.toFixed(0), biome: curBiomeKey, goal: bot.goalKey, msg: 'wanted to move, went nowhere for 9s' });
-            bot.unstickT = SIMNOW();
+            bot.unstickT = SIMNOW(); bot.unstickA = undefined;
             bot.stuckPos = null;
             if (bot.goalStuck >= 1 && bot.goalKey) {
               const side = Math.random() < 0.5 ? 1 : -1;
@@ -829,7 +988,7 @@
           } else bot.stuckPos = { x: wolf.pos.x, z: wolf.pos.z, t: SIMNOW(), od: wolf.distance };
         }
       } else bot.stuckPos = null;
-      if (bot.unstickT && SIMNOW() - bot.unstickT < 1200) { keys.Space = true; keys.KeyA = ((SIMNOW() / 200) | 0) % 2 === 0; }
+      if (bot.unstickT && SIMNOW() - bot.unstickT < 1500) { keys.Space = true; keys.KeyA = bot.unstickA !== undefined ? bot.unstickA : (bot.unstickA = Math.random() < 0.5); }   // one calm side, no shudder
 
       /* ---------- 9. flavour: the wolf's voice ---------- */
       bot.howlT -= 0.15;
@@ -838,17 +997,28 @@
       /* ---------- 10. quest stall detector (bug-hunt) ---------- */
       const q0 = QUESTS.active[0];
       if (q0) {
-        if (bot.stallQ !== q0.id) { bot.stallQ = q0.id; bot.stallHave = q0.have; bot.stallT = SIMNOW(); }
-        else if (q0.have > bot.stallHave) { bot.stallHave = q0.have; bot.stallT = SIMNOW(); }
-        else if (SIMNOW() - bot.stallT > 240000) {
-          warnOnce('stall' + q0.id + q0.have, 'bug-quest-stalled', { key: q0.title, msg: 'no progress in 4 min: ' + q0.title + ' stuck at ' + q0.have + '/' + q0.need });
-          if (q0.kind === 'hunt' || q0.kind === 'rival' || q0.kind === 'explore' || q0.kind === 'collect') { log('abandon-stalled', { title: q0.title, msg: 'setting aside an impossible deed' }); bot.shunned.add(q0.title); abandonQuest(q0.id); }
-          bot.stallT = SIMNOW();
+        if (bot.stallQ !== q0.id) { bot.stallQ = q0.id; bot.stallHave = q0.have; bot.stallT = SIMNOW(); bot.hardT = SIMNOW(); }
+        else if (q0.have > bot.stallHave) { bot.stallHave = q0.have; bot.stallT = SIMNOW(); bot.hardT = SIMNOW(); if (bot.questLock && bot.questLock.id === q0.id) bot.questLock.until = SIMNOW() + 60000; }
+        else {
+          if (SIMNOW() - bot.stallT > 150000 && SIMNOW() - (bot.farBiasT || 0) > 150000) {
+            bot.farBiasT = SIMNOW(); bot.lmStick = null; bot.lmNear = null;
+            log('quest-drive', { title: q0.title, msg: 'this ground yields nothing — reaching for a site further afield' });
+            bot.stallT = SIMNOW();   // soft retry — but the hard clock keeps running
+          }
+          if (SIMNOW() - bot.hardT > 300000) {   // ABSOLUTE: 5 min without progress and the deed is set aside, no resets
+            warnOnce('stall' + q0.id + q0.have, 'bug-quest-stalled', { key: q0.title, msg: 'no progress in 5 min: ' + q0.title + ' stuck at ' + q0.have + '/' + q0.need });
+            log('quest-slow', { title: q0.title, msg: 'slow going — but a deed begun is a deed kept' });   // one-at-a-time: the 12-min flatline in keepQuestsFilled is the only exit
+            bot.stallT = bot.hardT = SIMNOW();
+          }
         }
       }
       applyAim();
     } catch (e) { log('bot-error', { msg: String(e && e.message).slice(0, 140) }); }
   }, Math.max(40, Math.round(150 / (window.BOT_SPEED || 1))));
+
+  /* ---------------- debug tap (harness forensics — inside the brain's closure) ---------------- */
+  window.__botQuest = () => ({ step: (bot.seqIx || 0) + 1, of: QUEST_SEQ.length, want: QUEST_SEQ[bot.seqIx || 0], questId: bot.questId || null, activeN: QUESTS.active.length, size: QUESTS.active[0] ? window.questSize(QUESTS.active[0]) : null, title: QUESTS.active[0] ? QUESTS.active[0].title : '' });
+  window.BOTDBG = () => ({ goalKey: bot.goalKey, winKey: bot.winKey, closeW: bot.closeW ? { d0: +bot.closeW.dg0.toFixed(0), age: Math.round((SIMNOW() - bot.closeW.at) / 1000) } : null, grindN: bot.grindN || 0, lmBlack: bot.lmBlack ? bot.lmBlack.size : 0, kindShun: bot.kindShun ? Object.keys(bot.kindShun).length : 0, trek: !!bot.trek, ford: !!bot.ford, stallQ: bot.stallQ, hardLeft: bot.hardT ? Math.max(0, 300000 - (SIMNOW() - bot.hardT)) | 0 : -1, pathEff: bot.pathEff });
   }   // ---- end bootAI ----
 
   /* ---------------- the in-game 🤖 toggle (shipped feature) ---------------- */

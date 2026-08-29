@@ -109,27 +109,28 @@ body.touch #touchUI { display: block; }
 body.touch #controls { display: none; }
 body.touch #prompt { bottom: 26px; }
 body.touch #toasts { bottom: 86px; }
-#game { touch-action: none; }
+#game { touch-action: none; }   /* #game IS the renderer canvas — it must stay touchable */
+canvas { touch-action: none; }
 #joy {
   position: fixed; left: 88px; top: calc(100vh - 156px); width: 132px; height: 132px; border-radius: 50%;
-  background: rgba(10, 18, 30, 0.42); border: 1.5px solid rgba(180, 220, 255, 0.28);
-  z-index: 12; pointer-events: auto; touch-action: none; backdrop-filter: blur(4px);
-  opacity: 0; transition: opacity .28s ease;   /* the stick only shows itself under your thumb */
+  background: none; border: none; backdrop-filter: none;   /* the ring is gone — screen stays clear */
+  z-index: 12; pointer-events: auto; touch-action: none;
+  opacity: 0; transition: opacity .12s ease;
 }
-#joy.live { opacity: 1; }
-/* the catch field: most of the bottom-left quadrant — land a thumb almost anywhere there */
+#joy.live { opacity: 1; }   /* visible = only the knob tip beneath the thumb */
+/* the catch field: the LEFT 40% — the right 60% of the screen belongs to the camera, always */
 #joyZone {
-  position: fixed; left: 0; bottom: 0; width: 48vw; height: 50vh; max-width: 460px; max-height: 460px;
-  border-radius: 100% 0 0 0 / 70% 0 0 0;   /* a soft corner reaching into the screen */
+  position: fixed; left: 0; top: 0; bottom: 0; width: 40vw; max-width: 420px;
   z-index: 11; display: none; touch-action: none;
 }
 body.touch #joyZone { display: block; pointer-events: auto; }
 #joyKnob {
-  position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px;
-  border-radius: 50%; background: radial-gradient(circle at 35% 30%, #b8f2da, #3f8f78);
-  box-shadow: 0 3px 16px rgba(0, 0, 0, 0.45); will-change: transform;
+  position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px;
+  border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(214,255,236,.9), rgba(63,143,120,.55));
+  border: 1px solid rgba(190, 240, 220, .35);
+  box-shadow: 0 3px 16px rgba(0, 0, 0, 0.35); will-change: transform;
 }
-#btns { position: fixed; right: 18px; bottom: 20px; z-index: 12; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+#btns { position: fixed; right: 18px; bottom: 20px; z-index: 12; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }   /* gaps fall through to the camera */
 .brow { display: flex; gap: 10px; }
 .tbtn {
   pointer-events: auto; touch-action: none; width: 64px; height: 64px; border-radius: 50%;
@@ -140,6 +141,7 @@ body.touch #joyZone { display: block; pointer-events: auto; }
   opacity: .28; transition: opacity .28s ease;   /* faint at rest — they wake at a touch */
 }
 #btns.wake .tbtn, .tbtn.on, .tbtn:active { opacity: 1; }
+#btns .tbtn { pointer-events: auto; }
 .tbtn span { font-size: 8.5px; letter-spacing: 0.09em; margin-top: 3px; color: #9fc3b8; }
 .tbtn.small { width: 50px; height: 50px; font-size: 18px; }
 .tbtn.small span { font-size: 7.5px; }
@@ -220,6 +222,7 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   backdrop-filter: blur(3px); transition: opacity .35s; padding: 20px;
 }
 #overlay.hidden { opacity: 0; pointer-events: none; }
+#overlay.hidden * { pointer-events: none !important; }   /* a hidden menu's buttons must not eat the camera's touches */
 #ovLeft { display: flex; flex-direction: column; align-items: center; }
 #ovTitle {
   font-family: Georgia, 'Times New Roman', serif; font-size: clamp(40px, 7vw, 74px); letter-spacing: 0.32em; font-weight: 400;
