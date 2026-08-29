@@ -66,6 +66,9 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #bigmap { width: min(62vmin, 460px); height: min(62vmin, 460px); border-radius: 10px; display: block; }
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
 body.touch #minimap { top: 14px; right: 14px; width: 118px; height: 118px; }   /* the corner belongs to the map */
+body.touch #btns { width: 100px; height: 100px; }
+body.touch #tAttack { width: 100px; height: 100px; margin: -50px 0 0 -50px; font-size: 34px; }
+body.touch #btns .tbtn:not(#tAttack) { width: 42px; height: 42px; margin: -21px 0 0 -21px; --orb: 118%; }
 body.touch #mmOrbit { top: 14px; right: 14px; width: 118px; height: 118px; }
 body.touch #topbar { top: 14px; left: 50%; transform: translateX(-50%); }   /* upper center on every layout */
 #hpWrap { position: absolute; top: 98px; left: 60px; transform: none;
@@ -155,8 +158,18 @@ body.touch #joyZone { display: block; pointer-events: auto; }
   border: 1px solid rgba(190, 240, 220, .35);
   box-shadow: 0 3px 16px rgba(0, 0, 0, 0.35); will-change: transform;
 }
-#btns { position: fixed; right: 18px; bottom: 20px; z-index: 12; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }   /* gaps fall through to the camera */
-.brow { display: flex; gap: 10px; }
+/* ---- the attack orbit: a big strike anchor in the corner, its company on the upper-left arch ---- */
+#btns { position: fixed; right: 14px; bottom: 14px; z-index: 12; width: 120px; height: 120px; pointer-events: none; }   /* gaps fall through to the camera */
+#btns .tbtn { position: absolute; left: calc(50% + var(--mx, 0) * var(--orb, 117%)); top: calc(50% + var(--my, 0) * var(--orb, 117%)); }
+#tAttack { left: 50%; top: 50%; width: 120px; height: 120px; margin: -60px 0 0 -60px; font-size: 40px; z-index: 1; }
+#tAttack span { font-size: 12px; }
+#btns .tbtn:not(#tAttack) { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+#tGather { --mx: -0.970; --my:  0.242; }   /* the arch begins at the button's left hip */
+#tJump   { --mx: -0.989; --my: -0.146; }
+#tSprint { --mx: -0.859; --my: -0.512; }
+#tProwl  { --mx: -0.599; --my: -0.801; }
+#tHowl   { --mx: -0.249; --my: -0.968; }
+#tSense  { --mx:  0.139; --my: -0.990; }   /* the arch crests just past the crown */
 .tbtn {
   pointer-events: auto; touch-action: none; width: 64px; height: 64px; border-radius: 50%;
   border: 1.5px solid rgba(180, 220, 255, 0.3); background: rgba(10, 18, 30, 0.5);
@@ -231,10 +244,10 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   body.touch #minimap { top: 14px; width: 84px; height: 84px; }
   body.touch #mmOrbit { top: 14px; width: 84px; height: 84px; --orb: 105%; }
   #mmOrbit button { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 15px; }
-    .tbtn { width: 54px; height: 54px; font-size: 19px; }
-  .tbtn.small { width: 44px; height: 44px; font-size: 16px; }
-  .brow, #btns { gap: 8px; }
-  #btns { bottom: 16px; }
+  body.touch #btns { width: 72px; height: 72px; }
+  body.touch #tAttack { width: 72px; height: 72px; margin: -36px 0 0 -36px; font-size: 26px; }
+  body.touch #btns .tbtn:not(#tAttack) { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 14px; --orb: 124%; }
+  body.touch #btns .tbtn span { display: none; }   /* tiny screens: glyphs only */
 }
 @media (max-width: 600px) {
   .pill { font-size: 10px; padding: 4px 6px; letter-spacing: 0; }
@@ -436,17 +449,13 @@ body.touch #questTracker { display: none; }
     <div id="joyZone"></div>
     <div id="joy"><div id="joyKnob"></div></div>
     <div id="btns">
-      <div class="brow">
-        <button class="tbtn small" id="tSense">👃<span>SENSE</span></button>
-        <button class="tbtn small" id="tHowl">🐺<span>HOWL</span></button>
-        <button class="tbtn small" id="tSprint">⚡<span>SPRINT</span></button>
-        <button class="tbtn small" id="tProwl">🐾<span>PROWL</span></button>
-      </div>
-      <div class="brow">
-        <button class="tbtn" id="tAttack">⚔️<span>ATTACK</span></button>
-        <button class="tbtn" id="tGather">✋<span>GATHER</span></button>
-        <button class="tbtn" id="tJump">⬆️<span>JUMP</span></button>
-      </div>
+      <button class="tbtn" id="tAttack">⚔️<span>ATTACK</span></button>
+      <button class="tbtn" id="tGather">✋<span>GATHER</span></button>
+      <button class="tbtn" id="tJump">⬆️<span>JUMP</span></button>
+      <button class="tbtn" id="tSprint">⚡<span>SPRINT</span></button>
+      <button class="tbtn" id="tProwl">🐾<span>PROWL</span></button>
+      <button class="tbtn" id="tHowl">🐺<span>HOWL</span></button>
+      <button class="tbtn" id="tSense">👃<span>SENSE</span></button>
     </div>
   </div>
 </div>
