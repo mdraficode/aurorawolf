@@ -175,28 +175,30 @@ body.touch #joyZone { display: block; pointer-events: auto; }
 body.touch #tPause { display: block; }
 /* ---- satchel: the inventory lives behind a bag button, like the map ---- */
 #invBtn {
-  position: absolute; top: 56px; right: 166px; width: 40px; height: 40px; border-radius: 10px;
+  position: absolute; top: 56px; right: 258px; width: 40px; height: 40px; border-radius: 10px;
   pointer-events: auto; cursor: pointer; z-index: 12; font-size: 19px; line-height: 1; padding: 0;
   border: 1px solid rgba(126, 240, 192, 0.55); color: #d9fbe9; font-family: inherit;
   background: rgba(10, 18, 30, 0.55);
 }
 /* ---- 🤖 AI watch mode: the wolf plays itself ---- */
 #btnAI {
-  position: absolute; top: 56px; right: 212px; width: 40px; height: 40px; border-radius: 10px;
+  position: absolute; top: 56px; right: 166px;   /* the end of the row, at the minimap's side */ width: 40px; height: 40px; border-radius: 10px;
   pointer-events: auto; cursor: pointer; z-index: 12; font-size: 19px; line-height: 1; padding: 0;
   border: 1px solid rgba(190, 150, 255, 0.45); color: #ead9ff; font-family: inherit;
   background: rgba(10, 18, 30, 0.55);
 }
 #btnAI.on { background: rgba(112, 74, 210, 0.6); border-color: rgba(196, 160, 255, 0.9); box-shadow: 0 0 14px rgba(160, 110, 255, 0.35); }
 #btnAI:active { transform: scale(.94); }
-body.touch #btnAI { top: 112px; right: 186px; }
+body.touch #btnAI { top: 112px; right: 140px; }
+body.touch #questBtn { top: 112px; right: 186px; }
 .btn.ai { border-color: rgba(190, 150, 255, 0.5); color: #ead9ff; }
 .btn.ai:hover { background: rgba(112, 74, 210, 0.35); }
 body.aiOn #btns, body.aiOn #joyZone, body.aiOn #joy { display: none !important; }   /* spectator: controls step aside */
 body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important; }
 #botPanel { max-height: 40vh; overflow: hidden; }
 @media (max-width: 860px) and (max-height: 400px) {
-  body.touch #btnAI { top: 108px; right: 152px; }
+  body.touch #btnAI { top: 108px; right: 106px; }
+  body.touch #questBtn { top: 108px; right: 152px; }
   #botPanel { top: 196px; width: 200px; font-size: 10px; }
 }
 #invWrap { position: absolute; inset: 0; z-index: 56; display: none; align-items: center; justify-content: center; pointer-events: auto; background: rgba(4, 8, 16, 0.45); }
@@ -212,7 +214,7 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 @media (max-width: 860px) {
   .pill { font-size: 11px; padding: 4px 8px; }
   #controls { display: none; }
-  body.touch #invBtn { top: 112px; right: 140px; }
+  body.touch #invBtn { top: 112px; right: 232px; }
   .chip { font-size: 11px; padding: 3px 7px; gap: 5px; }
   #topStats { font-size: 10px; }
   #topbar { gap: 6px; }
@@ -223,7 +225,7 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 @media (max-width: 860px) and (max-height: 400px) {
   /* small landscape phones: slimmer buttons + minimap so nothing collides */
   body.touch #minimap { top: 108px; width: 84px; height: 84px; }
-  body.touch #invBtn { top: 108px; right: 106px; }
+  body.touch #invBtn { top: 108px; right: 198px; }
   .tbtn { width: 54px; height: 54px; font-size: 19px; }
   .tbtn.small { width: 44px; height: 44px; font-size: 16px; }
   .brow, #btns { gap: 8px; }
@@ -303,7 +305,7 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 .ov-tip { margin-top: 22px; font-size: 12px; color: #7fa0b2; letter-spacing: .06em; line-height: 1.8; }
 
 /* ---- quests ---- */
-#questBtn { position: absolute; top: 14px; left: 16px; width: 40px; height: 40px; border-radius: 10px;
+#questBtn { position: absolute; top: 56px; right: 212px; width: 40px; height: 40px; border-radius: 10px;   /* between satchel and AI */
   background: rgba(20, 28, 38, .72); color: #ffe9b0; font-size: 19px; border: 1px solid rgba(255, 224, 160, .35);
   cursor: pointer; z-index: 12; pointer-events: auto; }
 #questBtn:active { transform: scale(.94); }
