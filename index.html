@@ -6994,6 +6994,8 @@ function drawMinimapOverlay() {
 }
 let questArrowMesh = null;
 const _agc = new THREE.Color(), _agt = new THREE.Color();
+const _ae1 = new THREE.Vector3(), _ae2 = new THREE.Vector3(), _an = new THREE.Vector3();
+const _aq = new THREE.Quaternion(), _aq2 = new THREE.Quaternion(), _UP = new THREE.Vector3(0, 1, 0);
 function arrowGroundLum() {   // what the arrow actually lies on — sampled exactly the way the terrain is shaded
   let L = 0, n = 0;
   for (const e of [[0, 0], [1.4, 0], [-1.4, 0], [0, 1.4], [0, -1.4]]) {
@@ -7015,55 +7017,61 @@ function arrowTargetColor(st) {   // the opposite of the land — darker overall
   else _agt.setHSL(0.10, 0.96, BRIGHT);                         // rich gold — glows against night, spruce, peat
   return _agt;
 }
+function buildQuestArrow() {   // five slices + a chevron head — the arrow DRAPES over the land, slice by slice
+  const matFill = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.4, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+  const matHalo = new THREE.MeshBasicMaterial({ color: 0x0d0803, transparent: true, opacity: 0.6, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+  const grp = new THREE.Group();
+  const segs = [];
+  const mkSlice = (w0, w1, z0, z1, tri) => {
+    const v = tri ? new Float32Array([-w0, 0, z0, w0, 0, z0, 0, 0, z1])
+      : new Float32Array([-w0, 0, z0, w0, 0, z0, w1, 0, z1, -w0, 0, z0, w1, 0, z1, -w1, 0, z1]);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(v, 3));
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, matFill);
+    m.renderOrder = 999; m.frustumCulled = false;
+    const h = new THREE.Mesh(g, matHalo);
+    h.renderOrder = 998; h.frustumCulled = false; h.position.y = -0.03; h.scale.set(1.22, 1, 1.1);
+    m.add(h); grp.add(m);
+    segs.push({ m, z0, z1, w: Math.max(w0, w1) });
+  };
+  mkSlice(0.39, 0.39, -0.8, 0); mkSlice(0.39, 0.39, 0, 0.8); mkSlice(0.39, 0.39, 0.8, 1.6); mkSlice(0.39, 0.39, 1.6, 2.08);
+  mkSlice(0.98, 0.49, 2.08, 3.04); mkSlice(0.49, 0.49, 3.04, 4.0, true);   // the chevron head, in two short drape-friendly pieces
+  grp.userData = { segs, matFill, matHalo, st: { mode: 'bright', lum: 0.5, acc: 1 } };
+  return grp;
+}
 function updateQuestArrow(dt) {
   try {
     const qg = window.questGuide ? window.questGuide() : null;
-    if (!questArrowMesh) {
-      const g = new THREE.BufferGeometry();
-      const v = new Float32Array([
-        -0.34, 0, -0.5, 0.34, 0, -0.5, 0.34, 0, 1.3,   // shaft half
-        -0.34, 0, -0.5, 0.34, 0, 1.3, -0.34, 0, 1.3,   // shaft half
-        -0.85, 0, 1.3, 0.85, 0, 1.3, 0, 0, 2.5         // head
-      ]);
-      g.setAttribute('position', new THREE.BufferAttribute(v, 3));
-      g.computeVertexNormals();
-      questArrowMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.2, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
-      questArrowMesh.renderOrder = 999;   // above the world — no hill, tree or wall hides the way
-      questArrowMesh.scale.set(1.15, 1, 1.6);   // longer — readable at a glance
-      const under = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x0d0803, transparent: true, opacity: 0.62, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
-      under.renderOrder = 998; under.position.y = -0.035; under.scale.set(1.24, 1, 1.08);   // the dark halo — bolder, contrast on ANY ground
-      questArrowMesh.add(under);
-      questArrowMesh.userData.st = { mode: 'bright', lum: 0.5, acc: 1 };
-      scene.add(questArrowMesh);
-    }
-    const st = questArrowMesh.userData.st;
+    if (!questArrowMesh) { questArrowMesh = buildQuestArrow(); scene.add(questArrowMesh); }
+    const ud = questArrowMesh.userData, st = ud.st;
     if (!qg || qg.d < 10) { questArrowMesh.visible = false; return; }
     const yaw = Math.atan2(qg.x - wolf.pos.x, qg.z - wolf.pos.z);
-    const FWD = 1.45;   // the tail tucks under the chest and the shaft pours out ahead — never drawn through the wolf
-    questArrowMesh.position.set(wolf.pos.x + Math.sin(yaw) * FWD, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.55, wolf.pos.z + Math.cos(yaw) * FWD);
-    // ---- partial billboard: heading locked to the quest, but the face tips toward the camera ----
-    // a flat ground decal collapses edge-on whenever the camera swings toward the horizon — no color survives that.
-    const eyY = camera.position.y - questArrowMesh.position.y;
-    const eyD = Math.hypot(camera.position.x - questArrowMesh.position.x, camera.position.z - questArrowMesh.position.z);
-    const tilt = Math.max(0.42, Math.min(1.25, Math.atan2(eyY, Math.max(1, eyD))));   // 24°..72° — never a sliver, never a signpost
-    questArrowMesh.rotation.order = 'YXZ';
-    questArrowMesh.rotation.y = yaw;
-    questArrowMesh.rotation.x = -tilt;   // the head tips up to meet the eye
+    const bx = Math.sin(yaw), bz = Math.cos(yaw), lx = bz, lz = -bx;
+    const ORIG = 2.35;   // the tail starts PAST the body (radius ~1.15) — never drawn through the wolf, pouring out from underneath
+    for (const s of ud.segs) {   // TRUE drape: every vertex is dropped onto the terrain itself, frame by frame
+      const c = ORIG + (s.z0 + s.z1) / 2;
+      s.m.rotation.set(0, yaw, 0);
+      s.m.position.set(wolf.pos.x + bx * c, 0, wolf.pos.z + bz * c);
+      const pa = s.m.geometry.attributes.position;
+      for (let i = 0; i < pa.count; i++) {   // local (x,z) -> world along the bearing, y = the ground + a whisper
+        const vx = pa.getX(i), vz = pa.getZ(i);
+        pa.setY(i, heightAt(s.m.position.x + vx * bz + vz * bx, s.m.position.z - vx * bx + vz * bz) + 0.06);
+      }
+      pa.needsUpdate = true;
+    }
     questArrowMesh.visible = true;
-    // ---- real eyes on the ground: resample every quarter second, then glide the color ----
     st.acc += dt || 0.016;
     if (st.acc > 0.25) {
-      st.acc = 0;
-      st.lum = arrowGroundLum();
-      if (st.mode === 'bright' && st.lum > 0.47) st.mode = 'dark';      // hysteresis — no flicker at the seam
+      st.acc = 0; st.lum = arrowGroundLum();
+      if (st.mode === 'bright' && st.lum > 0.47) st.mode = 'dark';
       else if (st.mode === 'dark' && st.lum < 0.37) st.mode = 'bright';
     }
     arrowTargetColor(st);
-    questArrowMesh.material.color.lerp(_agt, 1 - Math.exp(-(dt || 0.016) * 7));
+    ud.matFill.color.lerp(_agt, 1 - Math.exp(-(dt || 0.016) * 7));
     const breath = 0.5 + 0.5 * Math.sin(tSec * 2.4);
-    questArrowMesh.material.opacity = 0.36 + 0.13 * breath;              // present, breathing — never a ghost again
-    const un = questArrowMesh.children[0];
-    if (un) un.material.opacity = 0.5 + 0.12 * breath;
+    ud.matFill.opacity = 0.36 + 0.13 * breath;
+    ud.matHalo.opacity = 0.5 + 0.12 * breath;
   } catch (e) { }
 }
 
