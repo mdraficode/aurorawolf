@@ -163,3 +163,14 @@ Shipped cleanly; the only suite churn was quest.test.mjs's XP check, which didn'
 
 **Verification:** ai.test 15/15 · CH25: 47 kills, L3, 0 loops, 0 errors · CH23: chase give-ups observed working. Live: commit 2515e3e.
 **Mission focus going forward:** bot loop-health (eff/loops per chapter), boss-awake milestone, `bug-*` events incl. new `bug-bot-loop`, `bug-landmark-across-water`.
+
+---
+## Mission 6 — v7.21 "Real-Cadence" (user-reported loop recurrence in REAL gameplay)
+**User report:** bot circles again after a while following quests — in the real app, NOT in simulations. **Root cause confirmed: the simulation harness was a different world.** The ?speed=12 boost forces dt=0.05 ticks (20/s); real gameplay runs 60 FPS dt≈0.0167 — per-tick spawn rolls ~3× denser in harness, and brain timers tuned at 12× misfire at 1×. A 1× probe harness (test/real1x.mjs, true speed, default density) reproduced the user's exact symptoms and drove all fixes:
+
+1. 🔴 **Doorstep orbit** — landmarks/pickups behind cliff collars: wolf circled at constant radius (od +2m/5s, dist frozen 24m); grind detector is cell-anchored + loop-breaker needed 70 m odometer (12×-tuned). Old escape took 3.5+ min of circling. Fix: close-range creep detector (30 s no-arrival → perimeter walk → blacklist site; 2 sites → deed aside) + loop-breaker thresholds speed-normalized.
+2. 🔴 **Peak-quest marker chase** — "Climb a High Peak" is a HEIGHT objective (y≥50) but the brain chased a cliff-flanked summit marker (148 m contouring). Fix: hill-climb mode — greedy walkable ascent, goal "y 34/50 m".
+3. 🟠 **Hunt/travel seesaw** — travel rings re-scanned every think: goals flapped 760→840→440 m with spot-hunts interleaved. Fix: huntStick ownership (committed deed hunts, full stop) + travelStick (25 s point commitment).
+4. 🟢 Naturalness: finish-line sprint (runs the last 40 m of a deed goal), stall detector now ignores survival deeds (false bug-quest-stalled on "Survive 2 days").
+**Verified at true cadence (test/real1x.mjs):** goal-mode switches 1.3/min (from constant), zero 20 s stall windows (was chronic), deeds flowing (5/6 gather in 4 min at 2–4 FPS starvation = sub-2-min in real play), stamina holds 55 floor. ai.test 15/15. Live: d98c2ee byte-verified.
+**Standing lesson: never verify 1×-gameplay behavior with the boost harness alone — keep real1x.mjs probes in the loop.**

@@ -164,3 +164,376 @@
 09:38:09 CH29 · 65s · L1 · 3k/0d · 💀0 · eff 0.58 · loops 2 · hunt → 3m · hp 105 · stam 91
 09:38:14 CH29 · 70s · L1 · 3k/0d · 💀0 · eff 0.64 · loops 2 · hunt → 5m 🐾stalking · hp 105 · stam 100
 09:38:19 CH29 · 75s · L1 · 3k/0d · 💀0 · eff 0.54 · loops 2 · hunt → 7m 🐾stalking · hp 105 · stam 100
+09:38:24 CH29 · 80s · L1 · 3k/0d · 💀0 · eff 0.39 · loops 2 · hunt → 13m 🐾stalking · hp 105 · stam 10
+09:38:29 CH29 · 85s · L1 · 4k/0d · 💀0 · eff 0.17 · loops 2 · wander → 66m · hp 105 · stam 50
+09:38:34 CH29 · 90s · L1 · 4k/0d · 💀0 · eff 0.33 · loops 2 · wander → 98m · hp 105 · stam 55
+09:38:39 CH29 · 95s · L1 · 4k/0d · 💀0 · eff 0.47 · loops 2 · wander → 44m · hp 105 · stam 60
+09:38:44 CH29 · 100s · L1 · 4k/0d · 💀0 · eff 0.33 · loops 3 · wander → 86m · hp 105 · stam 54
+09:38:49 CH29 · 105s · L1 · 4k/0d · 💀0 · eff 0.38 · loops 3 · hunt → 51m · hp 105 · stam 59
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+node:internal/modules/esm/resolve:873
+  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
+        ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'playwright' imported from /home/user/test/marathon.mjs
+    at packageResolve (node:internal/modules/esm/resolve:873:9)
+    at moduleResolve (node:internal/modules/esm/resolve:946:18)
+    at defaultResolve (node:internal/modules/esm/resolve:1188:11)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:708:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:657:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:640:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:264:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:168:49) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v20.20.2
+09:57:58 CH29 seed=72735 · 240s wall / 40 sim-min
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+browserType.launch: Executable doesn't exist at /home/user/.cache/ms-playwright/chromium_headless_shell-1148/chrome-linux/headless_shell
+╔═════════════════════════════════════════════════════════════════════════╗
+║ Looks like Playwright Test or Playwright was just installed or updated. ║
+║ Please run the following command to download new browsers:              ║
+║                                                                         ║
+║     npx playwright install                                              ║
+║                                                                         ║
+║ <3 Playwright Team                                                      ║
+╚═════════════════════════════════════════════════════════════════════════╝
+    at /home/user/test/marathon.mjs:19:32 {
+  name: 'Error'
+}
+
+Node.js v20.20.2
+09:58:02 CH29 seed=10653 · 240s wall / 40 sim-min
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+browserType.launch: Executable doesn't exist at /home/user/.cache/ms-playwright/chromium_headless_shell-1148/chrome-linux/headless_shell
+╔═════════════════════════════════════════════════════════════════════════╗
+║ Looks like Playwright Test or Playwright was just installed or updated. ║
+║ Please run the following command to download new browsers:              ║
+║                                                                         ║
+║     npx playwright install                                              ║
+║                                                                         ║
+║ <3 Playwright Team                                                      ║
+╚═════════════════════════════════════════════════════════════════════════╝
+    at /home/user/test/marathon.mjs:19:32 {
+  name: 'Error'
+}
+
+Node.js v20.20.2
+09:58:06 CH29 seed=85464 · 240s wall / 40 sim-min
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+browserType.launch: spawn ETXTBSY
+Call log:
+  - <launching> /home/user/.cache/ms-playwright/chromium_headless_shell-1148/chrome-linux/headless_shell --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=ImprovedCookieControls,LazyFrameLoading,GlobalMediaControls,DestroyProfileOnBrowserClose,MediaRouter,DialMediaRouteProvider,AcceptCHFrame,AutoExpandDetailsElement,CertificateTransparencyComponentUpdater,AvoidUnnecessaryBeforeUnloadCheckSync,Translate,HttpsUpgrades,PaintHolding,ThirdPartyStoragePartitioning,LensOverlay,PlzDedicatedWorker --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --enable-automation --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --enable-unsafe-swiftshader --use-gl=angle --use-angle=swiftshader --user-data-dir=/tmp/playwright_chromiumdev_profile-DAIjRQ --remote-debugging-pipe --no-startup-window
+
+    at /home/user/test/marathon.mjs:19:32 {
+  name: 'Error'
+}
+
+Node.js v20.20.2
+09:58:11 CH29 seed=46341 · 240s wall / 40 sim-min
+09:58:17 CH29 · 5s · L1 · 4k/0d · 💀0 · eff ? · loops 0 · 🐾 savoring the catch… · hp 100 · stam 1
+09:58:22 CH29 · 10s · L1 · 6k/0d · 💀0 · eff 0.47 · loops 0 · hunt → 16m 🐾stalking · hp 100 · stam 10
+09:58:27 CH29 · 15s · L1 · 6k/0d · 💀0 · eff 0.42 · loops 0 · hunt → 3m · hp 100 · stam 100
+09:58:32 CH29 · 20s · L1 · 8k/0d · 💀0 · eff 0.41 · loops 0 · hunt → 17m 🐾stalking · hp 100 · stam 10
+09:58:37 CH29 · 25s · L1 · 9k/0d · 💀0 · eff 0.46 · loops 0 · hunt → 18m 🐾stalking · hp 100 · stam 91
+09:58:42 CH29 · 30s · L1 · 14k/0d · 💀0 · eff 0.31 · loops 0 · hunt → 32m · hp 100 · stam 82
+09:58:47 CH29 · 35s · L1 · 15k/0d · 💀0 · eff 0.42 · loops 0 · hunt → 19m 🐾stalking · hp 100 · stam 10
+09:58:52 CH29 · 40s · L1 · 15k/0d · 💀0 · eff 0.49 · loops 0 · hunt → 6m 🐾stalking · hp 100 · stam 86
+09:58:57 CH29 · 45s · L1 · 15k/0d · 💀0 · eff 0.48 · loops 0 · hunt → 10m 🐾stalking
+09:59:02 CH29 · 50s · L1 · 16k/0d · 💀0 · eff 0.43 · loops 0 · hunt → 20m · hp 100 · stam 91
+09:59:07 CH29 · 55s · L1 · 16k/0d · 💀0 · eff 0.3 · loops 0 · drink → 64m · hp 100 · stam 33
+09:59:12 CH29 · 60s · L1 · 17k/0d · 💀0 · eff 0.14 · loops 0 · hunt → 57m
+09:59:17 CH29 · 65s · L1 · 17k/0d · 💀0 · eff 0.34 · loops 0 · hunt → 15m 🐾stalking · hp 100 · stam 10
+09:59:22 CH29 · 70s · L1 · 17k/0d · 💀0 · eff 0.31 · loops 0 · hunt → 16m 🐾stalking · hp 100 · stam 73
+09:59:27 CH29 · 75s · L1 · 17k/0d · 💀0 · eff 0.47 · loops 0 · hunt → 43m · hp 100 · stam 28
+09:59:32 CH29 · 80s · L1 · 17k/0d · 💀0 · eff 0.37 · loops 0 · hunt → 6m 🐾stalking · hp 100 · stam 100
+09:59:37 CH29 · 85s · L1 · 19k/0d · 💀0 · eff 0.17 · loops 0 · hunt → 45m · hp 100 · stam 73
+09:59:42 CH29 · 90s · L1 · 19k/0d · 💀0 · eff 0.28 · loops 0 · hunt → 7m 🐾stalking · hp 100 · stam 80
+09:59:47 CH29 · 95s · L1 · 24k/0d · 💀0 · eff 0.28 · loops 0 · 🐾 savoring the catch…
+09:59:52 CH29 · 100s · L1 · 24k/0d · 💀0 · eff 0.27 · loops 0 · hunt → 69m
+09:59:57 CH29 · 105s · L1 · 24k/0d · 💀0 · eff 0.17 · loops 0 · wander → 118m · hp 100 · stam 90
+10:00:03 CH29 · 110s · L1 · 24k/0d · 💀0 · eff 0.23 · loops 0 · wander → 26m · hp 100 · stam 75
+10:00:08 CH29 · 115s · L1 · 24k/0d · 💀0 · eff 0.44 · loops 0 · wander → 60m · hp 100 · stam 86
+10:00:13 CH29 · 120s · L1 · 24k/0d · 💀0 · eff 0.51 · loops 0 · hunt → 70m
+10:00:18 CH29 · 125s · L1 · 24k/0d · 💀0 · eff 0.51 · loops 0 · hunt → 21m 🐾stalking · hp 100 · stam 84
+10:00:23 CH29 · 130s · L1 · 25k/0d · 💀0 · eff 0.52 · loops 0 · hunt → 33m · hp 100 · stam 46
+10:00:28 CH29 · 135s · L1 · 26k/0d · 💀0 · eff 0.55 · loops 0 · hunt → 13m 🐾stalking · hp 100 · stam 86
+10:00:33 CH29 · 140s · L1 · 27k/0d · 💀0 · eff 0.6 · loops 0 · hunt → 23m · hp 100 · stam 100
+10:00:38 CH29 · 145s · L1 · 27k/0d · 💀0 · eff 0.38 · loops 0 · hunt → 18m 🐾stalking · hp 100 · stam 10
+10:00:43 CH29 · 150s · L1 · 27k/0d · 💀0 · eff 0.39 · loops 0 · hunt → 15m 🐾stalking · hp 100 · stam 10
+10:00:48 CH29 · 155s · L1 · 27k/0d · 💀0 · eff 0.2 · loops 0 · hunt → 34m · hp 100 · stam 28
+10:00:53 CH29 · 160s · L1 · 27k/0d · 💀0 · eff 0.12 · loops 0 · hunt → 32m · hp 100 · stam 55
+10:00:58 CH29 · 165s · L1 · 27k/0d · 💀0 · eff 0.05 · loops 0 · hunt → 36m · hp 100 · stam 50
+10:01:03 CH29 · 170s · L1 · 27k/0d · 💀0 · eff 0.08 · loops 0 · hunt → 48m · hp 100 · stam 73
+10:01:08 CH29 · 175s · L1 · 27k/0d · 💀0 · eff 0.02 · loops 0 · hunt → 35m · hp 100 · stam 37
+10:01:13 CH29 · 180s · L1 · 27k/0d · 💀0 · eff 0.04 · loops 0 · hunt → 37m · hp 100 · stam 100
+10:01:18 CH29 · 185s · L1 · 27k/0d · 💀0 · eff 0.13 · loops 0 · hunt → 35m · hp 100 · stam 28
+10:01:23 CH29 · 190s · L1 · 32k/0d · 💀0 · eff 0.19 · loops 0 · 🐾 savoring the catch…
+10:01:28 CH29 · 195s · L1 · 32k/0d · 💀0 · eff 0.5 · loops 0 · hunt → 11m 🐾stalking · hp 100 · stam 10
+10:01:33 CH29 · 200s · L1 · 33k/0d · 💀0 · eff 0.33 · loops 0 · hunt → 65m
+10:01:38 CH29 · 205s · L1 · 33k/0d · 💀0 · eff 0.06 · loops 0 · hunt → 10m 🐾stalking · hp 100 · stam 82
+10:01:43 CH29 · 210s · L1 · 33k/0d · 💀0 · eff 0.14 · loops 0 · drink → 13m · hp 100 · stam 46
+10:01:48 CH29 · 215s · L1 · 33k/0d · 💀0 · eff 0.28 · loops 0 · hunt → 11m 🐾stalking · hp 100 · stam 10
+10:01:53 CH29 · 220s · L1 · 33k/0d · 💀0 · eff 0.35 · loops 0 · hunt → 7m 🐾stalking · hp 100 · stam 65
+10:01:58 CH29 · 225s · L1 · 33k/0d · 💀0 · eff 0.31 · loops 0 · hunt → 14m 🐾stalking · hp 100 · stam 10
+10:02:03 CH29 · 230s · L1 · 33k/0d · 💀0 · eff 0.08 · loops 0 · hunt → 14m 🐾stalking · hp 100 · stam 46
+10:02:08 CH29 · 235s · L1 · 33k/0d · 💀0 · eff 0.08 · loops 0 · hunt → 14m 🐾stalking · hp 100 · stam 10
+10:02:13 CH29 · 240s · L1 · 33k/0d · 💀0 · eff 0.09 · loops 0 · hunt → 7m 🐾stalking · hp 100 · stam 100
+10:02:13 CH29 CLOSED — L1 33k/0d 💀0 · errors 0
+2026-08-29T10:29:39+00:00 stall 1646s → recycle
+10:29:42 CH30 seed=66649 · 240s wall / 40 sim-min
+10:29:48 CH30 · 5s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · hunt → 105m (0/4) · hp 100 · stam 59
+10:29:53 CH30 · 10s · L1 · 0k/0d · 💀0 · eff 0.16 · loops 0 · gather → 30m (1/5) · hp 100 · stam 57
+10:29:58 CH30 · 15s · L1 · 0k/0d · 💀0 · eff 0.1 · loops 0 · gather → 3m (1/5) · hp 100 · stam 78
+10:30:03 CH30 · 20s · L1 · 0k/0d · 💀0 · eff 0.26 · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:08 CH30 · 25s · L1 · 0k/0d · 💀0 · eff 0.26 · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:13 CH30 · 30s · L1 · 0k/0d · 💀0 · eff 0.43 · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:15 CH30 seed=38596 · 240s wall / 40 sim-min
+10:30:18 CH30 · 35s · L1 · 0k/0d · 💀0 · eff 0.52 · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:23 CH30 · 5s · L1 · 0k/0d · 💀0 · eff 0.99 · loops 0 · gather → 22m (0/3) · hp 100 · stam 68
+10:30:23 CH30 · 40s · L1 · 0k/0d · 💀0 · eff 0.9 · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:28 CH30 · 10s · L1 · 0k/0d · 💀0 · eff 0.85 · loops 0 · travel → 440m (0/4)
+10:30:28 CH30 · 45s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:33 CH30 · 15s · L1 · 0k/0d · 💀0 · eff 0.45 · loops 0 · travel → 356m (0/4) · hp 105 · stam 54
+10:30:33 CH30 · 50s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:38 CH30 · 20s · L1 · 0k/0d · 💀0 · eff 0.49 · loops 0 · drink → 45m
+10:30:38 CH30 · 55s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:43 CH30 · 25s · L1 · 0k/0d · 💀0 · eff 0.53 · loops 0 · 🐾 taking in new land… · hp 105 · stam 5
+10:30:43 CH30 · 60s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:48 CH30 · 30s · L1 · 0k/0d · 💀0 · eff 0.58 · loops 0 · explore → 233m (0/1) · hp 105 · stam 56
+10:30:48 CH30 · 65s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:53 CH30 · 35s · L1 · 0k/0d · 💀0 · eff 0.54 · loops 1 · explore → 223m (0/1) · hp 105 · stam 47
+10:30:53 CH30 · 70s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:30:58 CH30 · 40s · L1 · 0k/0d · 💀0 · eff 0.35 · loops 1 · explore → 128m (0/1) · hp 105 · stam 50
+10:30:58 CH30 · 75s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:03 CH30 · 45s · L1 · 0k/0d · 💀0 · eff 0.15 · loops 1 · explore → 28m (0/1) · hp 105 · stam 51
+10:31:03 CH30 · 80s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:08 CH30 · 50s · L2 · 0k/0d · 💀0 · eff 0.21 · loops 1 · gather → 17m (2/4) · hp 113 · stam 63
+10:31:08 CH30 · 85s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:13 CH30 · 55s · L2 · 0k/0d · 💀0 · eff 0.49 · loops 1 · explore → 30m (0/1) · hp 118 · stam 60
+10:31:13 CH30 · 90s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:18 CH30 · 60s · L2 · 0k/0d · 💀0 · eff 0.53 · loops 1 · explore → 30m (0/1) · hp 118 · stam 62
+10:31:18 CH30 · 95s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:23 CH30 · 65s · L2 · 0k/0d · 💀0 · eff 0.42 · loops 1 · explore → 30m (0/1) · hp 118 · stam 67
+10:31:23 CH30 · 100s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:28 CH30 · 70s · L2 · 0k/0d · 💀0 · eff 0.37 · loops 1 · explore → 30m (0/1) · hp 118 · stam 68
+10:31:28 CH30 · 105s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:33 CH30 · 75s · L2 · 0k/0d · 💀0 · eff 0.21 · loops 1 · explore → 30m (0/1) · hp 118 · stam 58
+10:31:33 CH30 · 110s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:38 CH30 · 80s · L2 · 0k/0d · 💀0 · eff 0.07 · loops 1 · explore → 30m (0/1) · hp 118 · stam 60
+10:31:39 CH30 · 115s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:43 CH30 · 85s · L2 · 0k/0d · 💀0 · eff 0 · loops 1 · explore → 30m (0/1) · hp 118 · stam 61
+10:31:44 CH30 · 120s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:48 CH30 · 90s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 61
+10:31:49 CH30 · 125s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:53 CH30 · 95s · L2 · 0k/0d · 💀0 · eff 0.02 · loops 1 · explore → 30m (0/1) · hp 118 · stam 59
+10:31:54 CH30 · 130s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:31:58 CH30 · 100s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 57
+10:31:59 CH30 · 135s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:32:03 CH30 · 105s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 71
+10:32:04 CH30 · 140s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:32:08 CH30 · 110s · L2 · 0k/0d · 💀0 · eff 0.02 · loops 1 · explore → 30m (0/1) · hp 118 · stam 60
+10:32:09 CH30 · 146s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:32:13 CH30 · 115s · L2 · 0k/0d · 💀0 · eff 0.02 · loops 1 · explore → 30m (0/1) · hp 118 · stam 65
+10:32:14 CH30 · 151s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:32:18 CH30 · 120s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 70
+10:32:19 CH30 · 156s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:32:23 CH30 · 125s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 68
+10:32:24 CH30 · 161s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:32:28 CH30 · 130s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 57
+10:32:29 CH30 · 166s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:32:33 CH30 · 135s · L2 · 0k/0d · 💀0 · eff 0.02 · loops 1 · explore → 30m (0/1) · hp 118 · stam 67
+10:32:34 CH30 · 171s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:32:38 CH30 · 140s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 65
+10:32:39 CH30 · 176s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 16m (4/5) · hp 100 · stam 68
+10:32:43 CH30 · 145s · L2 · 0k/0d · 💀0 · eff 0 · loops 1 · explore → 30m (0/1) · hp 118 · stam 70
+10:32:44 CH30 · 181s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:32:48 CH30 · 150s · L2 · 0k/0d · 💀0 · eff 0 · loops 1 · explore → 30m (0/1) · hp 118 · stam 59
+10:32:49 CH30 · 186s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:32:53 CH30 · 155s · L2 · 0k/0d · 💀0 · eff 0 · loops 1 · explore → 30m (0/1) · hp 118 · stam 56
+10:32:54 CH30 · 191s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:32:58 CH30 · 160s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 58
+10:32:59 CH30 · 196s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:03 CH30 · 165s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 65
+10:33:04 CH30 · 201s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:08 CH30 · 170s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 61
+10:33:09 CH30 · 206s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:13 CH30 · 175s · L2 · 0k/0d · 💀0 · eff 0 · loops 1 · explore → 30m (0/1) · hp 118 · stam 68
+10:33:14 CH30 · 211s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:18 CH30 · 180s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 70
+10:33:19 CH30 · 216s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:23 CH30 · 185s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 56
+10:33:24 CH30 · 221s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:28 CH30 · 190s · L2 · 0k/0d · 💀0 · eff 0 · loops 1 · explore → 30m (0/1) · hp 118 · stam 62
+10:33:29 CH30 · 226s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:33 CH30 · 195s · L2 · 0k/0d · 💀0 · eff 0.02 · loops 1 · explore → 30m (0/1) · hp 118 · stam 66
+10:33:34 CH30 · 231s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:38 CH30 · 200s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 66
+10:33:39 CH30 · 236s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:43 CH30 · 205s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 56
+10:33:44 CH30 · 241s · L2 · 0k/0d · 💀0 · eff ? · loops 0 · 
+10:33:44 CH30 CLOSED — L2 0k/0d 💀0 · errors 0
+10:33:48 CH30 · 210s · L2 · 0k/0d · 💀0 · eff 0.01 · loops 1 · explore → 30m (0/1) · hp 118 · stam 62
+10:33:53 CH30 · 215s · L2 · 0k/0d · 💀0 · eff 0 · loops 1 · explore → 30m (0/1) · hp 118 · stam 60

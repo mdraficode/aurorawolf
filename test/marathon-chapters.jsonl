@@ -26,3 +26,5 @@
 {"ch":26,"seed":79760,"wallMin":4,"level":2,"kills":3,"deeds":0,"deaths":0,"goals":361,"loops":11,"gameMin":0,"dist":4464,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T09:26"}
 {"ch":27,"seed":39855,"wallMin":4,"level":2,"kills":23,"deeds":0,"deaths":1,"goals":311,"loops":3,"gameMin":0,"dist":5120,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T09:32"}
 {"ch":28,"seed":89256,"wallMin":4,"level":3,"kills":24,"deeds":0,"deaths":0,"goals":367,"loops":0,"gameMin":0,"dist":3659,"perks":["skywatcher","stormborn"],"spirit":false,"pageErrors":0,"ts":"2026-08-29T09:36"}
+{"ch":29,"seed":46341,"wallMin":4,"level":1,"kills":33,"deeds":0,"deaths":0,"goals":341,"loops":0,"gameMin":0,"dist":3511,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T10:02"}
+{"ch":30,"seed":66649,"wallMin":4,"level":2,"kills":0,"deeds":0,"deaths":0,"goals":27,"loops":0,"gameMin":0,"dist":395,"perks":["skywatcher"],"spirit":false,"pageErrors":0,"ts":"2026-08-29T10:33"}
