@@ -7017,49 +7017,47 @@ function arrowTargetColor(st) {   // the opposite of the land — darker overall
   else _agt.setHSL(0.10, 0.96, BRIGHT);                         // rich gold — glows against night, spruce, peat
   return _agt;
 }
-function buildQuestArrow() {   // five slices + a chevron head — the arrow DRAPES over the land, slice by slice
-  const matFill = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.4, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
-  const matHalo = new THREE.MeshBasicMaterial({ color: 0x0d0803, transparent: true, opacity: 0.6, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
-  const grp = new THREE.Group();
-  const segs = [];
-  const mkSlice = (w0, w1, z0, z1, tri) => {
-    const v = tri ? new Float32Array([-w0, 0, z0, w0, 0, z0, 0, 0, z1])
-      : new Float32Array([-w0, 0, z0, w0, 0, z0, w1, 0, z1, -w0, 0, z0, w1, 0, z1, -w1, 0, z1]);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(v, 3));
-    g.computeVertexNormals();
-    const m = new THREE.Mesh(g, matFill);
-    m.renderOrder = 999; m.frustumCulled = false;
-    const h = new THREE.Mesh(g, matHalo);
-    h.renderOrder = 998; h.frustumCulled = false; h.position.y = -0.03; h.scale.set(1.22, 1, 1.1);
-    m.add(h); grp.add(m);
-    segs.push({ m, z0, z1, w: Math.max(w0, w1) });
-  };
-  mkSlice(0.39, 0.39, -0.8, 0); mkSlice(0.39, 0.39, 0, 0.8); mkSlice(0.39, 0.39, 0.8, 1.6); mkSlice(0.39, 0.39, 1.6, 2.08);
-  mkSlice(0.98, 0.49, 2.08, 3.04); mkSlice(0.49, 0.49, 3.04, 4.0, true);   // the chevron head, in two short drape-friendly pieces
-  grp.userData = { segs, matFill, matHalo, st: { mode: 'bright', lum: 0.5, acc: 1 } };
+const arrowScene = new THREE.Scene();   // pass 2 of rendering: ONLY the wolf may hide the arrow — never terrain, trees or walls
+if (typeof scene !== 'undefined' && scene.fog) arrowScene.fog = scene.fog;
+const arrowOccluder = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), new THREE.MeshBasicMaterial({ colorWrite: false }));
+arrowOccluder.scale.set(0.8, 0.78, 1.32);   // the wolf's silhouette — it writes depth and nothing else
+arrowScene.add(arrowOccluder);
+function buildQuestArrow() {   // ONE continuous ribbon: a single stretched line from tail to tip, draped vertex-by-vertex
+  const v = [], W = 0.39;
+  for (let z = -0.8; z < 1.999; z += 0.4)   // the shaft: a cross-section every 0.4 m — no joints, no cracks
+    v.push(-W, 0, z, W, 0, z, W, 0, z + 0.4, -W, 0, z, W, 0, z + 0.4, -W, 0, z + 0.4);
+  const A = [-W, 2.0], B = [-0.98, 2.9], C = [0, 4.0], D = [0.98, 2.9], E = [W, 2.0], M1 = [-0.33, 2.85], M2 = [0.33, 2.85], M3 = [0, 2.35];
+  const tri = (p2, q, r) => v.push(p2[0], 0, p2[1], q[0], 0, q[1], r[0], 0, r[1]);
+  tri(A, B, M3); tri(B, M1, M3); tri(B, C, M1); tri(C, M2, M1); tri(C, D, M2); tri(D, E, M2); tri(E, M3, M2); tri(E, A, M3);   // the chevron head, fanned from the shaft's last edge
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(v), 3));
+  const matFill = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.4, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
+  const m = new THREE.Mesh(g, matFill);
+  m.renderOrder = 999; m.frustumCulled = false;
+  const grp = new THREE.Group(); grp.add(m);
+  grp.userData = { ribbon: m, matFill, st: { mode: 'bright', lum: 0.5, acc: 1 } };
   return grp;
 }
 function updateQuestArrow(dt) {
   try {
     const qg = window.questGuide ? window.questGuide() : null;
-    if (!questArrowMesh) { questArrowMesh = buildQuestArrow(); scene.add(questArrowMesh); }
+    if (!questArrowMesh) { questArrowMesh = buildQuestArrow(); arrowScene.add(questArrowMesh); }
     const ud = questArrowMesh.userData, st = ud.st;
+    arrowOccluder.position.copy(wolf.model.position);   // the wolf's body is the one thing that overlaps the arrow
+    arrowOccluder.rotation.y = wolf.model.rotation.y;
     if (!qg || qg.d < 10) { questArrowMesh.visible = false; return; }
     const yaw = Math.atan2(qg.x - wolf.pos.x, qg.z - wolf.pos.z);
-    const bx = Math.sin(yaw), bz = Math.cos(yaw), lx = bz, lz = -bx;
-    const ORIG = 2.35;   // the tail starts PAST the body (radius ~1.15) — never drawn through the wolf, pouring out from underneath
-    for (const s of ud.segs) {   // TRUE drape: every vertex is dropped onto the terrain itself, frame by frame
-      const c = ORIG + (s.z0 + s.z1) / 2;
-      s.m.rotation.set(0, yaw, 0);
-      s.m.position.set(wolf.pos.x + bx * c, 0, wolf.pos.z + bz * c);
-      const pa = s.m.geometry.attributes.position;
-      for (let i = 0; i < pa.count; i++) {   // local (x,z) -> world along the bearing, y = the ground + a whisper
-        const vx = pa.getX(i), vz = pa.getZ(i);
-        pa.setY(i, heightAt(s.m.position.x + vx * bz + vz * bx, s.m.position.z - vx * bx + vz * bz) + 0.06);
-      }
-      pa.needsUpdate = true;
+    const bx = Math.sin(yaw), bz = Math.cos(yaw);
+    const ORIG = 1.05;   // the tail tucks UNDER the body — the wolf hides it, and it emerges at the silhouette: from underneath the wolf
+    const m = ud.ribbon;
+    m.rotation.set(0, yaw, 0);
+    m.position.set(wolf.pos.x + bx * ORIG, 0, wolf.pos.z + bz * ORIG);
+    const pa = m.geometry.attributes.position;
+    for (let i = 0; i < pa.count; i++) {   // every vertex lies ON the ground — hills, spines, cliffs
+      const vx = pa.getX(i), vz = pa.getZ(i);
+      pa.setY(i, heightAt(m.position.x + vx * bz + vz * bx, m.position.z - vx * bx + vz * bz) + 0.06);
     }
+    pa.needsUpdate = true;
     questArrowMesh.visible = true;
     st.acc += dt || 0.016;
     if (st.acc > 0.25) {
@@ -7069,9 +7067,7 @@ function updateQuestArrow(dt) {
     }
     arrowTargetColor(st);
     ud.matFill.color.lerp(_agt, 1 - Math.exp(-(dt || 0.016) * 7));
-    const breath = 0.5 + 0.5 * Math.sin(tSec * 2.4);
-    ud.matFill.opacity = 0.36 + 0.13 * breath;
-    ud.matHalo.opacity = 0.5 + 0.12 * breath;
+    ud.matFill.opacity = 0.4 + 0.13 * (0.5 + 0.5 * Math.sin(tSec * 2.4));
   } catch (e) { }
 }
 
@@ -7793,6 +7789,7 @@ function tick() {
     }
     updateAtmosphere(rdt);
     renderer.render(scene, camera);
+    if (questArrowMesh && questArrowMesh.visible) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(arrowScene, camera); renderer.autoClear = true; }
     return;
   }
   const wantBlur = (state === 'pause' || document.getElementById('bigmapWrap').classList.contains('show')) ? 'blur(5px) brightness(0.85)' : '';   // gameplay suspended — the world steps back (not the live menu vista: too costly to composite)
@@ -7931,6 +7928,7 @@ function tick() {
   updateCamera(rdt);
   updateHUD(rdt);
   renderer.render(scene, camera);
+  if (questArrowMesh && questArrowMesh.visible) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(arrowScene, camera); renderer.autoClear = true; }   // pass 2: the arrow, overlapped only by the wolf
   } catch (ex) {
     errShow(ex && ex.message ? ex.message : String(ex));
   }
