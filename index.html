@@ -60,7 +60,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #bigmap { width: min(62vmin, 460px); height: min(62vmin, 460px); border-radius: 10px; display: block; }
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
 body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
-#hpWrap { position: absolute; top: 142px; left: 60px; transform: none;
+#hpWrap { position: absolute; top: 141px; left: 60px; transform: none;
   width: 156px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
   border: 1px solid rgba(255, 120, 100, 0.35); overflow: hidden; }
 #hpFill { height: 100%; width: 100%; border-radius: 3px;
@@ -93,13 +93,13 @@ body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
 .statIco svg { width: 100%; height: 100%; display: block; }
 .statIco span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font: 700 10.5px/1 system-ui, sans-serif; letter-spacing: -.02em; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
-#icoXp { top: 55px; } #icoRun { top: 92px; } #icoHp { top: 129px; }   /* 3px of air between the badges */
+#icoXp { top: 55px; } #icoRun { top: 91px; } #icoHp { top: 127px; }   /* a crisp 2px of air between the badges */
 #icoXp span { color: #4a3506; font-size: 12px; font-weight: 800; text-shadow: 0 1px 1px rgba(255,244,214,.4); }
 #icoRun img { width: 88%; height: 88%; position: absolute; left: 6%; top: 6%; }   /* the wolf figure matches the heart's visual span */
 #icoHp span { color: #fff; padding-top: 3px; }
 #xpWrap { position: absolute; top: 70px; left: 60px; transform: none; width: 156px; height: 5px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(255, 215, 106, 0.28); overflow: hidden; }
 #xpFill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffd76a, #ffb347); box-shadow: 0 0 6px rgba(255, 215, 106, 0.5); }
-#stamWrap { position: absolute; top: 105px; left: 60px; transform: none; width: 156px; height: 8px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(180, 220, 255, 0.16); overflow: hidden; }
+#stamWrap { position: absolute; top: 104px; left: 60px; transform: none; width: 156px; height: 8px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(180, 220, 255, 0.16); overflow: hidden; }
 #stamFill { height: 100%; width: 100%; border-radius: 6px; background: linear-gradient(90deg, #7ef0c0, #4db8e8); transition: background .3s; }
 
 #prompt {
@@ -217,8 +217,8 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   #topStats { font-size: 10px; }
   #topbar { gap: 6px; }
   #xpWrap { top: 70px; left: 60px; width: 126px; }
-  #stamWrap { top: 105px; left: 60px; width: 126px; }
-  #hpWrap { top: 142px; left: 60px; width: 126px; }
+  #stamWrap { top: 104px; left: 60px; width: 126px; }
+  #hpWrap { top: 141px; left: 60px; width: 126px; }
 }
 @media (max-width: 860px) and (max-height: 400px) {
   /* small landscape phones: slimmer buttons + minimap so nothing collides */
@@ -307,7 +307,7 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   background: rgba(20, 28, 38, .72); color: #ffe9b0; font-size: 19px; border: 1px solid rgba(255, 224, 160, .35);
   cursor: pointer; z-index: 12; pointer-events: auto; }
 #questBtn:active { transform: scale(.94); }
-#questTracker { position: absolute; top: 160px; left: 16px; max-width: 240px; font-size: 11px; line-height: 1.5;
+#questTracker { position: absolute; top: 158px; left: 16px; max-width: 240px; font-size: 11px; line-height: 1.5;
   color: rgba(240, 232, 210, .9); text-shadow: 0 1px 4px rgba(0,0,0,.7); z-index: 11; pointer-events: none; }
 #questTracker .qt-line b { color: #ffd98a; }
 #questLog { position: absolute; top: 60px; left: 16px; width: 300px; max-height: 62vh; overflow-y: auto;
