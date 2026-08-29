@@ -6721,17 +6721,34 @@ function mapTerrainPass(ctx, px, range, cx, cz) {
 /* ---------------- quest guidance: one source of truth ----------------
    Returns the nearest known point that completes the first guidable active quest.
    The map line, the ground arrow — and the autopilot — all read this. */
+window.__qgLock = null;   // the committed destination — held until reached, done, or lost
 window.questGuide = function () {
   try {
+    const dist2 = (x, z) => Math.hypot(x - wolf.pos.x, z - wolf.pos.z);
+    const L = window.__qgLock;
+    if (L) {   // ---- keep pointing at the SAME place: validate, track, never wander ----
+      const q = QUESTS.active.find(a => a.id === L.qid);
+      let live = !!q;
+      if (live) {
+        if (L.an) { if (L.an.dead) live = false; else { L.x = L.an.pos.x; L.z = L.an.pos.z; } }          // quarry roams — follow THAT animal
+        else if (L.pk) { if (L.pk.gathered) live = false; }
+        else if (L.rv) { if (L.rv.dead) live = false; else { L.x = L.rv.pos.x; L.z = L.rv.pos.z; } }
+        else if (L.lm && L.lm.found) live = false;
+        if (live && !L.an && !L.rv && dist2(L.x, L.z) < 9) live = false;   // arrived at a fixed place — decide the next
+      }
+      if (live) return { x: L.x, z: L.z, d: dist2(L.x, L.z), label: L.label, kind: L.kind };
+      window.__qgLock = null;
+    }
+    // ---- decide ONCE: the NEAREST reachable place among all active quests — then commit to it ----
+    let best = null;
     for (const q of QUESTS.active) {
+      let c = null;
       if (q.kind === 'explore' && q.lmType) {
-        let t = null, bd = 1e9;
         for (const lm of landmarkList) {
           if (lm.type !== q.lmType || lm.found) continue;
-          const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
-          if (d < bd) { bd = d; t = lm; }
+          const d = dist2(lm.x, lm.z);
+          if (!c || d < c.d) c = { x: lm.x, z: lm.z, d, label: q.title, kind: 'explore', lm };
         }
-        if (t) return { x: t.x, z: t.z, d: bd, label: q.title, kind: 'explore' };
       } else if (q.kind === 'explore' && q.peak) {
         let t = null, bh = wolf.pos.y;
         for (let k = 0; k < 12; k++) {
@@ -6742,46 +6759,47 @@ window.questGuide = function () {
             if (h > bh) { bh = h; t = { x, z }; }
           }
         }
-        if (t && bh > wolf.pos.y + 6) return { x: t.x, z: t.z, d: Math.hypot(t.x - wolf.pos.x, t.z - wolf.pos.z), label: q.title, kind: 'peak' };
+        if (t && bh > wolf.pos.y + 6) c = { x: t.x, z: t.z, d: dist2(t.x, t.z), label: q.title, kind: 'peak', peak: true };
       } else if (q.kind === 'hunt' && q.species) {
-        let t = null, bd = 500;
+        const want = (SPECIES[q.species] && SPECIES[q.species].label) || q.species;   // label≠key mismatch made the old guide blind to real quarry
         for (const [, ch] of chunks) for (const an of ch.animals) {
-          if (an.dead || (an.sp && an.sp.label !== q.species)) continue;
-          const d = Math.hypot(an.pos.x - wolf.pos.x, an.pos.z - wolf.pos.z);
-          if (d < bd) { bd = d; t = an; }
+          if (an.dead || (an.sp && an.sp.label !== want)) continue;
+          const d = dist2(an.pos.x, an.pos.z);
+          if (d < 500 && (!c || d < c.d)) c = { x: an.pos.x, z: an.pos.z, d, label: q.title, kind: 'hunt', an };
         }
-        if (t) return { x: t.pos.x, z: t.pos.z, d: bd, label: q.title, kind: 'hunt' };
-        if (q.biome) {   // no quarry in range — point the way to the land where it lives (cached 30 s)
+        if (!c && q.biome) {   // no quarry in range — point the way to the land where it lives (cached 30 s)
           if (!window.__qgCache || performance.now() - window.__qgCache.t > 30000) {
-            let best = null, bdd = 1e9;
+            let fb = null, fbd = 1e9;
             for (let r = 160; r <= 800; r += 120) for (let k = 0; k < 12; k++) {
               const a2 = k / 12 * 6.2832, x = wolf.pos.x + Math.sin(a2) * r, z = wolf.pos.z + Math.cos(a2) * r;
-              if (dominantBiomeAt(x, z).key === q.biome) { const d = Math.hypot(x - wolf.pos.x, z - wolf.pos.z); if (d < bdd) { bdd = d; best = { x, z }; } }
+              if (dominantBiomeAt(x, z).key === q.biome) { const d = Math.hypot(x - wolf.pos.x, z - wolf.pos.z); if (d < fbd) { fbd = d; fb = { x, z }; } }
             }
-            window.__qgCache = { t: performance.now(), pt: best };
+            window.__qgCache = { t: performance.now(), pt: fb };
           }
           const fb = window.__qgCache.pt;
-          if (fb) return { x: fb.x, z: fb.z, d: Math.hypot(fb.x - wolf.pos.x, fb.z - wolf.pos.z), label: q.title, kind: 'biome' };
+          if (fb) c = { x: fb.x, z: fb.z, d: dist2(fb.x, fb.z), label: q.title, kind: 'biome' };
         }
       } else if (q.kind === 'collect' && q.item) {
-        let t = null, bd = 320;
         for (const [, ch] of chunks) for (const pk of ch.pickups) {
           if (pk.gathered) continue;
           const def = PICKUP_DEF[pk.type];
           if (!def || def.inv !== q.item) continue;
-          const d = Math.hypot(pk.x - wolf.pos.x, pk.z - wolf.pos.z);
-          if (d < bd) { bd = d; t = pk; }
+          const d = dist2(pk.x, pk.z);
+          if (d < 320 && (!c || d < c.d)) c = { x: pk.x, z: pk.z, d, label: q.title, kind: 'collect', pk };
         }
-        if (t) return { x: t.x, z: t.z, d: bd, label: q.title, kind: 'collect' };
       } else if (q.kind === 'rival') {
-        let t = null, bd = 320;
         for (const rv of rivals) {
           if (rv.dead) continue;
-          const d = Math.hypot(rv.pos.x - wolf.pos.x, rv.pos.z - wolf.pos.z);
-          if (d < bd) { bd = d; t = rv; }
+          const d = dist2(rv.pos.x, rv.pos.z);
+          if (d < 320 && (!c || d < c.d)) c = { x: rv.pos.x, z: rv.pos.z, d, label: q.title, kind: 'rival', rv };
         }
-        if (t) return { x: t.pos.x, z: t.pos.z, d: bd, label: q.title, kind: 'rival' };
       }
+      if (c && (!best || c.d < best.d)) { c.q = q; best = c; }
+    }
+    if (best) {
+      window.__qgLock = { qid: best.q.id, x: best.x, z: best.z, label: best.label, kind: best.kind,
+        an: best.an || null, pk: best.pk || null, rv: best.rv || null, lm: best.lm || null, peak: !!best.peak };
+      return { x: best.x, z: best.z, d: best.d, label: best.label, kind: best.kind };
     }
     return null;
   } catch (e) { return null; }
@@ -7002,7 +7020,7 @@ function updateQuestArrow(dt) {
       g.computeVertexNormals();
       questArrowMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.2, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
       questArrowMesh.renderOrder = 999;   // above the world — no hill, tree or wall hides the way
-      questArrowMesh.scale.set(1.15, 1, 1.8);   // longer — readable at a glance
+      questArrowMesh.scale.set(1.15, 1, 1.6);   // longer — readable at a glance
       const under = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x0d0803, transparent: true, opacity: 0.62, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
       under.renderOrder = 998; under.position.y = -0.035; under.scale.set(1.24, 1, 1.08);   // the dark halo — bolder, contrast on ANY ground
       questArrowMesh.add(under);
@@ -7012,7 +7030,8 @@ function updateQuestArrow(dt) {
     const st = questArrowMesh.userData.st;
     if (!qg || qg.d < 10) { questArrowMesh.visible = false; return; }
     const yaw = Math.atan2(qg.x - wolf.pos.x, qg.z - wolf.pos.z);
-    questArrowMesh.position.set(wolf.pos.x, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.55, wolf.pos.z);
+    const FWD = 1.45;   // the tail tucks under the chest and the shaft pours out ahead — never drawn through the wolf
+    questArrowMesh.position.set(wolf.pos.x + Math.sin(yaw) * FWD, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.55, wolf.pos.z + Math.cos(yaw) * FWD);
     // ---- partial billboard: heading locked to the quest, but the face tips toward the camera ----
     // a flat ground decal collapses edge-on whenever the camera swings toward the horizon — no color survives that.
     const eyY = camera.position.y - questArrowMesh.position.y;
