@@ -145,3 +145,6 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 ### Mission 25 — the final 2px
 - Icon gaps tightened 3px -> 2px (badge pitch 37 -> 36: xp 55 / run 91 / hp 127). Bars re-centered (stam 104, hp 141), tracker 158, mobile synced.
 - Verified: gaps exactly 2/2px, zero overlaps, wolf 30px, bars centered +/-2.5px, bar air 29px kept. quest 32/32. Live: byte-verified.
+
+### Mission 26 — the 1px seam
+- Icon gaps 2px -> 1px (pitch 35: xp 55 / run 90 / hp 125), bars re-centered (stam 103, hp 140), tracker 157, mobile synced. Verified: 1/1px seams, zero overlap, bars centered. quest 32/32. Live: byte-verified.
