@@ -183,3 +183,8 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Two geometry fights: (1) six 42px discs on a 90 deg arc need R>=140px at 17deg spacing (chord math) — solved by widening the span to 112 deg and radius 118%% (min gaps 3.7px touch / 2.6px small); (2) media-query rules lost to body.touch specificity (attack measured BIGGER than the map) — the small-landscape overrides are body.touch-prefixed now.
 - #touchUI gate untouched: the cluster stays touch-only (desktop = keyboard), hidden in watch mode (body.aiOn). Bindings by id unchanged; CAM_CTRL still exempts .tbtn so the camera never claims them.
 - Verified: landscape 800x390 attack 72 vs map 84 (0.86), corners 14/14, arc ordered -14..98, all inside viewport, clear of the joystick zone; portrait 390x844 attack 100, gaps 3.7. quest 32/32. Live: 91cc3ca byte-verified.
+
+### Mission 33 — the awkward ring filled
+- The void between the attack disc and its satellites (47px on phones vs the minimap arrangement's ~30) closed by growing the anchor AND tuning the arc: attack 100->110 (touch), 72->78 (small landscape), 120->132 (latent desktop) — still 0.93x the minimap everywhere; arc radius rebalanced (--orb 107/118/97%%) and the span eased to -20..+104 deg (step 24.8 deg) so the discs never collide (min 3.9-4.5px).
+- Gap parity verified: satellite-to-attack 30px small-landscape (minimap 30.2), 31px phones (minimap ~30), 27px desktop-equivalent (minimap 27) — same breathing as the map's arch, by design.
+- quest 32/32. Live: byte-verified.
