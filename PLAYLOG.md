@@ -158,3 +158,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Status column raised into the freed upper-left corner (badges 14/49/84, bars 29/62/98, tracker 114 — the full stack now starts at the very top like the old quest button did).
 - Minimap raised to the upper-right corner (top 56 -> 14) with its button row rising in step (inv/quest/AI top 14, order unchanged: satchel, quest, AI at the minimap's side). Touch layouts untouched — they are pinned around tPause at top:62 right:14 and were tuned for it.
 - Verified at 900x560: first badge top 14 (corner filled), 1px seams kept, tracker clear; minimap top 14 / right 16, row aligned and ordered, AI->map gap 10; no cross-corner collisions; bars centered. quest 32/32. Live: byte-verified.
+
+### Mission 29 — the map claims its corner, the buttons orbit it
+- Seed/FPS readout (#topStats + its updaters ui.seed/ui.pos) REMOVED completely; minimap now owns the true upper-right corner (top 14, right 16).
+- The four buttons — Satchel, Quest, AI, PAUSE — are round satellites on the minimap's lower-left periphery, following the curvature: angles 12/38/64/90 deg (west to south) at radius 100 from the ring's center, percentage-positioned inside #mmOrbit (which mirrors the minimap at every breakpoint incl. touch) — the arc scales with the map. Pause joined the cluster and is now always visible.
+- Two fights worth remembering: (1) axis-aligned squares on a diagonal arc interpenetrate at their CORNERS — solved by round buttons (echo the round map) + radius 100 => honest 3px disc gaps; (2) Playwright content-quads misreport under translate(-50%,-50%) — clicks 'intercepted by canvas' while elementFromPoint said otherwise — solved by margin-centering (-20px) instead of transforms.
+- Verified: stats gone, map rect top14/right16, arc order+d radii exact, minDiscGap 3px, pause visible, real click opens log; quest 32/32, ai 15/15. Live: byte-verified.
