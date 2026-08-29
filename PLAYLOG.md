@@ -136,3 +136,8 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Exact-match approach: the reference bitmap itself is now the icon — darkness->alpha extraction, recolored solid teal #7ef0c0, 96x96 optimized PNG (8.4KB) embedded as a base64 data URI in #icoRun (img, not svg). Shape match VERIFIED by IoU 0.936 between the embedded PNG's alpha and the reference mask (48x48, diffs = anti-alias edges only). DOM: svg gone, no stamina text, heart%/star level intact.
 - Probe lessons: pixel-threshold masks of a transparent badge over the live world catch background pixels (bogus 0.32 IoU) — compare the embedded asset's alpha in-page instead; ESM has no require().
 - quest 32/32. Live: byte-verified.
+
+### Mission 24 — the column breathes
+- Stamina wolf scaled to 88 percent (30px figure) inside its badge — matching the heart/star visual span (the tight-cropped bitmap presented larger than the vector shapes).
+- Badges 38 -> 34px on a 37px pitch: a true 3px gap between all three icons (they overlapped 8px before — badge boxes touched). Bars re-centered (xp 70 / stam 105 / hp 142, gaps 30/29 kept), tracker to 160, mobile variants synced.
+- Verified: gaps 3/3px, no icon-icon or button overlap, wolf img 30px centered, bars centered +/-2.5px, tracker clear. quest 32/32. Live: byte-verified.
