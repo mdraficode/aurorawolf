@@ -15,3 +15,11 @@
 {"ch":15,"seed":50041,"level":6,"kills":138,"deeds":12,"deaths":0,"perks":["both"],"gameMin":63,"note":"salvaged; ALL-TIME RECORD"}
 {"ch":16,"seed":24801,"note":"LOST mid-chapter to accidental workspace deletion (raw event stream unrecoverable); last seen L2 27k/2d at 4.3 min wall"}
 {"ch": 17, "seed": 70702, "wallMin": 2, "note": "harness-restore sanity chapter (close-snapshot perks bug fixed post-run); stats from live relay", "pageErrors": 0, "ts": "2026-08-29T08:30", "level": 3, "kills": 21, "deeds": 0, "deaths": 0, "goals": 0}
+{"ch":18,"seed":18216,"wallMin":2.5,"level":1,"kills":12,"deeds":0,"deaths":0,"goals":230,"loops":18,"gameMin":0,"dist":3341,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T08:54"}
+{"ch":19,"seed":10250,"wallMin":2.8,"level":1,"kills":0,"deeds":0,"deaths":0,"goals":6,"loops":0,"gameMin":0,"dist":2723,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T08:58"}
+{"ch":20,"seed":80073,"wallMin":2.8,"level":1,"kills":47,"deeds":0,"deaths":0,"goals":263,"loops":5,"gameMin":0,"dist":2535,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T09:03"}
+{"ch":21,"seed":80429,"wallMin":2.8,"level":2,"kills":26,"deeds":0,"deaths":0,"goals":255,"loops":8,"gameMin":0,"dist":2349,"perks":["stormborn","skywatcher"],"spirit":false,"pageErrors":0,"ts":"2026-08-29T09:06"}
+{"ch":22,"seed":80514,"wallMin":2.8,"level":2,"kills":0,"deeds":0,"deaths":0,"goals":231,"loops":5,"gameMin":0,"dist":3477,"perks":["skywatcher"],"spirit":false,"pageErrors":0,"ts":"2026-08-29T09:09"}
+{"ch":23,"seed":43257,"wallMin":2.8,"level":2,"kills":10,"deeds":0,"deaths":0,"goals":252,"loops":9,"gameMin":0,"dist":3568,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T09:13"}
+{"ch":24,"seed":87870,"wallMin":2.8,"level":1,"kills":0,"deeds":0,"deaths":0,"goals":256,"loops":15,"gameMin":0,"dist":3578,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T09:17"}
+{"ch":25,"seed":64176,"wallMin":2.8,"level":3,"kills":47,"deeds":0,"deaths":0,"goals":277,"loops":0,"gameMin":0,"dist":2436,"perks":["skywatcher"],"spirit":false,"pageErrors":0,"ts":"2026-08-29T09:20"}

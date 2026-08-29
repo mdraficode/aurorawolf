@@ -143,3 +143,23 @@ steering inversion (v1-v6 all ran backwards) · drown-loop fleeing · hunt/drink
 ---
 ## ✅ Mission 5 — AI watch mode (feature ship, not bugs)
 Shipped cleanly; the only suite churn was quest.test.mjs's XP check, which didn't account for level-up boundaries (game paid correctly — test now level-aware). Bot brain runs at true game cadence; boost (?speed=) remains a URL-only harness tool and never activates in normal play.
+
+---
+## 🋴 Mission 6 PREP — v7.20 "Natural Hunter" (spectator-vibe overhaul)
+**User report:** bot circles/back-and-forths after a while — kills the spectator vibe. Root-cause hunt across 8 sanity chapters (CH18–CH25):
+
+**Found & fixed (bot brain):**
+1. 🔴 `wind is not defined` — a cleanup deleted the declaration; think-loop threw EVERY tick (2 106 swallowed bot-errors in one chapter): keys froze mid-walk, wolf walked straight forever. (CH19)
+2. 🔴 **Stamina-drain tether** — travel-sprint gate `stam>30` drained to 24 → forced drink-trip back to the SAME water hole → sprint-drain → return = laps around a lake (the user's exact symptom). Fix: travel sprint keeps reserve (`>55`); hunts keep `>12`. (CH22/CH23 trace)
+3. 🟠 **Eternal follow at 27–50 m** — grind detector is cell-anchored, moving chases never sit still → wolf trotted behind out-walking prey forever. Fix: chase give-up — 30 s without closing 20% → shun quarry 45 s; 3 fails → set deed aside. (CH22)
+4. 🟠 **Explore target flip-flop** — 28m↔264m↔234m landmark switching every few seconds. Fix: `lmStick` commitment (45 s per deed) + waterline-reachability pick among 4 nearest unfound.
+5. 🟠 **Predator-tug gathers** — pickup beside a predator = approach/fear-steer orbit. Fix: skip pickups within 60 m of live predators.
+6. 🟡 Loop-breaker v1 over-fired (18/150 s — yaw-noise wind, per-tick sampling, interruptions of stalk curves & drink trips). v3: 2 s-sampled displacement bearings, hunt/drink-guarded, 90 s cooldown, only for deliberate travel.
+7. 🟡 Wander was Brownian (random bearings) → forward-biased arc + no-revisit history + 25% long treks; steering got turn-cost damping (kills ±0.5 rad ping-pong).
+
+**Found & fixed (harness):** marathon event pump was never writing marathon.jsonl (watchdog would recycle healthy runs; forensics lost); runner TDZ crash (`const URL` shadowed global); close-record perks crash (object perks).
+
+**New naturalness:** post-kill "🐾 savoring the catch" pause, new-biome pause + scent sweep, honest drink distance, chase-giveup/hunt-fail logging.
+
+**Verification:** ai.test 15/15 · CH25: 47 kills, L3, 0 loops, 0 errors · CH23: chase give-ups observed working. Live: commit 2515e3e.
+**Mission focus going forward:** bot loop-health (eff/loops per chapter), boss-awake milestone, `bug-*` events incl. new `bug-bot-loop`, `bug-landmark-across-water`.

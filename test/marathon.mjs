@@ -24,8 +24,8 @@ await page.goto(PAGE_URL, { timeout: 90000, waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
 
 const t0 = Date.now();
-let lastEvt = 0, lastStats = { kills: 0, deeds: 0, deaths: 0, level: 1 };
 const stream = fs.createWriteStream('test/marathon.jsonl', { flags: 'a' });
+const wline = o => stream.write(JSON.stringify({ t: Date.now(), ch: CH, ...o }) + '\n');
 
 while ((Date.now() - t0) / 1000 < WALL) {
   await new Promise(r => setTimeout(r, 5000));
@@ -33,8 +33,11 @@ while ((Date.now() - t0) / 1000 < WALL) {
   try {
     s = await page.evaluate(() => {
       const L = window.BOTLOG || [], N = window.BOTN || {};
+      const evts = L.slice(window.__mIdx || 0); window.__mIdx = L.length;   // pump new events to the stream
       return {
-        level: wolf.level, xp: Math.round(wolf.xp),
+        evts, level: wolf.level, xp: Math.round(wolf.xp),
+        loops: N['loop-break'] || 0,
+        eff: (() => { const S = (window.BOTLOG || []).filter(e => e.type === 'sample' && e.sim != null); if (S.length < 3) return null; const last = S[S.length - 1]; const old = S.find(e => e.sim >= last.sim - 60) || S[0]; const od = last.dist - old.dist, net = Math.hypot(last.x - old.x, last.z - old.z); return od > 5 ? +(net / od).toFixed(2) : null; })(),
         kills: N.kill || L.filter(e => e.type === 'kill').length,
         deeds: N.deed || L.filter(e => e.type === 'deed').length,
         deaths: N.death || L.filter(e => e.type === 'death').length,
@@ -46,10 +49,10 @@ while ((Date.now() - t0) / 1000 < WALL) {
     });
   } catch (e) { console.log(`${stamp()} CDP hiccup: ${String(e.message).slice(0, 60)} — retrying`); continue; }
   // cumulative counters (BOTLOG is capped — track maxima, not sums)
-  lastStats.kills = Math.max(lastStats.kills, 0);
   const live = { ch: CH, seed: SEED, state: 'running', t: Date.now(), wallSec: Math.round((Date.now() - t0) / 1000), ...s };
   fs.writeFileSync('test/marathon-live.json', JSON.stringify(live));
-  console.log(`${stamp()} CH${CH} · ${Math.round((Date.now() - t0) / 1000)}s · L${s.level} · ${s.kills}k/${s.deeds}d · 💀${s.deaths} · ${s.lastGoal.slice(0, 48)}`);
+  for (const e of s.evts || []) wline(e);
+  console.log(`${stamp()} CH${CH} · ${Math.round((Date.now() - t0) / 1000)}s · L${s.level} · ${s.kills}k/${s.deeds}d · 💀${s.deaths} · eff ${s.eff ?? '?'} · loops ${s.loops || 0} · ${s.lastGoal.slice(0, 40)}`);
 }
 
 // close the chapter
@@ -62,7 +65,7 @@ try {
       kills: N.kill || L.filter(e => e.type === 'kill').length,
       deeds: N.deed || L.filter(e => e.type === 'deed').length,
       deaths: N.death || L.filter(e => e.type === 'death').length,
-      goals: N.goal || 0,
+      goals: N.goal || 0, loops: N['loop-break'] || 0,
       gameMin: Math.round((wolf.playTime || 0) / 60),
       dist: Math.round(wolf.distance),
       perks: (() => { try { const p = wolf.perks; if (Array.isArray(p)) return p.map(x => x.id || x); if (p && typeof p === 'object') return Object.keys(p).filter(k => p[k]); return []; } catch (e) { return ['?']; } })(),
