@@ -5188,7 +5188,9 @@ const audio = {
       this.ctx = new AC();
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.55;
-      this.master.connect(this.ctx.destination);
+      const lim = this.ctx.createDynamicsCompressor();   // a gentle ceiling — the wild may swell, never blast
+      lim.threshold.value = -7; lim.knee.value = 5; lim.ratio.value = 14; lim.attack.value = 0.004; lim.release.value = 0.26;
+      this.master.connect(lim); lim.connect(this.ctx.destination);
       const len = this.ctx.sampleRate * 2;
       const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
       const d = buf.getChannelData(0);
@@ -5635,8 +5637,24 @@ const music = {
     enchanted:{ root: 392.00, scale: [0, 2, 4, 7, 9, 11],    instr: 'bells',   pad: 'choir', perc: 'none',  bass: 0 },
     coast:    { root: 261.63, scale: [0, 2, 4, 7, 9],        instr: 'none',    pad: 'warm',  perc: 'none',  bass: 0 }
   },
+  SIG: null, sigLen: 64,
+  buildSig() {   // semitones from A4 · [offset, lengthInBeats] · a tune that belongs to these wilds
+    const A = [[0, 2], [3, 2], [7, 3], [5, 1], [3, 2], [2, 2], [0, 4]];
+    const B = [[7, 2], [10, 2], [12, 3], [10, 1], [7, 2], [5, 2], [3, 2], [2, 2]];
+    const A2 = [[0, 2], [3, 2], [7, 2], [5, 2], [3, 2], [2, 2], [0, 4]];
+    const DRONE = [-24, -24, -27, -24];   // A · A · F · A — the bittersweet turn under B
+    const seq = [], phrases = [A, A, B, A2];
+    let at = 0;
+    phrases.forEach((ph, pi) => {
+      seq.push({ at, drone: DRONE[pi], len: 16 });
+      for (const [semi, len] of ph) { seq.push({ at, semi, len }); at += len; }
+      at = 16 * (pi + 1);
+    });
+    this.SIG = seq; this.sigLen = at;
+  },
   init() {
     if (this.bus || !audio.ctx) return;
+    if (!this.SIG) this.buildSig();
     const ctx = audio.ctx;
     this.bus = ctx.createGain(); this.bus.gain.value = 0.0;
     this.bus.connect(audio.master);
@@ -5663,6 +5681,20 @@ const music = {
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.12);
       g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       os.connect(g); o.push(os, vib); this.stop(o, t, t + dur + 0.05);
+    } else if (instrument === 'guitar') {   // a soft plucked string — the game's signature voice (cycle-free: always stable)
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.4; lp.frequency.value = 1250 + f * 0.35;   // the wooden body
+      const o1 = ctx.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = f;
+      const g1 = ctx.createGain(); g1.gain.value = 0.62; o1.connect(g1); g1.connect(lp);
+      const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = f * 2.003;   // a soft shimmer string
+      const g2 = ctx.createGain(); g2.gain.value = 0.2; o2.connect(g2); g2.connect(lp);
+      const pick = ctx.createBufferSource(); pick.buffer = audio.noiseBuf; pick.playbackRate.value = 3;   // the fingernail
+      const pg = ctx.createGain(); pg.gain.setValueAtTime(0.5, t); pg.gain.linearRampToValueAtTime(0, t + 0.014);
+      const ph = ctx.createBiquadFilter(); ph.type = 'highpass'; ph.frequency.value = 1500;
+      pick.connect(ph); ph.connect(pg); pg.connect(g);
+      lp.connect(g);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.012);
+      g.gain.setValueAtTime(vol, t + dur * 0.5); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 1.1);   // a long wooden ring
+      o.push(o1, o2, pick); this.stop(o, t, t + dur + 1.2);
     } else if (instrument === 'piano') {
       for (const [m, a] of [[1, 1], [2, 0.35], [3, 0.12]]) {
         const os = ctx.createOscillator(); os.type = 'sine'; os.frequency.value = f * m;
@@ -5777,7 +5809,7 @@ const music = {
     const cave = caveState.in;
     this.bpm = (st => st === 'combat' ? 96 + this.intensity * 60 : st === 'hunt' ? 56 : 44)(this.state) - (night ? 3 : 0);   // slow, breathing days
     const T = {
-      explore: { pad: cave ? 0.52 : 0.5, melody: cave ? 0 : 0.13, perc: 0, bass: th.bass ? 0.2 : 0.06, choir: th.pad === 'choir' ? 0.18 : 0, bells: 0 },   // soothing: warm pads, sparse song, no beat
+      explore: { pad: cave ? 0.52 : 0.44, melody: cave ? 0 : 0.3, perc: 0, bass: cave ? 0.06 : 0.24, choir: th.pad === 'choir' ? 0.16 : 0, bells: 0 },   // the signature guitar sings over warm pads
       hunt:    { pad: 0.12, melody: 0.06, perc: 0.08, bass: 0.08, choir: 0, bells: 0 },   // a soft pulse under the stalk
       combat:  { pad: 0.22, melody: 0.12, perc: 0.34, bass: 0.2, choir: this.epic ? 0.3 : 0, bells: 0 }
     }[this.state];
@@ -5803,13 +5835,23 @@ const music = {
         this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[2] / 2, t, 8 * 60 / this.bpm * 0.97, 0.12, 'bass');
         if (this.epic) this.v('choir', fs[0], t, 8 * 60 / this.bpm, 0.14, 'choir');
       }
-      // melody walks the scale — sparse at night, silent in the cave
-      if (inst !== 'none' && !cave) {
-        const dens = this.state === 'explore' ? (night ? 0.18 : 0.3) : this.state === 'hunt' ? 0.08 : 0.28;   // sparse, unhurried
+      // THE SIGNATURE TUNE: a plucked-string lullaby that follows the player everywhere
+      if (this.state === 'explore' && !cave) {
+        if (!this.SIG) this.buildSig();
+        const bb = this.beat % this.sigLen;
+        for (const nt of this.SIG) {
+          if (nt.at !== bb) continue;
+          if (nt.drone !== undefined) this.v('guitar', 440 * Math.pow(2, nt.drone / 12) * pitchMul, t, 15 * 60 / this.bpm, 0.15, 'bass');   // the low string hums
+          else {
+            this.v('guitar', 440 * Math.pow(2, nt.semi / 12) * pitchMul, t, nt.len * 60 / this.bpm * 0.94, 0.26, 'melody');   // the tune leads
+            if (mystical && Math.random() < 0.35) this.v('bells', 440 * Math.pow(2, (nt.semi + 12) / 12) * pitchMul, t + 0.24, 1.8, 0.06, 'bells');   // aurora evenings sparkle
+          }
+        }
+      } else if (inst !== 'none' && !cave && this.state !== 'explore') {   // the pulse states keep their sparse walk
+        const dens = this.state === 'hunt' ? 0.08 : 0.28;
         if (Math.random() < dens && b % 2 === 0) {
           const deg = (Math.random() * 8) | 0, oct = Math.random() < 0.25 ? 1 : 0;
-          this.v(inst, this.note(th, deg, oct) * pitchMul, t, inst === 'piano' ? 2.2 : 2.0, 0.085, 'melody');   // long, gentle notes
-          if (mystical && Math.random() < 0.4) this.v('bells', this.note(th, deg + 2, 1) * pitchMul, t + 0.22, 1.6, 0.07, 'bells');
+          this.v(inst, this.note(th, deg, oct) * pitchMul, t, inst === 'piano' ? 2.2 : 2.0, 0.085, 'melody');
         }
       }
       // percussion speaks the state
@@ -6931,13 +6973,14 @@ function updateQuestArrow(dt) {
       ]);
       g.setAttribute('position', new THREE.BufferAttribute(v, 3));
       g.computeVertexNormals();
-      questArrowMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide }));
-      questArrowMesh.renderOrder = 3;
+      questArrowMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.2, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+      questArrowMesh.renderOrder = 999;   // above the world — no hill, tree or wall hides the way
+      questArrowMesh.scale.set(1.15, 1, 1.8);   // longer — readable at a glance
       scene.add(questArrowMesh);
     }
     if (!qg || qg.d < 10) { questArrowMesh.visible = false; return; }
     const yaw = Math.atan2(qg.x - wolf.pos.x, qg.z - wolf.pos.z);
-    questArrowMesh.position.set(wolf.pos.x, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.07, wolf.pos.z);
+    questArrowMesh.position.set(wolf.pos.x, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.1, wolf.pos.z);
     questArrowMesh.rotation.y = yaw;
     questArrowMesh.visible = true;
     questArrowMesh.material.opacity = 0.14 + 0.07 * (0.5 + 0.5 * Math.sin(tSec * 2.4));   // faint, breathing
