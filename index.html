@@ -6982,10 +6982,10 @@ function arrowGroundLum() {   // what the arrow actually lies on — sampled exa
   return (L / n) * light;
 }
 window.__arrowGroundLum = () => arrowGroundLum();
-function arrowTargetColor(st) {   // the opposite of the land: deep ember on bright ground, luminous gold on dark
-  const BRIGHT = 0.62, DARK = 0.27;
-  if (st.mode === 'dark') _agt.setHSL(0.07, 0.88, DARK);        // burnt ember — reads on snow, sand, sun-bleached grass
-  else _agt.setHSL(0.10, 0.95, BRIGHT);                          // luminous gold — reads on night, spruce, peat
+function arrowTargetColor(st) {   // the opposite of the land — darker overall, as demanded twice
+  const BRIGHT = 0.54, DARK = 0.21;
+  if (st.mode === 'dark') _agt.setHSL(0.068, 0.92, DARK);       // deep burnt ember — sinks into snow, sand, sun-grass
+  else _agt.setHSL(0.10, 0.96, BRIGHT);                         // rich gold — glows against night, spruce, peat
   return _agt;
 }
 function updateQuestArrow(dt) {
@@ -7003,8 +7003,8 @@ function updateQuestArrow(dt) {
       questArrowMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.2, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
       questArrowMesh.renderOrder = 999;   // above the world — no hill, tree or wall hides the way
       questArrowMesh.scale.set(1.15, 1, 1.8);   // longer — readable at a glance
-      const under = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x140d06, transparent: true, opacity: 0.55, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
-      under.renderOrder = 998; under.position.y = -0.03; under.scale.set(1.18, 1, 1.12);   // the dark halo — contrast on ANY ground
+      const under = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x0d0803, transparent: true, opacity: 0.62, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+      under.renderOrder = 998; under.position.y = -0.035; under.scale.set(1.24, 1, 1.08);   // the dark halo — bolder, contrast on ANY ground
       questArrowMesh.add(under);
       questArrowMesh.userData.st = { mode: 'bright', lum: 0.5, acc: 1 };
       scene.add(questArrowMesh);
@@ -7012,8 +7012,15 @@ function updateQuestArrow(dt) {
     const st = questArrowMesh.userData.st;
     if (!qg || qg.d < 10) { questArrowMesh.visible = false; return; }
     const yaw = Math.atan2(qg.x - wolf.pos.x, qg.z - wolf.pos.z);
-    questArrowMesh.position.set(wolf.pos.x, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.1, wolf.pos.z);
+    questArrowMesh.position.set(wolf.pos.x, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.55, wolf.pos.z);
+    // ---- partial billboard: heading locked to the quest, but the face tips toward the camera ----
+    // a flat ground decal collapses edge-on whenever the camera swings toward the horizon — no color survives that.
+    const eyY = camera.position.y - questArrowMesh.position.y;
+    const eyD = Math.hypot(camera.position.x - questArrowMesh.position.x, camera.position.z - questArrowMesh.position.z);
+    const tilt = Math.max(0.42, Math.min(1.25, Math.atan2(eyY, Math.max(1, eyD))));   // 24°..72° — never a sliver, never a signpost
+    questArrowMesh.rotation.order = 'YXZ';
     questArrowMesh.rotation.y = yaw;
+    questArrowMesh.rotation.x = -tilt;   // the head tips up to meet the eye
     questArrowMesh.visible = true;
     // ---- real eyes on the ground: resample every quarter second, then glide the color ----
     st.acc += dt || 0.016;
