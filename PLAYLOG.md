@@ -47,3 +47,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Joystick field shrunk to the LEFT 40% (max 420px) — the RIGHT 60% of the screen is pure camera, always.
 - Camera first-attempt fixes: ghost-pointer sweep (touchend/touchcancel carry the authoritative finger list — a swallowed pointerup can no longer leave a stale pinch partner that killed the next swipe), reused-id cleanup, setPointerCapture on the renderer canvas (swipes hold even when they slide over HUD elements), and #btns container pointer-events: none so the GAPS between action buttons fall through to the camera.
 - Verified (test/cam_touch_probe.mjs, 10/10): 60/40 split · immediate rotation on first touch at 70% width · ghost planted→swept→next touch rotates · button-gap fall-through · joystick intact in left 40% · just past the boundary = camera · 0 page errors. Touch suite PASS (0 timeouts), ai 15/15. Live: 1d7e2de byte-verified.
+
+### Mission 7.2 — the score speaks, the hiss dies
+- **Why the music seemed absent:** it WAS playing — at bus gain 0.3 a pad note peaked ≈0.01 amplitude, quieter than a bird chirp, buried under ambience. Bus now 0.85; pad voices 0.24/0.16/0.12 → pad peak ≈0.05, ~5× audibility. Verified scheduling ahead (notes genuinely queued), ctx running on first touch (global pointerdown wake).
+- **Why the hiss persisted:** the leaf bed hissed in fair weather (bandpass noise 0.004–0.024) and the river bed hissed near water. Now: leaves silent below wind 0.45 (whisper only in storms, 0.0012), river lowpassed 520→330 Hz at 35% gain (murmur), surf halved. Fair-weather probe: leaf 0 · wind 0 · shore 0 · river 0.004.
+- **Soothing pass:** bpm 44 explore, pad-centric mix (0.5), melody sparse (0.3) with long gentle notes (2.0 s, softer), reverb space opened (0.28 day / 0.40 night). Probe: bus 0.85 · pad 0.45 · bpm 44 · scheduling true.
+- Gates: audio ALL PASS · ai 15/15. Live: 325ae93 byte-verified.
