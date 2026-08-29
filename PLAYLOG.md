@@ -141,3 +141,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Stamina wolf scaled to 88 percent (30px figure) inside its badge — matching the heart/star visual span (the tight-cropped bitmap presented larger than the vector shapes).
 - Badges 38 -> 34px on a 37px pitch: a true 3px gap between all three icons (they overlapped 8px before — badge boxes touched). Bars re-centered (xp 70 / stam 105 / hp 142, gaps 30/29 kept), tracker to 160, mobile variants synced.
 - Verified: gaps 3/3px, no icon-icon or button overlap, wolf img 30px centered, bars centered +/-2.5px, tracker clear. quest 32/32. Live: byte-verified.
+
+### Mission 25 — the final 2px
+- Icon gaps tightened 3px -> 2px (badge pitch 37 -> 36: xp 55 / run 91 / hp 127). Bars re-centered (stam 104, hp 141), tracker 158, mobile synced.
+- Verified: gaps exactly 2/2px, zero overlaps, wolf 30px, bars centered +/-2.5px, bar air 29px kept. quest 32/32. Live: byte-verified.
