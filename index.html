@@ -22,7 +22,6 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 }
 #topbar { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; }
 #weatherIcon { font-size: 16px; margin-right: 6px; }
-#topStats { position: absolute; top: 14px; right: 16px; text-align: right; font-size: 11.5px; color: rgba(220, 235, 250, .75); line-height: 1.7; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 
 #inv { display: grid; grid-template-columns: repeat(2, auto); gap: 8px; justify-content: center; padding: 6px 2px 2px; }
 .chip {
@@ -43,6 +42,12 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
   background: rgba(30, 16, 56, 0.55); border: 1px solid rgba(176, 122, 255, 0.45);
   text-shadow: 0 0 12px rgba(176, 122, 255, 0.9);
 }
+#mmOrbit { position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; pointer-events: none; z-index: 12; }
+#mmOrbit button { position: absolute; pointer-events: auto; border-radius: 50%; }
+#invBtn  { left: -19.9%; top: 64.9%; margin: -20px 0 0 -20px; }   /* west of the ring */
+#questBtn{ left: -6.3%;  top: 94%;    margin: -20px 0 0 -20px; }
+#btnAI   { left: 18.7%;  top: 114.2%; margin: -20px 0 0 -20px; }
+#tPause  { left: 50%;    top: 121.4%; margin: -21px 0 0 -21px; }   /* due south — the end of the arc */
 #minimap {
   position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; z-index: 8;
   border-radius: 50%; background: rgba(8, 14, 22, 0.55); pointer-events: auto; cursor: pointer;
@@ -60,6 +65,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #bigmap { width: min(62vmin, 460px); height: min(62vmin, 460px); border-radius: 10px; display: block; }
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
 body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
+body.touch #mmOrbit { top: 112px; right: 14px; width: 118px; height: 118px; }
 #hpWrap { position: absolute; top: 98px; left: 60px; transform: none;
   width: 156px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
   border: 1px solid rgba(255, 120, 100, 0.35); overflow: hidden; }
@@ -165,41 +171,35 @@ body.touch #joyZone { display: block; pointer-events: auto; }
 .tbtn.on, .tbtn:active { background: rgba(46, 94, 84, 0.7); border-color: rgba(126, 240, 192, 0.65); }
 .tbtn:focus-visible { opacity: 1; outline: 2px solid #7ef0c0; }
 #tPause {
-  display: none; position: fixed; top: 62px; right: 14px; z-index: 12; pointer-events: auto;
   width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid rgba(180, 220, 255, 0.3);
   background: rgba(10, 18, 30, 0.5); color: #eef3f7; font-size: 15px; font-family: inherit;
   touch-action: none; -webkit-tap-highlight-color: transparent; cursor: pointer;
   opacity: .35; transition: opacity .28s ease;
 }
 #tPause:active, #tPause.on { opacity: 1; }
-body.touch #tPause { display: block; }
 /* ---- satchel: the inventory lives behind a bag button, like the map ---- */
 #invBtn {
-  position: absolute; top: 14px; right: 258px; width: 40px; height: 40px; border-radius: 10px;
-  pointer-events: auto; cursor: pointer; z-index: 12; font-size: 19px; line-height: 1; padding: 0;
+  width: 40px; height: 40px; border-radius: 10px;
+  cursor: pointer; font-size: 19px; line-height: 1; padding: 0;
   border: 1px solid rgba(126, 240, 192, 0.55); color: #d9fbe9; font-family: inherit;
   background: rgba(10, 18, 30, 0.55);
 }
 /* ---- 🤖 AI watch mode: the wolf plays itself ---- */
 #btnAI {
-  position: absolute; top: 14px; right: 166px;   /* the end of the row, at the minimap's side */ width: 40px; height: 40px; border-radius: 10px;
+  width: 40px; height: 40px; border-radius: 10px;
   pointer-events: auto; cursor: pointer; z-index: 12; font-size: 19px; line-height: 1; padding: 0;
   border: 1px solid rgba(190, 150, 255, 0.45); color: #ead9ff; font-family: inherit;
   background: rgba(10, 18, 30, 0.55);
 }
 #btnAI.on { background: rgba(112, 74, 210, 0.6); border-color: rgba(196, 160, 255, 0.9); box-shadow: 0 0 14px rgba(160, 110, 255, 0.35); }
 #btnAI:active { transform: scale(.94); }
-body.touch #btnAI { top: 112px; right: 140px; }
-body.touch #questBtn { top: 112px; right: 186px; }
 .btn.ai { border-color: rgba(190, 150, 255, 0.5); color: #ead9ff; }
 .btn.ai:hover { background: rgba(112, 74, 210, 0.35); }
 body.aiOn #btns, body.aiOn #joyZone, body.aiOn #joy { display: none !important; }   /* spectator: controls step aside */
 body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important; }
 #botPanel { max-height: 40vh; overflow: hidden; }
 @media (max-width: 860px) and (max-height: 400px) {
-  body.touch #btnAI { top: 108px; right: 106px; }
-  body.touch #questBtn { top: 108px; right: 152px; }
-  #botPanel { top: 196px; width: 200px; font-size: 10px; }
+      #botPanel { top: 196px; width: 200px; font-size: 10px; }
 }
 #invWrap { position: absolute; inset: 0; z-index: 56; display: none; align-items: center; justify-content: center; pointer-events: auto; background: rgba(4, 8, 16, 0.45); }
 #invWrap.show { display: flex; }
@@ -214,9 +214,7 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 @media (max-width: 860px) {
   .pill { font-size: 11px; padding: 4px 8px; }
   #controls { display: none; }
-  body.touch #invBtn { top: 112px; right: 232px; }
-  .chip { font-size: 11px; padding: 3px 7px; gap: 5px; }
-  #topStats { font-size: 10px; }
+    .chip { font-size: 11px; padding: 3px 7px; gap: 5px; }
   #topbar { gap: 6px; }
   #xpWrap { top: 29px; left: 60px; width: 126px; }
   #stamWrap { top: 62px; left: 60px; width: 126px; }
@@ -225,8 +223,8 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 @media (max-width: 860px) and (max-height: 400px) {
   /* small landscape phones: slimmer buttons + minimap so nothing collides */
   body.touch #minimap { top: 108px; width: 84px; height: 84px; }
-  body.touch #invBtn { top: 108px; right: 198px; }
-  .tbtn { width: 54px; height: 54px; font-size: 19px; }
+  body.touch #mmOrbit { top: 108px; width: 84px; height: 84px; }
+    .tbtn { width: 54px; height: 54px; font-size: 19px; }
   .tbtn.small { width: 44px; height: 44px; font-size: 16px; }
   .brow, #btns { gap: 8px; }
   #btns { bottom: 16px; }
@@ -305,9 +303,9 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 .ov-tip { margin-top: 22px; font-size: 12px; color: #7fa0b2; letter-spacing: .06em; line-height: 1.8; }
 
 /* ---- quests ---- */
-#questBtn { position: absolute; top: 14px; right: 212px; width: 40px; height: 40px; border-radius: 10px;   /* between satchel and AI */
+#questBtn { width: 40px; height: 40px; border-radius: 10px;
   background: rgba(20, 28, 38, .72); color: #ffe9b0; font-size: 19px; border: 1px solid rgba(255, 224, 160, .35);
-  cursor: pointer; z-index: 12; pointer-events: auto; }
+  cursor: pointer; pointer-events: auto; }
 #questBtn:active { transform: scale(.94); }
 #questTracker { position: absolute; top: 114px; left: 16px; max-width: 240px; font-size: 11px; line-height: 1.5;
   color: rgba(240, 232, 210, .9); text-shadow: 0 1px 4px rgba(0,0,0,.7); z-index: 11; pointer-events: none; }
@@ -359,19 +357,12 @@ body.touch #questTracker { display: none; }
 </head>
 <body>
 <div id="err"></div>
-
-<button id="btnAI" title="AI plays (watch mode)">🤖</button>
 <div id="hud" class="hidden">
   <div id="topbar">
     <div class="pill"><span id="weatherIcon">🌤️</span><span id="weatherLabel">Fair</span></div>
     <div class="pill" id="clock">Day 1 · 08:00</div>
     <div class="pill"><span id="biome">🌲 Snowy Taiga</span></div>
   </div>
-  <div id="topStats">
-    <div id="statSeed">seed —</div>
-    <div id="statPos">0, 0</div>
-  </div>
-  <button id="invBtn" title="Satchel (I)">🎒</button>
   <div id="invWrap">
     <div id="invBox">
       <div id="invHead"><span>🎒 Satchel</span><button id="invClose">✕</button></div>
@@ -393,6 +384,12 @@ body.touch #questTracker { display: none; }
     <b>C</b> camera · <b>T</b> time ×8 · <b>M</b> map · <b>K</b> sound · <b>P</b> pause
   </div>
   <canvas id="minimap" width="168" height="168" title="Open map (M)"></canvas>
+  <div id="mmOrbit">
+    <button id="invBtn" title="Satchel (I)">🎒</button>
+    <button id="questBtn" title="Quest Log (J)">📜</button>
+    <button id="btnAI" title="AI plays (watch mode)">🤖</button>
+    <button id="tPause" title="Pause (P)">⏸</button>
+  </div>
   <div id="bigmapWrap">
     <div id="bigmapBox">
       <div id="bigmapHead"><span id="bigmapTitle">🗺️ Revontulet — the wild around you</span><button id="bigmapClose">✕</button></div>
@@ -400,7 +397,6 @@ body.touch #questTracker { display: none; }
       <div id="bigmapLegend">🟡 landmark · 🟣 magic mushroom · 🔴 hunting predator · ⭕ dashed = its territory<br>gold chevron = nearest landmark · white arrow = you · tiny dots = nearby resources (M / Esc closes)</div>
     </div>
   </div>
-  <button id="questBtn" title="Quest Log (J)">📜</button>
     <div id="questTracker"></div>
     <div id="questLog">
       <div id="questLogHead"><span>📜 QUEST LOG</span><span id="questX">✕</span></div>
@@ -446,7 +442,6 @@ body.touch #questTracker { display: none; }
       </div>
     </div>
   </div>
-  <button id="tPause">⏸</button>
 </div>
 <div id="vignette"></div>
 
@@ -6583,8 +6578,8 @@ function questTick(dt) {
 const el = id => document.getElementById(id);
 const ui = {
   weatherIcon: el('weatherIcon'), weatherLabel: el('weatherLabel'),
-  clock: el('clock'), biome: el('biome'), seed: el('statSeed'),
-  pos: el('statPos'), prompt: el('prompt'),
+  clock: el('clock'), biome: el('biome'),
+  prompt: el('prompt'),
   stam: el('stamFill'), toasts: el('toasts'), hud: el('hud'),
   overlay: el('overlay'), ovTitle: el('ovTitle'), ovBody: el('ovBody')
 };
@@ -7309,8 +7304,6 @@ function updateHUD(dt) {
   curBiomeKey = info === BIOME_INFO.shore ? 'shore' : Object.keys(BIOME_INFO).find(k => BIOME_INFO[k] === info);
   const tC = Math.round((climateAt(wolf.pos.x, wolf.pos.z, heightAt(wolf.pos.x, wolf.pos.z)).temp - WORLD_EVENTS.chill) * 28);
   ui.biome.textContent = `${SEASON.icon} ${info.icon} ${info.name} · ${tC}°C`;
-  ui.pos.textContent = `${wolf.pos.x | 0}, ${wolf.pos.z | 0} · ${fpsShow} fps`;
-  ui.seed.textContent = 'seed ' + SEED;
   biomeToastT -= 0.25;
   if (curBiomeKey !== lastBiomeKey) {
     if (lastBiomeKey !== null && biomeToastT <= 0 && curBiomeKey !== 'shore') {
