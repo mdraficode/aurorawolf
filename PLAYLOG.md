@@ -110,3 +110,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - XP BAR above hp/stamina bars (#xpWrap top:48, gold gradient, per-frame width). All stamina clamps honor maxStam (regen, fly, drink, landmark, idle); stam bar percent scales by maxStam.
 - DEATH RESETS: wolfRespawn -> level 0, xp 0, stats 100/100, bar 0, toast "your levels are lost". Quest perks kept (quest rewards, not levels).
 - Verified: boot L0/70XP; bar 48px above stam 60px; addXp(70)->L1 exact message; DR 10->8.806 at L7 (exact); pool clamp 135, sprint 9.0s; death->full reset. quest 32/32 (curve assertion updated), ai 15/15 (one stale-chromium flake). Live: 4fcc2e1.
+
+### Mission 19 — the XP bar no longer rides the quest button
+- The M18 XP bar (top:48) slid under #questBtn (y 14-54). Left column re-flowed: questBtn 14-54 · xpWrap 58 · stamWrap 70 · hpWrap 82 · questTracker 98 (media variants too). Verified by rect probe: zero overlaps anywhere in the stack, 4px button-to-bar gap, order preserved (xp above stam above hp).
+- quest 32/32. Live: ff3662b byte-verified.
