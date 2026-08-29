@@ -67,8 +67,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
 body.touch #minimap { top: 14px; right: 14px; width: 118px; height: 118px; }   /* the corner belongs to the map */
 body.touch #btns { width: 100px; height: 100px; }
-body.touch #tAttack { width: 110px; height: 110px; margin: -55px 0 0 -55px; font-size: 36px; }
-body.touch #btns .tbtn:not(#tAttack) { width: 42px; height: 42px; margin: -21px 0 0 -21px; --orb: 107%; }
+body.touch #tAttack { width: 114px; height: 114px; margin: -57px 0 0 -57px; font-size: 38px; }
+body.touch #btns .tbtn:not(#tAttack) { width: 42px; height: 42px; margin: -21px 0 0 -21px; --orb: 108%; }
 body.touch #mmOrbit { top: 14px; right: 14px; width: 118px; height: 118px; }
 body.touch #topbar { top: 14px; left: 50%; transform: translateX(-50%); }   /* upper center on every layout */
 #hpWrap { position: absolute; top: 98px; left: 60px; transform: none;
@@ -160,8 +160,8 @@ body.touch #joyZone { display: block; pointer-events: auto; }
 }
 /* ---- the attack orbit: a big strike anchor in the corner, its company on the upper-left arch ---- */
 #btns { position: fixed; right: 14px; bottom: 14px; z-index: 12; width: 120px; height: 120px; pointer-events: none; }   /* gaps fall through to the camera */
-#btns .tbtn { position: absolute; left: calc(50% + var(--mx, 0) * var(--orb, 97%)); top: calc(50% + var(--my, 0) * var(--orb, 97%)); }
-#tAttack { left: 50%; top: 50%; width: 132px; height: 132px; margin: -66px 0 0 -66px; font-size: 44px; z-index: 1; }
+#btns .tbtn { position: absolute; left: calc(50% + var(--mx, 0) * var(--orb, 98%)); top: calc(50% + var(--my, 0) * var(--orb, 98%)); }
+#tAttack { left: 50%; top: 50%; width: 136px; height: 136px; margin: -68px 0 0 -68px; font-size: 46px; z-index: 1; }
 #tAttack span { font-size: 12px; }
 #btns .tbtn:not(#tAttack) { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
 #tGather { --mx: -0.940; --my:  0.342; }   /* the arch begins at the button's left hip */
@@ -245,8 +245,8 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   body.touch #mmOrbit { top: 14px; width: 84px; height: 84px; --orb: 105%; }
   #mmOrbit button { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 15px; }
   body.touch #btns { width: 72px; height: 72px; }
-  body.touch #tAttack { width: 78px; height: 78px; margin: -39px 0 0 -39px; font-size: 28px; }
-  body.touch #btns .tbtn:not(#tAttack) { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 14px; --orb: 118%; }
+  body.touch #tAttack { width: 80px; height: 80px; margin: -40px 0 0 -40px; font-size: 29px; }
+  body.touch #btns .tbtn:not(#tAttack) { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 14px; --orb: 119%; }
   body.touch #btns .tbtn span { display: none; }   /* tiny screens: glyphs only */
 }
 @media (max-width: 600px) {
