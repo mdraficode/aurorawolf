@@ -5205,10 +5205,10 @@ const audio = {
       this.windG = mk('bandpass', 360, 0.0);   // retired haze — kept wired for weather sweeps only
       this.rainG = mk('highpass', 1600, 0.0);
       this.leafG = mk('bandpass', 900, 0.0);   // wind in the crowns
-      this.shoreG = mk('lowpass', 240, 0.0);    // distant surf
+      this.shoreG = mk('lowpass', 200, 0.0);    // distant surf, soft
       this.rumbleG = mk('lowpass', 55, 0.0);     // volcanic tremor
       this.roarG = mk('lowpass', 300, 0.0);       // a waterfall's weight
-      this.riverG = mk('bandpass', 520, 0.0);      // living water nearby
+      this.riverG = mk('lowpass', 330, 0.0);        // living water nearby — a murmur, never a hiss
       this.fireG = mk('bandpass', 1350, 0.0);    // crackling flames
       this.ready = true;
     } catch (e) { }
@@ -5220,14 +5220,15 @@ const audio = {
     this.windG.gain.setTargetAtTime(0, t, 0.8);   // the constant hiss is retired — ambience lives in music and weather
     this.rainG.gain.setTargetAtTime(rain * 0.14, t, 0.9);
   },
-  setForest(cover, wind) {   // denser canopy = louder rustling overhead
+  setForest(cover, wind) {   // crowns stir only when the wind truly blows — silence in still air
     if (!this.ready || !this.leafG) return;
-    this.leafG.gain.setTargetAtTime((0.004 + wind * 0.02) * (0.35 + 0.65 * cover), this.ctx.currentTime, 1.0);   // a whisper, not a hiss
+    const gust = wind > 0.45 ? (wind - 0.45) * 0.022 * (0.35 + 0.65 * cover) : 0;
+    this.leafG.gain.setTargetAtTime(gust, this.ctx.currentTime, 1.2);
   },
   setBiome(w) {              // regional beds: surf on the shore, tremor in the wastes
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    if (this.shoreG) this.shoreG.gain.setTargetAtTime(0.05 * (w.coast || 0), t, 1.2);
+    if (this.shoreG) this.shoreG.gain.setTargetAtTime(0.025 * (w.coast || 0), t, 1.2);
     if (this.rumbleG) this.rumbleG.gain.setTargetAtTime(0.075 * (w.volcanic || 0), t, 1.2);
   },
   drip() {                   // caves: water counting the centuries
@@ -5418,8 +5419,8 @@ const audio = {
   setWater(roar, river) {    // falling water has weight; rivers murmur by proximity
     if (!this.ready) return;
     const t = this.ctx.currentTime;
-    this.roarG.gain.setTargetAtTime(roar, t, 0.6);
-    this.riverG.gain.setTargetAtTime(river, t, 0.6);
+    this.roarG.gain.setTargetAtTime(roar * 0.8, t, 0.6);
+    this.riverG.gain.setTargetAtTime(river * 0.35, t, 0.6);   // water keeps its voice, loses the edge
   },
   growlVar(kind) {           // aggressive · warning · pain — three voices of the wolf
     if (!this.ready || this.muted) return;
@@ -5772,17 +5773,17 @@ const music = {
     const night = dayF < 0.3, mystical = ['aurora', 'whiteStag', 'meteor'].includes(WORLD_EVENTS.name);
     const th = this.THEMES[this.theme] || this.THEMES.forest;
     const cave = caveState.in;
-    this.bpm = (st => st === 'combat' ? 96 + this.intensity * 60 : st === 'hunt' ? 60 : 50)(this.state) - (night ? 4 : 0);   // gentler days
+    this.bpm = (st => st === 'combat' ? 96 + this.intensity * 60 : st === 'hunt' ? 56 : 44)(this.state) - (night ? 3 : 0);   // slow, breathing days
     const T = {
-      explore: { pad: cave ? 0.5 : 0.42, melody: cave ? 0 : 0.17, perc: 0, bass: th.bass ? 0.22 : 0.07, choir: th.pad === 'choir' ? 0.16 : 0, bells: 0 },   // soothing: pads and song, no beat
+      explore: { pad: cave ? 0.52 : 0.5, melody: cave ? 0 : 0.13, perc: 0, bass: th.bass ? 0.2 : 0.06, choir: th.pad === 'choir' ? 0.18 : 0, bells: 0 },   // soothing: warm pads, sparse song, no beat
       hunt:    { pad: 0.12, melody: 0.06, perc: 0.08, bass: 0.08, choir: 0, bells: 0 },   // a soft pulse under the stalk
       combat:  { pad: 0.22, melody: 0.12, perc: 0.34, bass: 0.2, choir: this.epic ? 0.3 : 0, bells: 0 }
     }[this.state];
     if (mystical && this.state === 'explore') T.bells = 0.2, T.choir = Math.max(T.choir, 0.2);
     const k = Math.min(1, dt * 1.6);
     for (const key in this.layers) this.layers[key].gain.value += ((T[key] || 0) * 0.9 - this.layers[key].gain.value) * k;
-    this.wet.gain.value += ((cave ? 0.5 : night ? 0.36 : this.state === 'combat' ? 0.12 : 0.18) - this.wet.gain.value) * k;
-    this.bus.gain.value += (0.3 - this.bus.gain.value) * k;
+    this.wet.gain.value += ((cave ? 0.5 : night ? 0.4 : this.state === 'combat' ? 0.12 : 0.28) - this.wet.gain.value) * k;   // a softer, larger space
+    this.bus.gain.value += (0.85 - this.bus.gain.value) * k;   // the score stands in the mix, not under it
     // schedule ahead
     const ctx = audio.ctx, ahead = ctx.currentTime + 1.1;
     let guard = 0;
@@ -5795,17 +5796,17 @@ const music = {
         const deg = [0, 3, 4, 2][this.bar % 4];
         const chordSemis = [0, 2, 4].map(x => th.scale[(deg + x) % th.scale.length] + (deg + x >= th.scale.length ? 12 : 0));
         const fs = this.chordF(th.root * pitchMul, [chordSemis[0], chordSemis[1] + 0, chordSemis[2]]);
-        this.v(th.pad === 'dark' ? 'strings' : th.pad === 'choir' ? 'choir' : 'strings', fs[0] / 2, t, 8 * 60 / this.bpm * 0.98, 0.16, 'pad', night ? 12 : 0);
-        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[1], t + 0.05, 8 * 60 / this.bpm * 0.95, 0.1, 'pad');
-        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[2] / 2, t, 8 * 60 / this.bpm * 0.95, 0.08, 'bass');
+        this.v(th.pad === 'dark' ? 'strings' : th.pad === 'choir' ? 'choir' : 'strings', fs[0] / 2, t, 8 * 60 / this.bpm * 0.99, 0.24, 'pad', night ? 12 : 0);
+        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[1], t + 0.05, 8 * 60 / this.bpm * 0.97, 0.16, 'pad');
+        this.v(th.pad === 'choir' ? 'choir' : 'strings', fs[2] / 2, t, 8 * 60 / this.bpm * 0.97, 0.12, 'bass');
         if (this.epic) this.v('choir', fs[0], t, 8 * 60 / this.bpm, 0.14, 'choir');
       }
       // melody walks the scale — sparse at night, silent in the cave
       if (inst !== 'none' && !cave) {
-        const dens = this.state === 'explore' ? (night ? 0.24 : 0.42) : this.state === 'hunt' ? 0.1 : 0.3;
+        const dens = this.state === 'explore' ? (night ? 0.18 : 0.3) : this.state === 'hunt' ? 0.08 : 0.28;   // sparse, unhurried
         if (Math.random() < dens && b % 2 === 0) {
           const deg = (Math.random() * 8) | 0, oct = Math.random() < 0.25 ? 1 : 0;
-          this.v(inst, this.note(th, deg, oct) * pitchMul, t, inst === 'piano' ? 1.4 : 1.1, 0.11, 'melody');
+          this.v(inst, this.note(th, deg, oct) * pitchMul, t, inst === 'piano' ? 2.2 : 2.0, 0.085, 'melody');   // long, gentle notes
           if (mystical && Math.random() < 0.4) this.v('bells', this.note(th, deg + 2, 1) * pitchMul, t + 0.22, 1.6, 0.07, 'bells');
         }
       }
@@ -7513,6 +7514,7 @@ addEventListener('pointermove', e => {
     camPitch = clamp(camPitch + dy * sens * vGain, -PITCH_MAX, PITCH_MAX);   // free look — the full 90°, soil to zenith
   }
 });
+addEventListener('pointerdown', () => { audio.init(); audio.resume(); }, { capture: true });   // any first touch wakes the score
 const camPtrEnd = e => { camPointers.delete(e.pointerId); btnPointers.delete(e.pointerId); };
 addEventListener('pointerup', camPtrEnd);
 function camEdgeHold(dt) {   // thumb parked at the top/bottom edge: keep tilting to the full 90°
