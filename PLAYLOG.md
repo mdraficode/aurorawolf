@@ -118,3 +118,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 ### Mission 20 — the bars speak their purpose
 - Minimalist inline-SVG icons at the left of each bar (13px, drop-shadow, pointer-events:none so they can never steal camera swipes): gold STAR at the XP bar, teal RUNNER (head + leaning torso + stride) at the stamina bar, red HEART at the health bar. Bars shifted to left:34 (mobile too); icons vertically centered on each bar.
 - Verified: rect probe (each icon left of its bar, centered +/-3px, no overlaps) + pixel proof (each icon paints its signature color in its box: 23%/15%/30% fill). quest 32/32. Live: byte-verified.
+
+### Mission 21 — badges that speak, bars that breathe
+- Icons grew 13 -> 38px and now carry LIVE status inside: ❤ heart shows HP % (white), 🏃 runner shows stamina % (over its watermark strokes), ⭐ star shows the LEVEL (dark on gold, auto-shrinks 12->9px past 2 digits). Text updated per frame with change-guards in updateHUD.
+- Bars re-flowed with real air: row pitch 30px (xp 71 / stam 99 / hp 130) -> 23px clear gaps between bars; badges at left:16 centered on each bar, bars at left:60 width 156 (mobile 126); tracker to 150. Badge probe: gaps 23/23, no overlap with the quest button, badges left of bars, centered +/-6px.
+- Verified: live values (hp 100->70 incl. level-up +8 & regen, stam 100->50, level 0->1 -> instant on set 55); pixel cores of all three texts found (338 dark in star, 218 pink-white in heart, 81 warm-white in runner). Probe env note: headless rAF throttles to ~4Hz — per-frame code verified via 100ms-poll reads.
+- quest 32/32. Live: byte-verified.
