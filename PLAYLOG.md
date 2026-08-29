@@ -204,3 +204,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 ### Mission 37 — the claw closes
 - Arch drawn closer: satellite-to-attack gap 27 -> 22px (--orb 108->103 touch, 119->112 small-landscape, 98->96 desktop). Whole cluster moved nearer the corner: inset 37 -> 28 (touch) / 34 -> 26 (small) / 38 -> 30 (desktop) — measured edge gaps 18-19px, arch 21.7-22px, near-equal air with the corner snug. All satellites in-viewport, arc order intact.
 - quest 32/32. Live: byte-verified.
+
+### Mission 38 — deeper still
+- Repeat of M37: arch 22 -> 19px (portrait) / 18.3 (small landscape) via --orb 103->99 / 112->106 (base 96->92); companions trimmed 42->40 and 32->30 so the tighter arc keeps 2.5-2.7px between discs (chord math: gap = 0.429R - disc). Cluster pushed deeper: inset 28->20 (touch) / 26->19 (small) / 30->24 (base) — edge gaps now 10-12px.
+- All satellites in-viewport, arc order intact. quest 32/32. Live: byte-verified.
