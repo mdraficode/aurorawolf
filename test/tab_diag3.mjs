@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
+const pg = await b.newPage({ viewport: { width: 700, height: 400 } });
+await pg.goto('file:///home/user/index.html?autostart=1&seed=4242&quality=low', { timeout: 90000, waitUntil: 'domcontentloaded' });
+await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
+await pg.waitForTimeout(2000);
+await pg.evaluate(() => { window.__ev = []; for (const t of ['pointerdown','mousedown','click','touchstart']) addEventListener(t, e => window.__ev.push(t + '→' + (e.target.className || e.target.id || e.target.tagName).toString().slice(0, 18)), true); });
+await pg.click('#questBtn'); await pg.waitForTimeout(700);
+await pg.evaluate(() => { window.__ev.length = 0; });
+await pg.click('.qtab[data-t="avail"]');
+await pg.waitForTimeout(400);
+const R = await pg.evaluate(() => ({ ev: window.__ev, tab: questTab }));
+console.log(JSON.stringify(R));
+await b.close();

@@ -1,0 +1,13 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
+const pg = await b.newPage({ viewport: { width: 700, height: 400 } });
+const errs = []; pg.on('pageerror', e => errs.push(e.message));
+await pg.goto('file:///home/user/index.html?autostart=1&seed=4242&quality=low', { timeout: 90000, waitUntil: 'domcontentloaded' });
+await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
+await pg.waitForTimeout(2500);
+const s1 = await pg.evaluate(() => ({ avail: QUESTS.avail.length, kinds: QUESTS.avail.map(q => q.kind).join(','), tab: typeof questTab !== 'undefined' ? questTab : '?' }));
+await pg.click('#questBtn'); await pg.waitForTimeout(700);
+await pg.click('.qtab[data-t="avail"]'); await pg.waitForTimeout(600);
+const s2 = await pg.evaluate(() => ({ avail: QUESTS.avail.length, cards: document.querySelectorAll('#questList .qcard').length, first: (document.querySelector('#questList .qcard') || {}).textContent, tab: questTab }));
+console.log(JSON.stringify({ s1, s2, errs }));
+await b.close();
