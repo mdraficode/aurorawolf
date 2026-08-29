@@ -42,7 +42,9 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
   background: rgba(30, 16, 56, 0.55); border: 1px solid rgba(176, 122, 255, 0.45);
   text-shadow: 0 0 12px rgba(176, 122, 255, 0.9);
 }
-#mmOrbit { position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; pointer-events: none; z-index: 12; }
+#mmOrbit { position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; pointer-events: none; z-index: 12;
+  opacity: .3; transition: opacity .3s ease; }   /* faint at rest — they wake at a touch, like the action buttons */
+#mmOrbit.wake, #mmOrbit:hover { opacity: 1; }
 #mmOrbit button { position: absolute; pointer-events: auto; border-radius: 50%;
   left: calc(50% + var(--mx, 0) * var(--orb, 84.3%)); top: calc(50% + var(--my, 0) * var(--orb, 84.3%)); }   /* satellites on the arc — --orb sets the radius */
 #invBtn  { --mx: -0.990; --my: 0.139; margin: -20px 0 0 -20px; }   /* west of the ring */
@@ -1886,6 +1888,7 @@ class Wolf {
     const mvS = clamp((input.r ? 1 : 0) - (input.l ? 1 : 0) + input.mx, -1, 1);
     const mag = Math.hypot(mvF, mvS);
     const moving = mag > 0.12 && !input.paused;
+    if (this.sprintLock && this.exhausted && this.stamina > 1) this.exhausted = false;   // a locked sprint is reborn at the first breath of stamina
     let sprint = input.sprint && moving && !this.exhausted && this.stamina > 0 && !this.swimming;
     if (sprint) {
       this.stamina -= 15 * dt;
@@ -7300,6 +7303,7 @@ function updateHUD(dt) {
   if (BIG.open) updateBigMap(dt);
   ui.stam.style.width = (wolf.stamina / wolf.maxStam * 100).toFixed(0) + '%';
   const xpF = el('xpFill'); if (xpF) xpF.style.width = Math.min(100, wolf.xp / wolf.xpNext * 100).toFixed(1) + '%';
+  if (window.__toggles) { if (window.__toggles.tSprint.on) touch.sprint = true; if (window.__toggles.tJump.on) keys.Space = true; }   // locked actions re-assert every frame
   const _st = (id, v) => { const e2 = el(id); if (e2 && e2.textContent !== v) e2.textContent = v; };
   _st('hpPct', Math.max(0, Math.round(wolf.hp)) + '%');            // the heart beats the number
   const _xl = el('xpLvl');
@@ -7551,13 +7555,14 @@ if (joyEl) {
 /* -------- touch buttons: press-locked, slide-away-friendly -------- */
 let btnsWakeT = 0;
 const btnPointers = new Map();   // pointerId → {btn, rect, handed}
-function wakeBtns() {   // a touched button wakes the whole cluster for a moment
-  const root = el('btns');
-  if (!root) return;
-  root.classList.add('wake');
+function wakeBtns() {   // a touched button wakes both clusters for a moment
+  const root = el('btns'), orb = el('mmOrbit');
+  if (root) { root.classList.add('wake'); }
+  if (orb) { orb.classList.add('wake'); }
   clearTimeout(btnsWakeT);
-  btnsWakeT = setTimeout(() => root.classList.remove('wake'), 2200);
+  btnsWakeT = setTimeout(() => { if (root) root.classList.remove('wake'); if (orb) orb.classList.remove('wake'); }, 2200);
 }
+for (const id of ['invBtn', 'questBtn', 'btnAI', 'tPause']) { const b = el(id); if (b) b.addEventListener('pointerdown', wakeBtns); }   // the map's arch wakes too
 function bindHold(id, down, up) {
   const b = el(id);
   if (!b) return;
@@ -7595,10 +7600,33 @@ function bindHold(id, down, up) {
   b.addEventListener('pointerup', end);
   b.addEventListener('pointercancel', end);
 }
-bindHold('tJump', () => { keys.Space = true; }, () => { keys.Space = false; });
-bindHold('tSprint', () => { touch.sprint = true; }, () => { touch.sprint = false; });
 bindHold('tGather', () => doGather());
-bindHold('tAttack', () => wolf.attack());
+/* ---- tap-toggle locks: sprint / attack / jump run themselves until tapped again ---- */
+const TOGGLES = {
+  tSprint: { on: false }, tAttack: { on: false }, tJump: { on: false }
+};
+window.__toggles = TOGGLES;
+for (const id of ['tSprint', 'tAttack', 'tJump']) {
+  const b = el(id); if (!b) continue;
+  const t = TOGGLES[id];
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    t.on = !t.on;
+    b.classList.toggle('on', t.on);   // lit = the action runs itself
+    audio.resume(); audio.uiClick(); wakeBtns();
+    if (id === 'tSprint') { touch.sprint = t.on; wolf.sprintLock = t.on; }
+    if (id === 'tJump') keys.Space = t.on;
+    if (id === 'tAttack') {
+      clearInterval(t.iv);
+      if (t.on) t.iv = setInterval(() => { if (state === 'play' && wolf.deadT <= 0) wolf.attack(); }, 150);   // wolf.attack() self-gates on its cooldown
+    }
+    btnPointers.set(e.pointerId, { btn: b, rect: b.getBoundingClientRect(), handed: false });
+    try { b.setPointerCapture(e.pointerId); } catch (err) { }
+  });
+  const end = e => { if (btnPointers.has(e.pointerId)) { btnPointers.delete(e.pointerId); camPointers.delete(e.pointerId); } };   // the lock survives the lift
+  b.addEventListener('pointerup', end);
+  b.addEventListener('pointercancel', end);
+}
 bindHold('tHowl', () => wolf.howl());
 bindHold('tProwl', () => { wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾 Prowling' : '🐾 Standing'); });
 (function () {
