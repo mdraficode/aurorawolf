@@ -98,3 +98,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Never through the wolf: the whole drawn span (halo included) starts at 2.35 m along the bearing — min planar clearance 1.15 m = the body radius; the arrow pours out from underneath the chest/nose, hugs the ground to the goal. M12 partial billboard retired (superseded by the ground-attachment requirement).
 - Probe lessons recorded: transformed-point sampling cannot see vertex-buffer draping; halo twins must be transformed by the child matrixWorld alone; outline sweeps must sample real geometry, not phantom rectangles.
 - quest 32/32, ai 15/15. Live: byte-verified.
+
+### Mission 17 — one line, under the wolf
+- REBUILT as ONE continuous ribbon: 8 shaft cross-sections (every 0.4 m) + the chevron head fanned from the shaft last edge — single geometry, watertight, no halo (the halo caused joint notches). Every vertex draped onto heightAt() per frame: 66/66 verts max gap 0.06 m (the designed offset).
+- TWO-PASS SELECTIVE OCCLUSION: pass 2 renders arrowScene after clearDepth() — its depth buffer holds ONLY a wolf-silhouette occluder (colorWrite:false sphere at wolf.model). Arrow now depthTest:true: the WOLF overlaps it (tail tucked at 1.05 m, hidden under the body, emerging at the silhouette = from underneath), while terrain/trees/walls can never occlude (their depth is cleared). Render hook added at both render sites.
+- Pixel-level proof: arrow painted magenta, top-down centerline walk 1.55..4.90 m — 28/28 samples painted (one stretched unbroken line); low camera behind wolf: tail-under-body HIDDEN, shaft-beyond VISIBLE.
+- quest 32/32, ai 15/15 (one stale-chromium hang, clean rerun). Live: byte-verified.
