@@ -7624,7 +7624,7 @@ tick();
       let animals = 0, predators = 0;
       for (const [, ch] of chunks) { animals += ch.animals.length; predators += ch.predators.length; }
       // story diffs → events
-      if (story.biomes.size === 0 || !story.biomes.has(curBiomeKey)) { story.biomes.add(curBiomeKey); log('biome-enter', { biome: curBiomeKey, n: story.biomes.size }); }
+      if (story.biomes.size === 0 || !story.biomes.has(curBiomeKey)) { story.biomes.add(curBiomeKey); log('biome-enter', { biome: curBiomeKey, n: story.biomes.size }); bot.pauseUntil = Math.max(bot.pauseUntil || 0, SIMNOW() + 1500); bot.pauseWhy = 'taking in new land'; if (wolf.senseCd <= 0) wolf.wolfSense(); }
       for (const k in wolf.perks) if (!story.perksSeen.has(k)) { story.perksSeen.add(k); log('perk', { perk: k }); }
       for (const k in BOSSES) {
         const d = BOSSES[k];
@@ -7666,7 +7666,7 @@ tick();
   panel.style.cssText = 'position:fixed;top:230px;right:14px;z-index:70;width:250px;font:11px/1.45 ui-monospace,monospace;color:#dfeee6;background:rgba(8,14,22,.72);border:1px solid rgba(126,240,192,.35);border-radius:10px;padding:8px 10px;pointer-events:none;white-space:pre-wrap';
   document.body.appendChild(panel);
   const badge = document.createElement('div');
-  badge.textContent = '● LIVE — 🤖 AUTOPILOT v7 TRUE HUNTER';
+  badge.textContent = '● LIVE — 🤖 AUTOPILOT v7.20 NATURAL HUNTER';
   badge.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:71;font:11px ui-monospace,monospace;color:#ffd0d0;background:rgba(60,8,8,.75);border:1px solid rgba(255,120,100,.5);border-radius:8px;padding:3px 10px;pointer-events:none';
   document.body.appendChild(badge);
   const feed = [];
@@ -7686,7 +7686,8 @@ tick();
   const bot = {
     goalText: 'waking up…', wander: null, lastAtk: 0, lastGather: 0, howlT: 60, senseT: 0, noPreyT: 0,
     gatherMisses: 0, lastInvSum: -1, stuckPos: null, stuckT: 0, unstickT: 0, detourT: 0, detourPos: null, goalKey: '', goalStuck: 0,
-    deadSeen: false, warned: {}, restT: 0, drinkGoal: null, fight: null, bossPilgrim: null, lastHp: 100, noRegenT: 0, shunned: new Set()
+    deadSeen: false, warned: {}, restT: 0, drinkGoal: null, fight: null, bossPilgrim: null, lastHp: 100, noRegenT: 0, shunned: new Set(),
+    trek: null, wanderHist: [], wanderT: 0, pathWin: [], loopN: 0, loopEpoch: 0, loopCd: 0, lmStick: null, preyShun: null, lastYaw: undefined, stalkT0: 0, stalkD0: 0, pauseUntil: 0, pauseWhy: ''
   };
   const nearestAnimal = filter => {
     let best = null, bd = 1e9;
@@ -7973,6 +7974,7 @@ tick();
         if (w) {
           if (!bot.drinkGoal || SIMNOW() - (bot.drinkGoal.at || 0) >= 45000) { bot.drinkGoal = Object.assign({ at: SIMNOW() }, w); if (SIMNOW() - (bot.drinkLogT || 0) > 20000) { bot.drinkLogT = SIMNOW(); log('drink-trip', { msg: 'stamina spent — walking to water ' + w.d.toFixed(0) + 'm' }); } }
           bot.goalOverride = bot.drinkGoal;
+          bot.drinkGoal.d = Math.hypot(bot.drinkGoal.x - wolf.pos.x, bot.drinkGoal.z - wolf.pos.z);
           bot.goalText = '💧 heading to water ' + bot.drinkGoal.d.toFixed(0) + 'm';
         } else if (wolf.stamina > 60) bot.drinking = false;   // no water found — rest instead
       } else if (wolf.stamina >= 88) bot.drinking = false;
@@ -7993,12 +7995,26 @@ tick();
       let q = null, goal = bot.goalOverride || null, targetAnimal = null, targetPk = null, mode = goal ? 'drink' : 'wander', bestD = 1e9;
       if (!bot.goalOverride) for (const cq of QUESTS.active) {
         if (cq.kind === 'hunt') {
+          if (bot.noHuntUntil && SIMNOW() < bot.noHuntUntil) { const t3 = bot.travelToBiome(cq.biome); if (t3 && bestD === 1e9) { bestD = t3.d + 200; q = cq; goal = t3; mode = 'travel'; } continue; }
           // commitment: keep the same quarry 30 s — no flapping between prey and wander
           if (bot.huntStick && SIMNOW() - (bot.huntStick.at || 0) < 30000) {
             const a2 = bot.huntStick.a;
             if (a2 && !a2.dead) {
               const d2 = Math.hypot(a2.pos.x - wolf.pos.x, a2.pos.z - wolf.pos.z);
               if (d2 < bestD + 80) { bestD = d2; q = cq; goal = { x: a2.pos.x, z: a2.pos.z }; targetAnimal = a2; mode = 'hunt'; }
+            } else bot.huntStick = null;
+          } else if (bot.huntStick) {   // 30 s on one quarry — did the chase actually close?
+            const a2 = bot.huntStick.a, d0 = bot.huntStick.d0 || 1e9;
+            if (a2 && !a2.dead) {
+              const d2 = Math.hypot(a2.pos.x - wolf.pos.x, a2.pos.z - wolf.pos.z);
+              if (d2 > Math.min(d0 * 0.8, d0 - 15) && d2 > 25) {   // barely gained ground — a real wolf gives this one up
+                bot.huntFails = (bot.huntFails || 0) + 1;
+                log('chase-giveup', { sp: cq.species, d: +d2.toFixed(0), msg: 'chase not closing — letting the herd go (' + bot.huntFails + ')' });
+                bot.noHuntUntil = SIMNOW() + 20000;
+                bot.preyShun = { label: a2.sp.label, until: SIMNOW() + 45000 };
+                if (bot.huntFails >= 3) { bot.huntFails = 0; log('abandon-unfruitful', { title: cq.title, msg: 'the quarry will not be caught today — setting the deed aside' }); bot.shunned.add(cq.title); abandonQuest(cq.id); }
+                bot.huntStick = null;
+              } else bot.huntStick = null;
             } else bot.huntStick = null;
           }
           const ref = SPECIES[cq.species];
@@ -8014,7 +8030,7 @@ tick();
             const t2 = bot.travelToBiome(cq.biome);
             if (t2 && (bestD === 1e9 || t2.d + 120 < bestD)) { bestD = t2.d + 120; q = cq; goal = t2; mode = 'travel'; }
           }
-          else if (hit.a && hit.d < bestD) { bestD = hit.d; q = cq; goal = { x: hit.a.pos.x, z: hit.a.pos.z }; targetAnimal = hit.a; mode = 'hunt'; bot.huntStick = { a: hit.a, at: SIMNOW() }; }
+          else if (hit.a && hit.d < bestD) { bestD = hit.d; q = cq; goal = { x: hit.a.pos.x, z: hit.a.pos.z }; targetAnimal = hit.a; mode = 'hunt'; bot.huntStick = { a: hit.a, at: SIMNOW(), d0: hit.d }; }
           else if (!hit.a) {
             const t2 = bot.travelToBiome(cq.biome);
             if (t2 && (bestD === 1e9 || t2.d + 120 < bestD)) { bestD = t2.d + 120; q = cq; goal = t2; mode = 'travel'; }
@@ -8030,7 +8046,7 @@ tick();
             else bot.gatherStick = null;
           }
           if (!hit) {
-            const cands = [];
+            let cands = [];
             for (const [, ch2] of chunks) for (const p of ch2.pickups) {
               if (p.gathered || bot.pkBlack.has(p)) continue;
               const def2 = PICKUP_DEF[p.type];
@@ -8039,6 +8055,9 @@ tick();
               if (d < 240) cands.push({ p, d });
             }
             cands.sort((x, y) => x.d - y.d);
+            const predNear = (px, pz, rr) => { for (const [, ch] of chunks) for (const pr of ch.predators) if (!pr.dead && Math.hypot(pr.pos.x - px, pr.pos.z - pz) < rr) return true; return false; };
+            cands = cands.filter(c3 => !predNear(c3.p.x, c3.p.z, 60));   // never feed beside a bear — that tug-of-war is the circling spectators hate
+            if (!cands.length) cands = cands.slice ? [] : [];
             for (const c2 of cands.slice(0, 5)) {   // nearest 5: first that isn't across deep water
               let blocked = false;
               for (let k2 = 1; k2 <= 3; k2++) {
@@ -8053,16 +8072,29 @@ tick();
           else if (!hit.p) warnOnce('nopickup', 'bug-no-pickup-nearby', { key: cq.item, msg: 'collect quest but no ' + cq.item + ' pickups nearby' });
         } else if (cq.kind === 'explore') {
           let best = null, bd2 = 1e9;
+          // commit to one landmark per deed (like huntStick) — flipping targets every tick IS the circling spectators see
+          if (bot.lmStick && (bot.lmStick.qid !== cq.id || bot.lmStick.lm.found || SIMNOW() - bot.lmStick.at > 45000)) bot.lmStick = null;
           // only an UNFOUND landmark of the type advances the deed — a found one is a dead stop
           let unfound = [];
           for (const lm of landmarkList) {
             if (cq.lmType && lm.type !== cq.lmType) continue;
             if (!lm.found) unfound.push(lm);
           }
-          const pool2 = unfound.length ? unfound : landmarkList.filter(lm => !cq.lmType || lm.type === cq.lmType);
-          for (const lm of pool2) {
-            const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
-            if (d < bd2) { bd2 = d; best = lm; }
+          if (bot.lmStick) { best = bot.lmStick.lm; bd2 = Math.hypot(best.x - wolf.pos.x, best.z - wolf.pos.z); }
+          else {
+            const pool2 = unfound.length ? unfound : landmarkList.filter(lm => !cq.lmType || lm.type === cq.lmType);
+            pool2.sort((a2, b2) => Math.hypot(a2.x - wolf.pos.x, a2.z - wolf.pos.z) - Math.hypot(b2.x - wolf.pos.x, b2.z - wolf.pos.z));
+            let lmBlocked = pool2.length > 0;
+            for (const lm of pool2.slice(0, 4)) {   // nearest reachable unfound landmark — not one across a fjord
+              const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
+              let blocked = false;
+              if (d > 60) for (let k2 = 1; k2 <= 3; k2++) {
+                const mx = wolf.pos.x + (lm.x - wolf.pos.x) * k2 / 4, mz = wolf.pos.z + (lm.z - wolf.pos.z) * k2 / 4;
+                if (heightAt(mx, mz) < waterYNow() - 0.35) { blocked = true; break; }
+              }
+              if (!blocked) { bd2 = d; best = lm; lmBlocked = false; bot.lmStick = { qid: cq.id, lm, at: SIMNOW() }; break; }
+            }
+            if (lmBlocked) warnOnce('lmw' + ((SIMNOW() / 600000) | 0), 'bug-landmark-across-water', { key: (pool2[0] || {}).type, msg: '4 nearest unfound landmarks all across deep water — quest gen offers unreachable sites' });
           }
           if (best && bd2 < bestD + 60) { bestD = bd2; q = cq; goal = { x: best.x, z: best.z }; mode = 'explore';
             if (bd2 < 8 && !best.found) warnOnce('exp' + best.type + ((best.x / 50) | 0), 'bug-explore-no-discover', { key: best.type, msg: 'standing at landmark (' + bd2.toFixed(1) + 'm) but never discovered' });
@@ -8089,8 +8121,14 @@ tick();
       }
       // idle: hunt easy XP like a wolf between deeds
       if (!bot.goalOverride && (mode === 'wander' || (mode === 'travel' && !q && !bot.bossPilgrim && bestD > 420))) {
-        const easy = nearestAnimal(a => (a.sp.hp || 1) <= 2 && (!a.asleep || true));
+        const shunOk = (!bot.preyShun || SIMNOW() > (bot.preyShun.until || 0)) && (!bot.noHuntUntil || SIMNOW() > bot.noHuntUntil);
+        const easy = (SIMNOW() - (bot.wanderT || 0) > 6000 && !bot.trek && shunOk)
+          ? nearestAnimal(a => (a.sp.hp || 1) <= 2 && (!a.asleep || true) && !(bot.preyShun && a.sp.label === bot.preyShun.label)) : {};
         if (easy.a && easy.d < 70) { goal = { x: easy.a.pos.x, z: easy.a.pos.z }; targetAnimal = easy.a; mode = 'hunt'; q = null; }
+      }
+      if (bot.trek) {
+        if (SIMNOW() > bot.trek.until || Math.hypot(bot.trek.x - wolf.pos.x, bot.trek.z - wolf.pos.z) < 10) bot.trek = null;
+        else { goal = { x: bot.trek.x, z: bot.trek.z }; mode = 'travel'; }
       }
       if (!goal) {
         // empty lands: if nothing huntable is near, strike out for richer ground
@@ -8104,12 +8142,54 @@ tick();
           }
         } else bot.noPreyNearT = 0;
         if (!bot.wander || Math.hypot(bot.wander.x - wolf.pos.x, bot.wander.z - wolf.pos.z) < 8) {
-          const a = Math.random() * 6.28, r = 70 + Math.random() * 80;
-          bot.wander = { x: wolf.pos.x + Math.sin(a) * r, z: wolf.pos.z + Math.cos(a) * r };
+          const base = bot.lastYaw === undefined ? Math.random() * 6.28 : bot.lastYaw;
+          const longTrek = Math.random() < 0.25;
+          let pt = null;
+          for (let tries = 0; tries < 4 && !pt; tries++) {
+            const a = base + (Math.random() - 0.5) * (longTrek ? 1.2 : 2.6);   // forward-biased arc — travel, not Brownian motion
+            const r = longTrek ? 240 + Math.random() * 120 : 80 + Math.random() * 80;
+            const c = { x: wolf.pos.x + Math.sin(a) * r, z: wolf.pos.z + Math.cos(a) * r };
+            if (bot.wanderHist.every(w => Math.hypot(w.x - c.x, w.z - c.z) > 70)) pt = c;
+          }
+          if (!pt) pt = { x: wolf.pos.x + Math.sin(base + Math.PI) * 150, z: wolf.pos.z + Math.cos(base + Math.PI) * 150 };
+          bot.wanderHist.push(pt); if (bot.wanderHist.length > 6) bot.wanderHist.shift();
+          bot.wander = pt; bot.wanderT = SIMNOW();
         }
         goal = bot.wander;
       }
       bot.goalOverride = null;
+
+      /* ---------- 4.5 loop breaker: circles live ACROSS goals, not inside one ---------- */
+      const P = bot.pathWin, nowS = SIMNOW();
+      const dg0 = goal ? Math.hypot(goal.x - wolf.pos.x, goal.z - wolf.pos.z) : 0;
+      const huntingNow = targetAnimal && (mode === 'hunt' || mode === 'rival');
+      if (huntingNow) P.length = 0;   // stalk curves would poison the window — only measure deliberate travel
+      if (!P.length || nowS - P[P.length - 1].t > 2000) {   // sample every ~2 game-s (not every think-tick)
+        const pv = P.length ? P[P.length - 1] : null;
+        const mv = pv ? Math.hypot(wolf.pos.x - pv.x, wolf.pos.z - pv.z) : 0;
+        P.push({ t: nowS, x: wolf.pos.x, z: wolf.pos.z, od: wolf.distance, br: (mv > 0.6 ? Math.atan2(wolf.pos.x - pv.x, wolf.pos.z - pv.z) : (pv ? pv.br : 0)) });
+        while (P.length && nowS - P[0].t > 50000) P.shift();
+      }
+      if (nowS - (bot.loopEpoch || 0) > 300000) { bot.loopEpoch = nowS; bot.loopN = 0; }
+      const huntingFresh = targetAnimal && (mode === 'hunt' || mode === 'rival') && (nowS - ((bot.huntStick && bot.huntStick.at) || 0) < 25000);   // stalking curves are natural — not loops
+      if (P.length > 6 && !huntingFresh && !bot.drinking && (mode === 'wander' || mode === 'travel' || dg0 > 60) && nowS - (bot.loopCd || 0) > 90000) {
+        const o = P[0], odGain = wolf.distance - o.od, net = Math.hypot(wolf.pos.x - o.x, wolf.pos.z - o.z);
+        let wind = 0;
+        for (let i = 2; i < P.length; i++) { const d1 = P[i - 1].br - P[i - 2].br, d2 = P[i].br - P[i - 1].br; if (d1 !== 0 && d2 !== 0 && Math.sign(d1) === Math.sign(d2)) wind += Math.abs(P[i].br - P[i - 2].br) * 0.5; }
+        const eff = odGain > 1 ? net / odGain : 1;
+        bot.pathEff = +eff.toFixed(2);
+        if ((odGain > 70 && eff < 0.22) || (odGain > 60 && wind > 14 && eff < 0.45)) {   // true circles only — weaving through trees is not a loop
+          bot.loopN++; bot.loopCd = nowS;
+          log('loop-break', { eff: +eff.toFixed(2), net: +net.toFixed(0), od: +odGain.toFixed(0), wind: +wind.toFixed(1), was: bot.goalText, msg: 'broke a circling loop — striking out on a fresh bearing' });
+          if (bot.loopN >= 3) warnOnce('loop' + ((bot.loopEpoch / 300000) | 0), 'bug-bot-loop', { key: bot.goalKey, msg: '3+ loops inside 5 min — movement degenerated (eff ' + eff.toFixed(2) + ')' });
+          if (targetAnimal) { bot.preyShun = { label: targetAnimal.sp.label, until: nowS + 45000 }; bot.huntStick = null; }
+          if (targetPk && bot.pkBlack) bot.pkBlack.add(targetPk);
+          const away = (bot.lastYaw === undefined ? Math.random() * 6.28 : bot.lastYaw + Math.PI + (Math.random() - 0.5) * 1.2);
+          bot.wander = null; bot.trek = null;
+          bot.trek = { x: wolf.pos.x + Math.sin(away) * 140, z: wolf.pos.z + Math.cos(away) * 140, until: nowS + 28000 };
+          P.length = 0;   // fresh window
+        }
+      }
 
       /* ---------- 5. stalk tactics for prey ---------- */
       let stalk = false;
@@ -8119,6 +8199,12 @@ tick();
         // stalk only inside real danger of being noticed: crouch-walk is half speed, prey out-walk it otherwise
         const detect = (an.sp.detect || 12) * (wolf.crouch ? 0.5 : 1);
         stalk = d > 6 && d < Math.max(22, detect + 14) && aware < 0.5;
+        if (!bot.stalkT0 || SIMNOW() - bot.stalkT0 > 6000) { bot.stalkT0 = SIMNOW(); bot.stalkD0 = d; }
+        if (stalk && d > bot.stalkD0 + 6) {   // prey out-trots the crouch-walk — a real player commits or lets go
+          if (wolf.stamina > 35) { stalk = false; log('stalk-broken', { msg: 'quarry escaping — breaking cover to run it down' }); }
+          else { bot.preyShun = { label: an.sp.label, until: SIMNOW() + 40000 }; bot.huntStick = null; log('stalk-giveup', { msg: 'too winded to close — letting this one go' }); }
+          bot.stalkT0 = 0;
+        }
         if (stalk) {
           const ay = an.heading || 0;
           goal = { x: an.pos.x - Math.sin(ay) * 2.0, z: an.pos.z - Math.cos(ay) * 2.0 };   // come from its blind side
@@ -8164,17 +8250,18 @@ tick();
       let bestYaw = desired, bestScore = 1e9;
       const look = keys.ShiftLeft ? 15 : 11;   // sprint needs runway — crashing into trunks costs 4 HP a hit
       for (const off of [0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.1, -2.1]) {
-        let sc = probe(desired + off, look) + Math.abs(off) * 0.22;
+        let sc = probe(desired + off, look) + Math.abs(off) * 0.22 + (bot.lastYaw === undefined ? 0 : Math.abs(wrapPI(desired + off - bot.lastYaw)) * 0.18);
         if (pinfo && Math.abs(wrapPI(desired + off - pinfo.yaw)) < 0.7) sc += (fear - pinfo.d) * 0.11 * (wolf.level < 3 ? 2.2 : 1.2);
         if (sc < bestScore) { bestScore = sc; bestYaw = desired + off; }
       }
       bot.avoiding = probe(desired, look) > 0.3;
       aim(bestYaw, 0.45);
+      bot.lastYaw = bestYaw;
       const dg = Math.hypot(goal.x - wolf.pos.x, goal.z - wolf.pos.z);
       keys.KeyW = dg > 2.2;
       keys.KeyS = keys.KeyA = keys.KeyD = false;
       const closeSprint = targetAnimal && (dg < 34 || (mode === 'hunt' && dg < 90));
-      keys.ShiftLeft = !stalk && ((dg > 35 && wolf.stamina > 30 && !bot.drinking) || (closeSprint && wolf.stamina > 12)) && !wolf.exhausted;
+      keys.ShiftLeft = !stalk && ((dg > 35 && wolf.stamina > 55 && !bot.drinking) || (closeSprint && wolf.stamina > 12)) && !wolf.exhausted;   // travel keeps a reserve — no more lap-tether to the water hole
       bot.jumpCd = Math.max(0, (bot.jumpCd || 0) - 0.15);
       const ax = wolf.pos.x + Math.sin(bestYaw) * 1.7, az = wolf.pos.z + Math.cos(bestYaw) * 1.7;
       const lip = heightAt(ax, az) - wolf.pos.y;
@@ -8198,7 +8285,7 @@ tick();
             wolf.attack();
             if (behind && !wasAware) log('ambush', { msg: 'AMBUSH — killing bite from the blind side' });
             setTimeout(() => {
-              if (targetAnimal.dead) log('kill', { sp: q ? (q.species || q.kind) : 'xp-hunt', msg: 'caught ' + (q && q.species ? q.species : (targetAnimal.sp.label || 'prey')) + (q ? ' → quest ' + q.have + '/' + q.need : ' · xp hunt') + ' · meat ' + inv.meat });
+              if (targetAnimal.dead) { bot.pauseUntil = SIMNOW() + 2200; bot.pauseWhy = 'savoring the catch'; log('kill', { sp: q ? (q.species || q.kind) : 'xp-hunt', msg: 'caught ' + (q && q.species ? q.species : (targetAnimal.sp.label || 'prey')) + (q ? ' → quest ' + q.have + '/' + q.need : ' · xp hunt') + ' · meat ' + inv.meat }); }
               else if (targetAnimal.hp === hpB) warnOnce('miss' + SIMNOW() | 0, 'bug-bite-no-effect', { key: (q && q.species) || '?', msg: 'bite in reach did nothing (hp ' + hpB + ', dist ' + d.toFixed(1) + ')' });
             }, 350);
           }
@@ -8227,7 +8314,7 @@ tick();
           }, 300);
         }
       }
-      bot.goalText = mode + ' → ' + dg.toFixed(0) + 'm' + (q ? ' (' + q.have + '/' + q.need + ')' : '') + (stalk ? ' 🐾stalking' : '');
+      bot.goalText = (bot.pauseUntil > SIMNOW() && !pinfo) ? '🐾 ' + (bot.pauseWhy || 'pausing') + '…' : mode + ' → ' + dg.toFixed(0) + 'm' + (q ? ' (' + q.have + '/' + q.need + ')' : '') + (stalk ? ' 🐾stalking' : '');
       const tgtKey = targetAnimal ? (targetAnimal.sp.label || '?') + '@' + ((targetAnimal.pos.x / 30) | 0) + ',' + ((targetAnimal.pos.z / 30) | 0) : mode;
       if (tgtKey !== bot.lastTgtKey) { bot.lastTgtKey = tgtKey; log('goal', { msg: bot.goalText }); }
       if (SIMNOW() - (bot.goalLogT || 0) > 10000) { bot.goalLogT = SIMNOW(); log('goal', { msg: bot.goalText + ' · hp ' + wolf.hp.toFixed(0) + ' · stam ' + wolf.stamina.toFixed(0) }); }
