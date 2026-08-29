@@ -46,3 +46,4 @@
 {"ch":45,"seed":75099,"wallMin":4,"level":2,"kills":9,"deeds":0,"deaths":0,"goals":360,"loops":14,"gameMin":0,"dist":4721,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T12:07"}
 {"ch":46,"seed":37493,"wallMin":4,"level":1,"kills":6,"deeds":0,"deaths":0,"goals":363,"loops":26,"gameMin":0,"dist":4753,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T12:11"}
 {"ch":47,"seed":10128,"wallMin":4,"level":1,"kills":0,"deeds":0,"deaths":0,"goals":429,"loops":9,"gameMin":0,"dist":4876,"perks":[],"spirit":false,"pageErrors":0,"ts":"2026-08-29T12:15"}
+{"ch":48,"seed":54439,"wallMin":4,"level":2,"kills":10,"deeds":0,"deaths":0,"goals":328,"loops":17,"gameMin":0,"dist":5040,"perks":["skywatcher"],"spirit":false,"pageErrors":0,"ts":"2026-08-29T12:19"}

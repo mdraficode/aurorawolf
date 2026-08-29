@@ -2583,3 +2583,18 @@ Node.js v20.20.2
 12:19:46 CH48 · 231s · L2 · 10k/0d · 💀0 · eff 0.15 · loops 17 · travel → 396m (0/1) · hp 113 · stam 60
 12:19:51 CH48 · 236s · L2 · 10k/0d · 💀0 · eff 0.15 · loops 17 · explore → 176m (0/1) · hp 113 · stam 50
 12:19:52 CH48 seed=21472 · 240s wall / 40 sim-min
+12:19:56 CH48 · 241s · L2 · 10k/0d · 💀0 · eff 0.3 · loops 17 · explore → 210m (0/1) · hp 113 · stam 57
+12:19:56 CH48 CLOSED — L2 10k/0d 💀0 · errors 0
+12:19:59 CH48 · 5s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · gather → 79m (0/6) · hp 100 · stam 56
+12:20:01 CH49 seed=64427 · 240s wall / 40 sim-min
+12:20:04 CH48 · 10s · L1 · 0k/0d · 💀0 · eff 0.63 · loops 0 · gather → 91m (0/6) · hp 83 · stam 56
+12:20:08 CH49 · 5s · L1 · 0k/0d · 💀0 · eff ? · loops 0 · hunt → 48m · hp 100 · stam 100
+12:20:09 CH48 · 15s · L1 · 0k/0d · 💀0 · eff 0.43 · loops 1 · gather → 90m (0/6) · hp 100 · stam 59
+12:20:13 CH49 · 10s · L1 · 0k/0d · 💀0 · eff 0.34 · loops 0 · hunt → 21m 🐾stalking · hp 100 · stam 10
+12:20:14 CH48 · 20s · L1 · 0k/0d · 💀0 · eff 0.34 · loops 1 · gather → 7m (1/6) · hp 100 · stam 67
+12:20:18 CH49 · 15s · L1 · 0k/0d · 💀0 · eff 0.2 · loops 0 · hunt → 33m · hp 100 · stam 55
+12:20:19 CH48 · 25s · L1 · 0k/0d · 💀0 · eff 0.26 · loops 1 · gather → 3m (2/6) · hp 100 · stam 72
+12:20:23 CH49 · 20s · L1 · 0k/0d · 💀0 · eff 0.12 · loops 0 · hunt → 36m · hp 100 · stam 73
+12:20:24 CH48 · 30s · L1 · 0k/0d · 💀0 · eff 0.15 · loops 1 · hunt → 154m (0/2) · hp 105 · stam 57
+12:20:28 CH49 · 25s · L1 · 0k/0d · 💀0 · eff 0.07 · loops 0 · wander → 133m · hp 100 · stam 56
+12:20:29 CH48 · 35s · L1 · 0k/0d · 💀0 · eff 0.18 · loops 1 · hunt → 109m (0/2) · hp 101 · stam 58

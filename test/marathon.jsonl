@@ -1,1 +1,199 @@
 {"v":"mission-6 v7.23","t":1788005992}
+{"t":0.9,"ch":48,"type":"quest-acceptQuest","title":"Gather 6 lingonberries","have":0,"need":6}
+{"t":0.9,"ch":48,"type":"quest-acceptQuest","title":"Hunt 2 Reindeer","have":0,"need":2}
+{"t":0.9,"ch":48,"type":"quest-lock","title":"Gather 6 lingonberries","msg":"taking up the deed: Gather 6 lingonberries"}
+{"t":0.9,"ch":48,"type":"goal","msg":"gather → 73m (0/6)"}
+{"t":0.9,"ch":48,"type":"goal","msg":"gather → 73m (0/6) · hp 100 · stam 100"}
+{"t":2.1,"ch":48,"type":"goal","msg":"gather → 68m (0/6) · hp 100 · stam 91"}
+{"t":2.1,"ch":48,"type":"biome-enter","biome":"forest","n":1}
+{"t":2.1,"ch":48,"type":"dawn","day":1}
+{"t":2.1,"ch":48,"type":"sample","fps":0.2,"frames":0,"sim":1,"chunks":49,"lms":4,"animals":46,"predators":5,"x":-118,"y":9.2,"z":-60.2,"hp":100,"stam":91,"lvl":1,"xp":0,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.35","day":1,"act":2,"av":1,"done":0,"dist":6,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":3.6,"ch":48,"type":"ford-set","w":0,"msg":"a shallow crossing — fording toward the deed"}
+{"t":3.6,"ch":48,"type":"goal","msg":"gather → 61m (0/6) · hp 100 · stam 82"}
+{"t":4,"ch":48,"type":"biome-enter","biome":"shore","n":2}
+{"t":4,"ch":48,"type":"sample","fps":0.1,"frames":0,"sim":1,"chunks":49,"lms":4,"animals":46,"predators":5,"x":-111.3,"y":5.7,"z":-55.5,"hp":100,"stam":82,"lvl":1,"xp":0,"xpNext":250,"biome":"shore","weather":"Fair","time":"0.35","day":1,"act":2,"av":1,"done":0,"dist":14,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":4.1,"ch":48,"type":"ford-set","w":0,"msg":"a shallow crossing — fording toward the deed"}
+{"t":4.4,"ch":48,"type":"goal","msg":"gather → 61m (0/6) · hp 100 · stam 82"}
+{"t":4.6,"ch":48,"type":"stuck","x":-111,"z":-56,"biome":"shore","goal":"-2,-2","msg":"wanted to move, went nowhere for 9s"}
+{"t":4.6,"ch":48,"type":"detour-wide","msg":"terrain trap — flanking 55m to approach from another side (1)"}
+{"t":4.6,"ch":48,"type":"pickup-skip","msg":"pickup unreachable — trying another"}
+{"t":5.3,"ch":48,"type":"ford-set","w":4,"msg":"a shallow crossing — fording toward the deed"}
+{"t":5.3,"ch":48,"type":"goal","msg":"gather → 79m (0/6) · hp 100 · stam 56"}
+{"t":5.6,"ch":48,"type":"ford","msg":"crossing the water — the deed waits beyond"}
+{"t":6,"ch":48,"type":"sample","fps":2,"frames":0,"sim":4,"chunks":56,"lms":5,"animals":46,"predators":5,"x":-113.2,"y":-0.4,"z":-62.8,"hp":100,"stam":46,"lvl":1,"xp":0,"xpNext":250,"biome":"shore","weather":"Fair","time":"0.36","day":1,"act":2,"av":1,"done":0,"dist":38,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":6.6,"ch":48,"type":"hp-loss","dmg":11,"hp":89,"swimming":false,"biome":"forest","storm":0,"chill":0,"pred":"4m","rival":"-","boss":"-","ev":"-"}
+{"t":7.4,"ch":48,"type":"hp-loss","dmg":11,"hp":78,"swimming":false,"biome":"forest","storm":0,"chill":0,"pred":"8m","rival":"-","boss":"-","ev":"-"}
+{"t":8,"ch":48,"type":"sample","fps":2.4,"frames":0,"sim":9,"chunks":56,"lms":5,"animals":46,"predators":5,"x":-80.9,"y":6.3,"z":-55.4,"hp":78,"stam":37,"lvl":1,"xp":0,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.38","day":1,"act":2,"av":1,"done":0,"dist":77,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":8.1,"ch":48,"type":"goal","msg":"gather → 74m (0/6) · hp 78 · stam 44"}
+{"t":8.4,"ch":48,"type":"detour-wide","msg":"terrain trap — flanking 55m to approach from another side (1)"}
+{"t":8.4,"ch":48,"type":"pickup-skip","msg":"pickup unreachable — trying another"}
+{"t":9,"ch":48,"type":"goal","msg":"gather → 76m (0/6) · hp 78 · stam 48"}
+{"t":9.9,"ch":48,"type":"goal","msg":"gather → 84m (0/6) · hp 78 · stam 52"}
+{"t":10,"ch":48,"type":"sample","fps":1.7,"frames":0,"sim":13,"chunks":63,"lms":5,"animals":47,"predators":5,"x":-54.1,"y":7.2,"z":-37.2,"hp":78,"stam":52,"lvl":1,"xp":0,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.40","day":1,"act":2,"av":1,"done":0,"dist":113,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":10.7,"ch":48,"type":"goal","msg":"gather → 91m (0/6) · hp 83 · stam 56"}
+{"t":0.7,"ch":49,"type":"quest-acceptQuest","title":"Survive 3 days under the open sky","have":0,"need":3}
+{"t":0.7,"ch":49,"type":"quest-acceptQuest","title":"Hunt 2 beasts in foul weather","have":0,"need":2}
+{"t":0.7,"ch":49,"type":"goal","msg":"hunt → 56m"}
+{"t":0.7,"ch":49,"type":"goal","msg":"hunt → 56m · hp 100 · stam 100"}
+{"t":1.9,"ch":49,"type":"goal","msg":"hunt → 55m · hp 100 · stam 91"}
+{"t":2,"ch":49,"type":"biome-enter","biome":"taiga","n":1}
+{"t":2,"ch":49,"type":"dawn","day":1}
+{"t":2,"ch":49,"type":"sample","fps":0.2,"frames":0,"sim":1,"chunks":49,"lms":0,"animals":46,"predators":5,"x":199.6,"y":7.6,"z":-280.5,"hp":100,"stam":91,"lvl":1,"xp":0,"xpNext":250,"biome":"taiga","weather":"Fair","time":"0.35","day":1,"act":2,"av":1,"done":0,"dist":5,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":3,"ch":49,"type":"goal","msg":"hunt → 55m · hp 100 · stam 82"}
+{"t":3.9,"ch":49,"type":"goal","msg":"hunt → 55m · hp 100 · stam 64"}
+{"t":4,"ch":49,"type":"sample","fps":0.3,"frames":0,"sim":2,"chunks":49,"lms":0,"animals":46,"predators":5,"x":199.8,"y":9.1,"z":-274.8,"hp":100,"stam":64,"lvl":1,"xp":0,"xpNext":250,"biome":"taiga","weather":"Fair","time":"0.35","day":1,"act":2,"av":1,"done":0,"dist":24,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":4.5,"ch":49,"type":"detour-wide","msg":"terrain trap — flanking 55m to approach from another side (1)"}
+{"t":4.8,"ch":49,"type":"goal","msg":"hunt → 51m · hp 100 · stam 37"}
+{"t":5.3,"ch":49,"type":"drink","msg":"drank at the water — stamina restored"}
+{"t":5.6,"ch":49,"type":"jump","msg":"hopped an obstacle"}
+{"t":5.6,"ch":49,"type":"goal","msg":"hunt → 48m · hp 100 · stam 100"}
+{"t":11.6,"ch":48,"type":"goal","msg":"gather → 79m (0/6) · hp 88 · stam 61"}
+{"t":12.3,"ch":48,"type":"detour-wide","msg":"terrain trap — flanking 55m to approach from another side (1)"}
+{"t":12.3,"ch":48,"type":"pickup-skip","msg":"pickup unreachable — trying another"}
+{"t":12.4,"ch":48,"type":"sample","fps":1.1,"frames":0,"sim":18,"chunks":63,"lms":5,"animals":47,"predators":5,"x":-66.8,"y":8.6,"z":-30.7,"hp":91.7,"stam":58,"lvl":1,"xp":0,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.42","day":1,"act":2,"av":1,"done":0,"dist":156,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":12.4,"ch":48,"type":"goal","msg":"gather → 83m (0/6) · hp 92 · stam 58"}
+{"t":12.6,"ch":48,"type":"loop-break","eff":0.25,"net":20,"od":78,"wind":2.1,"was":"gather → 88m (0/6)","msg":"broke a circling loop — striking out on a fresh bearing"}
+{"t":12.7,"ch":48,"type":"goal","msg":"travel → 140m (0/6)"}
+{"t":13.2,"ch":48,"type":"goal","msg":"travel → 130m (0/6) · hp 97 · stam 47"}
+{"t":13.4,"ch":48,"type":"quest-drive","title":"Gather 6 lingonberries","msg":"this ground yields nothing — reaching for a site further afield"}
+{"t":14,"ch":48,"type":"sample","fps":1.3,"frames":0,"sim":22,"chunks":63,"lms":5,"animals":47,"predators":5,"x":-54.9,"y":11.9,"z":-14.4,"hp":100,"stam":51,"lvl":1,"xp":0,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.43","day":1,"act":2,"av":1,"done":0,"dist":189,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":14.1,"ch":48,"type":"goal","msg":"travel → 117m (0/6) · hp 100 · stam 51"}
+{"t":15,"ch":48,"type":"goal","msg":"travel → 104m (0/6) · hp 100 · stam 55"}
+{"t":15.1,"ch":48,"type":"goal","msg":"gather → 94m (0/6)"}
+{"t":15.8,"ch":48,"type":"goal","msg":"gather → 90m (0/6) · hp 100 · stam 59"}
+{"t":6,"ch":49,"type":"biome-enter","biome":"shore","n":2}
+{"t":6,"ch":49,"type":"sample","fps":1.3,"frames":0,"sim":7,"chunks":56,"lms":0,"animals":46,"predators":5,"x":191.8,"y":0.7,"z":-267.5,"hp":100,"stam":91,"lvl":1,"xp":0,"xpNext":250,"biome":"shore","weather":"Fair","time":"0.37","day":1,"act":2,"av":1,"done":0,"dist":61,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":6.4,"ch":49,"type":"goal","msg":"hunt → 37m"}
+{"t":6.5,"ch":49,"type":"goal","msg":"hunt → 37m · hp 100 · stam 73"}
+{"t":6.6,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":6.6,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":6.7,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":6.7,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":6.8,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":6.8,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":6.9,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":6.9,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":6.9,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":7,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":7,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":7,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":7.1,"ch":49,"type":"jump","msg":"hopped an obstacle"}
+{"t":7.4,"ch":49,"type":"goal","msg":"hunt → 20m 🐾stalking · hp 100 · stam 58"}
+{"t":8,"ch":49,"type":"sample","fps":4,"frames":0,"sim":12,"chunks":56,"lms":0,"animals":46,"predators":5,"x":162.4,"y":0.9,"z":-263,"hp":100,"stam":78,"lvl":1,"xp":0,"xpNext":250,"biome":"shore","weather":"Fair","time":"0.39","day":1,"act":2,"av":1,"done":0,"dist":97,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":8.2,"ch":49,"type":"goal","msg":"hunt → 12m 🐾stalking · hp 100 · stam 78"}
+{"t":8.3,"ch":49,"type":"jump","msg":"hopped an obstacle"}
+{"t":8.3,"ch":49,"type":"goal","msg":"hunt → 10m 🐾stalking"}
+{"t":8.7,"ch":49,"type":"jump","msg":"hopped an obstacle"}
+{"t":8.8,"ch":49,"type":"goal","msg":"hunt → 5m 🐾stalking"}
+{"t":9.1,"ch":49,"type":"goal","msg":"hunt → 6m · hp 100 · stam 100"}
+{"t":9.3,"ch":49,"type":"stalk-broken","msg":"quarry escaping — breaking cover to run it down"}
+{"t":9.7,"ch":49,"type":"doorstep-perimeter","goal":"7,-13","d":13,"msg":"no way in from here — flanking for another approach (2)"}
+{"t":9.9,"ch":49,"type":"goal","msg":"hunt → 16m 🐾stalking · hp 100 · stam 100"}
+{"t":10,"ch":49,"type":"sample","fps":2.6,"frames":0,"sim":16,"chunks":56,"lms":0,"animals":46,"predators":5,"x":165.6,"y":3.7,"z":-268.6,"hp":100,"stam":100,"lvl":1,"xp":0,"xpNext":250,"biome":"taiga","weather":"Fair","time":"0.41","day":1,"act":2,"av":1,"done":0,"dist":111,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":10.1,"ch":49,"type":"goal","msg":"hunt → 18m 🐾stalking"}
+{"t":10.8,"ch":49,"type":"goal","msg":"hunt → 21m 🐾stalking · hp 100 · stam 100"}
+{"t":16,"ch":48,"type":"biome-enter","biome":"enchanted","n":3}
+{"t":16,"ch":48,"type":"sample","fps":2.3,"frames":0,"sim":26,"chunks":63,"lms":4,"animals":47,"predators":5,"x":-36.2,"y":13.3,"z":10.8,"hp":100,"stam":50,"lvl":1,"xp":0,"xpNext":250,"biome":"enchanted","weather":"Fair","time":"0.45","day":1,"act":2,"av":1,"done":0,"dist":228,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":16.6,"ch":48,"type":"goal","msg":"gather → 75m (0/6) · hp 100 · stam 48"}
+{"t":17.5,"ch":48,"type":"goal","msg":"gather → 56m (0/6) · hp 100 · stam 59"}
+{"t":18,"ch":48,"type":"sample","fps":3.4,"frames":0,"sim":31,"chunks":64,"lms":4,"animals":47,"predators":5,"x":-76,"y":15.7,"z":26.8,"hp":100,"stam":56,"lvl":1,"xp":0,"xpNext":250,"biome":"enchanted","weather":"Fair","time":"0.47","day":1,"act":2,"av":1,"done":0,"dist":271,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":18.4,"ch":48,"type":"goal","msg":"gather → 36m (0/6) · hp 100 · stam 47"}
+{"t":19.2,"ch":48,"type":"goal","msg":"gather → 23m (0/6) · hp 100 · stam 67"}
+{"t":20,"ch":48,"type":"sample","fps":2.4,"frames":0,"sim":35,"chunks":64,"lms":4,"animals":47,"predators":5,"x":-108.7,"y":14.2,"z":41.6,"hp":100,"stam":71,"lvl":1,"xp":0,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.49","day":1,"act":2,"av":1,"done":0,"dist":308,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":20,"ch":48,"type":"goal","msg":"gather → 8m (0/6) · hp 100 · stam 71"}
+{"t":20.7,"ch":48,"type":"gather","msg":"picked up berry"}
+{"t":20.9,"ch":48,"type":"goal","msg":"gather → 7m (1/6) · hp 100 · stam 67"}
+{"t":10.8,"ch":49,"type":"jump","msg":"hopped an obstacle"}
+{"t":11.1,"ch":49,"type":"doorstep-perimeter","goal":"7,-13","d":25,"msg":"no way in from here — flanking for another approach (3)"}
+{"t":11.6,"ch":49,"type":"goal","msg":"hunt → 29m · hp 100 · stam 91"}
+{"t":12,"ch":49,"type":"sample","fps":2.9,"frames":0,"sim":21,"chunks":56,"lms":0,"animals":46,"predators":5,"x":172.1,"y":1.5,"z":-267.8,"hp":100,"stam":82,"lvl":1,"xp":0,"xpNext":250,"biome":"shore","weather":"Fair","time":"0.43","day":1,"act":2,"av":1,"done":0,"dist":129,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":12.3,"ch":49,"type":"goal","msg":"hunt → 31m"}
+{"t":12.4,"ch":49,"type":"doorstep-perimeter","goal":"6,-13","d":31,"msg":"no way in from here — flanking for another approach (1)"}
+{"t":12.4,"ch":49,"type":"goal","msg":"hunt → 31m · hp 100 · stam 64"}
+{"t":12.8,"ch":49,"type":"goal","msg":"hunt → 29m"}
+{"t":13,"ch":49,"type":"goal","msg":"hunt → 32m"}
+{"t":13.3,"ch":49,"type":"goal","msg":"hunt → 36m · hp 100 · stam 28"}
+{"t":13.3,"ch":49,"type":"quest-drive","title":"Survive 3 days under the open sky","msg":"this ground yields nothing — reaching for a site further afield"}
+{"t":13.5,"ch":49,"type":"drink","msg":"drank at the water — stamina restored"}
+{"t":13.8,"ch":49,"type":"doorstep-perimeter","goal":"6,-13","d":33,"msg":"no way in from here — flanking for another approach (2)"}
+{"t":14,"ch":49,"type":"sample","fps":2.2,"frames":0,"sim":26,"chunks":56,"lms":0,"animals":46,"predators":5,"x":164.3,"y":2.7,"z":-271.1,"hp":100,"stam":91,"lvl":1,"xp":0,"xpNext":250,"biome":"taiga","weather":"Fair","time":"0.45","day":1,"act":2,"av":1,"done":0,"dist":185,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":14.1,"ch":49,"type":"goal","msg":"hunt → 31m · hp 100 · stam 91"}
+{"t":15,"ch":49,"type":"goal","msg":"hunt → 33m · hp 100 · stam 55"}
+{"t":15.1,"ch":49,"type":"detour-wide","msg":"terrain trap — flanking 55m to approach from another side (3)"}
+{"t":15.1,"ch":49,"type":"doorstep-perimeter","goal":"6,-13","d":33,"msg":"no way in from here — flanking for another approach (4)"}
+{"t":21.6,"ch":48,"type":"gather","msg":"picked up berry"}
+{"t":21.8,"ch":48,"type":"goal","msg":"gather → 53m (2/6) · hp 100 · stam 64"}
+{"t":22,"ch":48,"type":"biome-enter","biome":"grove","n":4}
+{"t":22,"ch":48,"type":"sample","fps":2.5,"frames":0,"sim":39,"chunks":63,"lms":4,"animals":47,"predators":5,"x":-147.8,"y":15.3,"z":46.5,"hp":100,"stam":55,"lvl":1,"xp":6,"xpNext":250,"biome":"grove","weather":"Fair","time":"0.51","day":1,"act":2,"av":1,"done":0,"dist":351,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":22.7,"ch":48,"type":"goal","msg":"gather → 29m (2/6) · hp 100 · stam 59"}
+{"t":23.5,"ch":48,"type":"goal","msg":"gather → 14m (2/6) · hp 100 · stam 64"}
+{"t":24.1,"ch":48,"type":"sample","fps":0.8,"frames":0,"sim":44,"chunks":63,"lms":4,"animals":47,"predators":5,"x":-167.5,"y":14.9,"z":27.3,"hp":100,"stam":61,"lvl":1,"xp":6,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.53","day":1,"act":2,"av":1,"done":0,"dist":395,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":24.4,"ch":48,"type":"goal","msg":"gather → 20m (2/6) · hp 100 · stam 68"}
+{"t":25.2,"ch":48,"type":"goal","msg":"gather → 3m (2/6) · hp 100 · stam 72"}
+{"t":25.6,"ch":48,"type":"gather","msg":"picked up berry"}
+{"t":15.8,"ch":49,"type":"goal","msg":"hunt → 29m · hp 100 · stam 28"}
+{"t":16,"ch":49,"type":"sample","fps":3,"frames":0,"sim":31,"chunks":56,"lms":0,"animals":46,"predators":5,"x":164.7,"y":11.3,"z":-257.1,"hp":100,"stam":19,"lvl":1,"xp":0,"xpNext":250,"biome":"taiga","weather":"Fair","time":"0.47","day":1,"act":2,"av":1,"done":0,"dist":240,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":16.2,"ch":49,"type":"drink-trip","msg":"stamina spent — walking to water 5m"}
+{"t":16.2,"ch":49,"type":"goal","msg":"drink → 5m"}
+{"t":16.5,"ch":49,"type":"drink","msg":"drank at the water — stamina restored"}
+{"t":16.7,"ch":49,"type":"goal","msg":"hunt → 35m"}
+{"t":16.7,"ch":49,"type":"goal","msg":"hunt → 35m · hp 100 · stam 100"}
+{"t":17.2,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":17.2,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":17.3,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":17.3,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":17.4,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":17.4,"ch":49,"type":"bot-error","msg":"Cannot access 'targetPk' before initialization"}
+{"t":17.6,"ch":49,"type":"goal","msg":"hunt → 44m · hp 100 · stam 83"}
+{"t":17.9,"ch":49,"type":"jump","msg":"hopped an obstacle"}
+{"t":18,"ch":49,"type":"sample","fps":3.2,"frames":0,"sim":36,"chunks":56,"lms":0,"animals":46,"predators":5,"x":164.6,"y":6.2,"z":-273.2,"hp":100,"stam":65,"lvl":1,"xp":0,"xpNext":250,"biome":"taiga","weather":"Fair","time":"0.49","day":1,"act":2,"av":1,"done":0,"dist":280,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":18,"ch":49,"type":"doorstep-perimeter","goal":"6,-14","d":37,"msg":"no way in from here — flanking for another approach (1)"}
+{"t":18.4,"ch":49,"type":"goal","msg":"hunt → 33m · hp 100 · stam 47"}
+{"t":19.2,"ch":49,"type":"drink","msg":"drank at the water — stamina restored"}
+{"t":19.7,"ch":49,"type":"goal","msg":"hunt → 37m · hp 100 · stam 100"}
+{"t":19.7,"ch":49,"type":"doorstep-perimeter","goal":"6,-14","d":37,"msg":"no way in from here — flanking for another approach (2)"}
+{"t":20,"ch":49,"type":"sample","fps":3,"frames":0,"sim":41,"chunks":56,"lms":0,"animals":46,"predators":5,"x":165.4,"y":4.3,"z":-268.3,"hp":100,"stam":91,"lvl":1,"xp":0,"xpNext":250,"biome":"taiga","weather":"Fair","time":"0.51","day":1,"act":2,"av":1,"done":0,"dist":320,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":20.5,"ch":49,"type":"goal","msg":"hunt → 36m · hp 100 · stam 73"}
+{"t":26,"ch":48,"type":"sample","fps":2.1,"frames":0,"sim":48,"chunks":63,"lms":4,"animals":48,"predators":5,"x":-188.4,"y":13.7,"z":1.6,"hp":100,"stam":61,"lvl":1,"xp":12,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.54","day":1,"act":2,"av":1,"done":0,"dist":436,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":26.1,"ch":48,"type":"goal","msg":"gather → 21m (4/6) · hp 100 · stam 67"}
+{"t":26.1,"ch":48,"type":"gather","msg":"picked up berry"}
+{"t":27,"ch":48,"type":"goal","msg":"gather → 8m (4/6) · hp 100 · stam 65"}
+{"t":27.5,"ch":48,"type":"quest-completeQuest","title":"Gather 6 lingonberries","have":6,"need":6}
+{"t":27.6,"ch":48,"type":"quest-acceptQuest","title":"Survive 3 days under the open sky","have":0,"need":3}
+{"t":27.6,"ch":48,"type":"quest-lock","title":"Hunt 2 Reindeer","msg":"taking up the deed: Hunt 2 Reindeer"}
+{"t":27.6,"ch":48,"type":"goal","msg":"hunt → 204m (0/2)"}
+{"t":27.6,"ch":48,"type":"gather","msg":"picked up berry"}
+{"t":27.8,"ch":48,"type":"goal","msg":"hunt → 198m (0/2) · hp 105 · stam 76"}
+{"t":27.8,"ch":48,"type":"gather","msg":"picked up berry"}
+{"t":28.1,"ch":48,"type":"sample","fps":2,"frames":0,"sim":53,"chunks":64,"lms":7,"animals":48,"predators":5,"x":-210,"y":12.4,"z":-6.2,"hp":105,"stam":67,"lvl":1,"xp":218,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.56","day":1,"act":2,"av":2,"done":1,"dist":481,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":28.6,"ch":48,"type":"goal","msg":"hunt → 178m (0/2) · hp 105 · stam 49"}
+{"t":29.4,"ch":48,"type":"sense","msg":"wolf sense — searching for the quarry"}
+{"t":29.5,"ch":48,"type":"goal","msg":"hunt → 168m (0/2) · hp 105 · stam 53"}
+{"t":30,"ch":48,"type":"sample","fps":2.5,"frames":0,"sim":57,"chunks":64,"lms":7,"animals":48,"predators":5,"x":-191.3,"y":12.5,"z":-42.9,"hp":105,"stam":50,"lvl":1,"xp":218,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.58","day":1,"act":2,"av":2,"done":1,"dist":525,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":30,"ch":48,"type":"stat30","lvl":1,"xp":218,"xpNext":250,"hp":105,"maxHp":105,"stam":50,"done":1,"active":"Hunt 2 Reindeer | Survive 3 days under the open sky","kills":0,"deaths":0,"biomes":4,"biome":"forest","bossesSlain":0,"perks":"","day":1,"dist":525,"x":-191,"z":-43,"simT":57}
+{"t":30.4,"ch":48,"type":"goal","msg":"hunt → 154m (0/2) · hp 105 · stam 57"}
+{"t":21,"ch":49,"type":"doorstep-perimeter","goal":"6,-14","d":48,"msg":"no way in from here — flanking for another approach (3)"}
+{"t":21.4,"ch":49,"type":"goal","msg":"hunt → 52m · hp 100 · stam 37"}
+{"t":21.6,"ch":49,"type":"goal","msg":"hunt → 62m"}
+{"t":21.9,"ch":49,"type":"drink-trip","msg":"stamina spent — walking to water 5m"}
+{"t":21.9,"ch":49,"type":"goal","msg":"drink → 5m"}
+{"t":22,"ch":49,"type":"sample","fps":3.4,"frames":0,"sim":46,"chunks":56,"lms":0,"animals":46,"predators":5,"x":180.2,"y":7.8,"z":-271.8,"hp":100,"stam":19,"lvl":1,"xp":0,"xpNext":250,"biome":"taiga","weather":"Fair","time":"0.53","day":1,"act":2,"av":1,"done":0,"dist":378,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":22.2,"ch":49,"type":"goal","msg":"drink → 2m · hp 100 · stam 26"}
+{"t":23.1,"ch":49,"type":"goal","msg":"drink → 2m · hp 100 · stam 52"}
+{"t":24,"ch":49,"type":"goal","msg":"drink → 2m · hp 100 · stam 72"}
+{"t":24,"ch":49,"type":"sample","fps":3,"frames":0,"sim":50,"chunks":56,"lms":0,"animals":46,"predators":5,"x":175.9,"y":7.2,"z":-271.6,"hp":100,"stam":72,"lvl":1,"xp":0,"xpNext":250,"biome":"taiga","weather":"Fair","time":"0.55","day":1,"act":2,"av":1,"done":0,"dist":383,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":24.5,"ch":49,"type":"goal","msg":"wander → 142m"}
+{"t":24.8,"ch":49,"type":"goal","msg":"wander → 137m · hp 100 · stam 83"}
+{"t":25.6,"ch":49,"type":"goal","msg":"wander → 133m · hp 100 · stam 56"}
+{"t":25.8,"ch":49,"type":"bug-quest-stalled","key":"Survive 3 days under the open sky","msg":"no progress in 5 min: Survive 3 days under the open sky stuck at 0/3"}
+{"t":25.8,"ch":49,"type":"abandon-stalled","title":"Survive 3 days under the open sky","msg":"setting aside a deed this ground will not give"}
+{"t":25.8,"ch":49,"type":"quest-abandonQuest","title":"q231055937"}
+{"t":31.2,"ch":48,"type":"goal","msg":"hunt → 145m (0/2) · hp 105 · stam 61"}
+{"t":32,"ch":48,"type":"sample","fps":0.7,"frames":0,"sim":61,"chunks":58,"lms":7,"animals":48,"predators":5,"x":-164.7,"y":10,"z":-64.4,"hp":105,"stam":50,"lvl":1,"xp":218,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.60","day":1,"act":2,"av":2,"done":1,"dist":565,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":32,"ch":48,"type":"goal","msg":"hunt → 123m (0/2) · hp 105 · stam 50"}
+{"t":34,"ch":48,"type":"sample","fps":0.8,"frames":0,"sim":65,"chunks":63,"lms":8,"animals":48,"predators":5,"x":-167,"y":8.9,"z":-89.4,"hp":105,"stam":80,"lvl":1,"xp":228,"xpNext":250,"biome":"forest","weather":"Fair","time":"0.62","day":1,"act":2,"av":2,"done":1,"dist":598,"spiritMet":false,"bossesAwake":0,"bossesSlain":0,"perks":0,"kills":0,"nan":false}
+{"t":34.3,"ch":48,"type":"hp-loss","dmg":4,"hp":101,"swimming":false,"biome":"forest","storm":0,"chill":0,"pred":"20m","rival":"-","boss":"-","ev":"-"}
+{"t":34.6,"ch":48,"type":"goal","msg":"travel → 120m (0/2)"}
+{"t":34.6,"ch":48,"type":"goal","msg":"travel → 120m (0/2) · hp 101 · stam 69"}
+{"t":34.9,"ch":48,"type":"goal","msg":"hunt → 115m (0/2)"}
+{"t":35.4,"ch":48,"type":"goal","msg":"hunt → 109m (0/2) · hp 101 · stam 58"}

@@ -36,3 +36,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Menu front-door added: **“🤖 Watch the AI play”** on the title screen — one click and the bot enters the game itself (live-verified on Pages).
 - ⚠️ **Workspace incident:** a guarded `cd /tmp/ghub` chain broke and `rm -rf src test` ran in the workspace. **Full byte-identical restoration proven** (sources re-extracted from the published index.html + GitHub archive; `build.py` output cmp-identical). Casualties: marathon raw event stream (pre-CH17) + CH16 record detail — chapter table reconstructed from relay; CH17 ran as the harness-restore sanity chapter (L3 · 21k/0d · 💀0 · 0 errors).
 - Brain v7.19+: splice-proof `window.BOTN` cumulative counters (log capping no longer undercounts long chapters).
+
+### Mission 7 — touch, sound & sky
+- Joystick: full left-side catch field (62vw × full height), no camera hand-off (finger owns the stick until lift), anchor carries along on long swipes, ring UI removed — knob-tip only while touching.
+- Audio: constant wind-bed hiss retired (windG → 0, leaves ÷3); explore score softened (no percussion, bpm 50, pad 0.42); new `speciesCall` voices (rabbit/fox/goat/deer/reindeer/elk) fire by proximity with per-species cooldowns; `birdPeep` for the flock.
+- Birds: 7-strong flock — fly / perch on trees (ch.solids crowns) / ground-peck state machine, flee within 11 m of the wolf, peep near the player. Verified: 4 perched · 2 feeding · 1 flying, 0 errors.
+- Gates: ai 15/15 · audio ALL PASS ×3 · quest 32/32 · layout ✓ · touch ✓ (incl. new joystick UX). Live: c9f5b18 byte-verified.
