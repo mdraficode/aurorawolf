@@ -7878,6 +7878,7 @@ tick();
         aim(shoreYaw, 0.9);
         keys.KeyW = true; keys.ShiftLeft = false; wolf.crouch = false;
         bot.goalText = '🌊 swimming to shore';
+        if (targetPk && bot.pkBlack) { bot.pkBlack.add(targetPk); bot.gatherStick = null; log('pickup-skip', { msg: 'pickup across the water — swimming back, trying another' }); }
         if (!bot.swimLog || SIMNOW() - bot.swimLog > 20000) { bot.swimLog = SIMNOW(); log('swim', { msg: 'in deep water — heading for shore' }); }
         applyAim(); return;
       }
@@ -8060,8 +8061,9 @@ tick();
             if (!cands.length) cands = cands.slice ? [] : [];
             for (const c2 of cands.slice(0, 5)) {   // nearest 5: first that isn't across deep water
               let blocked = false;
-              for (let k2 = 1; k2 <= 3; k2++) {
-                const mx = wolf.pos.x + (c2.p.x - wolf.pos.x) * k2 / 4, mz = wolf.pos.z + (c2.p.z - wolf.pos.z) * k2 / 4;
+              const steps = Math.max(4, Math.min(14, (c2.d / 18) | 0));   // sample every ~18 m — rivers bend
+              for (let k2 = 1; k2 < steps; k2++) {
+                const mx = wolf.pos.x + (c2.p.x - wolf.pos.x) * k2 / steps, mz = wolf.pos.z + (c2.p.z - wolf.pos.z) * k2 / steps;
                 if (heightAt(mx, mz) < waterYNow() - 0.35) { blocked = true; break; }
               }
               if (!blocked || c2.d < 25) { hit = c2; break; }
@@ -8376,7 +8378,7 @@ tick();
       if (q0) {
         if (bot.stallQ !== q0.id) { bot.stallQ = q0.id; bot.stallHave = q0.have; bot.stallT = SIMNOW(); }
         else if (q0.have > bot.stallHave) { bot.stallHave = q0.have; bot.stallT = SIMNOW(); }
-        else if (SIMNOW() - bot.stallT > 240000) {
+        else if (SIMNOW() - bot.stallT > (q0.kind === 'collect' ? 480000 : 240000)) {
           warnOnce('stall' + q0.id + q0.have, 'bug-quest-stalled', { key: q0.title, msg: 'no progress in 4 min: ' + q0.title + ' stuck at ' + q0.have + '/' + q0.need });
           if (q0.kind === 'hunt' || q0.kind === 'rival' || q0.kind === 'explore' || q0.kind === 'collect') { log('abandon-stalled', { title: q0.title, msg: 'setting aside an impossible deed' }); bot.shunned.add(q0.title); abandonQuest(q0.id); }
           bot.stallT = SIMNOW();
