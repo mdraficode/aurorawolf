@@ -153,3 +153,8 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Quest button moved from the top-left corner into the minimap-side row. Final order left-to-right: [Satchel invBtn right:258] [Quest questBtn right:212] [AI btnAI right:166 — the end, at the minimap's side] [minimap]. Touch variants reordered too (btnAI end, quest middle, satchel left-most in both breakpoints).
 - Verified: rects 202-242 / 248-288 / 294-334 / minimap 344-484, all top:56, gaps 6/6/10px, zero overlaps, top-left corner freed; quest suite 32/32 with real clicks on the relocated button. Probe note: btnAI read 0-rect once at 1.5s after boot (transient) — settled state verified at 3s.
 - Live: byte-verified.
+
+### Mission 28 — both corners claimed
+- Status column raised into the freed upper-left corner (badges 14/49/84, bars 29/62/98, tracker 114 — the full stack now starts at the very top like the old quest button did).
+- Minimap raised to the upper-right corner (top 56 -> 14) with its button row rising in step (inv/quest/AI top 14, order unchanged: satchel, quest, AI at the minimap's side). Touch layouts untouched — they are pinned around tPause at top:62 right:14 and were tuned for it.
+- Verified at 900x560: first badge top 14 (corner filled), 1px seams kept, tracker clear; minimap top 14 / right 16, row aligned and ordered, AI->map gap 10; no cross-corner collisions; bars centered. quest 32/32. Live: byte-verified.
