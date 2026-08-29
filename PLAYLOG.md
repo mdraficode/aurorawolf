@@ -164,3 +164,10 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - The four buttons — Satchel, Quest, AI, PAUSE — are round satellites on the minimap's lower-left periphery, following the curvature: angles 12/38/64/90 deg (west to south) at radius 100 from the ring's center, percentage-positioned inside #mmOrbit (which mirrors the minimap at every breakpoint incl. touch) — the arc scales with the map. Pause joined the cluster and is now always visible.
 - Two fights worth remembering: (1) axis-aligned squares on a diagonal arc interpenetrate at their CORNERS — solved by round buttons (echo the round map) + radius 100 => honest 3px disc gaps; (2) Playwright content-quads misreport under translate(-50%,-50%) — clicks 'intercepted by canvas' while elementFromPoint said otherwise — solved by margin-centering (-20px) instead of transforms.
 - Verified: stats gone, map rect top14/right16, arc order+d radii exact, minDiscGap 3px, pause visible, real click opens log; quest 32/32, ai 15/15. Live: byte-verified.
+
+### Mission 30 — the map truly in the corner, with room to breathe
+- The report 'not in the corner' was the TOUCH layout: phones kept the map at top:112 (below the old pause spot) while desktop already sat at 14/16. Now: map top 14 right 14-16 on ALL layouts (desktop 140px, touch 118, small-landscape 84). Portrait still hides the map by design (rotate gate).
+- Space added: orbit radius 100 -> 118 px-equivalent, spread 8/36/64/92 deg via CSS custom props (--mx/--my per satellite, --orb per breakpoint) — desktop gaps 17px button-to-button / 27px to the ring; phone-landscape 10.6 / 30.2 (32px buttons there, --orb 105%%).
+- The weather/clock/biome pills step aside on touch (topbar -> top:188 left:16, below the status column) so the corner belongs to the map alone.
+- Near-disaster caught: an unterminated CSS comment from a string-juggling slip was silently swallowing every rule below it — fixed before shipping.
+- Verified across 900x560 desktop / 390x844 portrait(gate) / 800x390 touch-landscape; quest 32/32 with real clicks. Live: 0fdc4ac byte-verified.
