@@ -171,3 +171,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - The weather/clock/biome pills step aside on touch (topbar -> top:188 left:16, below the status column) so the corner belongs to the map alone.
 - Near-disaster caught: an unterminated CSS comment from a string-juggling slip was silently swallowing every rule below it — fixed before shipping.
 - Verified across 900x560 desktop / 390x844 portrait(gate) / 800x390 touch-landscape; quest 32/32 with real clicks. Live: 0fdc4ac byte-verified.
+
+### Mission 31 — the pills return to the upper center
+- M30's touch relocation of the weather/clock/biome pills (top:188 left:16) read as 'messed up' — reverted: #topbar is upper-center on EVERY layout (top 14, left 50%%, translateX). Portrait untouched (rotate gate).
+- Overlap-proofing the center: under 860px the pills compact (font 10, padding 3/7, per-pill max-width 118 + ellipsis) and the orbit arc pulls to --orb 75%% (105px) — verified clear at 900 desktop (pills 240-660 vs cluster 677), 700 desktop (218-482 vs 490), 800 touch-landscape (268-532 vs 641): centered within 2px, clear of the left column and the map orbit everywhere.
+- Lesson: --orb is a % of the 140px box, NOT of radius — 100%% widened the arc (first attempt overlapped worse); 75%% = 105px radius.
+- quest 32/32. Live: byte-verified.
