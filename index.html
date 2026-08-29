@@ -6966,6 +6966,28 @@ function drawMinimapOverlay() {
   ctx.textAlign = 'start';
 }
 let questArrowMesh = null;
+const _agc = new THREE.Color(), _agt = new THREE.Color();
+function arrowGroundLum() {   // what the arrow actually lies on — sampled exactly the way the terrain is shaded
+  let L = 0, n = 0;
+  for (const e of [[0, 0], [1.4, 0], [-1.4, 0], [0, 1.4], [0, -1.4]]) {
+    const x = wolf.pos.x + e[0], z = wolf.pos.z + e[1];
+    const h = heightAt(x, z);
+    const cl = climateAt(x, z, h);
+    const w = biomeWeights(x, z, h, cl.temp, cl.moist);
+    const grade = (Math.abs(heightAt(x + 2, z) - heightAt(x - 2, z)) + Math.abs(heightAt(x, z + 2) - heightAt(x, z - 2))) / 8;
+    groundColor(_agc, x, z, h, w, cl.temp, grade);
+    L += 0.2126 * _agc.r + 0.7152 * _agc.g + 0.0722 * _agc.b; n++;
+  }
+  const light = Math.max(0.15, Math.min(1.15, sun.intensity || 1));   // night dims even snow — the arrow must answer
+  return (L / n) * light;
+}
+window.__arrowGroundLum = () => arrowGroundLum();
+function arrowTargetColor(st) {   // the opposite of the land: deep ember on bright ground, luminous gold on dark
+  const BRIGHT = 0.62, DARK = 0.27;
+  if (st.mode === 'dark') _agt.setHSL(0.07, 0.88, DARK);        // burnt ember — reads on snow, sand, sun-bleached grass
+  else _agt.setHSL(0.10, 0.95, BRIGHT);                          // luminous gold — reads on night, spruce, peat
+  return _agt;
+}
 function updateQuestArrow(dt) {
   try {
     const qg = window.questGuide ? window.questGuide() : null;
@@ -6981,14 +7003,32 @@ function updateQuestArrow(dt) {
       questArrowMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.2, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
       questArrowMesh.renderOrder = 999;   // above the world — no hill, tree or wall hides the way
       questArrowMesh.scale.set(1.15, 1, 1.8);   // longer — readable at a glance
+      const under = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x140d06, transparent: true, opacity: 0.55, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+      under.renderOrder = 998; under.position.y = -0.03; under.scale.set(1.18, 1, 1.12);   // the dark halo — contrast on ANY ground
+      questArrowMesh.add(under);
+      questArrowMesh.userData.st = { mode: 'bright', lum: 0.5, acc: 1 };
       scene.add(questArrowMesh);
     }
+    const st = questArrowMesh.userData.st;
     if (!qg || qg.d < 10) { questArrowMesh.visible = false; return; }
     const yaw = Math.atan2(qg.x - wolf.pos.x, qg.z - wolf.pos.z);
     questArrowMesh.position.set(wolf.pos.x, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.1, wolf.pos.z);
     questArrowMesh.rotation.y = yaw;
     questArrowMesh.visible = true;
-    questArrowMesh.material.opacity = 0.14 + 0.07 * (0.5 + 0.5 * Math.sin(tSec * 2.4));   // faint, breathing
+    // ---- real eyes on the ground: resample every quarter second, then glide the color ----
+    st.acc += dt || 0.016;
+    if (st.acc > 0.25) {
+      st.acc = 0;
+      st.lum = arrowGroundLum();
+      if (st.mode === 'bright' && st.lum > 0.47) st.mode = 'dark';      // hysteresis — no flicker at the seam
+      else if (st.mode === 'dark' && st.lum < 0.37) st.mode = 'bright';
+    }
+    arrowTargetColor(st);
+    questArrowMesh.material.color.lerp(_agt, 1 - Math.exp(-(dt || 0.016) * 7));
+    const breath = 0.5 + 0.5 * Math.sin(tSec * 2.4);
+    questArrowMesh.material.opacity = 0.36 + 0.13 * breath;              // present, breathing — never a ghost again
+    const un = questArrowMesh.children[0];
+    if (un) un.material.opacity = 0.5 + 0.12 * breath;
   } catch (e) { }
 }
 
