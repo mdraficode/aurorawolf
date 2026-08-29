@@ -188,3 +188,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - The void between the attack disc and its satellites (47px on phones vs the minimap arrangement's ~30) closed by growing the anchor AND tuning the arc: attack 100->110 (touch), 72->78 (small landscape), 120->132 (latent desktop) — still 0.93x the minimap everywhere; arc radius rebalanced (--orb 107/118/97%%) and the span eased to -20..+104 deg (step 24.8 deg) so the discs never collide (min 3.9-4.5px).
 - Gap parity verified: satellite-to-attack 30px small-landscape (minimap 30.2), 31px phones (minimap ~30), 27px desktop-equivalent (minimap 27) — same breathing as the map's arch, by design.
 - quest 32/32. Live: byte-verified.
+
+### Mission 34 — the strike disc grows again
+- Attack anchor 110->114 (touch), 78->80 (small landscape), 132->136 (latent desktop) — still under the minimap (ratio 0.95-0.97). --orb rebalanced to 108/119/98 percent so the satellite-to-anchor gap stays at 30px (parity with the minimap arch); satellite-to-satellite 4.3-4.8px. Confirmed --orb is % of the FULL #btns box width (the M31 lesson generalized: % vars are of the box, not the radius).
+- quest 32/32. Live: byte-verified.
