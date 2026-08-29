@@ -60,7 +60,7 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #bigmap { width: min(62vmin, 460px); height: min(62vmin, 460px); border-radius: 10px; display: block; }
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
 body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
-#hpWrap { position: absolute; top: 82px; left: 16px; transform: none;
+#hpWrap { position: absolute; top: 82px; left: 34px; transform: none;
   width: 180px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
   border: 1px solid rgba(255, 120, 100, 0.35); overflow: hidden; }
 #hpFill { height: 100%; width: 100%; border-radius: 3px;
@@ -89,9 +89,11 @@ body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
   background: radial-gradient(ellipse at center, rgba(30, 4, 2, 0.25) 20%, rgba(15, 2, 1, 0.92) 100%);
   opacity: 0; transition: opacity 0.7s; color: #f2c9c0; font-size: 22px; letter-spacing: .04em; }
 #deathOv.show { opacity: 1; }
-#xpWrap { position: absolute; top: 58px; left: 16px; transform: none; width: 180px; height: 5px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(255, 215, 106, 0.28); overflow: hidden; }
+.barIco { position: absolute; left: 16px; width: 13px; height: 13px; pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+#icoXp { top: 54px; } #icoRun { top: 67px; } #icoHp { top: 79px; }
+#xpWrap { position: absolute; top: 58px; left: 34px; transform: none; width: 180px; height: 5px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(255, 215, 106, 0.28); overflow: hidden; }
 #xpFill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffd76a, #ffb347); box-shadow: 0 0 6px rgba(255, 215, 106, 0.5); }
-#stamWrap { position: absolute; top: 70px; left: 16px; transform: none; width: 180px; height: 8px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(180, 220, 255, 0.16); overflow: hidden; }
+#stamWrap { position: absolute; top: 70px; left: 34px; transform: none; width: 180px; height: 8px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(180, 220, 255, 0.16); overflow: hidden; }
 #stamFill { height: 100%; width: 100%; border-radius: 6px; background: linear-gradient(90deg, #7ef0c0, #4db8e8); transition: background .3s; }
 
 #prompt {
@@ -208,9 +210,9 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   .chip { font-size: 11px; padding: 3px 7px; gap: 5px; }
   #topStats { font-size: 10px; }
   #topbar { gap: 6px; }
-  #xpWrap { top: 58px; width: 150px; }
-  #stamWrap { top: 70px; width: 150px; }
-  #hpWrap { top: 82px; width: 150px; }
+  #xpWrap { top: 58px; left: 34px; width: 150px; }
+  #stamWrap { top: 70px; left: 34px; width: 150px; }
+  #hpWrap { top: 82px; left: 34px; width: 150px; }
 }
 @media (max-width: 860px) and (max-height: 400px) {
   /* small landscape phones: slimmer buttons + minimap so nothing collides */
@@ -411,8 +413,11 @@ body.touch #questTracker { display: none; }
   <div id="threatWarn">⚠️ Territory</div>
   <div id="deathOv"><div id="deathMsg"></div></div>
   <div id="flyTimer">✨ Flight 10s</div>
+  <svg id="icoHp" class="barIco" viewBox="0 0 13 13" aria-hidden="true"><path d="M6.5 11.6 C2.1 8.2 1.0 5.3 2.6 3.5 C3.9 2.1 5.9 2.6 6.5 3.9 C7.1 2.6 9.1 2.1 10.4 3.5 C12.0 5.3 10.9 8.2 6.5 11.6 Z" fill="#e0655a"/></svg>
   <div id="hpWrap"><div id="hpFill"></div></div>
+  <svg id="icoXp" class="barIco" viewBox="0 0 13 13" aria-hidden="true"><path d="M6.5 .8 L8.1 4.4 L12 4.9 L9.2 7.6 L9.9 11.5 L6.5 9.6 L3.1 11.5 L3.8 7.6 L1 4.9 L4.9 4.4 Z" fill="#ffd76a"/></svg>
   <div id="xpWrap"><div id="xpFill"></div></div>
+  <svg id="icoRun" class="barIco" viewBox="0 0 13 13" aria-hidden="true"><circle cx="8.8" cy="2.2" r="1.5" fill="#7ef0c0"/><path d="M8.2 3.9 L5.7 7.2 M8.1 4.8 L10.3 6.0 M7.9 5.0 L5.6 6.0 M5.7 7.2 L8.4 9.1 L9.2 11.9 M5.7 7.2 L3.7 9.5 L2.0 11.8" stroke="#7ef0c0" stroke-width="1.3" stroke-linecap="round" fill="none"/></svg>
   <div id="stamWrap"><div id="stamFill"></div></div>
   <div id="prompt">E — Gather</div>
   <div id="toasts"></div>
