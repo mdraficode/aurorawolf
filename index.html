@@ -6013,6 +6013,15 @@ function genQuest(kind) {
   }
   return null;
 }
+window.questSize = function (q) {   // the weight of a deed — errand, journey, or trial
+  if (!q) return 'small';
+  if (q.kind === 'survive') return 'big';                             // outlast the sky or the storm — a trial
+  if (q.kind === 'explore' || q.kind === 'rival') return 'medium';    // a journey, or a pack to face
+  const n = q.need || 0;
+  if (q.kind === 'hunt') return n >= 4 ? 'medium' : 'small';
+  if (q.kind === 'collect') return n >= 5 ? 'medium' : 'small';
+  return 'small';
+};
 function refillQuests() {   // a FULL board: every kind of deed the land can offer, always visible
   const BOARD = ['survive', 'hunt', 'explore', 'collect', 'rival', 'hunt', 'collect', 'explore'];
   const dup = q => QUESTS.avail.some(o => o.title === q.title) || QUESTS.active.some(o => o.title === q.title);
@@ -8233,16 +8242,50 @@ tick();
     if (deeds >= 3 && !legendLand) s -= 0.8;                               // spent lands with no legend — move on
     return s;
   };
+  /* ---- quest discipline: ONE deed at a time — three errands, two journeys, one trial, repeat ---- */
+  const QUEST_SEQ = ['small', 'small', 'small', 'medium', 'medium', 'big'];
   const keepQuestsFilled = () => {
-    let guard = 0;
-    while (QUESTS.active.length < 2 && QUESTS.avail.length && guard++ < 4) {
-      let best = null, bs = -1;
-      for (const q of QUESTS.avail) { if (bot.shunned.has(q.title)) continue; if (bot.kindShun && bot.kindShun[q.kind] && SIMNOW() < bot.kindShun[q.kind]) continue; const s = questScore(q); if (s > bs) { bs = s; best = q; } }
-      if (!best && !QUESTS.active.length && QUESTS.avail.length) { bot.shunned.clear(); bot.kindShun = {}; log('shun-relief', { msg: 'every deed set aside — forgiving and taking the least bad' }); continue; }
-      if (!best) break;
-      if (bs < 0.8 && QUESTS.active.length >= 1) break;   // hold out for better second deeds…
-      acceptQuest(best.id);                               // …but never run deed-less
+    if (bot.seqIx === undefined) bot.seqIx = 0;
+    if (bot.questId === undefined) bot.questId = null;
+    while (QUESTS.active.length > 1) {   // never two at once — an extra (e.g. adopted on restart) goes back
+      const extra = QUESTS.active.find(q => q.id !== bot.questId) || QUESTS.active[QUESTS.active.length - 1];
+      log('quest-extra-back', { msg: 'one deed at a time — ' + extra.title + ' goes back on the board' });
+      abandonQuest(extra.id);
     }
+    if (QUESTS.active.length === 1) {
+      const q = QUESTS.active[0];
+      if (!bot.questId) bot.questId = q.id;   // adopted a deed already underway — finish it
+      const pr = q.have || 0;
+      if (bot.qPr !== pr) { bot.qPr = pr; bot.qPrT = SIMNOW(); }
+      const g = window.questGuide && window.questGuide();   // approaching the mark counts as living progress
+      if (g) { const d = g.d | 0; if (bot.qGd === undefined || d < bot.qGd - 3) { bot.qGd = d; bot.qPrT = SIMNOW(); } bot.qGd = Math.min(bot.qGd === undefined ? d : bot.qGd, d); }
+      if (q.kind !== 'survive' && SIMNOW() - (bot.qPrT || SIMNOW()) > 720000) {   // 12 min utterly flat — the one honest escape
+        log('quest-flatlined', { msg: q.title + ' — no progress nor approach for 12 minutes; setting it aside' });
+        bot.shunned.add(q.title);
+        abandonQuest(q.id);
+        bot.questId = null; bot.qGd = undefined;
+        return;
+      }
+      return;   // committed: finish what was started — no second deed, no shuffling
+    }
+    if (bot.questId) {   // the deed left active — completed (or the rare flatline) — next step of the cycle
+      bot.seqIx = (bot.seqIx + 1) % QUEST_SEQ.length;
+      bot.questId = null; bot.qGd = undefined;
+    }
+    const want = QUEST_SEQ[bot.seqIx];
+    if (typeof refillQuests === 'function') refillQuests();
+    let pool = QUESTS.avail.filter(q => window.questSize(q) === want);
+    if (!pool.length) {   // the land offers no deed of that weight right now — take the nearest weight, keep the rhythm
+      const alt = want === 'big' ? ['medium', 'small'] : want === 'medium' ? ['small', 'big'] : ['medium', 'big'];
+      for (const a of alt) { pool = QUESTS.avail.filter(q => window.questSize(q) === a); if (pool.length) { log('quest-substitute', { msg: 'no ' + want + ' deed on the board — taking a ' + a + ' one' }); break; } }
+    }
+    if (!pool.length) return;
+    let best = null, bs = -1e9;
+    for (const q of pool) { const sc = questScore(q) - (bot.shunned.has(q.title) ? 50 : 0); if (sc > bs) { bs = sc; best = q; } }
+    if (!best) best = pool[0];
+    acceptQuest(best.id);
+    bot.questId = best.id;
+    log('quest-seq', { msg: 'deed ' + (bot.seqIx + 1) + '/6 (' + want + '): ' + best.title });
   };
 
   /* ================= THE BRAIN (every 150 ms) ================= */
@@ -8444,7 +8487,7 @@ tick();
                 log('chase-giveup', { sp: cq.species, d: +d2.toFixed(0), msg: 'chase not closing — letting the herd go (' + bot.huntFails + ')' });
                 bot.noHuntUntil = SIMNOW() + 20000;
                 bot.preyShun = { label: a2.sp.label, until: SIMNOW() + 45000 };
-                if (bot.huntFails >= 3) { bot.huntFails = 0; log('abandon-unfruitful', { title: cq.title, msg: 'the quarry will not be caught today — setting the deed aside' }); bot.shunned.add(cq.title); (bot.kindShun = bot.kindShun || {}).hunt = SIMNOW() + 300000; abandonQuest(cq.id); }
+                if (bot.huntFails >= 3) { bot.huntFails = 0; log('hunt-hard', { title: cq.title, msg: 'the quarry is cagey — the deed stands, and so does the wolf' }); }   // one-at-a-time: no more setting deeds aside
                 bot.huntStick = null;
               } else bot.huntStick = null;
             } else bot.huntStick = null;
@@ -8549,7 +8592,7 @@ tick();
                 log('lm-unreachable', { key: best.type, msg: 'the site will not give — marking it, trying another way' });
                 (bot.lmBlack = bot.lmBlack || new Set()).add(best);
                 bot.lmStick = null; bot.lmNear = null; bot.lmFails = (bot.lmFails || 0) + 1;
-                if (bot.lmFails >= 2) { log('abandon-unreachable', { title: cq.title, msg: 'no path to these sites — setting the deed aside' }); bot.shunned.add(cq.title); (bot.kindShun = bot.kindShun || {})[cq.kind] = SIMNOW() + 600000; abandonQuest(cq.id); bot.lmFails = 0; }
+                if (bot.lmFails >= 3) { log('lm-hard', { title: cq.title, msg: 'no path yet — the deed stands; another site, another way' }); bot.lmFails = 0; }   // one-at-a-time: keep the deed, keep trying
               }
             } else if (bot.lmNear && Math.hypot(wolf.pos.x - bot.lmNear.lm.x, wolf.pos.z - bot.lmNear.lm.z) > 60) bot.lmNear = null;
           } else if (!best && !cq.peak) {
@@ -8826,9 +8869,9 @@ tick();
             log('detour-wide', { msg: 'terrain trap — flanking 55m to approach from another side (' + bot.grindN + ')' });
             if (targetPk && bot.pkBlack) { bot.pkBlack.add(targetPk); bot.gatherStick = null; log('pickup-skip', { msg: 'pickup unreachable — trying another' }); }
             if (bot.grindN >= 3 && q && (q.kind === 'explore' || q.kind === 'hunt')) {
-              log('abandon-unreachable', { title: q.title, msg: 'ground would not give — setting the deed aside' });
-              bot.shunned.add(q.title); abandonQuest(q.id); bot.grindKey = '';
-            }
+              log('grind-hard', { title: q.title, msg: 'the ground would not give — the deed stands; re-planning the way' });
+              bot.grindKey = '';
+            }   // one-at-a-time: no more setting deeds aside
             if (bot.grindN >= 6) {   // hard trap: even flanks fail — break out anywhere and flag the spot
               log('bug-bot-hardtrap', { x: +wolf.pos.x.toFixed(0), z: +wolf.pos.z.toFixed(0), biome: curBiomeKey, goal: bot.goalKey, msg: 'trapped 4.5+ min despite flanking — wedge-escape insufficient here' });
               const ra = Math.random() * 6.28;
@@ -8852,12 +8895,10 @@ tick();
             log('doorstep-perimeter', { goal: bot.goalKey, d: +dg.toFixed(0), msg: 'no way in from here — flanking for another approach (' + bot.grindN + ')' });
             if (q && q.kind === 'explore' && bot.lmStick) { (bot.lmBlack = bot.lmBlack || new Set()).add(bot.lmStick.lm); bot.lmStick = null; bot.lmNear = null; }
             if (targetPk && bot.pkBlack) { bot.pkBlack.add(targetPk); bot.gatherStick = null; }
-            if (bot.grindN >= 2 && q) {
-              log('abandon-unreachable', { title: q.title, msg: 'no way in found — setting the deed aside' });
-              bot.shunned.add(q.title);
-              (bot.kindShun = bot.kindShun || {})[q.kind] = SIMNOW() + 600000;   // this LAND is done with this deed type for 10 min
-              abandonQuest(q.id); bot.grindN = 0;
-            }
+            if (bot.grindN >= 3 && q) {
+              log('grind-hard', { title: q.title, msg: 'no way in found yet — the deed stands; another angle' });
+              bot.grindN = 0;
+            }   // one-at-a-time: no more setting deeds aside
           }
           bot.closeW = null;
         }
@@ -8901,10 +8942,7 @@ tick();
           }
           if (SIMNOW() - bot.hardT > 300000) {   // ABSOLUTE: 5 min without progress and the deed is set aside, no resets
             warnOnce('stall' + q0.id + q0.have, 'bug-quest-stalled', { key: q0.title, msg: 'no progress in 5 min: ' + q0.title + ' stuck at ' + q0.have + '/' + q0.need });
-            log('abandon-stalled', { title: q0.title, msg: 'setting aside a deed this ground will not give' });
-            bot.shunned.add(q0.title);
-            (bot.kindShun = bot.kindShun || {})[q0.kind] = SIMNOW() + 600000;
-            abandonQuest(q0.id);
+            log('quest-slow', { title: q0.title, msg: 'slow going — but a deed begun is a deed kept' });   // one-at-a-time: the 12-min flatline in keepQuestsFilled is the only exit
             bot.stallT = bot.hardT = SIMNOW();
           }
         }
@@ -8914,6 +8952,7 @@ tick();
   }, Math.max(40, Math.round(150 / (window.BOT_SPEED || 1))));
 
   /* ---------------- debug tap (harness forensics — inside the brain's closure) ---------------- */
+  window.__botQuest = () => ({ step: (bot.seqIx || 0) + 1, of: QUEST_SEQ.length, want: QUEST_SEQ[bot.seqIx || 0], questId: bot.questId || null, activeN: QUESTS.active.length, size: QUESTS.active[0] ? window.questSize(QUESTS.active[0]) : null, title: QUESTS.active[0] ? QUESTS.active[0].title : '' });
   window.BOTDBG = () => ({ goalKey: bot.goalKey, winKey: bot.winKey, closeW: bot.closeW ? { d0: +bot.closeW.dg0.toFixed(0), age: Math.round((SIMNOW() - bot.closeW.at) / 1000) } : null, grindN: bot.grindN || 0, lmBlack: bot.lmBlack ? bot.lmBlack.size : 0, kindShun: bot.kindShun ? Object.keys(bot.kindShun).length : 0, trek: !!bot.trek, ford: !!bot.ford, stallQ: bot.stallQ, hardLeft: bot.hardT ? Math.max(0, 300000 - (SIMNOW() - bot.hardT)) | 0 : -1, pathEff: bot.pathEff });
   }   // ---- end bootAI ----
 
