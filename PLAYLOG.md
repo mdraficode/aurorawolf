@@ -42,3 +42,8 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - Audio: constant wind-bed hiss retired (windG → 0, leaves ÷3); explore score softened (no percussion, bpm 50, pad 0.42); new `speciesCall` voices (rabbit/fox/goat/deer/reindeer/elk) fire by proximity with per-species cooldowns; `birdPeep` for the flock.
 - Birds: 7-strong flock — fly / perch on trees (ch.solids crowns) / ground-peck state machine, flee within 11 m of the wolf, peep near the player. Verified: 4 perched · 2 feeding · 1 flying, 0 errors.
 - Gates: ai 15/15 · audio ALL PASS ×3 · quest 32/32 · layout ✓ · touch ✓ (incl. new joystick UX). Live: c9f5b18 byte-verified.
+
+### Mission 7.1 — camera territory & first-touch reliability
+- Joystick field shrunk to the LEFT 40% (max 420px) — the RIGHT 60% of the screen is pure camera, always.
+- Camera first-attempt fixes: ghost-pointer sweep (touchend/touchcancel carry the authoritative finger list — a swallowed pointerup can no longer leave a stale pinch partner that killed the next swipe), reused-id cleanup, setPointerCapture on the renderer canvas (swipes hold even when they slide over HUD elements), and #btns container pointer-events: none so the GAPS between action buttons fall through to the camera.
+- Verified (test/cam_touch_probe.mjs, 10/10): 60/40 split · immediate rotation on first touch at 70% width · ghost planted→swept→next touch rotates · button-gap fall-through · joystick intact in left 40% · just past the boundary = camera · 0 page errors. Touch suite PASS (0 timeouts), ai 15/15. Live: 1d7e2de byte-verified.
