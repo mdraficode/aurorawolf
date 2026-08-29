@@ -7587,9 +7587,11 @@ tick();
   if (booted) return; booted = true;
   const L = (window.BOTLOG = []);
   const t0 = performance.now();
+  const N = (window.BOTN = {});                       // cumulative counters — splice-proof stats
   const log = (type, data) => {
     const e = Object.assign({ t: +((performance.now() - t0) / 1000).toFixed(1), type }, data || {});
     L.push(e);
+    N[type] = (N[type] || 0) + 1;
     if (L.length > 4000) L.splice(0, 1000);
     botPanelPush(e);
   };
