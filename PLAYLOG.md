@@ -200,3 +200,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 ### Mission 36 — equal air all around the strike disc
 - The grown attack disc sat 4-7px off the corner edges (looked 'touching'). The whole cluster now floats at the midpoint between the corner and the arch: corner inset 14 -> 37 (touch) / 34 (small landscape) / 38 (latent desktop), making the edge gap EQUAL the arch gap — measured portrait 27 vs 27, landscape 27 vs 26.7. Same space on every side of the button.
 - quest 32/32. Live: byte-verified.
+
+### Mission 37 — the claw closes
+- Arch drawn closer: satellite-to-attack gap 27 -> 22px (--orb 108->103 touch, 119->112 small-landscape, 98->96 desktop). Whole cluster moved nearer the corner: inset 37 -> 28 (touch) / 34 -> 26 (small) / 38 -> 30 (desktop) — measured edge gaps 18-19px, arch 21.7-22px, near-equal air with the corner snug. All satellites in-viewport, arc order intact.
+- quest 32/32. Live: byte-verified.
