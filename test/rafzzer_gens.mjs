@@ -16,7 +16,7 @@ const DIR = 'test';
 const CHAMP = `${DIR}/rafzzer_champion.json`, CAND = `${DIR}/rafzzer_candidate.json`, LINE = `${DIR}/rafzzer_lineage.json`;
 const read = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 const write = (f, o) => fs.writeFileSync(f, JSON.stringify(o));
-const NI = 18, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;
+const NI = 20, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;   // M46 · GEN 27+: 20 senses (bear-sense, sky-threat appended)
 
 // ---- the lineage's own randomness (identical law in-page and in-harness) ----
 const mul32 = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };

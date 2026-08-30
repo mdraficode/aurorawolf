@@ -6328,6 +6328,15 @@ function nearbySpeciesCounts() {   // what actually roams the loaded world right
   for (const [, ch] of chunks) for (const a of ch.animals) if (!a.dead) counts[a.name] = (counts[a.name] || 0) + 1;
   return counts;
 }
+function pickupSupply(item) {   // M46: how many ungathered pickups of this item exist in the living world?
+  let n = 0;
+  for (const [, ch] of chunks) for (const pk of ch.pickups) {
+    if (pk.gathered) continue;
+    const def = PICKUP_DEF[pk.type];
+    if (def && def.inv === item) n++;
+  }
+  return n;
+}
 function genQuest(kind) {
   const biome = questBiomePick();
   const info = BIOME_INFO[biome] || BIOME_INFO.forest;
@@ -6383,8 +6392,14 @@ function genQuest(kind) {
   }
   if (kind === 'collect') {
     const keys2 = Object.keys(COLLECT_ITEMS).filter(k => k !== 'bone');   // bones lie in caves, not on quests
-    const item = keys2[(Math.random() * keys2.length) | 0];
     const n = 3 + ((Math.random() * 4) | 0);
+    // M46 BUGFIX (rafzzer lineage): no more 'Gather 6 mushrooms' stuck at 0/6 — only
+    // offer a gather when the land ACTUALLY holds the resource (with one spare for
+    // spent or unreachable pockets); otherwise the board rerolls to another deed.
+    const viable = [];
+    for (const k2 of keys2) if (pickupSupply(k2) >= n + 1) viable.push(k2);
+    if (!viable.length) return null;   // this ground gathers nothing — the wild offers another kind of deed
+    const item = viable[(Math.random() * viable.length) | 0];
     const c = COLLECT_ITEMS[item];
     return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: c.icon, title: `Gather ${n} ${c.label}`,
       desc: `Gather ${n} ${c.label} from the wild. Related finds shimmer with faint gold light.`, need: n, have: 0, item,
@@ -7214,7 +7229,9 @@ window.questGuide = function () {
           const def = PICKUP_DEF[pk.type];
           if (!def || def.inv !== q.item) continue;
           const d = dist2(pk.x, pk.z);
-          if (d < 320 && (!c || d < c.d)) c = { x: pk.x, z: pk.z, d, label: q.title, kind: 'collect', pk };
+          // M46 BUGFIX (rafzzer lineage): was 320 — the guide pointed at nothing on a long
+          // trek, and the 12-min valve read the honest march as a stall and set the deed aside.
+          if (d < 640 && (!c || d < c.d)) c = { x: pk.x, z: pk.z, d, label: q.title, kind: 'collect', pk };
         }
       } else if (q.kind === 'rival') {
         for (const rv of rivals) {
@@ -8539,13 +8556,14 @@ tick();
   };
 
   /* ============ 🧠 RAFZZER v1.0 — the neural cortex (generational) ============
-     18 senses → 10 tanh → 6 urges, ALL clamped before the brainstem ever sees them:
+     20 senses → 10 tanh → 6 urges, ALL clamped before the brainstem ever sees them:
      a mutant can be brave or cowardly, patient or rash — never suicidal or inert.
      SAFK (safe knobs) ≈ v7.20 baseline: with the cortex dreaming, the wolf still
      plays the proven game. fitness() is the single scoring law, identical in-page
-     and in the harness, so no generation can be judged by two different rulers. */
+     and in the harness, so no generation can be judged by two different rulers.
+     M46 · GEN 27+ two senses appended (bear-sense, sky-threat) — see sense(). */
   const RAFZ = window.RAFZZER = (() => {
-    const NI = 18, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;
+    const NI = 20, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     const mul32 = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
     const gauss = (rnd, sd) => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283185307179586 * v) * sd; };
@@ -8563,6 +8581,23 @@ tick();
       const p = ctx.pred && ctx.pred.a, r = (typeof nearestRival === 'function' && nearestRival()) || { d: 999 };
       let preyD = 999, preyMeat = 0;
       try { const a = nearestAnimal(an => !an.dead && an.sp && an.sp.meat > 0 && !(bot.preyShun && an.sp.label === bot.preyShun.label)); if (a) { preyD = Math.hypot(a.pos.x - wolf.pos.x, a.pos.z - wolf.pos.z); preyMeat = a.sp.meat; } } catch (e) { }
+      // M46 · GEN 27+ (bear-aware scar, born from the eagle-dive evasions): the old
+      // predator channel was blind to SHAPES — a Golden Eagle circles at ~10 m and
+      // occluded the real ground threat (input 2 said "predator 12 m" while the bear
+      // was 90 m). Two new senses: nearest ursine distance, and a graded sky-threat
+      // (diving 1.0 / circling 0.55 / soaring 0.25, falling off with range).
+      let bearD = 999, skyT = 0;
+      try {
+        for (const [, ch] of chunks) for (const pr of ch.predators) {
+          if (pr.dead) continue;
+          const d = Math.hypot(pr.pos.x - wolf.pos.x, pr.pos.z - wolf.pos.z);
+          if (pr.sp && pr.sp.build === 'bear') { if (d < bearD) bearD = d; }
+          else if (pr.sp && (pr.sp.build === 'eagle' || /eagle/i.test(String(pr.sp.label)))) {
+            const t = d < 80 ? (1 - d / 80) * (pr.state === 'attack' ? 1 : pr.state === 'chase' ? 0.55 : 0.25) : 0;
+            if (t > skyT) skyT = t;
+          }
+        }
+      } catch (e) { }
       return [
         clamp(wolf.hp / wolf.maxHp, 0, 1), clamp(wolf.stamina / 100, 0, 1),
         clamp((ctx.pred ? ctx.pred.d : 999) / 80, 0, 1),
@@ -8574,7 +8609,9 @@ tick();
         clamp(S.goalD / 80, 0, 1), clamp(S.xpEMA, 0, 1), clamp(wolf.level / 25, 0, 1),
         clamp((typeof weather !== 'undefined' && weather.storm) || 0, 0, 1),
         clamp(((typeof WORLD_EVENTS !== 'undefined' && WORLD_EVENTS.chill) || 0) / 8, 0, 1),
-        S.scars.fight / 3, S.scars.neglect / 3, S.scars.water / 3
+        S.scars.fight / 3, S.scars.neglect / 3, S.scars.water / 3,
+        clamp(bearD / 80, 0, 1),      // 18 · ursine distance (unoccluded by the sky)
+        skyT                          // 19 · graded sky-threat (eagle dive/chase/soar)
       ];
     };
     const think = ctx => {
@@ -8888,8 +8925,11 @@ tick();
       const hit = nearestAnimal(a => a.sp === ref || (ref && a.sp.label === ref.label));
       s = hit.d < 160 ? 4 : hit.d < 400 ? 2.5 : 1.2;
     } else if (q.kind === 'collect') {
-      const hit = nearestPk(q.item);
-      s = hit.d < 120 ? 3.6 : 1.4;
+      // M46 BUGFIX (rafzzer lineage): a deed the land cannot fulfil is a walking stall,
+      // not a quest — supply, not distance alone, must decide whether a gather is real.
+      const sup = typeof pickupSupply === 'function' ? pickupSupply(q.item) : 1e9;
+      const left = Math.max(1, (q.need || 1) - (q.have || 0));
+      s = sup >= left + 1 ? (nearestPk(q.item).d < 120 ? 3.6 : 1.4) : 0.25;
     } else if (q.kind === 'explore') {
       let bd = 1e9, any = false;
       for (const lm of landmarkList) { if (q.lmType && lm.type !== q.lmType) continue; any = true; const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z); if (d < bd) bd = d; }
@@ -8919,7 +8959,11 @@ tick();
       const pr = q.have || 0;
       if (bot.qPr !== pr) { bot.qPr = pr; bot.qPrT = SIMNOW(); }
       const g = window.questGuide && window.questGuide();   // approaching the mark counts as living progress
-      if (g) { const d = g.d | 0; if (bot.qGd === undefined || d < bot.qGd - 3) { bot.qGd = d; bot.qPrT = SIMNOW(); } bot.qGd = Math.min(bot.qGd === undefined ? d : bot.qGd, d); }
+      // M46 BUGFIX (gen11 record): APPROACH is progress for every clock, not just the
+      // 12-min flatline — a wolf closing 100 m on the next pickup (or a quarry it can
+      // nearly see) is not stalled, and the 5-min/150-s clocks must know it.
+      if (g) { const d = g.d | 0; if (bot.qGd === undefined || d < bot.qGd - 3) { bot.qGd = d; bot.qPrT = SIMNOW(); bot.stallT = bot.hardT = SIMNOW(); } bot.qGd = Math.min(bot.qGd === undefined ? d : bot.qGd, d); bot.lastQGd = d; }
+      else bot.lastQGd = -1;
       if (q.kind !== 'survive' && SIMNOW() - (bot.qPrT || SIMNOW()) > 720000) {   // 12 min utterly flat — the one honest escape
         log('quest-flatlined', { msg: q.title + ' — no progress nor approach for 12 minutes; setting it aside' });
         bot.shunned.add(q.title);
@@ -8967,6 +9011,11 @@ tick();
           const np = nearestPred(), lb = liveBoss(), rv = nearestRival();
           log('death', { hp: +wolf.hp.toFixed(1), predatorNear: np.d < 60 ? 'yes(' + np.d.toFixed(0) + 'm)' : 'no', bossNear: lb.d < 120 ? lb.b.def.name : 'no', rivalNear: rv.d < 60 ? 'yes(' + rv.d.toFixed(0) + 'm)' : 'no', msg: 'wolf fell' });
           RAFZ.die({ predD: np.d, bossD: lb.d, rivalD: rv.d });
+          // M46 BUGFIX (gen5 record): the 5-min stall clock used to survive the death +
+          // respawn teleport and fire on the fresh life. The clock is born again with the wolf —
+          // and so is the approach channel (the monotonic guide-distance minimum would
+          // otherwise remember the old life's 30 m and swallow a 400 m trek's progress).
+          bot.stallQ = null; bot.stallHave = 0; bot.stallT = bot.hardT = SIMNOW(); bot.qPrT = SIMNOW(); bot.qGd = undefined;
         }
         return;
       }
@@ -9121,13 +9170,18 @@ tick();
       } else if (wolf.stamina >= 88) bot.drinking = false;
 
       /* ---------- 3.5 a hunter is close: yield ground, live to hunt again ---------- */
-      if (pred.a && pred.d < NK.yieldR && !bot.drinking && bossHit.d > 90) {
+      // M46 · ursine guard (brainstem rule): against an apex bear while spent, the safe
+      // ground starts farther out — a tired wolf cannot out-run a Ursus. Still inside the
+      // SAFK envelope: the cortex's own yield knob sets the base, the rule only stretches it.
+      const bearApex = pred.a && pred.a.sp && pred.a.sp.build === 'bear' && (pred.a.level || 1) >= wolf.level + 2 && (wolf.stamina < 35 || wolf.exhausted);
+      const yieldR = bearApex ? Math.min(NK.yieldR * 1.8, 60) : NK.yieldR;
+      if (pred.a && pred.d < yieldR && !bot.drinking && bossHit.d > 90) {
         RAFZ.bump('yield');
         const away = Math.atan2(wolf.pos.x - pred.a.pos.x, wolf.pos.z - pred.a.pos.z) + (bot.giveSide || 0);
         aim(away, 0.55);
         keys.KeyW = true; keys.ShiftLeft = pred.d < 14 && wolf.stamina > 30 && !wolf.exhausted;
         wolf.crouch = false;
-        bot.goalText = '↔️ giving way to a ' + (pred.a.sp ? pred.a.sp.label : 'hunter') + ' (' + pred.d.toFixed(0) + 'm)';
+        bot.goalText = bearApex ? '🐻 ursine guard — giving way early (' + pred.d.toFixed(0) + 'm, spent)' : '↔️ giving way to a ' + (pred.a.sp ? pred.a.sp.label : 'hunter') + ' (' + pred.d.toFixed(0) + 'm)';
         if (!bot.giveSide || Math.random() < 0.02) bot.giveSide = (Math.random() < 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.5);
         applyAim(); return;
       }
@@ -9194,18 +9248,18 @@ tick();
             else bot.gatherStick = null;
           }
           if (!hit) {
-            let cands = [];
+            let cands = [], cands2 = [];
             for (const [, ch2] of chunks) for (const p of ch2.pickups) {
               if (p.gathered || bot.pkBlack.has(p)) continue;
               const def2 = PICKUP_DEF[p.type];
               if (!def2 || def2.inv !== cq.item) continue;
               const d = Math.hypot(p.x - wolf.pos.x, p.z - wolf.pos.z);
-              if (d < 240) cands.push({ p, d });
+              if (d < 240) cands.push({ p, d }); else if (d < 640) cands2.push({ p, d });
             }
+            if (!cands.length) cands = cands2;   // M46 BUGFIX: this ground first, but a real harvest farther off is a quest too — 240 m only found stalls
             cands.sort((x, y) => x.d - y.d);
             const predNear = (px, pz, rr) => { for (const [, ch] of chunks) for (const pr of ch.predators) if (!pr.dead && Math.hypot(pr.pos.x - px, pr.pos.z - pz) < rr) return true; return false; };
-            cands = cands.filter(c3 => !predNear(c3.p.x, c3.p.z, 60));   // never feed beside a bear — that tug-of-war is the circling spectators hate
-            if (!cands.length) cands = cands.slice ? [] : [];
+            cands = cands.filter(c3 => !predNear(c3.p.x, c3.p.z, 26));   // don't pick from a bear's paws — but a predator 30 m off need not veto the whole patch (was 60: the veto emptied boards)
             for (const c2 of cands.slice(0, 5)) {   // nearest 5: first that isn't across deep water
               let blocked = false;
               const steps = Math.max(4, Math.min(14, (c2.d / 18) | 0));   // sample every ~18 m — rivers bend
@@ -9611,6 +9665,7 @@ tick();
         else {
           if (SIMNOW() - bot.stallT > 150000 && SIMNOW() - (bot.farBiasT || 0) > 150000) {
             bot.farBiasT = SIMNOW(); bot.lmStick = null; bot.lmNear = null;
+            bot.gatherStick = null; if (bot.pkBlack) bot.pkBlack.clear();   // M46 BUGFIX: the soft retry must also unstick a gather — old sticks/blacklists only re-picked the same spot
             log('quest-drive', { title: q0.title, msg: 'this ground yields nothing — reaching for a site further afield' });
             bot.stallT = SIMNOW();   // soft retry — but the hard clock keeps running
           }

@@ -2673,6 +2673,15 @@ function nearbySpeciesCounts() {   // what actually roams the loaded world right
   for (const [, ch] of chunks) for (const a of ch.animals) if (!a.dead) counts[a.name] = (counts[a.name] || 0) + 1;
   return counts;
 }
+function pickupSupply(item) {   // M46: how many ungathered pickups of this item exist in the living world?
+  let n = 0;
+  for (const [, ch] of chunks) for (const pk of ch.pickups) {
+    if (pk.gathered) continue;
+    const def = PICKUP_DEF[pk.type];
+    if (def && def.inv === item) n++;
+  }
+  return n;
+}
 function genQuest(kind) {
   const biome = questBiomePick();
   const info = BIOME_INFO[biome] || BIOME_INFO.forest;
@@ -2728,8 +2737,14 @@ function genQuest(kind) {
   }
   if (kind === 'collect') {
     const keys2 = Object.keys(COLLECT_ITEMS).filter(k => k !== 'bone');   // bones lie in caves, not on quests
-    const item = keys2[(Math.random() * keys2.length) | 0];
     const n = 3 + ((Math.random() * 4) | 0);
+    // M46 BUGFIX (rafzzer lineage): no more 'Gather 6 mushrooms' stuck at 0/6 — only
+    // offer a gather when the land ACTUALLY holds the resource (with one spare for
+    // spent or unreachable pockets); otherwise the board rerolls to another deed.
+    const viable = [];
+    for (const k2 of keys2) if (pickupSupply(k2) >= n + 1) viable.push(k2);
+    if (!viable.length) return null;   // this ground gathers nothing — the wild offers another kind of deed
+    const item = viable[(Math.random() * viable.length) | 0];
     const c = COLLECT_ITEMS[item];
     return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: c.icon, title: `Gather ${n} ${c.label}`,
       desc: `Gather ${n} ${c.label} from the wild. Related finds shimmer with faint gold light.`, need: n, have: 0, item,
@@ -3559,7 +3574,9 @@ window.questGuide = function () {
           const def = PICKUP_DEF[pk.type];
           if (!def || def.inv !== q.item) continue;
           const d = dist2(pk.x, pk.z);
-          if (d < 320 && (!c || d < c.d)) c = { x: pk.x, z: pk.z, d, label: q.title, kind: 'collect', pk };
+          // M46 BUGFIX (rafzzer lineage): was 320 — the guide pointed at nothing on a long
+          // trek, and the 12-min valve read the honest march as a stall and set the deed aside.
+          if (d < 640 && (!c || d < c.d)) c = { x: pk.x, z: pk.z, d, label: q.title, kind: 'collect', pk };
         }
       } else if (q.kind === 'rival') {
         for (const rv of rivals) {
