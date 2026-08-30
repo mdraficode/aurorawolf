@@ -114,7 +114,7 @@ if (cmd === 'spawn') {
 if (cmd === 'traitpromote') {   // compound the bear-aware chain (never touches the global champion/crown bar)
   const g = arg;
   const cand = read(CAND), run = read(`${DIR}/rafzzer_run_gen${g}.json`);
-  if (!(cand.mutation && cand.mutation.mode === 'trait')) { console.log(`GEN ${g} is not a trait run — no chain move`); process.exit(1); }
+  if (!(cand.mutation && (cand.mutation.mode === 'trait' || cand.mutation.mode === 'traitglobal'))) { console.log(`GEN ${g} is not a trait run — no chain move`); process.exit(1); }
   const prev = fs.existsSync(TRAITCHAMP) ? read(TRAITCHAMP) : null;
   const prevFit = prev ? prev.fit : -1e9;
   if (run.fitness > prevFit) {
