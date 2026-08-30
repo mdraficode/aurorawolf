@@ -45,6 +45,15 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #mmOrbit { position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; pointer-events: none; z-index: 60;
   opacity: .3; transition: opacity .3s ease; }   /* faint at rest — they wake at a touch; z 60: above the inventory shade, so the satchel button can always close its box */
 #mmOrbit.wake, #mmOrbit:hover { opacity: 1; }
+#fsBtn {   /* appears whenever the game is NOT fullscreen — one tap fills the screen */
+  position: absolute; top: 176px; right: 16px; width: 36px; height: 36px; border-radius: 50%;
+  display: none; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer; z-index: 12;
+  font-size: 17px; line-height: 1; padding: 0; color: #dcecff; font-family: inherit;
+  border: 1px solid rgba(180, 220, 255, 0.35); background: rgba(10, 18, 30, 0.55);
+  opacity: .55; transition: opacity .25s ease;
+}
+#fsBtn.show { display: flex; }
+#fsBtn:active { opacity: 1; transform: scale(.94); }
 #mmOrbit button { position: absolute; pointer-events: auto; border-radius: 50%;
   left: calc(50% + var(--mx, 0) * var(--orb, 84.3%)); top: calc(50% + var(--my, 0) * var(--orb, 84.3%)); }   /* satellites on the arc — --orb sets the radius */
 #invBtn  { --mx: -0.990; --my: 0.139; margin: -20px 0 0 -20px; }   /* west of the ring */
@@ -245,6 +254,9 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   /* small landscape phones: slimmer buttons + minimap so nothing collides */
   body.touch #minimap { top: 14px; width: 84px; height: 84px; }
   body.touch #mmOrbit { top: 14px; width: 84px; height: 84px; --orb: 105%; }
+  #fsBtn { top: 152px; right: 14px; }   /* 84px orbit: pause ends ~137 */
+  #fsBtn { top: 212px; right: 14px; }
+  body.touch #fsBtn { top: 190px; }   /* 118px orbit: pause ends ~178 */
   #mmOrbit button { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 15px; }
   body.touch #btns { width: 72px; height: 72px; right: 19px; bottom: 19px; }   /* deeper into the corner */
   body.touch #tAttack { width: 86px; height: 86px; margin: -43px 0 0 -43px; font-size: 31px; }   /* overtakes the 84px map */
@@ -412,6 +424,7 @@ body.touch #questTracker { display: none; }
     <button id="btnAI" title="AI plays (watch mode)">🤖</button>
     <button id="tPause" title="Pause (P)">⏸</button>
   </div>
+  <button id="fsBtn" title="Fullscreen">⛶</button>
   <div id="bigmapWrap">
     <div id="bigmapBox">
       <div id="bigmapHead"><span id="bigmapTitle">🗺️ Revontulet — the wild around you</span><button id="bigmapClose">✕</button></div>
@@ -7566,6 +7579,28 @@ function wakeBtns() {   // a touched button wakes both clusters for a moment
   }, 2200);
 }
 for (const id of ['invBtn', 'questBtn', 'btnAI', 'tPause']) { const b = el(id); if (b) b.addEventListener('pointerdown', wakeBtns); }   // the map's arch wakes too
+/* ---- the fullscreen toggle: visible whenever the game is not fullscreen ---- */
+(function () {
+  const fb = el('fsBtn'); if (!fb) return;
+  const root = document.documentElement;
+  const canFS = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+  if (!canFS) return;   // no fullscreen API (iPhone Safari) — no button
+  const sync = () => fb.classList.toggle('show', !document.fullscreenElement && !document.webkitFullscreenElement);
+  document.addEventListener('fullscreenchange', sync);
+  document.addEventListener('webkitfullscreenchange', sync);
+  let sawPtr = false;
+  const go = () => {
+    try {
+      const cur = document.fullscreenElement || document.webkitFullscreenElement;
+      if (cur) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else { const p = root.requestFullscreen ? root.requestFullscreen() : root.webkitRequestFullscreen(); if (p && p.catch) p.catch(() => { }); }
+    } catch (err) { }
+    setTimeout(sync, 50); sync();
+  };
+  fb.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); sawPtr = true; go(); });
+  fb.addEventListener('click', e => { e.preventDefault(); if (!sawPtr) go(); sawPtr = false; });   // event-paired — one action per tap
+  setInterval(sync, 1000); sync();   // slow heartbeat — covers any browser that fumbles the change event
+})();
 function bindHold(id, down, up) {
   const b = el(id);
   if (!b) return;
@@ -7641,9 +7676,20 @@ bindHold('tProwl', () => { wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾
     if (show) { audio.uiClick(); updateInv(); }
   };
   window.toggleInv = toggleInv;
-  if (ib) ib.addEventListener('click', () => toggleInv());
+  // BULLETPROOF toggle — EVENT-PAIRED, not time-guarded: pointerdown toggles and marks the tap;
+  // the trailing click (which phones may delay by SECONDS) only acts if it came from a tap that never
+  // fired pointerdown. One physical tap = exactly one toggle, whatever the browser duplicates or delays.
+  let sawPtr = false;
+  if (ib) {
+    ib.addEventListener('pointerdown', e => { e.preventDefault(); sawPtr = true; toggleInv(); });
+    ib.addEventListener('click', e => { e.preventDefault(); if (!sawPtr) toggleInv(); sawPtr = false; });
+  }
+  let sawPtrX = false;
   const ic = el('invClose');
-  if (ic) ic.addEventListener('click', () => toggleInv(false));
+  if (ic) {
+    ic.addEventListener('pointerdown', e => { e.preventDefault(); sawPtrX = true; toggleInv(false); });
+    ic.addEventListener('click', e => { e.preventDefault(); if (!sawPtrX) toggleInv(false); sawPtrX = false; });
+  }
   if (iw) iw.addEventListener('pointerdown', e => { if (e.target === iw) toggleInv(false); });   // tap the shade to close
 })();
 (function () {
