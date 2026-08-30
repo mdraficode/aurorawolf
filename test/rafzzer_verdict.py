@@ -3,7 +3,7 @@
 promote only if: gate passed AND no vetoes AND fitness > champion.
 Tripwires print INSPECT:<reason> and exit 3 (driver stops for the human)."""
 import json, sys, pathlib
-D = pathlib.Path('/home/user/test')
+D = pathlib.Path(__file__).resolve().parent   # repo move 2026-08-30: was /home/user/test
 g = int(sys.argv[1])
 run = json.load(open(D / f'rafzzer_run_gen{g}.json'))
 gate = json.load(open(D / f'rafzzer_gate_gen{g}.json'))
