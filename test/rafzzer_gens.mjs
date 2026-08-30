@@ -104,7 +104,7 @@ if (cmd === 'spawn') {
       w[i] = Math.max(-2.5, Math.min(2.5, w[i]));
     }
     m = { weights: w, touched, reset, sd: +sd.toFixed(3), mode: 'trait', base: baseLabel };
-  } else m = mutate(base.weights, g + 1000 * (attempt - 1));   // attempt re-rolls the dice, never the law (base = champion for 'global', trait champ for 'traitglobal')
+  } else { m = mutate(base.weights, g + 1000 * (attempt - 1)); if (mode === 'traitglobal') { m.mode = 'traitglobal'; m.base = baseLabel; } }   // attempt re-rolls the dice, never the law (base = champion for 'global', trait champ for 'traitglobal')
   const cand = { v: '1.0', gen: g, parents: [base.gen], weights: m.weights, scars: base.scars, mutation: m, parentFit: base.fit };
   write(CAND, cand);
   console.log(`spawned GEN ${g}${attempt > 1 ? ' (re-roll ' + attempt + ')' : ''} [${m.mode || 'global'}]: ${m.touched} weights mutated (σ=${m.sd}), ${m.reset} reborn · parent ${baseLabel} · scars ${JSON.stringify(base.scars)}`);
