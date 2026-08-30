@@ -1,3 +1,6 @@
 .ghtoken
 node_modules/
 __pycache__/
+
+# regenerable screenshots (test suites & probes write these)
+shots/*.png

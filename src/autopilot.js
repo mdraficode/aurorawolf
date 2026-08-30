@@ -133,7 +133,7 @@
         return K;
       } catch (e) { Object.assign(K, SAFK); return K; }   // the brainstem never dies for the cortex's dreams
     };
-    const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
+    const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag|eagle/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
     const fitness = () => {   // the one law of this lineage
       const R = window.RUN || {};
       const cls = classify(R.cause);

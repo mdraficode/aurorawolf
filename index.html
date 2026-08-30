@@ -1843,6 +1843,11 @@ function buildWolf() {
   return { group: g, legs, lowers, head, tail };
 }
 
+function bloodBurst(pos, n = 14, big = 1) {   // a registered hit's blood squirt — red, brief, unmistakable
+  pool.burst(pos, n, 0xc21018, 0.5 * big, 2.6 * big, 3.2 * big);
+  pool.burst(pos, Math.round(n * 0.45), 0x8c0d12, 0.3 * big, 1.7 * big, 2.1 * big);
+}
+
 class Wolf {
   constructor() {
     const m = buildWolf();
@@ -2079,13 +2084,29 @@ class Wolf {
       m.rotation.x = clamp(this.flyDirY, -0.6, 0.6) * -0.7;
       return;
     }
-    // bite & claw lunge
+    // claw & bite strike — the paw swings first, the muzzle snaps after (own the frame)
     if (this.atkT > 0) {
-      const k = Math.sin((1 - this.atkT / 0.38) * Math.PI);
-      this.head.rotation.x = 0.1 - k * 0.7;
-      m.position.x += Math.sin(this.yaw) * k * 0.35;
-      m.position.z += Math.cos(this.yaw) * k * 0.35;
-      m.position.y += k * 0.12;
+      const ph = 1 - this.atkT / 0.38;                 // 0 → 1 through the strike
+      if (ph < 0.45) {                                 // PHASE 1 — the right claw swings toward the foe
+        const s = ph / 0.45;
+        const lift = Math.sin(Math.min(1, s * 2) * Math.PI / 2);   // quick raise…
+        const strike = Math.max(0, (s - 0.5) * 2);                 // …then swing down
+        this.legs[0].rotation.x = -1.25 * lift + 1.6 * strike * strike;
+        this.lowers[0].rotation.x = 0.7 * lift - 1.2 * strike;
+        this.head.rotation.x = 0.1 + 0.12 * s;
+      } else {                                         // PHASE 2 — the bite follows
+        const b = (ph - 0.45) / 0.55;
+        const snap = Math.sin(b * Math.PI);
+        this.head.rotation.x = 0.1 + 0.6 * snap;       // muzzle snaps down and back
+        this.head.rotation.z = 0;
+        m.position.x += Math.sin(this.yaw) * snap * 0.3;
+        m.position.z += Math.cos(this.yaw) * snap * 0.3;
+        m.position.y += snap * 0.1;
+        this.legs[0].rotation.x = lerp(this.legs[0].rotation.x, 0.3, dt * 12);
+        this.lowers[0].rotation.x = lerp(this.lowers[0].rotation.x, 0, dt * 12);
+      }
+      this.tail.rotation.x = 0.25;                     // the tail flicks with the lunge
+      return;                                          // the strike owns the frame
     }
     this.phase += dt * (2.0 + spd * 1.35);
     const t = performance.now() / 1000;
@@ -2154,7 +2175,7 @@ class Wolf {
         if (d < bestD) { bestD = d; best = a; }
       }
     }
-    pool.burst(V3(this.pos.x + fx * 1.5, this.pos.y + 0.9, this.pos.z + fz * 1.5), 10, 0xfff2c8, 0.9, 1.6, 3.2);
+    pool.burst(V3(this.pos.x + fx * 1.5, this.pos.y + 0.9, this.pos.z + fz * 1.5), 0, 0xfff2c8, 0.9, 1.6, 3.2);   // (dust removed — the strike shows in the body now)
     if (best) {
       // where does the bite land? behind · flank · face
       const tfx = Math.sin(best.heading || 0), tfz = Math.cos(best.heading || 0);
@@ -2168,6 +2189,7 @@ class Wolf {
       if (ambush) dmg += 1;
       if (this.crouch && behind) dmg += 1;            // a prowling strike from the blind side
       best.hit(dmg, behind, ambush);
+      bloodBurst(best.pos, 14 + dmg * 6, 1);          // a real hit means blood
       audio.boneCrunch();
       if (typeof music !== 'undefined') music.hitStab();
       if (ambush) { toast('🩸 AMBUSH! A killing bite from the blind side'); audio.thud(); }
@@ -2243,7 +2265,7 @@ class RivalWolf {
     this.dead = false;
     this.state = 'roam';
     this.off = { x: (Math.random() - 0.5) * 14, z: (Math.random() - 0.5) * 14 };
-    this.atkCd = 0; this.flinchT = 0; this.phase = Math.random() * 6;
+    this.atkCd = 0; this.flinchT = 0; this.biteT = 0; this.phase = Math.random() * 6;
     this.circleDir = Math.random() < 0.5 ? 1 : -1;
   }
   hit() {          // player bite lands
@@ -2251,7 +2273,7 @@ class RivalWolf {
     this.hp -= (this.pack.stance === 'undecided' || this.pack.stance === 'ignore') ? 2 : 1;   // ambush an unaware pack
     AnimalHealthBar.show(this);
     if (this.flinchT <= 0) this.flinchT = 0.3;
-    pool.burst(this.pos, 10, 0xffb3a0, 1.0, 2.0, 2.4);
+    bloodBurst(this.pos, 12, 0.9);
     this.pack.provoked();          // biting a wolf answers the question of stance
     if (this.hp <= 0) this.die();
   }
@@ -2298,6 +2320,8 @@ class RivalWolf {
       speed = dWolf > 1.8 ? 12.2 : 0;   // just slower than the player's sprint
       if (dWolf < 2.4 && this.atkCd <= 0) {
         this.atkCd = 1.15;
+        this.biteT = 0.36;              // claw, then bite — like every wolf
+        bloodBurst(wolf.pos, 14, 1);
         wolfTakeDamage(this.leader ? 9 : 6, this.pos, this.sp.label, '🐺');
       }
       if (dWolf > 90) this.state = 'follow';    // lost it — regroup
@@ -2320,7 +2344,24 @@ class RivalWolf {
     this.phase += dt * (2 + speed * 1.3);
     const amp = Math.min(0.55, speed * 0.055);
     this.legs.forEach((l, i) => { l.rotation.x = Math.sin(this.phase * 2 + i * 1.6) * amp; });
-    this.head.rotation.x = this.state === 'challenge' ? 0.12 : Math.sin(tSec * 0.6 + this.phase) * 0.12;
+    if (this.biteT > 0) {                 // the rival's own claw → bite strike
+      this.biteT -= dt;
+      const ph = 1 - this.biteT / 0.36;
+      if (ph < 0.45) {
+        const s = ph / 0.45;
+        const lift = Math.sin(Math.min(1, s * 2) * Math.PI / 2);
+        const strike = Math.max(0, (s - 0.5) * 2);
+        this.legs[0].rotation.x = -1.15 * lift + 1.55 * strike * strike;
+        this.lowers[0].rotation.x = 0.65 * lift - 1.15 * strike;
+        this.head.rotation.x = 0.12;
+      } else {
+        const snap = Math.sin((ph - 0.45) / 0.55 * Math.PI);
+        this.head.rotation.x = 0.12 + 0.55 * snap;
+        this.legs[0].rotation.x = lerp(this.legs[0].rotation.x, 0, dt * 10);
+        this.lowers[0].rotation.x = lerp(this.lowers[0].rotation.x, 0, dt * 10);
+      }
+    }
+    else this.head.rotation.x = this.state === 'challenge' ? 0.12 : Math.sin(tSec * 0.6 + this.phase) * 0.12;
   }
   dispose() { if (!this.dead) { this.dead = true; } scene.remove(this.model); }
 }
@@ -2407,7 +2448,9 @@ const PREDATORS = {
   tiger: { name: 'tiger',  label: 'Tiger',        icon: '🐯', scale: 1.45, hp: 6, dmg: 11, walk: 2.6, run: 13.0, reach: 3.6, atkCd: 1.15, huntsWolf: 1,
            body: 0xc26a1e, belly: 0xe8dcc4, legs: 0xa85716, head: 0xc26a1e, meat: 5, pelt: 2, bone: 2, build: 'cat', stripes: 0x3a2410 },
   snowLeopard: { name: 'snowLeopard', label: 'Snow Leopard', icon: '🐆', scale: 1.3, hp: 5, dmg: 9, walk: 2.5, run: 12.6, reach: 3.4, atkCd: 1.0,
-           body: 0xcfd6dd, belly: 0xeef2f5, legs: 0xb8c2cb, head: 0xcfd6dd, meat: 4, pelt: 2, bone: 2, build: 'cat', spots: 0x4a5158 }
+           body: 0xcfd6dd, belly: 0xeef2f5, legs: 0xb8c2cb, head: 0xcfd6dd, meat: 4, pelt: 2, bone: 2, build: 'cat', spots: 0x4a5158 },
+  eagle: { name: 'eagle', label: 'Golden Eagle', icon: '🦅', scale: 1.1, hp: 6, dmg: 10, walk: 6.5, run: 17, reach: 2.3, atkCd: 3.6, huntsWolf: 1,
+           body: 0x8a5a1c, belly: 0xc9a45a, legs: 0xe8b820, head: 0xa8763a, meat: 3, pelt: 1, bone: 1, build: 'eagle' }
 };
 const PREDATOR_TABLE = {
   taiga: [['bear', 1]], forest: [['bear', 0.6], ['tiger', 0.4]],
@@ -2549,8 +2592,48 @@ function buildPredator(sp) {
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return { group: g, legs, head };
 }
+
+/* ---- the golden eagle: a long-winged hunter of the open sky ---- */
+function buildEagle(sp) {
+  const g = new THREE.Group();
+  const mB = matColor(sp.body), mBe = matColor(sp.belly), mH = matColor(sp.head),
+        mL = matColor(sp.legs), mD = matColor(0x3d2a10), mEye = matColor(0x14100a);
+  // body — a hunched teardrop riding the wind
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8), mB);
+  body.scale.set(0.72, 0.6, 1.25); g.add(body);
+  const breast = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), mBe);
+  breast.scale.set(0.6, 0.62, 0.9); breast.position.set(0, -0.05, 0.26); g.add(breast);
+  // head — golden crown, hooked beak, fierce eye
+  const head = new THREE.Group(); head.position.set(0, 0.36, 0.5); g.add(head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), mH); head.add(skull);
+  const crown = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), mBe); crown.position.set(0, 0.05, -0.03); head.add(crown);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.22, 6), mL);
+  beak.rotation.x = Math.PI / 2 + 0.3; beak.position.set(0, -0.03, 0.2); head.add(beak);
+  const hook = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.09, 5), mD); hook.rotation.x = Math.PI; hook.position.set(0, -0.08, 0.25); head.add(hook);
+  [[1], [-1]].forEach(([s]) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.032, 6, 5), mEye); e.position.set(s * 0.09, 0.06, 0.1); head.add(e); });
+  // wings — LONG: pivoted at the shoulders so they can flap, fold and bank
+  const wingL = new THREE.Group(); wingL.position.set(-0.2, 0.08, 0.02); g.add(wingL);
+  const wingR = new THREE.Group(); wingR.position.set(0.2, 0.08, 0.02); g.add(wingR);
+  for (const [wg, s] of [[wingL, -1], [wingR, 1]]) {
+    const main = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.05, 0.5), mB);
+    main.position.set(s * 0.72, 0, -0.03); wg.add(main);
+    const tip = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.035, 0.34), mD);
+    tip.position.set(s * 1.62, 0, -0.07); tip.rotation.z = s * 0.1; wg.add(tip);
+  }
+  // fan tail
+  const tail = new THREE.Group(); tail.position.set(0, 0.02, -0.6); g.add(tail);
+  tail.add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.4), mBe));
+  const t2 = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.52), mB); t2.position.y = -0.006; tail.add(t2);
+  // golden talons, tucked
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 5), mL); legL.position.set(-0.12, -0.32, 0.28); g.add(legL);
+  const legR = legL.clone(); legR.position.x = 0.12; g.add(legR);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return { group: g, head, wingL, wingR, tail };
+}
+
 let animalTotal = 0;
 let predatorTotal = 0;
+let eagleTotal = 0;
 /* ============================================================
    LIVING ECOSYSTEM — modular animal AI
    Systems: AnimalStats · AnimalNeeds · AnimalDetection · AnimalAIController ·
@@ -3182,7 +3265,7 @@ class Predator {
     this.hp -= Math.max(1, dmg - (this.armor || 0));   // a veteran's hide turns part of the bite
     AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.38;
-    pool.burst(this.pos, 8 + dmg * 6, ambush ? 0xd23a2a : 0xffb3a0, 1.2, 2.4, 2.8);
+    bloodBurst(this.pos, 10 + dmg * 5, ambush ? 1.3 : 1);   // the hit's blood, big on an ambush
     if (!this.injured && this.hp > 0 && this.hp <= Math.ceil((this.sp.hp || 1) / 2)) {
       this.injured = true;                    // it will limp, bleed, and try to hide
       if (this.pos.distanceTo(wolf.pos) < 40) toast(`🩸 The ${this.sp.label.toLowerCase()} is wounded — follow the blood`);
@@ -3312,8 +3395,8 @@ class Predator {
           this.heading += Math.sin(tSec * 4.5 + this.phase) * 0.5 * dt * 22;   // a veteran feints as it closes
         if (this.atkCd <= 0) {
           this.atkCd = this.sp.atkCd * this.ai.cdMul * (this.furious ? 0.75 : 1);
-          this.biteT = 0.32;
-          pool.burst(V3(this.pos.x + dxw / (dWolf || 1) * 1.2, this.pos.y + 1, this.pos.z + dzw / (dWolf || 1) * 1.2), 8, 0xff5040, 0.8, 1.6, 2.2);
+          this.biteT = 0.36;                                     // claw, then bite
+          bloodBurst(wolf.pos, 16, 1.1);                          // the wolf's blood
           wolfTakeDamage(this.dmg, this.pos, `Level ${this.level} ${this.sp.label}`, this.sp.icon);
         }
       }
@@ -3359,12 +3442,209 @@ class Predator {
     this.legs[2].rotation.x = Math.sin(this.phase + Math.PI) * amp;
     this.legs[3].rotation.x = Math.sin(this.phase) * amp;
     if (this.state === 'sleep') { this.legs.forEach(l => { l.rotation.x = lerp(l.rotation.x, 0.5, dt * 3); }); this.head.rotation.x = 0.5; return; }
-    if (this.biteT > 0) { this.biteT -= dt; this.head.rotation.x = 0.55; }
+    if (this.biteT > 0) {                    // the predator's strike: right claw swings, then it bites
+      this.biteT -= dt;
+      const ph = 1 - this.biteT / 0.36;      // 0 → 1 through the strike
+      if (ph < 0.45) {
+        const s = ph / 0.45;
+        const lift = Math.sin(Math.min(1, s * 2) * Math.PI / 2);
+        const strike = Math.max(0, (s - 0.5) * 2);
+        this.legs[0].rotation.x = -1.1 * lift + 1.5 * strike * strike;
+        this.head.rotation.x = 0.18;
+      } else {
+        const snap = Math.sin((ph - 0.45) / 0.55 * Math.PI);
+        this.head.rotation.x = 0.18 + 0.5 * snap;
+        this.legs[0].rotation.x = lerp(this.legs[0].rotation.x, 0, dt * 10);
+      }
+    }
     else this.head.rotation.x = this.state === 'attack' || this.state === 'chase' ? 0.18 : Math.sin(tSec * 0.5 + this.phase) * 0.25;
   }
   dispose() {
     if (!this.dead) { this.dead = true; predatorTotal--; }
     scene.remove(this.model);
+  }
+}
+
+/* ============ 🦅 the golden eagle — a sky predator with no territory ============
+   It hunts ONLY in daylight (aborts the moment dayF < 0.3, even mid-chase), has no
+   home range, and does not let go easily: it circles the player, then suddenly
+   dives at the ground — the only time the player can land a hit (its huge wingspan
+   makes the low pass a big target). Levels like any predator; spawns rarely. */
+class SkyEagle {
+  constructor(x, z) {
+    this.sp = PREDATORS.eagle;
+    const built = buildEagle(this.sp);
+    this.model = built.group;
+    this.wingL = built.wingL; this.wingR = built.wingR; this.head = built.head; this.tail = built.tail;
+    this.model.scale.setScalar(this.sp.scale);
+    scene.add(this.model);
+    this.pos = V3(x, heightAt(x, z), z);
+    this.home = { x, z };                        // no territory, but any generic reader may look
+    this.heading = Math.random() * Math.PI * 2;
+    this.alt = 17 + Math.random() * 8;          // cruise altitude above the ground
+    this.state = 'soar';                        // soar → chase (circles) → attack (dive) → climb → abort
+    this.timer = 8 + Math.random() * 10;
+    this.atkCd = 0.6;
+    this.flinchT = 0; this.biteT = 0; this.biteAnim = 0;
+    this.phase = Math.random() * 9;
+    this.dead = false; this.threatening = false;
+    this.fleeing = false;
+    this.territory = 0;                         // the sky has no fences
+    this.dm = Math.random() < 0.5 ? 1 : -1;     // circling direction
+    this.orbitR = 9 + Math.random() * 5;
+    this.breakT = 0; this.abortT = 0;
+    this.model.position.copy(this.pos); this.model.position.y = heightAt(x, z) + this.alt;
+    eagleTotal++;
+    // ---- difficulty level: the sky keeps pace with the wolf who walks it ----
+    const pl = (typeof wolf !== 'undefined' && wolf) ? Math.max(0, wolf.level | 0) : 0;
+    let lvl = pl + [-1, 0, 0, 1, 1, 2][(Math.random() * 6) | 0];
+    if (Math.random() < Math.min(0.30, pl * 0.008)) lvl++;
+    this.level = Math.max(1, lvl);
+    const k = this.level - 1;
+    this.maxHp = this.hp = Math.round(this.sp.hp * (1 + 0.14 * k));        // hardier
+    this.dmg = Math.round(this.sp.dmg * (1 + 0.06 * k) * 10) / 10;         // hits harder
+    this.armor = Math.min(2, Math.floor(k / 8));                           // feathers turn a bit
+    this.xpBounty = 25 + 10 * k;
+    this.ai = {
+      speed: 1 + Math.min(0.3, 0.02 * k),
+      cdMul: Math.max(0.62, 1 - 0.03 * k),
+      fury: this.level >= 12                                               // dives twice as often
+    };
+  }
+  startFlee() { /* the eagle does not spook — it owns the sky */ }
+  hit(dmg = 1, behind = false, ambush = false) {
+    if (this.dead) return;
+    this.hp -= Math.max(1, dmg - (this.armor || 0));
+    AnimalHealthBar.show(this);
+    this.flinchT = 0.42;                       // a hit mid-flight knocks it off its line
+    bloodBurst(this.pos, 12 + dmg * 4, 1.2);   // feathers and blood
+    if (this.hp <= 0) { this.die(); return; }
+    if (this.hp <= this.maxHp * 0.34) { this.fleeing = true; toast(`🦅 The wounded eagle retreats into the sky`, true); }
+    else if (this.pos.distanceTo(wolf.pos) < 45) toast(`🦅 The Golden Eagle reels — it climbs away for a moment`);
+    this.state = 'climb'; this.breakT = 2.0;
+  }
+  die() {
+    if (this.dead) return;
+    this.dead = true; this.threatening = false;
+    eagleTotal--;
+    pool.burst(this.pos, 30, 0xffd9a8, 2.2, 4.0, 4.2);
+    pool.burst(this.pos, 16, 0xc21018, 1.4, 2.4, 3.0);
+    audio.cry(0.5);
+    if (typeof questEvent === 'function') questEvent('kill', { species: 'predator', pos: { x: this.pos.x, z: this.pos.z }, level: this.level });
+    if (typeof addXp === 'function') addXp(this.xpBounty || 20);
+    let msg = `${this.sp.icon} You slew the Level ${this.level} Golden Eagle! +${this.xpBounty} XP · +${this.sp.meat} 🥩`;
+    inv.meat += this.sp.meat;
+    if (this.sp.pelt) { inv.pelt += this.sp.pelt; msg += ` +${this.sp.pelt} 🧥`; }
+    if (this.sp.bone) { inv.bone += this.sp.bone; msg += ` +${this.sp.bone} 🦴`; }
+    stats.slain++;
+    toast(msg, true);
+    updateInv();
+    scene.remove(this.model);
+  }
+  dispose() {
+    if (!this.dead) { this.dead = true; eagleTotal--; }
+    scene.remove(this.model);
+  }
+  update(dt, tSec) {
+    if (this.dead) return;
+    const dxw = wolf.pos.x - this.pos.x, dzw = wolf.pos.z - this.pos.z;
+    const dWolfH = Math.hypot(dxw, dzw);
+    if (dWolfH > 300) { this.dispose(); return; }               // outrun the sky
+    if (dWolfH > 240) { this.model.visible = false; this.threatening = false; return; }
+    this.model.visible = true;
+    if (this.flinchT > 0) { this.flinchT -= dt; this.threatening = true; }
+    AnimalHealthBar.tick(this);
+    const gyRef = Math.max(heightAt(this.pos.x, this.pos.z), WATER_Y);   // never dips under a lake
+    const day = dayF > 0.3;
+    // daylight law: as soon as it is dark enough it aborts — even mid-chase
+    if (!day || wolf.deadT > 0 || caveState.in) this.state = 'abort';
+    let speed = 0, altT = this.alt;
+    if (this.flinchT > 0) {
+      altT = this.alt + 3; speed = 6;                                   // hit — wobbles upward
+    } else if (this.state === 'soar') {
+      this.threatening = false;
+      speed = 6 * this.ai.speed;
+      altT = 20 + Math.sin(tSec * 0.3 + this.phase) * 3;
+      this.heading += dt * 0.2;
+      this.timer -= dt;
+      if (day && state === 'play' && wolf.deadT <= 0 && dWolfH < 66 + this.level * 4 && !this.fleeing) {
+        this.state = 'chase'; this.threatening = true;
+        if (typeof audio !== 'undefined') audio.eagle();
+        toast(`🦅 A GOLDEN EAGLE has seen you!`, true);
+      }
+      if (this.timer <= 0 && dWolfH > 70) this.state = 'abort';          // nothing worth the sky's trouble
+    } else if (this.state === 'chase') {
+      // it circles the player on a tight ring — does not let go easily
+      this.threatening = true;
+      this.atkCd -= dt;
+      const ang = Math.atan2(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);   // bearing TO the wolf
+      let want;
+      if (dWolfH > this.orbitR + 3) want = ang;                     // close the gap
+      else if (dWolfH < this.orbitR - 3) want = ang + Math.PI;      // push back out
+      else want = ang + (Math.PI / 2) * this.dm;                    // ride the ring
+      this.heading = angLerp(this.heading, want, Math.min(1, dt * 3.5));
+      speed = (8.5 + this.level * 0.35) * this.ai.speed;
+      altT = 11 + Math.sin(tSec * 0.5) * 1.5;
+      if (this.atkCd <= 0 && !this.fleeing && dWolfH < this.orbitR * 1.7) {   // a clean window — dive
+        this.state = 'attack'; this.diveT = 0; this.diveX = wolf.pos.x; this.diveZ = wolf.pos.z;
+      }
+    } else if (this.state === 'attack') {
+      // the sudden swoop — low, fast, talons forward. The player's only window to hit it.
+      this.threatening = true;
+      this.diveT += dt;
+      const tx = this.diveX, tz = this.diveZ;
+      const dT = Math.hypot(tx - this.pos.x, tz - this.pos.z);
+      this.heading = angLerp(this.heading, Math.atan2(tx - this.pos.x, tz - this.pos.z), Math.min(1, dt * 5));
+      speed = (15 + this.level * 0.7) * this.ai.speed;
+      altT = 0.9;                                                       // talon height
+      const dyOK = Math.abs(gyRef + this.alt + 1 - (wolf.pos.y + 0.6)) < 2.6;
+      if (dWolfH < this.sp.reach * 1.4 && dyOK && this.atkCd <= 0 && this.flinchT <= 0) {
+        this.atkCd = (this.ai.fury ? 2.2 : 3.6) * this.ai.cdMul;
+        wolfTakeDamage(this.dmg, this.pos, `Level ${this.level} ${this.sp.label}`, this.sp.icon);
+        bloodBurst(wolf.pos, 16, 1.2);
+        if (typeof audio !== 'undefined') audio.eagle();
+        this.state = 'climb'; this.breakT = 1.6;
+      } else if (dT < 1.8 || this.alt < 1.3) {                           // swooped past — pull up
+        this.state = 'climb'; this.breakT = 1.4;
+        if (Math.random() < 0.4) this.dm = -this.dm;
+      }
+    } else if (this.state === 'climb') {
+      this.threatening = true;
+      const ang = Math.atan2(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);   // bearing TO the wolf
+      this.heading = angLerp(this.heading, ang + Math.PI * 0.8 * this.dm, Math.min(1, dt * 1.8));
+      speed = (10.5 + this.level * 0.3) * this.ai.speed;
+      altT = 14;
+      this.breakT -= dt;
+      if (this.breakT <= 0) this.state = (this.fleeing || this.hp <= this.maxHp * 0.34 || !day) ? 'abort' : 'chase';
+    } else {                                                              // abort — darkness or wounds
+      this.threatening = false;
+      const aw = Math.atan2(this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z);
+      this.heading = angLerp(this.heading, aw, Math.min(1, dt * 2));
+      speed = 14; altT = 22;
+      this.abortT += dt;
+      this.timer += dt;
+      if (dWolfH > 150 || this.abortT > 12) { this.dispose(); return; }
+    }
+    // ---- flight: altitude eases toward its target, terrain always rules ----
+    this.alt += (altT - this.alt) * Math.min(1, dt * (this.state === 'attack' ? 3.2 : 1.15));
+    if (this.state === 'attack') this.alt = Math.max(0.55, this.alt);     // never hits the dirt
+    const gyNow = Math.max(heightAt(this.pos.x, this.pos.z), WATER_Y);
+    this.pos.x += Math.sin(this.heading) * speed * dt;
+    this.pos.z += Math.cos(this.heading) * speed * dt;
+    this.pos.y = gyNow + this.alt + 1;
+    // ---- the bird wears its flight: bank, pitch, wings ----
+    const bankT = this.state === 'attack' ? 0 : (this.state === 'climb' ? -0.45 * this.dm : 0.5 * this.dm);
+    this.model.rotation.y = this.heading;
+    this.model.rotation.x = this.state === 'attack' ? 0.5 : (this.state === 'climb' ? -0.4 : -0.06);
+    this.model.rotation.z += (bankT - this.model.rotation.z) * Math.min(1, dt * 3);
+    const flapRate = this.state === 'attack' ? 20 : this.state === 'climb' ? 9 : 4.5;
+    const flapAmp = this.state === 'attack' ? 0.1 : this.state === 'climb' ? 0.4 : 0.17;
+    const f = Math.sin(tSec * flapRate + this.phase) * flapAmp;
+    const sweep = (this.state === 'attack' || this.state === 'climb') ? 0.55 : 0.18;
+    this.wingL.rotation.z = -(sweep + f);
+    this.wingR.rotation.z = sweep + f;
+    this.tail.rotation.x = this.state === 'attack' ? 0.4 : 0.1;
+    this.model.position.copy(this.pos);
   }
 }
 
@@ -5082,7 +5362,7 @@ function updateWeather(dt) {
 /* ---------------- day / night ---------------- */
 const DAY_LEN = 240;
 let tDay = 0.34, dayCount = 1, timeScale = 1;
-let dayF = 1, tSec = 0;
+let dayF = 1, tSec = 0, eagleSpawnT = 60;
 const SKY = {
   day: new THREE.Color(0x7ec0e8), night: new THREE.Color(0x0b1226),
   dawn: new THREE.Color(0xf28c5a), cloudDay: new THREE.Color(0x9aa6ae),
@@ -6382,7 +6662,7 @@ class Boss {
     if (this.dead || this.invuln) return;
     this.hp -= dmg * (ambush ? 1.5 : 1);
     this.flinchT = 0.2;
-    pool.burst(this.pos, 10 + dmg * 3, ambush ? 0xd23a2a : 0xffb3a0, 1.2, 2.4, 2.6);
+    bloodBurst(this.pos, 12 + dmg * 3, ambush ? 1.4 : 1);
     audio.boneCrunch();
     music.hitStab();
     const bb = el('bossBar');
@@ -7018,7 +7298,7 @@ function drawMapOverlays(ctx, S, range, opts) {
   ctx.setLineDash([5, 4]);
   for (const ch of chunks.values()) {
     for (const pr of ch.predators) {
-      if (pr.dead) continue;
+      if (pr.dead || !(pr.territory > 0)) continue;   // the eagle has no territory — no ring
       const [hx, hy] = toMap(pr.home.x, pr.home.z);
       const rr = pr.territory / (range * 2) * S;
       if (hx + rr < 0 || hx - rr > S || hy + rr < 0 || hy - rr > S) continue;
@@ -7159,11 +7439,13 @@ arrowOccluder.scale.set(0.8, 0.78, 1.32);   // the wolf's silhouette — it writ
 arrowScene.add(arrowOccluder);
 function buildQuestArrow() {   // ONE continuous ribbon: a single stretched line from tail to tip, draped vertex-by-vertex
   const v = [], W = 0.39;
-  for (let z = -0.8; z < 1.999; z += 0.4)   // the shaft: a cross-section every 0.4 m — no joints, no cracks
+  for (let z = -0.8; z < 2.699; z += 0.4)   // the shaft: a cross-section every 0.4 m — no joints, no cracks
     v.push(-W, 0, z, W, 0, z, W, 0, z + 0.4, -W, 0, z, W, 0, z + 0.4, -W, 0, z + 0.4);
-  const A = [-W, 2.0], B = [-0.98, 2.9], C = [0, 4.0], D = [0.98, 2.9], E = [W, 2.0], M1 = [-0.33, 2.85], M2 = [0.33, 2.85], M3 = [0, 2.35];
+  // a proper BOTTOM-NOTCHED arrowhead: two swept-back barbs, a deep V notch cut
+  // into the base, and the point ahead — not a diamond, a barbed arrow
+  const BL = [-0.95, 2.5], TIP = [0, 4.0], BR = [0.95, 2.5], NOTCH = [0, 3.0];
   const tri = (p2, q, r) => v.push(p2[0], 0, p2[1], q[0], 0, q[1], r[0], 0, r[1]);
-  tri(A, B, M3); tri(B, M1, M3); tri(B, C, M1); tri(C, M2, M1); tri(C, D, M2); tri(D, E, M2); tri(E, M3, M2); tri(E, A, M3);   // the chevron head, fanned from the shaft's last edge
+  tri(BL, TIP, NOTCH); tri(TIP, BR, NOTCH);   // the two barbs; the V between them stays empty
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(v), 3));
   const matFill = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.4, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
@@ -8049,6 +8331,17 @@ function tick() {
       for (const a of ch.animals) a.update(adt, tSec);
       for (const pr of ch.predators) pr.update(adt, tSec);
     }
+    // ---- 🦅 the golden eagle: a rare sighting, daylight only ----
+    eagleSpawnT -= adt;
+    if (eagleSpawnT <= 0) {
+      eagleSpawnT = 80 + Math.random() * 100;            // rare — about one sighting per day of light
+      if (eagleTotal < 1 && dayF > 0.55 && state === 'play' && !caveState.in && wolf.deadT <= 0) {
+        const ea = Math.random() * Math.PI * 2, er = 55 + Math.random() * 45;
+        const ex = wolf.pos.x + Math.sin(ea) * er, ez = wolf.pos.z + Math.cos(ea) * er;
+        const ech = chunks.get(ck(Math.floor(ex / CHUNK), Math.floor(ez / CHUNK)));
+        if (ech) ech.predators.push(new SkyEagle(ex, ez));
+      }
+    }
   }
   updateWeather(dt);
   updateAtmosphere(dt);
@@ -8293,7 +8586,7 @@ tick();
         return K;
       } catch (e) { Object.assign(K, SAFK); return K; }   // the brainstem never dies for the cortex's dreams
     };
-    const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
+    const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag|eagle/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
     const fitness = () => {   // the one law of this lineage
       const R = window.RUN || {};
       const cls = classify(R.cause);

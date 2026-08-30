@@ -1712,7 +1712,7 @@ function updateWeather(dt) {
 /* ---------------- day / night ---------------- */
 const DAY_LEN = 240;
 let tDay = 0.34, dayCount = 1, timeScale = 1;
-let dayF = 1, tSec = 0;
+let dayF = 1, tSec = 0, eagleSpawnT = 60;
 const SKY = {
   day: new THREE.Color(0x7ec0e8), night: new THREE.Color(0x0b1226),
   dawn: new THREE.Color(0xf28c5a), cloudDay: new THREE.Color(0x9aa6ae),
@@ -3012,7 +3012,7 @@ class Boss {
     if (this.dead || this.invuln) return;
     this.hp -= dmg * (ambush ? 1.5 : 1);
     this.flinchT = 0.2;
-    pool.burst(this.pos, 10 + dmg * 3, ambush ? 0xd23a2a : 0xffb3a0, 1.2, 2.4, 2.6);
+    bloodBurst(this.pos, 12 + dmg * 3, ambush ? 1.4 : 1);
     audio.boneCrunch();
     music.hitStab();
     const bb = el('bossBar');
@@ -3648,7 +3648,7 @@ function drawMapOverlays(ctx, S, range, opts) {
   ctx.setLineDash([5, 4]);
   for (const ch of chunks.values()) {
     for (const pr of ch.predators) {
-      if (pr.dead) continue;
+      if (pr.dead || !(pr.territory > 0)) continue;   // the eagle has no territory — no ring
       const [hx, hy] = toMap(pr.home.x, pr.home.z);
       const rr = pr.territory / (range * 2) * S;
       if (hx + rr < 0 || hx - rr > S || hy + rr < 0 || hy - rr > S) continue;
@@ -3789,11 +3789,13 @@ arrowOccluder.scale.set(0.8, 0.78, 1.32);   // the wolf's silhouette — it writ
 arrowScene.add(arrowOccluder);
 function buildQuestArrow() {   // ONE continuous ribbon: a single stretched line from tail to tip, draped vertex-by-vertex
   const v = [], W = 0.39;
-  for (let z = -0.8; z < 1.999; z += 0.4)   // the shaft: a cross-section every 0.4 m — no joints, no cracks
+  for (let z = -0.8; z < 2.699; z += 0.4)   // the shaft: a cross-section every 0.4 m — no joints, no cracks
     v.push(-W, 0, z, W, 0, z, W, 0, z + 0.4, -W, 0, z, W, 0, z + 0.4, -W, 0, z + 0.4);
-  const A = [-W, 2.0], B = [-0.98, 2.9], C = [0, 4.0], D = [0.98, 2.9], E = [W, 2.0], M1 = [-0.33, 2.85], M2 = [0.33, 2.85], M3 = [0, 2.35];
+  // a proper BOTTOM-NOTCHED arrowhead: two swept-back barbs, a deep V notch cut
+  // into the base, and the point ahead — not a diamond, a barbed arrow
+  const BL = [-0.95, 2.5], TIP = [0, 4.0], BR = [0.95, 2.5], NOTCH = [0, 3.0];
   const tri = (p2, q, r) => v.push(p2[0], 0, p2[1], q[0], 0, q[1], r[0], 0, r[1]);
-  tri(A, B, M3); tri(B, M1, M3); tri(B, C, M1); tri(C, M2, M1); tri(C, D, M2); tri(D, E, M2); tri(E, M3, M2); tri(E, A, M3);   // the chevron head, fanned from the shaft's last edge
+  tri(BL, TIP, NOTCH); tri(TIP, BR, NOTCH);   // the two barbs; the V between them stays empty
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(v), 3));
   const matFill = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.4, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
@@ -4678,6 +4680,17 @@ function tick() {
     for (const ch of chunks.values()) {
       for (const a of ch.animals) a.update(adt, tSec);
       for (const pr of ch.predators) pr.update(adt, tSec);
+    }
+    // ---- 🦅 the golden eagle: a rare sighting, daylight only ----
+    eagleSpawnT -= adt;
+    if (eagleSpawnT <= 0) {
+      eagleSpawnT = 80 + Math.random() * 100;            // rare — about one sighting per day of light
+      if (eagleTotal < 1 && dayF > 0.55 && state === 'play' && !caveState.in && wolf.deadT <= 0) {
+        const ea = Math.random() * Math.PI * 2, er = 55 + Math.random() * 45;
+        const ex = wolf.pos.x + Math.sin(ea) * er, ez = wolf.pos.z + Math.cos(ea) * er;
+        const ech = chunks.get(ck(Math.floor(ex / CHUNK), Math.floor(ez / CHUNK)));
+        if (ech) ech.predators.push(new SkyEagle(ex, ez));
+      }
     }
   }
   updateWeather(dt);
