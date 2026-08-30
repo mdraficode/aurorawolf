@@ -32,3 +32,12 @@ Update mid-session:
 - FIX: `clamp(1 - bearD/80, 0, 1)` (proximity: 1 = close). Champion unaffected (its rows are zero).
 - CHAIN RESET: traitchamp (fit 225) was trained on the inverted sense → deleted; trait experiment re-ran from zero with correct encoding. Run records of gens 27-32 remain as evidence (note: 225 was under the inverted sense).
 - M46 driver: trait ×2 → traitglobal ×2 → stop.
+
+## 🛑 PAUSED 2026-08-31 (trainer) — resume via M46_RESUME.md
+| gen | mode | gate | outcome | fit | L | xp | xp/min | notes |
+|-----|------|------|---------|-----|---|----|--------|-------|
+| 32 | traitglobal | PASS (1st) | DIED(fight) | -122 | 0 | 12 | 7 | Rival Alpha @103s; chain holds 225 |
+| 33 | trait×2 + tg×2 | 8× FAIL livingMind | — | — | — | — | — | champion-probe on gate-33 world PASSED (stds .019-.025) → world OK; σ0.15 row-draws flatten outputs. FIX PLANNED: trait σ 0.15→0.10, touch 0.8→0.6 (NOT yet applied) |
+- Chain reset (traitchamp deleted) — old 225 state was inverted-sense-era; trait restarts from zero rows.
+- Sense-18 polarity fix COMMITTED 8fed10e (proximity encoding). Champion unaffected.
+- Next: soften trait σ → re-run GEN 33 (fresh) → 34-36 → Phase 3 (crown bar question open: 283 vs env-median 131).
