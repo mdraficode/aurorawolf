@@ -214,3 +214,7 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - AUTO-REBIRTH sprint: a new Wolf.update line clears 'exhausted' the moment stamina > 1 while the sprint lock is on — after a full drain the wolf sprints again on the smallest refill, exactly as specified.
 - Minimap arch fades at rest like the action cluster: #mmOrbit opacity .3 -> 1 on wake (any orbit-button touch or action-button touch wakes both, 2.2s), CSS transition. Probe-env lesson: the software renderer stalls passive CSS transitions (values advance only on forced style recalcs) — the wake sets opacity INLINE for env-proofness; fade-back via the CSS cascade. Cascade states verified: rest .3 / wake inline 1 / auto-clear.
 - Verified: all three toggles on/off, persistence after pointerup, exhaustion rebirth (stam 2 -> sprinting, exhausted cleared), attack fires with zero input and falls silent on toggle-off. quest 32/32, ai 15/15. Live: byte-verified.
+
+### Mission 40 — the satchel button learns to close
+- Root cause: the toggle code was already correct, but the OPEN inventory's full-screen shade (#invWrap z-56) covered the orbit (z-12), so a second press never reached the button. Fix: #mmOrbit z-index 12 -> 60 (above the shade) — the satchel button is always pressable: press 1 opens, press 2 closes (its own click handler), exactly like the quest button. Shade-tap and the X still close too.
+- Verified with REAL playwright clicks (true hit-testing): open -> true, second press -> false, X -> false. quest 32/32. Live: byte-verified.
