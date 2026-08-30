@@ -7557,10 +7557,13 @@ let btnsWakeT = 0;
 const btnPointers = new Map();   // pointerId → {btn, rect, handed}
 function wakeBtns() {   // a touched button wakes both clusters for a moment
   const root = el('btns'), orb = el('mmOrbit');
-  if (root) { root.classList.add('wake'); }
-  if (orb) { orb.classList.add('wake'); }
+  if (root) root.classList.add('wake');
+  if (orb) { orb.classList.add('wake'); orb.style.opacity = '1'; }   // inline — immune to style-recalc stalls
   clearTimeout(btnsWakeT);
-  btnsWakeT = setTimeout(() => { if (root) root.classList.remove('wake'); if (orb) orb.classList.remove('wake'); }, 2200);
+  btnsWakeT = setTimeout(() => {
+    if (root) root.classList.remove('wake');
+    if (orb) { orb.classList.remove('wake'); orb.style.opacity = ''; }   // back to the CSS rest state (faded)
+  }, 2200);
 }
 for (const id of ['invBtn', 'questBtn', 'btnAI', 'tPause']) { const b = el(id); if (b) b.addEventListener('pointerdown', wakeBtns); }   // the map's arch wakes too
 function bindHold(id, down, up) {
