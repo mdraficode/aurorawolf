@@ -1,9 +1,16 @@
 /* ============ 🤖 AI PLAY — the wolf plays itself (in-game watch mode) ============
-   The v7 "True Hunter" brain: stalks from behind, ambush-crits, flees danger, rests and
-   drinks, picks smart deeds, chases the 3-deeds-per-biome legend arc and fights bosses.
-   In-game: tap the 🤖 button (spectator mode). Headless/watch builds: ?autopilot=1. */
+   RAFZZER v1.0 — The Neural AI. The v7 "True Hunter" reflex ladder survives underneath
+   as the BRAINSTEM (water escape, anti-stuck, corridor executor, quest discipline — the
+   things a wolf must never mislearn). Above it grows a neural cortex: 18 senses →
+   10 tanh hidden → 6 sigmoid urges that shape temperament — when to flee, rest, drink,
+   yield ground, how patiently to stalk, how freely to sprint. Weights are born from the
+   baked champion RAFZZER_SEED and evolve ONLY through gated generations: every death is
+   scored, and a mutant may carry its learnings forward solely if it passed the human
+   verification gate (test/rafzzer_gens.mjs). Deaths also write SCARS — lineage memory
+   that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1. */
 (function () {
   const URL_ON = /[?&]autopilot=1/.test(location.search);
+  window.RAFZZER_SEED = [-0.4275, -0.5621, 0.3544, 0.0937, 0.1233, -0.0392, 0.225, -0.1682, -0.4771, 0.1247, 0.3347, 0.1592, 0.072, -0.327, -0.2189, 0.1688, 0.1704, -0.0449, 0.1319, 0.0071, -0.068, -0.3689, 0.7677, 0.4352, -0.1013, -0.3401, 0.6516, -0.119, 0.3584, 0.5204, 0.3895, 0.0574, -0.3805, 0.2048, 0.2275, 0.2447, -0.3806, -0.367, 0.15, 0.03, 0.2712, -0.2437, 0.812, 0.7585, 0.1496, -0.2585, -0.1197, 0.2902, -0.2292, -0.1125, -0.3817, 0.51, -0.1273, 0.1735, -0.6642, 0.7167, 0.0844, 0.2185, 0.2623, -0.7994, 0.324, -0.1826, -0.3134, 0.1041, 0.2952, -0.2811, -0.5011, -0.0523, -0.2643, 0.2403, 0.2959, 1.1479, -0.0084, 0.1906, 0.2284, 0.0609, 0.1058, -0.113, -0.0632, 0.3524, 0.3339, 0.5088, -0.4354, 0.0909, -0.5425, 0.3696, 0.4913, -0.5636, 0.1206, 0.081, 0.0955, -0.5546, -0.3483, -0.6543, -0.5792, 0.5498, -0.2714, -0.1454, 0.4709, -0.4027, 0.5627, -0.6885, 0.2653, 0.1655, 0.4135, -0.5718, 0.2635, -0.285, 0.1458, -0.0457, 0.4714, 0.5489, 0.0896, 0.06, 0.109, 0.2939, -0.2464, -0.1812, 0.5143, 0.1813, 0.3312, -1.1187, -0.073, -0.059, -0.3915, -0.6037, 0.0131, 0.283, -0.3432, -0.1549, 0.6349, 0.302, -0.2537, -0.4975, -0.4685, 0.244, -0.384, 0.1435, 0.3505, 0.0189, 0.4478, 0.182, -0.6263, -0.0281, 0.0019, 0.0581, 0.5331, -0.201, -0.0167, 0.3879, -0.2461, -0.5454, 0.0221, -0.2978, -0.312, 0.3038, 0.4282, -0.3542, 0.2503, 0.4884, 0.1741, 0.3236, 0.3636, 0.4144, 0.0595, 0.4054, 0.1336, 0.4986, 0.1905, 0.308, -0.8774, -0.4744, 0.7997, -0.6927, -0.0452, 0.0672, 0.1553, 0.2218, -0.2398, 0.6635, 0, -0.2442, 0.0011, 0.0501, 0.1706, 0.684, -0.1054, 0.1545, 0.5467, 0, 0.2187, -0.3672, 0.3153, 0.2493, 0.2983, 0.2756, -0.362, 0.0992, 0.1834, -0.3045, -0.1546, -0.1377, 0.3166, -0.0706, -0.1017, 0.1698, -0.3049, -0.2573, -0.2422, 0.9128, -0.9293, -0.3168, -0.2908, -0.6962, 0.2723, 0.3899, -0.1078, 0.6351, -0.2546, -0.2625, 0.0701, -0.24, -0.1438, 0.2042, -0.12, 1.2427, 0.0976, 0.6959, 0.3604, -0.0997, -0.4476, -0.1074, 0.5036, -0.5659, -0.0206, -0.0431, -0.6678, 0.2697, -0.1028, 0.8447, 0.0871, 0.0638, 0.3363, -0.1559, 0.1791, -0.4211, 0.3456, 0.5136, -0.1436, 0.1861, -0.3524, 0.4064, -0.0854, 0.7326, -1.1194, -0.4266];   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
 
   /* ---------------- sim boost (?speed=N&rate=R, special builds only) ----------------
      Software GL renders at ~2-3 fps here and dt clamps at 0.05 → the sim crawls at
@@ -59,6 +66,124 @@
     if (L.length > 4000) L.splice(0, 1000);
     botPanelPush(e);
   };
+
+  /* ============ 🧠 RAFZZER v1.0 — the neural cortex (generational) ============
+     18 senses → 10 tanh → 6 urges, ALL clamped before the brainstem ever sees them:
+     a mutant can be brave or cowardly, patient or rash — never suicidal or inert.
+     SAFK (safe knobs) ≈ v7.20 baseline: with the cortex dreaming, the wolf still
+     plays the proven game. fitness() is the single scoring law, identical in-page
+     and in the harness, so no generation can be judged by two different rulers. */
+  const RAFZ = window.RAFZZER = (() => {
+    const NI = 18, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const mul32 = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const gauss = (rnd, sd) => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283185307179586 * v) * sd; };
+    const fresh = () => { const rnd = mul32(20070); const w = new Array(NW).fill(0); for (let i = 0; i < NI * NH; i++) w[i] = gauss(rnd, 0.38); for (let i = NI * NH + NH; i < NW; i++) w[i] = gauss(rnd, 0.45); return w; };   // Xavier-scaled: an unsaturated mind is a living mind
+    const S = { gen: 0, weights: null, scars: { fight: 0, neglect: 0, water: 0 }, hist: {}, outs: [], xs: null, last: null, lastXp: null, xpEMA: 0, goalD: 99, wasSwim: false, external: false, ticks: 0 };
+    const NOLEARN = /[?&]nolearn=1/.test(location.search) || !!window.RAFZZER_NO_STORE;   // harness builds: node owns the lineage
+    if (!NOLEARN) try {   // shipped mode: remember the on-device champion
+      const best = JSON.parse(localStorage.getItem('rafzzer_best') || 'null');
+      if (best && best.weights && best.weights.length === NW && best.weights.every(Number.isFinite)) { S.weights = best.weights.slice(); S.gen = best.gen || 0; S.scars = Object.assign(S.scars, best.scars || {}); }
+    } catch (e) { }
+    if (!S.weights) S.weights = (window.RAFZZER_SEED && window.RAFZZER_SEED.length === NW) ? window.RAFZZER_SEED.slice() : fresh();
+    const SAFK = { aggression: 0.5, flee: 0.5, bossEngage: 0.6, restAt: 0.62, drinkAt: 24, yieldR: 26, stalkGive: 8, commitStam: 28, sprintRes: 55, fearMul: 0.95 };
+    const K = Object.assign({}, SAFK);
+    const sense = ctx => {
+      const p = ctx.pred && ctx.pred.a, r = (typeof nearestRival === 'function' && nearestRival()) || { d: 999 };
+      let preyD = 999, preyMeat = 0;
+      try { const a = nearestAnimal(an => !an.dead && an.sp && an.sp.meat > 0 && !(bot.preyShun && an.sp.label === bot.preyShun.label)); if (a) { preyD = Math.hypot(a.pos.x - wolf.pos.x, a.pos.z - wolf.pos.z); preyMeat = a.sp.meat; } } catch (e) { }
+      return [
+        clamp(wolf.hp / wolf.maxHp, 0, 1), clamp(wolf.stamina / 100, 0, 1),
+        clamp((ctx.pred ? ctx.pred.d : 999) / 80, 0, 1),
+        p ? clamp(((p.level || 1) - wolf.level) / 10, -1, 1) : 0,
+        p && (p.state === 'chase' || p.state === 'attack') ? 1 : 0,
+        p ? clamp((p.dmg || (p.sp && p.sp.dmg) || 0) / 20, 0, 1.2) : 0,
+        clamp((r.d || 999) / 40, 0, 1), clamp((ctx.bossHit ? ctx.bossHit.d : 999) / 120, 0, 1),
+        clamp(preyD / 60, 0, 1), clamp(preyMeat / 8, 0, 1),
+        clamp(S.goalD / 80, 0, 1), clamp(S.xpEMA, 0, 1), clamp(wolf.level / 25, 0, 1),
+        clamp((typeof weather !== 'undefined' && weather.storm) || 0, 0, 1),
+        clamp(((typeof WORLD_EVENTS !== 'undefined' && WORLD_EVENTS.chill) || 0) / 8, 0, 1),
+        S.scars.fight / 3, S.scars.neglect / 3, S.scars.water / 3
+      ];
+    };
+    const think = ctx => {
+      S.ticks++;
+      try {
+        const xpNow = wolf.xp | 0;
+        if (S.lastXp !== null) S.xpEMA = S.xpEMA * 0.9 + clamp(xpNow - S.lastXp, 0, 6) / 6 * 0.1;
+        S.lastXp = xpNow;
+        const x = sense(ctx); S.xs = x;
+        const w = S.weights, o = new Array(NO).fill(0);
+        const h = new Array(NH).fill(0);
+        for (let j = 0; j < NH; j++) { let a = w[NI * NH + j]; for (let i = 0; i < NI; i++) a += x[i] * w[i * NH + j]; h[j] = Math.tanh(a); }
+        for (let k2 = 0; k2 < NO; k2++) { let a = w[NW - NO + k2]; const off = NI * NH + NH; for (let j = 0; j < NH; j++) a += h[j] * w[off + j * NO + k2]; o[k2] = 1 / (1 + Math.exp(-0.85 * a)); }   // 0.85 gain: the sigmoid lives on its slope, not its ceiling
+        if (!o.every(Number.isFinite)) { Object.assign(K, SAFK); return K; }   // blown mind → reflexes only
+        const [aggr, flee, rest, drink, pat, spr] = o;
+        K.aggression = aggr; K.flee = flee;
+        K.bossEngage = clamp(0.6 - (aggr - 0.5) * 0.3, 0.45, 0.8);
+        K.restAt = clamp(0.62 + (rest - 0.5) * 0.44, 0.38, 0.84);
+        K.drinkAt = Math.round(clamp(24 + (drink - 0.5) * 28, 12, 40));
+        K.yieldR = clamp(26 + (flee - 0.5) * 24, 14, 42);
+        K.stalkGive = 3 + (1 - pat) * 10;
+        K.commitStam = Math.round(clamp(35 - aggr * 13, 22, 42));
+        K.sprintRes = Math.round(clamp(70 - spr * 30, 40, 72));
+        K.fearMul = clamp(0.65 + flee * 0.6, 0.55, 1.3);
+        S.outs.push(o); if (S.outs.length > 240) S.outs.shift();
+        S.wasSwim = !!wolf.swimming;
+        return K;
+      } catch (e) { Object.assign(K, SAFK); return K; }   // the brainstem never dies for the cortex's dreams
+    };
+    const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
+    const fitness = () => {   // the one law of this lineage
+      const R = window.RUN || {};
+      const cls = classify(R.cause);
+      const pen = { fight: 120, water: 200, neglect: 90, unknown: 60 }[cls] || 60;
+      const BN = window.BOTN || {};
+      // AMENDED LAW (between GEN 2 and GEN 3): the wolf pays ONLY for its own
+      // misbehavior — stuck 8/event, circling loops 15/event. Game-bug detections
+      // (bug-quest-stalled, bug-bite-no-effect…) are the WORLD's failures: they go
+      // to the bug-hunt ledger, never against the lineage.
+      const stall = 8 * (BN['stuck'] || 0) + 15 * (BN['bug-bot-loop'] || 0);
+      // LAW v3 (from GEN 7): the trainer's three honors — fastest quests, most XP per
+      // minute, longest survival. durS falls back to the boost tick-clock for living wolves.
+      const durS = Math.max(1, R.dur || ((window.__boost && __boost.ticks) ? __boost.ticks * 0.05 : (performance.now() - (R.t0 || performance.now())) / 1000));
+      const xpRate = (R.xp || 0) * 60 / durS;                       // XP per sim-minute
+      const questRate = (R.quests || 0) * 60 / durS;                // quests per sim-minute
+      let qFast = 0; try {   // FASTEST-QUEST honor: each accept→complete age under 90 wall-s (≈120 sim-s) earns up to +15
+        for (const age of (R.questTimes || [])) qFast += Math.min(60, Math.max(0, 90 - age)) * 0.25;
+      } catch (e) { }
+      return Math.round(14 * (R.maxLevel || 0) + 0.05 * (R.xp || 0) + 1 * (R.kills || 0) + 2.5 * (R.predators || 0) + 4 * (R.quests || 0) + 5 * (R.landmarks || 0) + 60 * (R.bosses || 0) + 0.08 * durS + 0.5 * Math.min(xpRate, 240) + 60 * Math.min(questRate, 1.5) + qFast - pen - stall);
+    };
+    const die = ctx => {
+      try {
+        const R = window.RUN || {}, cls = classify(R.cause);
+        const fit = fitness();
+        const sc = cls === 'unknown' ? 'fight' : cls;
+        S.scars[sc] = Math.min(3, (S.scars[sc] || 0) + 1);
+        S.last = { fitness: fit, cause: R.cause || 'the wild', cls, dur: +(R.dur || 0).toFixed(1), maxLevel: R.maxLevel || 0, xp: R.xp || 0, hist: Object.assign({}, S.hist), scars: Object.assign({}, S.scars), gen: S.gen, ticks: S.ticks };
+        window.RAFZZER_LAST = S.last;
+        log('rafzzer-death', { msg: '🧠 GEN ' + (S.gen + 1) + ' fell — ' + cls + ' · fitness ' + fit + ' · scars ' + S.scars.fight + '/' + S.scars.neglect + '/' + S.scars.water, fitness: fit, cls });
+        if (!S.external) try {   // shipped mode self-evolution (never in the harness — node owns the lineage)
+          const best = JSON.parse(localStorage.getItem('rafzzer_best') || 'null');
+          if (!best || fit > (best.fit || -1e9)) localStorage.setItem('rafzzer_best', JSON.stringify({ fit, gen: S.gen, weights: S.weights, scars: S.scars }));
+        } catch (e) { }
+      } catch (e) { }
+    };
+    return {
+      get gen() { return S.gen; }, get scars() { return S.scars; }, get hist() { return S.hist; },
+      NW, SAFE: SAFK, think, die,
+      bump: tag => { S.hist[tag] = (S.hist[tag] || 0) + 1; },
+      mode: (m, stalk, dg) => { S.hist[m] = (S.hist[m] || 0) + 1; if (stalk) S.hist.stalk = (S.hist.stalk || 0) + 1; S.goalD = dg; },
+      load: (weights, scars, gen) => {   // harness injection — validates before the mind is swapped
+        if (!Array.isArray(weights) || weights.length !== NW || !weights.every(Number.isFinite)) throw new Error('RAFZZER.load: corrupt weights (' + (weights && weights.length) + ' of ' + NW + ')');
+        S.weights = weights.slice(); S.scars = { fight: 0, neglect: 0, water: 0, ...(scars || {}) };
+        ['fight', 'neglect', 'water'].forEach(k2 => S.scars[k2] = clamp(S.scars[k2] | 0, 0, 3));
+        S.gen = gen | 0; S.external = true; S.hist = {}; S.outs = []; S.last = null; S.lastXp = null; S.xpEMA = 0; S.goalD = 99; S.ticks = 0;
+        log('rafzzer-load', { msg: '🧠 GEN ' + (S.gen + 1) + ' mind loaded — scars ' + S.scars.fight + '/' + S.scars.neglect + '/' + S.scars.water });
+      },
+      snapshot: () => ({ gen: S.gen, fitNow: fitness(), knobs: Object.assign({}, K), hist: Object.assign({}, S.hist), scars: Object.assign({}, S.scars), ticks: S.ticks, inputs: S.xs ? S.xs.map(v => +v.toFixed(3)) : null, outs: S.outs.slice(-60), external: S.external, last: S.last })
+    };
+  })();
 
   /* ---------------- instrumentation ---------------- */
   window.addEventListener('error', e => log('page-error', { msg: String(e.message).slice(0, 140) }));
@@ -145,7 +270,7 @@
   panel.style.cssText = 'position:fixed;top:230px;right:14px;z-index:70;width:250px;font:11px/1.45 ui-monospace,monospace;color:#dfeee6;background:rgba(8,14,22,.72);border:1px solid rgba(126,240,192,.35);border-radius:10px;padding:8px 10px;pointer-events:none;white-space:pre-wrap';
   document.body.appendChild(panel);
   const badge = document.createElement('div');
-  badge.textContent = '● LIVE — 🤖 AUTOPILOT v7.20 NATURAL HUNTER';
+  badge.textContent = '● LIVE — 🧠 RAFZZER v1.0 NEURAL AI · GEN ' + (RAFZ.gen + 1);
   badge.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:71;font:11px ui-monospace,monospace;color:#ffd0d0;background:rgba(60,8,8,.75);border:1px solid rgba(255,120,100,.5);border-radius:8px;padding:3px 10px;pointer-events:none';
   document.body.appendChild(badge);
   const feed = [];
@@ -370,6 +495,7 @@
           bot.deadSeen = true; story.deaths = (story.deaths || 0) + 1;
           const np = nearestPred(), lb = liveBoss(), rv = nearestRival();
           log('death', { hp: +wolf.hp.toFixed(1), predatorNear: np.d < 60 ? 'yes(' + np.d.toFixed(0) + 'm)' : 'no', bossNear: lb.d < 120 ? lb.b.def.name : 'no', rivalNear: rv.d < 60 ? 'yes(' + rv.d.toFixed(0) + 'm)' : 'no', msg: 'wolf fell' });
+          RAFZ.die({ predD: np.d, bossD: lb.d, rivalD: rv.d });
         }
         return;
       }
@@ -396,6 +522,7 @@
       if (packHit.a && (!pred.a || packHit.d < pred.d)) { pred.a = packHit.a; pred.d = packHit.d; }   // hostile wolves are predators too
       const bossHit = liveBoss();
       const frac = wolf.hp / wolf.maxHp;
+      const NK = RAFZ.think({ pred, bossHit, frac });   // 🧠 the cortex weighs the moment
 
       /* ---------- 0. water: a wolf swims to shore, always ---------- */
       if (wolf.swimming) {
@@ -424,7 +551,8 @@
       const bossThreat = bossHit.d < 26;
       const young = wolf.level < 3;
       const heavyHunter = pred.a && pred.a.sp && (pred.a.sp.dmg || 0) >= 13;   // bears hit 15 — don't trade
-      const fleeAt = young ? 0.62 : heavyHunter ? 0.55 : 0.34;
+      const fleeBase = young ? 0.62 : heavyHunter ? 0.55 : 0.34;
+      const fleeAt = Math.max(young ? 0.30 : 0.12, Math.min(0.75, fleeBase + (NK.flee - 0.5) * 0.5));
       if ((frac < fleeAt && (pred.d < (young ? 55 : 45) || bossThreat)) || (frac < 0.48 && bossThreat)) {
         const src = bossThreat && (!pred.a || bossHit.d < pred.d) ? bossHit.b.pos : pred.a.pos;
         const yx = wolf.pos.x - src.x, yz = wolf.pos.z - src.z, m = Math.hypot(yx, yz) || 1;
@@ -441,7 +569,8 @@
       }
 
       /* ---------- 2. boss fight (the story's boss battles) ---------- */
-      if (bossHit.b && bossHit.d < 150 && frac > 0.6 && wolf.level >= 3) {
+      if (bossHit.b && bossHit.d < 150 && frac > NK.bossEngage && wolf.level >= 3) {
+        RAFZ.bump('boss');
         const b = bossHit.b, d = bossHit.d;
         bot.fight = 'boss';
         wolf.crouch = false;
@@ -474,7 +603,8 @@
           const rear = { x: b.pos.x - fx * 2.2, z: b.pos.z - fz * 2.2 };   // get behind its jaws
           aim(Math.atan2(rear.x - wolf.pos.x, rear.z - wolf.pos.z), 0.5);
           keys.KeyW = d > 2.6; keys.ShiftLeft = d > 12 && wolf.stamina > 25 && !wolf.exhausted;
-          if (d < 4.4 + b.def.scale * 0.6 && facing < -0.2 && b.atkCd > 0.4 && SIMNOW() - bot.lastAtk > 650) {
+          const facingW = (Math.sin(wolf.yaw) * (b.pos.x - wolf.pos.x) + Math.cos(wolf.yaw) * (b.pos.z - wolf.pos.z)) / (d || 1);
+          if (d < 4.4 + b.def.scale * 0.6 && facing < -0.2 && facingW > 0.3 && b.atkCd > 0.4 && SIMNOW() - bot.lastAtk > 900) {
             bot.lastAtk = SIMNOW();
             bot.bossBites = (bot.bossBites || 0) + 1;
             wolf.attack();
@@ -487,7 +617,8 @@
       }
 
       /* ---------- 3. rest & drink: a real player manages their bars ---------- */
-      if (frac < 0.62 && pred.d > 65 && bossHit.d > 130) {
+      if (frac < NK.restAt && pred.d > 65 && bossHit.d > 130) {
+        RAFZ.bump('rest');
         if (!bot.restT) { bot.restT = SIMNOW(); log('rest', { msg: 'hurt (' + (frac * 100).toFixed(0) + '%) — resting to heal' }); }
         keys.KeyW = false; keys.ShiftLeft = false; wolf.crouch = false;
         bot.goalText = '😴 resting (hp ' + wolf.hp.toFixed(0) + '/' + wolf.maxHp + ')';
@@ -499,7 +630,8 @@
       }
       bot.restT = 0;
       // drink with hysteresis: commit until stamina is actually restored (or the trip times out)
-      if (((wolf.stamina < 24 && !bot.drinking) || (bot.drinking && wolf.stamina < 88)) && pred.d > 55 && !wolf.swimming) {
+      RAFZ.bump('drink-check');
+      if (((wolf.stamina < NK.drinkAt && !bot.drinking) || (bot.drinking && wolf.stamina < 88)) && pred.d > 55 && !wolf.swimming) {
         bot.drinking = true;
         if (nearWaterEdge()) {
           doGather();  // drinking is gather-at-water's-edge
@@ -518,7 +650,8 @@
       } else if (wolf.stamina >= 88) bot.drinking = false;
 
       /* ---------- 3.5 a hunter is close: yield ground, live to hunt again ---------- */
-      if (pred.a && pred.d < 26 && !bot.drinking && bossHit.d > 90) {
+      if (pred.a && pred.d < NK.yieldR && !bot.drinking && bossHit.d > 90) {
+        RAFZ.bump('yield');
         const away = Math.atan2(wolf.pos.x - pred.a.pos.x, wolf.pos.z - pred.a.pos.z) + (bot.giveSide || 0);
         aim(away, 0.55);
         keys.KeyW = true; keys.ShiftLeft = pred.d < 14 && wolf.stamina > 30 && !wolf.exhausted;
@@ -783,8 +916,8 @@
         const detect = (an.sp.detect || 12) * (wolf.crouch ? 0.5 : 1);
         stalk = d > 6 && d < Math.max(22, detect + 14) && aware < 0.5;
         if (!bot.stalkT0 || SIMNOW() - bot.stalkT0 > 6000) { bot.stalkT0 = SIMNOW(); bot.stalkD0 = d; }
-        if (stalk && d > bot.stalkD0 + 6) {   // prey out-trots the crouch-walk — a real player commits or lets go
-          if (wolf.stamina > 35) { stalk = false; log('stalk-broken', { msg: 'quarry escaping — breaking cover to run it down' }); }
+        if (stalk && d > bot.stalkD0 + NK.stalkGive) {   // prey out-trots the crouch-walk — a real player commits or lets go
+          if (wolf.stamina > NK.commitStam) { stalk = false; log('stalk-broken', { msg: 'quarry escaping — breaking cover to run it down' }); }
           else { bot.preyShun = { label: an.sp.label, until: SIMNOW() + 40000 }; bot.huntStick = null; log('stalk-giveup', { msg: 'too winded to close — letting this one go' }); }
           bot.stalkT0 = 0;
         }
@@ -837,7 +970,7 @@
       if (!bot.sideT) bot.sideT = 0;
       const desired = Math.atan2(steer.x - wolf.pos.x, steer.z - wolf.pos.z);
       let pinfo = null;
-      const fear = wolf.level < 3 ? 68 : 55;
+      const fear = Math.round(Math.max(35, Math.min(85, (wolf.level < 3 ? 68 : 55) * NK.fearMul)));
       const fearOf = (px, pz) => { const d = Math.hypot(px - wolf.pos.x, pz - wolf.pos.z); if (d < fear && (!pinfo || d < pinfo.d)) pinfo = { d, yaw: Math.atan2(px - wolf.pos.x, pz - wolf.pos.z) }; };
       for (const [, ch] of chunks) for (const pr of ch.predators) if (!pr.dead) fearOf(pr.pos.x, pr.pos.z);
       for (const rv of rivals) if (!rv.dead && ((rv.pack && rv.pack.stance === 'attack') || Math.hypot(rv.pos.x - wolf.pos.x, rv.pos.z - wolf.pos.z) < 24)) fearOf(rv.pos.x, rv.pos.z);
@@ -861,10 +994,11 @@
       aim(bestYaw, 0.45);
       bot.lastYaw = bestYaw;
       const dg = Math.hypot(goal.x - wolf.pos.x, goal.z - wolf.pos.z);
+      RAFZ.mode(mode, stalk, dg);
       keys.KeyW = dg > 2.2;
       keys.KeyS = keys.KeyA = keys.KeyD = false;
-      const closeSprint = (targetAnimal && (dg < 34 || (mode === 'hunt' && dg < 90))) || (dg > 8 && dg < 48 && !stalk && !bot.drinking && wolf.stamina > 65 && (mode === 'explore' || mode === 'gather' || mode === 'travel'));   // run the last stretch like a player would
-      keys.ShiftLeft = !stalk && ((dg > 35 && wolf.stamina > 55 && !bot.drinking) || (closeSprint && wolf.stamina > 12)) && !wolf.exhausted;   // travel keeps a reserve — no more lap-tether to the water hole
+      const closeSprint = (targetAnimal && (dg < 34 || (mode === 'hunt' && dg < 90))) || (dg > 8 && dg < 48 && !stalk && !bot.drinking && wolf.stamina > NK.sprintRes + 5 && (mode === 'explore' || mode === 'gather' || mode === 'travel'));   // run the last stretch like a player would
+      keys.ShiftLeft = !stalk && ((dg > 35 && wolf.stamina > NK.sprintRes && !bot.drinking) || (closeSprint && wolf.stamina > 12)) && !wolf.exhausted;   // travel keeps a cortex-set reserve — no more lap-tether to the water hole
       bot.jumpCd = Math.max(0, (bot.jumpCd || 0) - 0.15);
       const ax = wolf.pos.x + Math.sin(bestYaw) * 1.7, az = wolf.pos.z + Math.cos(bestYaw) * 1.7;
       const lip = heightAt(ax, az) - wolf.pos.y;
@@ -880,7 +1014,9 @@
         if (d < 3.2 + (targetAnimal.sp.scale || 1) * 0.7) {
           keys.KeyW = false;
           aim(Math.atan2(targetAnimal.pos.x - wolf.pos.x, targetAnimal.pos.z - wolf.pos.z), 0.85);   // face the bite
-          if (SIMNOW() - bot.lastAtk > 650) {
+          const bxA = targetAnimal.pos.x - wolf.pos.x, bzA = targetAnimal.pos.z - wolf.pos.z, bmA = Math.hypot(bxA, bzA) || 1;
+          const facingA = Math.sin(wolf.yaw) * bxA / bmA + Math.cos(wolf.yaw) * bzA / bmA;   // the bite cone is ~78° of BODY yaw — a camera aim alone can whiff mid-turn
+          if (facingA > 0.35 && SIMNOW() - bot.lastAtk > 900) {
             bot.lastAtk = SIMNOW();
             const hpB = targetAnimal.hp, wasAware = (targetAnimal.aware || 0) >= 0.25;
             const ty = targetAnimal.heading || 0;
@@ -889,7 +1025,7 @@
             if (behind && !wasAware) log('ambush', { msg: 'AMBUSH — killing bite from the blind side' });
             setTimeout(() => {
               if (targetAnimal.dead) { bot.pauseUntil = SIMNOW() + 2200; bot.pauseWhy = 'savoring the catch'; log('kill', { sp: q ? (q.species || q.kind) : 'xp-hunt', msg: 'caught ' + (q && q.species ? q.species : (targetAnimal.sp.label || 'prey')) + (q ? ' → quest ' + q.have + '/' + q.need : ' · xp hunt') + ' · meat ' + inv.meat }); }
-              else if (targetAnimal.hp === hpB) warnOnce('miss' + SIMNOW() | 0, 'bug-bite-no-effect', { key: (q && q.species) || '?', msg: 'bite in reach did nothing (hp ' + hpB + ', dist ' + d.toFixed(1) + ')' });
+              else if (targetAnimal.hp === hpB) warnOnce('miss' + (SIMNOW() | 0), 'bug-bite-no-effect', { key: (q && q.species) || '?', msg: 'bite in reach did nothing (hp ' + hpB + ', dist ' + d.toFixed(1) + ')' });
             }, 350);
           }
         }
@@ -901,7 +1037,9 @@
         if (d < 3.6) {
           keys.KeyW = false;
           aim(Math.atan2(r.pos.x - wolf.pos.x, r.pos.z - wolf.pos.z), 0.85);
-          if ((r.atkCd === undefined || r.atkCd > 0.5) && SIMNOW() - bot.lastAtk > 700) { bot.lastAtk = SIMNOW(); wolf.attack(); }
+          const bxR = r.pos.x - wolf.pos.x, bzR = r.pos.z - wolf.pos.z, bmR = Math.hypot(bxR, bzR) || 1;
+          const facingR = Math.sin(wolf.yaw) * bxR / bmR + Math.cos(wolf.yaw) * bzR / bmR;
+          if (facingR > 0.35 && (r.atkCd === undefined || r.atkCd > 0.5) && SIMNOW() - bot.lastAtk > 900) { bot.lastAtk = SIMNOW(); wolf.attack(); }
         } else if (d < 6 && keys.KeyW && !(r.flinchT > 0)) keys.KeyW = false;   // don't bowl into its jaws
       }
       // gather in reach

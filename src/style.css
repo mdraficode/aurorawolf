@@ -15,7 +15,6 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 }
 #topbar { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; }
 #weatherIcon { font-size: 16px; margin-right: 6px; }
-#topStats { position: absolute; top: 14px; right: 16px; text-align: right; font-size: 11.5px; color: rgba(220, 235, 250, .75); line-height: 1.7; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 
 #inv { display: grid; grid-template-columns: repeat(2, auto); gap: 8px; justify-content: center; padding: 6px 2px 2px; }
 .chip {
@@ -36,8 +35,30 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
   background: rgba(30, 16, 56, 0.55); border: 1px solid rgba(176, 122, 255, 0.45);
   text-shadow: 0 0 12px rgba(176, 122, 255, 0.9);
 }
+#mmOrbit { position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; pointer-events: none; z-index: 60;
+  opacity: .3; transition: opacity .3s ease; }   /* faint at rest — they wake at a touch; z 60: above the inventory shade, so the satchel button can always close its box */
+#mmOrbit.wake, #mmOrbit:hover { opacity: 1; }
+#fsBtn {   /* at the terrain pill's right — glows & blinks 3s whenever the game leaves fullscreen */
+  width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; margin-left: 2px;
+  display: none; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer; z-index: 12;
+  font-size: 15px; line-height: 1; padding: 0; color: #dcecff; font-family: inherit;
+  border: 1px solid rgba(180, 220, 255, 0.35); background: rgba(10, 18, 30, 0.55);
+  opacity: .55; transition: opacity .25s ease;
+}
+#fsBtn.show { display: flex; }
+#runRecap { margin: 18px auto 0; max-width: 420px; padding: 12px 16px; border-radius: 12px; text-align: center;
+  background: rgba(10, 18, 30, 0.55); border: 1px solid rgba(255, 215, 106, 0.3); font-size: 12.5px; line-height: 1.75; color: rgba(230, 238, 248, .92); }
+#runRecap .rr-head { font-size: 14px; color: #ffd76a; letter-spacing: .04em; margin-bottom: 4px; }
+#runRecap b { color: #ffe9b0; }
+#fsBtn:active { opacity: 1; transform: scale(.94); }
+#mmOrbit button { position: absolute; pointer-events: auto; border-radius: 50%;
+  left: calc(50% + var(--mx, 0) * var(--orb, 84.3%)); top: calc(50% + var(--my, 0) * var(--orb, 84.3%)); }   /* satellites on the arc — --orb sets the radius */
+#invBtn  { --mx: -0.990; --my: 0.139; margin: -20px 0 0 -20px; }   /* west of the ring */
+#questBtn{ --mx: -0.809; --my: 0.588; margin: -20px 0 0 -20px; }
+#btnAI   { --mx: -0.438; --my: 0.899; margin: -20px 0 0 -20px; }
+#tPause  { --mx: 0.035;  --my: 0.999; margin: -21px 0 0 -21px; }   /* due south — the end of the arc */
 #minimap {
-  position: absolute; top: 56px; right: 16px; width: 140px; height: 140px; z-index: 8;
+  position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; z-index: 8;
   border-radius: 50%; background: rgba(8, 14, 22, 0.55); pointer-events: auto; cursor: pointer;
   box-shadow: 0 2px 14px rgba(0, 0, 0, .45), inset 0 0 24px rgba(0, 0, 0, .35);
 }
@@ -52,9 +73,14 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
   border-radius: 8px; min-width: 36px; min-height: 36px; font-size: 15px; cursor: pointer; }
 #bigmap { width: min(62vmin, 460px); height: min(62vmin, 460px); border-radius: 10px; display: block; }
 #bigmapLegend { margin-top: 8px; font-size: 10.5px; color: rgba(210, 228, 244, .8); text-align: center; line-height: 1.6; }
-body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
-#hpWrap { position: absolute; top: 72px; left: 16px; transform: none;
-  width: 180px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
+body.touch #minimap { top: 14px; right: 14px; width: 118px; height: 118px; }   /* the corner belongs to the map */
+body.touch #btns { width: 100px; height: 100px; right: 20px; bottom: 20px; }   /* deeper into the corner */
+body.touch #tAttack { width: 120px; height: 120px; margin: -60px 0 0 -60px; font-size: 40px; }   /* overtakes the 118px map */
+body.touch #btns .tbtn:not(#tAttack) { width: 40px; height: 40px; margin: -20px 0 0 -20px; --orb: 99%; }
+body.touch #mmOrbit { top: 14px; right: 14px; width: 118px; height: 118px; }
+body.touch #topbar { top: 14px; left: 50%; transform: translateX(-50%); }   /* upper center on every layout */
+#hpWrap { position: absolute; top: 98px; left: 60px; transform: none;
+  width: 156px; height: 7px; border-radius: 4px; background: rgba(10, 8, 6, 0.55);
   border: 1px solid rgba(255, 120, 100, 0.35); overflow: hidden; }
 #hpFill { height: 100%; width: 100%; border-radius: 3px;
   background: linear-gradient(90deg, #ff8a7a, #d8442f); transition: width 0.2s; }
@@ -82,7 +108,17 @@ body.touch #minimap { top: 112px; right: 14px; width: 118px; height: 118px; }
   background: radial-gradient(ellipse at center, rgba(30, 4, 2, 0.25) 20%, rgba(15, 2, 1, 0.92) 100%);
   opacity: 0; transition: opacity 0.7s; color: #f2c9c0; font-size: 22px; letter-spacing: .04em; }
 #deathOv.show { opacity: 1; }
-#stamWrap { position: absolute; top: 60px; left: 16px; transform: none; width: 180px; height: 8px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(180, 220, 255, 0.16); overflow: hidden; }
+.statIco { position: absolute; left: 16px; width: 34px; height: 34px; pointer-events: none; filter: drop-shadow(0 1px 3px rgba(0,0,0,.55)); }
+.statIco svg { width: 100%; height: 100%; display: block; }
+.statIco span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font: 700 10.5px/1 system-ui, sans-serif; letter-spacing: -.02em; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+#icoXp { top: 14px; } #icoRun { top: 49px; } #icoHp { top: 84px; }   /* 1px seam — the column owns the corner */
+#icoXp span { color: #4a3506; font-size: 12px; font-weight: 800; text-shadow: 0 1px 1px rgba(255,244,214,.4); }
+#icoRun img { width: 88%; height: 88%; position: absolute; left: 6%; top: 6%; }   /* the wolf figure matches the heart's visual span */
+#icoHp span { color: #fff; padding-top: 3px; }
+#xpWrap { position: absolute; top: 29px; left: 60px; transform: none; width: 156px; height: 5px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(255, 215, 106, 0.28); overflow: hidden; }
+#xpFill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffd76a, #ffb347); box-shadow: 0 0 6px rgba(255, 215, 106, 0.5); }
+#stamWrap { position: absolute; top: 62px; left: 60px; transform: none; width: 156px; height: 8px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(180, 220, 255, 0.16); overflow: hidden; }
 #stamFill { height: 100%; width: 100%; border-radius: 6px; background: linear-gradient(90deg, #7ef0c0, #4db8e8); transition: background .3s; }
 
 #prompt {
@@ -130,8 +166,18 @@ body.touch #joyZone { display: block; pointer-events: auto; }
   border: 1px solid rgba(190, 240, 220, .35);
   box-shadow: 0 3px 16px rgba(0, 0, 0, 0.35); will-change: transform;
 }
-#btns { position: fixed; right: 18px; bottom: 20px; z-index: 12; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; }   /* gaps fall through to the camera */
-.brow { display: flex; gap: 10px; }
+/* ---- the attack orbit: a big strike anchor in the corner, its company on the upper-left arch ---- */
+#btns { position: fixed; right: 24px; bottom: 24px; z-index: 12; width: 120px; height: 120px; pointer-events: none; }   /* deeper into the corner */
+#btns .tbtn { position: absolute; left: calc(50% + var(--mx, 0) * var(--orb, 92%)); top: calc(50% + var(--my, 0) * var(--orb, 92%)); }
+#tAttack { left: 50%; top: 50%; width: 142px; height: 142px; margin: -71px 0 0 -71px; font-size: 48px; z-index: 1; }   /* a touch larger than the minimap itself */
+#tAttack span { font-size: 12px; }
+#btns .tbtn:not(#tAttack) { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+#tGather { --mx: -0.940; --my:  0.342; }   /* the arch begins at the button's left hip */
+#tJump   { --mx: -0.996; --my: -0.084; }
+#tSprint { --mx: -0.869; --my: -0.494; }
+#tProwl  { --mx: -0.582; --my: -0.813; }
+#tHowl   { --mx: -0.187; --my: -0.982; }
+#tSense  { --mx:  0.242; --my: -0.970; }   /* the arch crests just past the crown */
 .tbtn {
   pointer-events: auto; touch-action: none; width: 64px; height: 64px; border-radius: 50%;
   border: 1.5px solid rgba(180, 220, 255, 0.3); background: rgba(10, 18, 30, 0.5);
@@ -148,39 +194,35 @@ body.touch #joyZone { display: block; pointer-events: auto; }
 .tbtn.on, .tbtn:active { background: rgba(46, 94, 84, 0.7); border-color: rgba(126, 240, 192, 0.65); }
 .tbtn:focus-visible { opacity: 1; outline: 2px solid #7ef0c0; }
 #tPause {
-  display: none; position: fixed; top: 62px; right: 14px; z-index: 12; pointer-events: auto;
   width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid rgba(180, 220, 255, 0.3);
   background: rgba(10, 18, 30, 0.5); color: #eef3f7; font-size: 15px; font-family: inherit;
   touch-action: none; -webkit-tap-highlight-color: transparent; cursor: pointer;
   opacity: .35; transition: opacity .28s ease;
 }
 #tPause:active, #tPause.on { opacity: 1; }
-body.touch #tPause { display: block; }
 /* ---- satchel: the inventory lives behind a bag button, like the map ---- */
 #invBtn {
-  position: absolute; top: 56px; right: 166px; width: 40px; height: 40px; border-radius: 10px;
-  pointer-events: auto; cursor: pointer; z-index: 12; font-size: 19px; line-height: 1; padding: 0;
+  width: 40px; height: 40px; border-radius: 10px;
+  cursor: pointer; font-size: 19px; line-height: 1; padding: 0;
   border: 1px solid rgba(126, 240, 192, 0.55); color: #d9fbe9; font-family: inherit;
   background: rgba(10, 18, 30, 0.55);
 }
 /* ---- 🤖 AI watch mode: the wolf plays itself ---- */
 #btnAI {
-  position: absolute; top: 56px; right: 212px; width: 40px; height: 40px; border-radius: 10px;
+  width: 40px; height: 40px; border-radius: 10px;
   pointer-events: auto; cursor: pointer; z-index: 12; font-size: 19px; line-height: 1; padding: 0;
   border: 1px solid rgba(190, 150, 255, 0.45); color: #ead9ff; font-family: inherit;
   background: rgba(10, 18, 30, 0.55);
 }
 #btnAI.on { background: rgba(112, 74, 210, 0.6); border-color: rgba(196, 160, 255, 0.9); box-shadow: 0 0 14px rgba(160, 110, 255, 0.35); }
 #btnAI:active { transform: scale(.94); }
-body.touch #btnAI { top: 112px; right: 186px; }
 .btn.ai { border-color: rgba(190, 150, 255, 0.5); color: #ead9ff; }
 .btn.ai:hover { background: rgba(112, 74, 210, 0.35); }
 body.aiOn #btns, body.aiOn #joyZone, body.aiOn #joy { display: none !important; }   /* spectator: controls step aside */
 body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important; }
 #botPanel { max-height: 40vh; overflow: hidden; }
 @media (max-width: 860px) and (max-height: 400px) {
-  body.touch #btnAI { top: 108px; right: 152px; }
-  #botPanel { top: 196px; width: 200px; font-size: 10px; }
+      #botPanel { top: 196px; width: 200px; font-size: 10px; }
 }
 #invWrap { position: absolute; inset: 0; z-index: 56; display: none; align-items: center; justify-content: center; pointer-events: auto; background: rgba(4, 8, 16, 0.45); }
 #invWrap.show { display: flex; }
@@ -195,21 +237,25 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 @media (max-width: 860px) {
   .pill { font-size: 11px; padding: 4px 8px; }
   #controls { display: none; }
-  body.touch #invBtn { top: 112px; right: 140px; }
-  .chip { font-size: 11px; padding: 3px 7px; gap: 5px; }
-  #topStats { font-size: 10px; }
+    .chip { font-size: 11px; padding: 3px 7px; gap: 5px; }
   #topbar { gap: 6px; }
-  #stamWrap { top: 60px; width: 150px; }
-  #hpWrap { top: 72px; width: 150px; }
+  .pill { font-size: 10px; padding: 3px 7px; }
+  #weatherIcon { font-size: 13px; margin-right: 4px; }
+  .pill { max-width: 118px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mmOrbit { --orb: 75%; }   /* pull the arc in a touch so the centered pills always fit */
+  #xpWrap { top: 29px; left: 60px; width: 126px; }
+  #stamWrap { top: 62px; left: 60px; width: 126px; }
+  #hpWrap { top: 98px; left: 60px; width: 126px; }
 }
 @media (max-width: 860px) and (max-height: 400px) {
   /* small landscape phones: slimmer buttons + minimap so nothing collides */
-  body.touch #minimap { top: 108px; width: 84px; height: 84px; }
-  body.touch #invBtn { top: 108px; right: 106px; }
-  .tbtn { width: 54px; height: 54px; font-size: 19px; }
-  .tbtn.small { width: 44px; height: 44px; font-size: 16px; }
-  .brow, #btns { gap: 8px; }
-  #btns { bottom: 16px; }
+  body.touch #minimap { top: 14px; width: 84px; height: 84px; }
+  body.touch #mmOrbit { top: 14px; width: 84px; height: 84px; --orb: 105%; }
+  #mmOrbit button { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 15px; }
+  body.touch #btns { width: 72px; height: 72px; right: 19px; bottom: 19px; }   /* deeper into the corner */
+  body.touch #tAttack { width: 86px; height: 86px; margin: -43px 0 0 -43px; font-size: 31px; }   /* overtakes the 84px map */
+  body.touch #btns .tbtn:not(#tAttack) { width: 30px; height: 30px; margin: -15px 0 0 -15px; font-size: 13px; --orb: 106%; }
+  body.touch #btns .tbtn span { display: none; }   /* tiny screens: glyphs only */
 }
 @media (max-width: 600px) {
   .pill { font-size: 10px; padding: 4px 6px; letter-spacing: 0; }
@@ -285,11 +331,11 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 .ov-tip { margin-top: 22px; font-size: 12px; color: #7fa0b2; letter-spacing: .06em; line-height: 1.8; }
 
 /* ---- quests ---- */
-#questBtn { position: absolute; top: 14px; left: 16px; width: 40px; height: 40px; border-radius: 10px;
+#questBtn { width: 40px; height: 40px; border-radius: 10px;
   background: rgba(20, 28, 38, .72); color: #ffe9b0; font-size: 19px; border: 1px solid rgba(255, 224, 160, .35);
-  cursor: pointer; z-index: 12; pointer-events: auto; }
+  cursor: pointer; pointer-events: auto; }
 #questBtn:active { transform: scale(.94); }
-#questTracker { position: absolute; top: 86px; left: 16px; max-width: 240px; font-size: 11px; line-height: 1.5;
+#questTracker { position: absolute; top: 114px; left: 16px; max-width: 240px; font-size: 11px; line-height: 1.5;
   color: rgba(240, 232, 210, .9); text-shadow: 0 1px 4px rgba(0,0,0,.7); z-index: 11; pointer-events: none; }
 #questTracker .qt-line b { color: #ffd98a; }
 #questLog { position: absolute; top: 60px; left: 16px; width: 300px; max-height: 62vh; overflow-y: auto;

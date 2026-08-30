@@ -564,7 +564,7 @@ function genChunk(cx, cz) {
   /* ---- territorial predators: at most one per chunk, rare, biome-fit ---- */
   if (predatorTotal < 5) {
     const pTable = PREDATOR_TABLE[centerBiome];
-    if (pTable && rng() < 0.13) {
+    if (pTable && rng() < 0.13 + Math.min(0.10, Math.max(0, wolf.level) * 0.0022)) {   // the strong attract the strong
       const px = cx * CHUNK + 10 + rng() * (CHUNK - 20), pz = cz * CHUNK + 10 + rng() * (CHUNK - 20);
       if (heightAt(px, pz) > 1.2)
         chunk.predators.push(new Predator(pickWeighted(rng, pTable), px, pz));
@@ -833,12 +833,13 @@ function updateSense(dt) {
       lm.found = true;
       questEvent('discover', { type: lm.type, x: lm.x, z: lm.z });
       addXp(lm.tier === 'epic' ? 60 : lm.tier === 'rare' ? 25 : 10);
+      RUN.landmarks++;
       const first = !stats.discoveries.has(lm.type);
       stats.discoveries.add(lm.type);
       if (first) {
         stats.firstFinds++;
         toast(`📍 First discovery: ${lm.label}! ${lm.tier === 'epic' ? '✨ A sight few wolves ever see…' : lm.tier === 'rare' ? 'A rare find.' : ''}`, true);
-        if (lm.tier !== 'common') { wolf.hp = Math.min(wolf.maxHp, wolf.hp + 25); wolf.stamina = 100; audio.chime(); }   // the wild rewards curiosity
+        if (lm.tier !== 'common') { wolf.hp = Math.min(wolf.maxHp, wolf.hp + 25); wolf.stamina = wolf.maxStam; audio.chime(); }   // the wild rewards curiosity
         music.fanfare();
       } else toast(`📍 ${lm.label}`);
     }
@@ -1640,7 +1641,7 @@ function caveTick(dt) {
   // drips & cold
   caveState.dripT -= dt;
   if (caveState.dripT <= 0) { caveState.dripT = 1.5 + Math.random() * 4; audio.drip(); }
-  if (wolf.stamina < 100) wolf.stamina = Math.min(100, wolf.stamina + dt * 0.5);   // still, cold air: slow recovery
+  if (wolf.stamina < wolf.maxStam) wolf.stamina = Math.min(wolf.maxStam, wolf.stamina + dt * 0.5);   // still, cold air: slow recovery
 }
 
 let envToastT = 0, emberT = 0;
@@ -2609,18 +2610,43 @@ let dawnMistA = 0, pawPrints = null, flareGrp = null, raysGrp = null, mistGrp = 
    of the wild. The open world gains a memory of your deeds.
    ============================================================ */
 const TITLES = ['Young Pup', 'Wanderer', 'Hunter', 'Stalker', 'Storm-Woolf', 'Legend of the Aurora'];
+const xpNeed = L => Math.round(70 * Math.pow(1.24, L));   // each level ~24% dearer — no cap, ever
+function recalcWolfLevel() {   // strength flows FROM the level — so death can take it all back cleanly
+  wolf.maxStam = 100 * (1 + 0.05 * wolf.level);    // +5% sprint pool per level, unbounded
+  wolf.maxHp = 100 + 8 * wolf.level;               // +8 max HP per level
+}
+const wolfDamageMul = () => Math.pow(0.982, wolf.level);   // damage taken shrinks 1.8% a level — always less, never zero
+window.freshRun = () => ({ t0: performance.now(), kills: 0, predators: 0, quests: 0, landmarks: 0, bosses: 0, xp: 0, maxLevel: 0, perks: [], questTimes: [], dist0: wolf.distance || 0, cause: null, icon: null, dur: 0 });
+window.RUN = window.freshRun();
+window.updateRunRecap = function () {   // the start page's chronicle of the last run + the record
+  const box = el('runRecap'); if (!box) return;
+  let last = null, best = null;
+  try { last = JSON.parse(localStorage.getItem('revontulet_lastRun') || 'null'); best = JSON.parse(localStorage.getItem('revontulet_bestRun') || 'null'); } catch (e) { }
+  if (!last) { box.style.display = 'none'; return; }
+  const mm = Math.floor((last.dur || 0) / 60), ss = Math.floor((last.dur || 0) % 60);
+  const mins = mm > 0 ? mm + 'm ' : '';
+  box.style.display = 'block';
+  box.innerHTML = `<div class="rr-head">⭐ LAST RUN — pushed to <b>Level ${last.maxLevel}</b>${best && best.maxLevel > last.maxLevel ? ` &nbsp;·&nbsp; 🏆 RECORD <b>Level ${best.maxLevel}</b>` : ' &nbsp;·&nbsp; 🏆 <b>NEW RECORD!</b>'}</div>` +
+    `<div class="rr-line">💀 Slain by ${last.cause || 'the wild'} · survived <b>${mins}${ss}s</b> of it</div>` +
+    `<div class="rr-line">✨ ${last.xp} XP earned · 🩸 ${last.kills} prey (${last.predators} predators) · 📜 ${last.quests} quests</div>` +
+    `<div class="rr-line">🧭 ${last.landmarks} landmarks · 👑 ${last.bosses} legends${last.perks && last.perks.length ? ' · achievements: ' + last.perks.join(', ') : ''}</div>`;
+};
 function addXp(n) {
   wolf.xp += n;
+  RUN.xp += n; if (wolf.level > RUN.maxLevel) RUN.maxLevel = wolf.level;
   while (wolf.xp >= wolf.xpNext) {
     wolf.xp -= wolf.xpNext;
     wolf.level++;
-    wolf.xpNext = 220 + wolf.level * 90;
-    wolf.maxHp += 8; wolf.hp = Math.min(wolf.maxHp, wolf.hp + 8);
+    wolf.xpNext = xpNeed(wolf.level);
+    recalcWolfLevel();
+    wolf.hp = Math.min(wolf.maxHp, wolf.hp + 8);
+    wolf.stamina = Math.min(wolf.maxStam, wolf.stamina + 5);
     wolf.title = TITLES[Math.min(TITLES.length - 1, (wolf.level / 2) | 0)] || 'Legend of the Aurora';
-    toast(`🎉 Level ${wolf.level} — ${wolf.title}! +8 max HP`, true);
+    const dr = (1 - wolfDamageMul()) * 100, sp = 5 * wolf.level;
+    toast(`🎉 CONGRATULATIONS! Level ${wolf.level} — damage taken −${dr.toFixed(1)}% · sprint stamina +${sp}%`, true);
     music.fanfare();
     const lv = el('lvCard');
-    if (lv) { lv.textContent = `⭐ LEVEL ${wolf.level} — ${wolf.title}`; lv.classList.remove('show'); void lv.offsetWidth; lv.classList.add('show'); }
+    if (lv) { lv.textContent = `⭐ LEVEL ${wolf.level} — ${wolf.title} · damage −${dr.toFixed(1)}% · sprint +${sp}%`; lv.classList.remove('show'); void lv.offsetWidth; lv.classList.add('show'); }
   }
   questHudDirty = true;
 }
@@ -2687,7 +2713,16 @@ function genQuest(kind) {
         desc: `Find a ${def.label} — a waypoint marks the way on your map. Its site becomes a fast-travel point.`,
         need: 1, have: 0, lmType: type, rw: { xp: 180, ft: true }, rwText: '180 XP · 🗺️ fast travel unlocked' };
     }
-    return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: '⛰️', title: 'Climb a High Peak',
+    // BUGFIX (rafzzer lineage): never promise a 50 m throne the terrain doesn't hold —
+    // the peak quest was offered in lowlands where it can't complete (5-min stall treadmill).
+    let throne = false;
+    for (let k = 0; k < 12 && !throne; k++) {
+      const ang = k / 12 * 6.2832;
+      for (const r of [80, 140, 220, 330, 470]) {
+        if (heightAt(wolf.pos.x + Math.sin(ang) * r, wolf.pos.z + Math.cos(ang) * r) > 50.5) { throne = true; break; }
+      }
+    }
+    if (throne) return { id: 'q' + (Math.random() * 1e9 | 0), kind, biome, icon: '⛰️', title: 'Climb a High Peak',
       desc: 'Reach a height of 50 meters — stand where the eagles do and watch the world unroll.',
       need: 1, have: 0, peak: true, rw: { xp: 200, mapReveal: true }, rwText: '200 XP · 🗺️ wider map' };
   }
@@ -2744,12 +2779,13 @@ function refillQuests() {   // a FULL board: every kind of deed the land can off
   while (QUESTS.avail.length < 6 && guard++ < 30) { const q = genQuest(); if (q && !dup(q)) QUESTS.avail.push(q); }
 }
 function acceptQuest(id) {
+  const q0 = (QUESTS.pool || []).find(q2 => q2.id === id); if (q0 && !q0.t0) q0.t0 = performance.now();   // the clock starts at acceptance
   if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
   const i = QUESTS.avail.findIndex(q => q.id === id);
   if (i < 0) return;
   const q = QUESTS.avail.splice(i, 1)[0];
   q.acceptedDay = dayCount;
-  QUESTS.active.push(q);
+  if (!q.t0) q.t0 = performance.now(); QUESTS.active.push(q);
   audio.uiClick();
   toast(`${q.icon} Quest accepted: ${q.title}`);
   questHudDirty = true; renderQuests();
@@ -2763,6 +2799,10 @@ function abandonQuest(id) {
   questHudDirty = true; renderQuests();
 }
 function completeQuest(q) {
+  RUN.quests++;
+  if (q.t0) RUN.questTimes.push(+((performance.now() - q.t0) / 1000).toFixed(1));   // accept→complete age, seconds
+  if (q.rw && q.rw.perk) RUN.perks.push({ stormborn: '🌩️ Weather-Worn', skywatcher: '⚡ Storm-Touched' }[q.rw.perk] || q.rw.perk);
+  if (q.rw && q.rw.boost) RUN.perks.push({ maxHp: '❤️ Wild-Hardened', strongJaw: '🦷 Deep Bite' }[q.rw.boost] || q.rw.boost);
   const i = QUESTS.active.indexOf(q);
   if (i >= 0) QUESTS.active.splice(i, 1);
   q.doneT = tSec;
@@ -2785,6 +2825,7 @@ function completeQuest(q) {
 }
 let caveDaysLock = -1;   // survival quests reset if you den
 function questEvent(kind, data) {
+  if (kind === 'kill') { RUN.kills++; if (data && data.species === 'predator') RUN.predators++; }
   for (const q of [...QUESTS.active]) {
     if (q.kind === 'hunt' && kind === 'kill' && data.species === q.species) {
       const bk = dominantBiomeAt(data.pos.x, data.pos.z).key;
@@ -2962,7 +3003,7 @@ class Boss {
       audio.growlVar('aggressive');
       const q = { id: 'boss' + (Math.random() * 1e9 | 0), kind: 'boss', biome: biomeKey, icon: this.def.icon, title: `Legend: ${this.def.name}`,
         desc: `Defeat ${this.def.name}. Its gift will be yours forever.`, need: 1, have: 0, rw: { xp: 400 }, rwText: `400 XP · ✨ ${this.def.abilityName} — ${this.def.abilityDesc}` };
-      QUESTS.active.push(q);
+      if (!q.t0) q.t0 = performance.now(); QUESTS.active.push(q);
       this.quest = q;
       questHudDirty = true;
     }
@@ -2992,7 +3033,7 @@ class Boss {
     if (!this.isClone) {
       this.def.slain = true; this.def.awake = false; this.def.live = false;   // a legend falls but once
       wolf.perks[this.def.ability] = true;
-      addXp(400);
+      addXp(400); RUN.bosses++;
       toast(`✨ ${this.def.name} falls — its gift is yours: ${this.def.abilityName} (${this.def.abilityDesc})`, true);
       if (this.quest) { const i = QUESTS.active.indexOf(this.quest); if (i >= 0) QUESTS.active.splice(i, 1); QUESTS.done.push(this.quest); questsDoneByBiome[this.biome] = (questsDoneByBiome[this.biome] || 0) + 1; questHudDirty = true; }
       const bb = el('bossBar'); if (bb) bb.classList.remove('show');
@@ -3265,8 +3306,8 @@ function questTick(dt) {
 const el = id => document.getElementById(id);
 const ui = {
   weatherIcon: el('weatherIcon'), weatherLabel: el('weatherLabel'),
-  clock: el('clock'), biome: el('biome'), seed: el('statSeed'),
-  pos: el('statPos'), prompt: el('prompt'),
+  clock: el('clock'), biome: el('biome'),
+  prompt: el('prompt'),
   stam: el('stamFill'), toasts: el('toasts'), hud: el('hud'),
   overlay: el('overlay'), ovTitle: el('ovTitle'), ovBody: el('ovBody')
 };
@@ -3333,16 +3374,24 @@ function updateMagicGlow(dt) {
 let vignetteA = 0, warnBannerT = 0;
 function setVignette(a) { vignetteA = Math.max(vignetteA, a); }
 function wolfDie(label, icon) {
+  RUN.cause = label || 'the wild'; RUN.icon = icon || '💀';
+  RUN.dur = (performance.now() - RUN.t0) / 1000;
+  try {
+    localStorage.setItem('revontulet_lastRun', JSON.stringify(RUN));
+    const best = JSON.parse(localStorage.getItem('revontulet_bestRun') || 'null');
+    if (!best || RUN.maxLevel > best.maxLevel || (RUN.maxLevel === best.maxLevel && RUN.xp > best.xp))
+      localStorage.setItem('revontulet_bestRun', JSON.stringify(RUN));
+  } catch (e) { }
   wolf.hp = 0;
   wolf.deadT = 2.6;
   wolf.killerPos = null;
   const ov = el('deathOv');
-  if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… you wake far away, alive.</span>`; ov.classList.add('show'); }
+  if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… you wake far away — every level lost, back to 0.</span>`; ov.classList.add('show'); }
   vignetteA = 0.9;
 }
 function wolfTakeDamage(dmg, fromPos, label, icon) {
   if (state !== 'play' || wolf.deadT > 0 || wolf.invulnT > 0 || wolf.flyT > 0) return;
-  wolf.hp -= dmg;
+  wolf.hp -= dmg * wolfDamageMul();   // an experienced wolf stiffens against the blow
   wolf.lastHurt = tSec;
   wolf.invulnT = 0.6;
   vignetteA = Math.min(0.85, vignetteA + 0.45);
@@ -3365,14 +3414,18 @@ function wolfRespawn() {
     if (heightAt(tx, tz) > WATER_Y + 0.8) { rx = tx; rz = tz; break; }
   }
   wolf.pos.x = rx; wolf.pos.z = rz; wolf.pos.y = heightAt(rx, rz) + 0.2;
+  wolf.level = 0; wolf.xp = 0; wolf.xpNext = xpNeed(0);   // death takes everything earned — the record stands, the wolf restarts
+  window.RUN = window.freshRun();   // and a new run begins
+  recalcWolfLevel();
   wolf.hp = wolf.maxHp;
   wolf.invulnT = 3;
   wolf.deadT = 0;
-  wolf.stamina = 100; wolf.exhausted = false;
+  wolf.stamina = wolf.maxStam; wolf.exhausted = false;
   const ov = el('deathOv');
   if (ov) ov.classList.remove('show');
   vignetteA = 0;
-  toast('🐾 You awaken, shaken but alive — your bounty is safe', true);
+  questHudDirty = true;
+  toast('🐾 You awaken, shaken but alive — your levels are lost: Level 0 again', true);
 }
 function showTerritoryWarning(sp) {
   const w = el('threatWarn');
@@ -3468,16 +3521,19 @@ window.questGuide = function () {
           if (!c || d < c.d) c = { x: lm.x, z: lm.z, d, label: q.title, kind: 'explore', lm };
         }
       } else if (q.kind === 'explore' && q.peak) {
-        let t = null, bh = wolf.pos.y;
+        // BUGFIX (rafzzer lineage): the quest crowns at y > 50 — the guide used to point at
+        // the highest nearby bump (often 20 m on low terrain) → climb, nothing, re-pick, 5-min
+        // stalls. Now it only points at thrones that exist: nearest ground above 50.5 m.
+        let t = null, bd = 1e9;
         for (let k = 0; k < 12; k++) {
           const ang = k / 12 * 6.2832;
-          for (const r of [90, 160, 240]) {
+          for (const r of [80, 140, 220, 330, 470]) {
             const x = wolf.pos.x + Math.sin(ang) * r, z = wolf.pos.z + Math.cos(ang) * r;
             const h = heightAt(x, z);
-            if (h > bh) { bh = h; t = { x, z }; }
+            if (h > 50.5 && r < bd) { bd = r; t = { x, z }; }
           }
         }
-        if (t && bh > wolf.pos.y + 6) c = { x: t.x, z: t.z, d: dist2(t.x, t.z), label: q.title, kind: 'peak', peak: true };
+        if (t) c = { x: t.x, z: t.z, d: dist2(t.x, t.z), label: q.title, kind: 'peak', peak: true };
       } else if (q.kind === 'hunt' && q.species) {
         const want = (SPECIES[q.species] && SPECIES[q.species].label) || q.species;   // label≠key mismatch made the old guide blind to real quarry
         for (const [, ch] of chunks) for (const an of ch.animals) {
@@ -3703,6 +3759,8 @@ function drawMinimapOverlay() {
 }
 let questArrowMesh = null;
 const _agc = new THREE.Color(), _agt = new THREE.Color();
+const _ae1 = new THREE.Vector3(), _ae2 = new THREE.Vector3(), _an = new THREE.Vector3();
+const _aq = new THREE.Quaternion(), _aq2 = new THREE.Quaternion(), _UP = new THREE.Vector3(0, 1, 0);
 function arrowGroundLum() {   // what the arrow actually lies on — sampled exactly the way the terrain is shaded
   let L = 0, n = 0;
   for (const e of [[0, 0], [1.4, 0], [-1.4, 0], [0, 1.4], [0, -1.4]]) {
@@ -3724,55 +3782,57 @@ function arrowTargetColor(st) {   // the opposite of the land — darker overall
   else _agt.setHSL(0.10, 0.96, BRIGHT);                         // rich gold — glows against night, spruce, peat
   return _agt;
 }
+const arrowScene = new THREE.Scene();   // pass 2 of rendering: ONLY the wolf may hide the arrow — never terrain, trees or walls
+if (typeof scene !== 'undefined' && scene.fog) arrowScene.fog = scene.fog;
+const arrowOccluder = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), new THREE.MeshBasicMaterial({ colorWrite: false }));
+arrowOccluder.scale.set(0.8, 0.78, 1.32);   // the wolf's silhouette — it writes depth and nothing else
+arrowScene.add(arrowOccluder);
+function buildQuestArrow() {   // ONE continuous ribbon: a single stretched line from tail to tip, draped vertex-by-vertex
+  const v = [], W = 0.39;
+  for (let z = -0.8; z < 1.999; z += 0.4)   // the shaft: a cross-section every 0.4 m — no joints, no cracks
+    v.push(-W, 0, z, W, 0, z, W, 0, z + 0.4, -W, 0, z, W, 0, z + 0.4, -W, 0, z + 0.4);
+  const A = [-W, 2.0], B = [-0.98, 2.9], C = [0, 4.0], D = [0.98, 2.9], E = [W, 2.0], M1 = [-0.33, 2.85], M2 = [0.33, 2.85], M3 = [0, 2.35];
+  const tri = (p2, q, r) => v.push(p2[0], 0, p2[1], q[0], 0, q[1], r[0], 0, r[1]);
+  tri(A, B, M3); tri(B, M1, M3); tri(B, C, M1); tri(C, M2, M1); tri(C, D, M2); tri(D, E, M2); tri(E, M3, M2); tri(E, A, M3);   // the chevron head, fanned from the shaft's last edge
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(v), 3));
+  const matFill = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.4, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
+  const m = new THREE.Mesh(g, matFill);
+  m.renderOrder = 999; m.frustumCulled = false;
+  const grp = new THREE.Group(); grp.add(m);
+  grp.userData = { ribbon: m, matFill, st: { mode: 'bright', lum: 0.5, acc: 1 } };
+  return grp;
+}
 function updateQuestArrow(dt) {
   try {
     const qg = window.questGuide ? window.questGuide() : null;
-    if (!questArrowMesh) {
-      const g = new THREE.BufferGeometry();
-      const v = new Float32Array([
-        -0.34, 0, -0.5, 0.34, 0, -0.5, 0.34, 0, 1.3,   // shaft half
-        -0.34, 0, -0.5, 0.34, 0, 1.3, -0.34, 0, 1.3,   // shaft half
-        -0.85, 0, 1.3, 0.85, 0, 1.3, 0, 0, 2.5         // head
-      ]);
-      g.setAttribute('position', new THREE.BufferAttribute(v, 3));
-      g.computeVertexNormals();
-      questArrowMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.2, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
-      questArrowMesh.renderOrder = 999;   // above the world — no hill, tree or wall hides the way
-      questArrowMesh.scale.set(1.15, 1, 1.6);   // longer — readable at a glance
-      const under = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x0d0803, transparent: true, opacity: 0.62, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
-      under.renderOrder = 998; under.position.y = -0.035; under.scale.set(1.24, 1, 1.08);   // the dark halo — bolder, contrast on ANY ground
-      questArrowMesh.add(under);
-      questArrowMesh.userData.st = { mode: 'bright', lum: 0.5, acc: 1 };
-      scene.add(questArrowMesh);
-    }
-    const st = questArrowMesh.userData.st;
+    if (!questArrowMesh) { questArrowMesh = buildQuestArrow(); arrowScene.add(questArrowMesh); }
+    const ud = questArrowMesh.userData, st = ud.st;
+    arrowOccluder.position.copy(wolf.model.position);   // the wolf's body is the one thing that overlaps the arrow
+    arrowOccluder.rotation.y = wolf.model.rotation.y;
     if (!qg || qg.d < 10) { questArrowMesh.visible = false; return; }
     const yaw = Math.atan2(qg.x - wolf.pos.x, qg.z - wolf.pos.z);
-    const FWD = 1.45;   // the tail tucks under the chest and the shaft pours out ahead — never drawn through the wolf
-    questArrowMesh.position.set(wolf.pos.x + Math.sin(yaw) * FWD, Math.max(heightAt(wolf.pos.x, wolf.pos.z), WATER_Y) + 0.55, wolf.pos.z + Math.cos(yaw) * FWD);
-    // ---- partial billboard: heading locked to the quest, but the face tips toward the camera ----
-    // a flat ground decal collapses edge-on whenever the camera swings toward the horizon — no color survives that.
-    const eyY = camera.position.y - questArrowMesh.position.y;
-    const eyD = Math.hypot(camera.position.x - questArrowMesh.position.x, camera.position.z - questArrowMesh.position.z);
-    const tilt = Math.max(0.42, Math.min(1.25, Math.atan2(eyY, Math.max(1, eyD))));   // 24°..72° — never a sliver, never a signpost
-    questArrowMesh.rotation.order = 'YXZ';
-    questArrowMesh.rotation.y = yaw;
-    questArrowMesh.rotation.x = -tilt;   // the head tips up to meet the eye
+    const bx = Math.sin(yaw), bz = Math.cos(yaw);
+    const ORIG = 1.05;   // the tail tucks UNDER the body — the wolf hides it, and it emerges at the silhouette: from underneath the wolf
+    const m = ud.ribbon;
+    m.rotation.set(0, yaw, 0);
+    m.position.set(wolf.pos.x + bx * ORIG, 0, wolf.pos.z + bz * ORIG);
+    const pa = m.geometry.attributes.position;
+    for (let i = 0; i < pa.count; i++) {   // every vertex lies ON the ground — hills, spines, cliffs
+      const vx = pa.getX(i), vz = pa.getZ(i);
+      pa.setY(i, heightAt(m.position.x + vx * bz + vz * bx, m.position.z - vx * bx + vz * bz) + 0.06);
+    }
+    pa.needsUpdate = true;
     questArrowMesh.visible = true;
-    // ---- real eyes on the ground: resample every quarter second, then glide the color ----
     st.acc += dt || 0.016;
     if (st.acc > 0.25) {
-      st.acc = 0;
-      st.lum = arrowGroundLum();
-      if (st.mode === 'bright' && st.lum > 0.47) st.mode = 'dark';      // hysteresis — no flicker at the seam
+      st.acc = 0; st.lum = arrowGroundLum();
+      if (st.mode === 'bright' && st.lum > 0.47) st.mode = 'dark';
       else if (st.mode === 'dark' && st.lum < 0.37) st.mode = 'bright';
     }
     arrowTargetColor(st);
-    questArrowMesh.material.color.lerp(_agt, 1 - Math.exp(-(dt || 0.016) * 7));
-    const breath = 0.5 + 0.5 * Math.sin(tSec * 2.4);
-    questArrowMesh.material.opacity = 0.36 + 0.13 * breath;              // present, breathing — never a ghost again
-    const un = questArrowMesh.children[0];
-    if (un) un.material.opacity = 0.5 + 0.12 * breath;
+    ud.matFill.color.lerp(_agt, 1 - Math.exp(-(dt || 0.016) * 7));
+    ud.matFill.opacity = 0.4 + 0.13 * (0.5 + 0.5 * Math.sin(tSec * 2.4));
   } catch (e) { }
 }
 
@@ -3962,7 +4022,13 @@ function updateHUD(dt) {
   updateQuestArrow(dt);
   updateMinimap(dt);
   if (BIG.open) updateBigMap(dt);
-  ui.stam.style.width = wolf.stamina.toFixed(0) + '%';
+  ui.stam.style.width = (wolf.stamina / wolf.maxStam * 100).toFixed(0) + '%';
+  const xpF = el('xpFill'); if (xpF) xpF.style.width = Math.min(100, wolf.xp / wolf.xpNext * 100).toFixed(1) + '%';
+  if (window.__toggles) { if (window.__toggles.tSprint.on) touch.sprint = true; if (window.__toggles.tJump.on) keys.Space = true; }   // locked actions re-assert every frame
+  const _st = (id, v) => { const e2 = el(id); if (e2 && e2.textContent !== v) e2.textContent = v; };
+  _st('hpPct', Math.max(0, Math.round(wolf.hp)) + '%');            // the heart beats the number
+  const _xl = el('xpLvl');
+  if (_xl) { const v2 = String(wolf.level); if (_xl.textContent !== v2) { _xl.textContent = v2; _xl.style.fontSize = v2.length > 2 ? '9px' : '12px'; } }   // the star counts the climb
   ui.stam.style.background = wolf.exhausted ? '#c95b4a' : 'linear-gradient(90deg,#7ef0c0,#4db8e8)';
   hudT -= dt; fpsAcc += dt; fpsN++;
   if (hudT > 0) return;
@@ -3979,8 +4045,6 @@ function updateHUD(dt) {
   curBiomeKey = info === BIOME_INFO.shore ? 'shore' : Object.keys(BIOME_INFO).find(k => BIOME_INFO[k] === info);
   const tC = Math.round((climateAt(wolf.pos.x, wolf.pos.z, heightAt(wolf.pos.x, wolf.pos.z)).temp - WORLD_EVENTS.chill) * 28);
   ui.biome.textContent = `${SEASON.icon} ${info.icon} ${info.name} · ${tC}°C`;
-  ui.pos.textContent = `${wolf.pos.x | 0}, ${wolf.pos.z | 0} · ${fpsShow} fps`;
-  ui.seed.textContent = 'seed ' + SEED;
   biomeToastT -= 0.25;
   if (curBiomeKey !== lastBiomeKey) {
     if (lastBiomeKey !== null && biomeToastT <= 0 && curBiomeKey !== 'shore') {
@@ -4009,6 +4073,7 @@ function showOverlay(mode) {
   if (mode === 'start') {
     ui.ovTitle.textContent = 'REVONTULET';
     ui.ovBody.innerHTML = document.getElementById('tplStart').innerHTML;
+    if (window.updateRunRecap) window.updateRunRecap();   // the chronicle greets you on the start page
   } else if (mode === 'pause') {
     ui.ovTitle.textContent = 'PAUSED';
     ui.ovBody.innerHTML = document.getElementById('tplPause').innerHTML;
@@ -4087,7 +4152,7 @@ function doGather() {
   if (p) { gather(p); return; }
   if (drinkCd <= 0 && !wolf.swimming && wolf.grounded && wolf.flyT <= 0 && nearWaterEdge()) {
     drinkCd = 6;
-    wolf.stamina = 100; wolf.exhausted = false;
+    wolf.stamina = wolf.maxStam; wolf.exhausted = false;
     wolf.hp = Math.min(wolf.maxHp, wolf.hp + 6);
     audio.chime();
     toast('💧 You drink the cold water — stamina restored');
@@ -4212,13 +4277,57 @@ if (joyEl) {
 /* -------- touch buttons: press-locked, slide-away-friendly -------- */
 let btnsWakeT = 0;
 const btnPointers = new Map();   // pointerId → {btn, rect, handed}
-function wakeBtns() {   // a touched button wakes the whole cluster for a moment
-  const root = el('btns');
-  if (!root) return;
-  root.classList.add('wake');
+function wakeBtns() {   // a touched button wakes both clusters for a moment
+  const root = el('btns'), orb = el('mmOrbit');
+  if (root) root.classList.add('wake');
+  if (orb) { orb.classList.add('wake'); orb.style.opacity = '1'; }   // inline — immune to style-recalc stalls
   clearTimeout(btnsWakeT);
-  btnsWakeT = setTimeout(() => root.classList.remove('wake'), 2200);
+  btnsWakeT = setTimeout(() => {
+    if (root) root.classList.remove('wake');
+    if (orb) { orb.classList.remove('wake'); orb.style.opacity = ''; }   // back to the CSS rest state (faded)
+  }, 2200);
 }
+for (const id of ['invBtn', 'questBtn', 'btnAI', 'tPause']) { const b = el(id); if (b) b.addEventListener('pointerdown', wakeBtns); }   // the map's arch wakes too
+/* ---- the fullscreen toggle: visible whenever the game is not fullscreen ---- */
+(function () {
+  const fb = el('fsBtn'); if (!fb) return;
+  const root = document.documentElement;
+  const canFS = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+  if (!canFS) return;   // no fullscreen API (iPhone Safari) — no button
+  let wasFS = false, attnIv = 0;
+  const attention = () => {   // 3 seconds of glow and blink — the screen let go, look here
+    clearInterval(attnIv);
+    const t0 = performance.now();
+    attnIv = setInterval(() => {
+      const t = (performance.now() - t0) / 1000;
+      if (t > 3 || document.fullscreenElement || document.webkitFullscreenElement) { clearInterval(attnIv); fb.style.opacity = ''; fb.style.boxShadow = ''; return; }
+      const blink = 0.5 + 0.5 * Math.sin(t * 12.57);          // ~2 Hz blink
+      const glow = 0.5 + 0.5 * Math.sin(t * 6.28);            // 1 Hz breathing halo
+      fb.style.opacity = (0.45 + 0.55 * blink).toFixed(2);
+      fb.style.boxShadow = '0 0 ' + (7 + 9 * glow).toFixed(1) + 'px 3px rgba(140, 200, 255, .9)';
+    }, 50);
+  };
+  const sync = () => {
+    const fs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    fb.classList.toggle('show', !fs);
+    if (wasFS && !fs) attention();   // just left fullscreen — demand the eyes
+    wasFS = fs;
+  };
+  document.addEventListener('fullscreenchange', sync);
+  document.addEventListener('webkitfullscreenchange', sync);
+  let sawPtr = false;
+  const go = () => {
+    try {
+      const cur = document.fullscreenElement || document.webkitFullscreenElement;
+      if (cur) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else { const p = root.requestFullscreen ? root.requestFullscreen() : root.webkitRequestFullscreen(); if (p && p.catch) p.catch(() => { }); }
+    } catch (err) { }
+    setTimeout(sync, 50); sync();
+  };
+  fb.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); sawPtr = true; go(); });
+  fb.addEventListener('click', e => { e.preventDefault(); if (!sawPtr) go(); sawPtr = false; });   // event-paired — one action per tap
+  setInterval(sync, 1000); sync();   // slow heartbeat — covers any browser that fumbles the change event
+})();
 function bindHold(id, down, up) {
   const b = el(id);
   if (!b) return;
@@ -4256,10 +4365,33 @@ function bindHold(id, down, up) {
   b.addEventListener('pointerup', end);
   b.addEventListener('pointercancel', end);
 }
-bindHold('tJump', () => { keys.Space = true; }, () => { keys.Space = false; });
-bindHold('tSprint', () => { touch.sprint = true; }, () => { touch.sprint = false; });
 bindHold('tGather', () => doGather());
-bindHold('tAttack', () => wolf.attack());
+/* ---- tap-toggle locks: sprint / attack / jump run themselves until tapped again ---- */
+const TOGGLES = {
+  tSprint: { on: false }, tAttack: { on: false }, tJump: { on: false }
+};
+window.__toggles = TOGGLES;
+for (const id of ['tSprint', 'tAttack', 'tJump']) {
+  const b = el(id); if (!b) continue;
+  const t = TOGGLES[id];
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    t.on = !t.on;
+    b.classList.toggle('on', t.on);   // lit = the action runs itself
+    audio.resume(); audio.uiClick(); wakeBtns();
+    if (id === 'tSprint') { touch.sprint = t.on; wolf.sprintLock = t.on; }
+    if (id === 'tJump') keys.Space = t.on;
+    if (id === 'tAttack') {
+      clearInterval(t.iv);
+      if (t.on) t.iv = setInterval(() => { if (state === 'play' && wolf.deadT <= 0) wolf.attack(); }, 150);   // wolf.attack() self-gates on its cooldown
+    }
+    btnPointers.set(e.pointerId, { btn: b, rect: b.getBoundingClientRect(), handed: false });
+    try { b.setPointerCapture(e.pointerId); } catch (err) { }
+  });
+  const end = e => { if (btnPointers.has(e.pointerId)) { btnPointers.delete(e.pointerId); camPointers.delete(e.pointerId); } };   // the lock survives the lift
+  b.addEventListener('pointerup', end);
+  b.addEventListener('pointercancel', end);
+}
 bindHold('tHowl', () => wolf.howl());
 bindHold('tProwl', () => { wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾 Prowling' : '🐾 Standing'); });
 (function () {
@@ -4271,9 +4403,20 @@ bindHold('tProwl', () => { wolf.crouch = !wolf.crouch; toast(wolf.crouch ? '🐾
     if (show) { audio.uiClick(); updateInv(); }
   };
   window.toggleInv = toggleInv;
-  if (ib) ib.addEventListener('click', () => toggleInv());
+  // BULLETPROOF toggle — EVENT-PAIRED, not time-guarded: pointerdown toggles and marks the tap;
+  // the trailing click (which phones may delay by SECONDS) only acts if it came from a tap that never
+  // fired pointerdown. One physical tap = exactly one toggle, whatever the browser duplicates or delays.
+  let sawPtr = false;
+  if (ib) {
+    ib.addEventListener('pointerdown', e => { e.preventDefault(); sawPtr = true; toggleInv(); });
+    ib.addEventListener('click', e => { e.preventDefault(); if (!sawPtr) toggleInv(); sawPtr = false; });
+  }
+  let sawPtrX = false;
   const ic = el('invClose');
-  if (ic) ic.addEventListener('click', () => toggleInv(false));
+  if (ic) {
+    ic.addEventListener('pointerdown', e => { e.preventDefault(); sawPtrX = true; toggleInv(false); });
+    ic.addEventListener('click', e => { e.preventDefault(); if (!sawPtrX) toggleInv(false); sawPtrX = false; });
+  }
   if (iw) iw.addEventListener('pointerdown', e => { if (e.target === iw) toggleInv(false); });   // tap the shade to close
 })();
 (function () {
@@ -4488,12 +4631,14 @@ function tick() {
         state = 'menu';
         const b = el('btnStart');
         if (b) { b.disabled = false; b.textContent = 'ENTER THE WILD'; }
+        if (window.updateRunRecap) window.updateRunRecap();
         const bl = el('bootLine');
         if (bl) bl.textContent = 'The wilderness awaits…';
       }
     }
     updateAtmosphere(rdt);
     renderer.render(scene, camera);
+    if (questArrowMesh && questArrowMesh.visible) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(arrowScene, camera); renderer.autoClear = true; }
     return;
   }
   const wantBlur = (state === 'pause' || document.getElementById('bigmapWrap').classList.contains('show')) ? 'blur(5px) brightness(0.85)' : '';   // gameplay suspended — the world steps back (not the live menu vista: too costly to composite)
@@ -4632,6 +4777,7 @@ function tick() {
   updateCamera(rdt);
   updateHUD(rdt);
   renderer.render(scene, camera);
+  if (questArrowMesh && questArrowMesh.visible) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(arrowScene, camera); renderer.autoClear = true; }   // pass 2: the arrow, overlapped only by the wolf
   } catch (ex) {
     errShow(ex && ex.message ? ex.message : String(ex));
   }

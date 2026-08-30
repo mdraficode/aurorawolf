@@ -475,7 +475,8 @@ class Wolf {
     this.atkT = 0;
     this.flyT = 0;
     this.hp = 100; this.maxHp = 100;
-    this.xp = 0; this.level = 1; this.xpNext = 250; this.perks = {}; this.title = 'Young Pup';
+    this.xp = 0; this.level = 0; this.xpNext = 70; this.perks = {}; this.title = 'Young Pup';   // levels begin at ZERO — the wild owes no head start
+    this.maxStam = 100;   // the sprint pool — it grows with every level earned
     this.lastHurt = -99;
     this.invulnT = 0;
     this.deadT = 0;
@@ -513,13 +514,14 @@ class Wolf {
     const mvS = clamp((input.r ? 1 : 0) - (input.l ? 1 : 0) + input.mx, -1, 1);
     const mag = Math.hypot(mvF, mvS);
     const moving = mag > 0.12 && !input.paused;
+    if (this.sprintLock && this.exhausted && this.stamina > 1) this.exhausted = false;   // a locked sprint is reborn at the first breath of stamina
     let sprint = input.sprint && moving && !this.exhausted && this.stamina > 0 && !this.swimming;
     if (sprint) {
       this.stamina -= 15 * dt;
       if (this.stamina <= 0) { this.stamina = 0; this.exhausted = true; sprint = false; }
     } else if (!this.swimming) {
       // no regen while swimming — the swim block drains it instead
-      this.stamina = Math.min(100, this.stamina + 11 * dt * (this.perks.sandStride ? 1.25 : 1));
+      this.stamina = Math.min(this.maxStam, this.stamina + 11 * dt * (this.perks.sandStride ? 1.25 : 1));
       if (this.exhausted && this.stamina > 26) this.exhausted = false;
     }
     this.atkCd = Math.max(0, this.atkCd - dt);
@@ -528,7 +530,7 @@ class Wolf {
     // ---- magic flight ----
     if (this.flyT > 0) {
       this.flyT -= dt;
-      this.stamina = Math.min(100, this.stamina + 22 * dt);
+      this.stamina = Math.min(this.maxStam, this.stamina + 22 * dt);
       if (this.exhausted && this.stamina > 26) this.exhausted = false;
       const fx = Math.sin(camYaw), fz = Math.cos(camYaw);
       const rx = Math.sin(camYaw - Math.PI / 2), rz = Math.cos(camYaw - Math.PI / 2);
@@ -1356,12 +1358,12 @@ const AnimalHealthBar = {
   // hidden until the player draws first blood; hugs the crown so close combat keeps it in frame
   show(a) {
     if (!a.bar) {
-      a.barCv = document.createElement('canvas'); a.barCv.width = 64; a.barCv.height = 10;
+      a.barCv = document.createElement('canvas'); a.barCv.width = a.level ? 128 : 64; a.barCv.height = a.level ? 22 : 10;   // predators carry their level over the bar
       a.barTex = new THREE.CanvasTexture(a.barCv);
       a.barTex.minFilter = THREE.LinearFilter; a.barTex.magFilter = THREE.LinearFilter;
       a.bar = new THREE.Sprite(new THREE.SpriteMaterial({ map: a.barTex, transparent: true, depthWrite: false, depthTest: false }));
       a.bar.renderOrder = 999;              // never lost behind fur, antlers or foliage
-      a.bar.scale.set(1.55, 0.24, 1);
+      a.bar.scale.set(a.level ? 3.2 : 1.55, a.level ? 0.52 : 0.24, 1);
       a.model.updateMatrixWorld(true);                       // fresh matrices → honest crown height
       const b = new THREE.Box3().setFromObject(a.model);
       const top = b.isEmpty() ? 1.2 : b.max.y - a.model.position.y;
@@ -1379,10 +1381,17 @@ const AnimalHealthBar = {
     if (f >= 0.5) { const t = (f - 0.5) * 2; r = lerp(0.90, 0.42, t); g = lerp(0.70, 0.76, t); b = lerp(0.22, 0.30, t); }
     else { const t = f * 2; r = lerp(0.85, 0.90, t); g = lerp(0.20, 0.70, t); b = lerp(0.12, 0.22, t); }
     a.barCol = `rgb(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)})`;
-    ctx.clearRect(0, 0, 64, 10);
-    ctx.fillStyle = 'rgba(12,10,8,0.85)'; ctx.fillRect(0, 0, 64, 10);
-    ctx.fillStyle = '#241d16'; ctx.fillRect(1, 1, 62, 8);
-    ctx.fillStyle = a.barCol; ctx.fillRect(1, 1, Math.round(62 * f), 8);
+    const W = a.barCv.width, H = a.barCv.height, y0 = a.level ? 12 : 0;
+    ctx.clearRect(0, 0, W, H);
+    if (a.level) {   // "Level 10 Bear" — the danger, named
+      ctx.font = 'bold 9px system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(12,10,8,0.8)'; ctx.fillRect(0, 0, W, 11);
+      ctx.fillStyle = (a.level >= 12) ? '#ff9d6a' : '#ffe9b0';
+      ctx.fillText(`Level ${a.level} ${a.sp.label}`, W / 2, 8.5);
+    }
+    ctx.fillStyle = 'rgba(12,10,8,0.85)'; ctx.fillRect(0, y0, W, 10);
+    ctx.fillStyle = '#241d16'; ctx.fillRect(1, y0 + 1, W - 2, 8);
+    ctx.fillStyle = a.barCol; ctx.fillRect(1, y0 + 1, Math.round((W - 2) * f), 8);
     a.barTex.needsUpdate = true;
   },
   tick(a) {
@@ -1757,12 +1766,30 @@ class Predator {
     this.huntTarget = null;
     this.lodT = 0;
     this.nocturnal = (kind === 'tiger' || kind === 'snowLeopard');
+    // ---- difficulty level: the wild keeps pace with the wolf who walks it ----
+    const pl = (typeof wolf !== 'undefined' && wolf) ? Math.max(0, wolf.level | 0) : 0;
+    let lvl = pl + [-1, 0, 0, 1, 1, 2][(Math.random() * 6) | 0];
+    if (Math.random() < Math.min(0.30, pl * 0.008)) lvl++;   // the deeper you climb, the sharper the company
+    this.level = Math.max(1, lvl);
+    const k = this.level - 1;
+    this.maxHp = this.hp = Math.round(this.sp.hp * (1 + 0.14 * k));        // hardier
+    this.dmg = Math.round(this.sp.dmg * (1 + 0.06 * k) * 10) / 10;         // hits harder
+    this.armor = Math.min(3, Math.floor(k / 6));                            // thick hide: bites land softer (never 0)
+    this.xpBounty = 20 + 9 * k;                                             // and worth the trouble
+    this.ai = {   // advanced mechanics, earned level by level
+      runMul: 1 + Math.min(0.28, 0.017 * k),
+      cdMul: 1 - Math.min(0.38, 0.024 * k),
+      feint: this.level >= 8,          // weaves as it closes — harder to read
+      fury: this.level >= 12,          // enrages below a third of its blood
+      patient: this.level >= 16        // gives less warning, senses you sooner
+    };
+    this.territory = 38 * (1 + Math.min(1.3, 0.09 * k));                   // relentless: hunts you farther from home
     predatorTotal++;
   }
   startFlee() { /* predators don't spook — they hold their ground */ }
   hit(dmg = 1, behind = false, ambush = false) {
     if (this.dead) return;
-    this.hp -= dmg;
+    this.hp -= Math.max(1, dmg - (this.armor || 0));   // a veteran's hide turns part of the bite
     AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.38;
     pool.burst(this.pos, 8 + dmg * 6, ambush ? 0xd23a2a : 0xffb3a0, 1.2, 2.4, 2.8);
@@ -1790,9 +1817,9 @@ class Predator {
     predatorTotal--;
     pool.burst(this.pos, 34, 0xffd9a8, 2.2, 4.0, 4.2);
     audio.cry(0.55);
-    if (typeof questEvent === 'function') questEvent('kill', { species: 'predator', pos: { x: this.pos.x, z: this.pos.z } });
-    if (typeof addXp === 'function') addXp(20);
-    let msg = `${this.sp.icon} You slew the ${this.sp.label}! +${this.sp.meat} 🥩`;
+    if (typeof questEvent === 'function') questEvent('kill', { species: 'predator', pos: { x: this.pos.x, z: this.pos.z }, level: this.level });
+    if (typeof addXp === 'function') addXp(this.xpBounty || 20);
+    let msg = `${this.sp.icon} You slew the Level ${this.level} ${this.sp.label}! +${this.xpBounty} XP · +${this.sp.meat} 🥩`;
     inv.meat += this.sp.meat;
     if (this.sp.pelt) { inv.pelt += this.sp.pelt; msg += ` +${this.sp.pelt} 🧥`; }
     if (this.sp.bone) { inv.bone += this.sp.bone; msg += ` +${this.sp.bone} 🦴`; }
@@ -1832,9 +1859,9 @@ class Predator {
         showTerritoryWarning(this.sp);
         audio.growl();
         this.heading = Math.atan2(dxw, dzw);
-      } else if (this.sp.huntsWolf && this.hunger > 88 && dWolf < 42 && state === 'play' && wolf.deadT <= 0) {
+      } else if (this.sp.huntsWolf && this.hunger > 88 && dWolf < (this.ai.patient ? 58 : 42) && state === 'play' && wolf.deadT <= 0) {
         // starving apex predator: the wolf is on tonight's menu
-        this.state = 'warn'; this.warnT = 2.5; this.reArmed = false;
+        this.state = 'warn'; this.warnT = this.ai.patient ? 1.1 : 2.5; this.reArmed = false;
         showTerritoryWarning(this.sp); audio.growl();
         this.heading = Math.atan2(dxw, dzw);
       } else if (this.hunger > 65 && dWolfHome > this.territory) {
@@ -1874,7 +1901,11 @@ class Predator {
     } else if (this.state === 'chase') {
       this.threatening = true;
       this.heading = angLerp(this.heading, Math.atan2(dxw, dzw), Math.min(1, dt * 5));
-      speed = this.sp.run;
+      if (this.ai.fury && !this.furious && this.hp < this.maxHp / 3) {
+        this.furious = true; audio.growl();
+        if (dWolf < 46) toast(`🔥 The Level ${this.level} ${this.sp.label} is ENRAGED!`);
+      }
+      speed = this.sp.run * this.ai.runMul * (this.furious ? 1.12 : 1);
       if (dWolf < this.sp.reach * 0.8) { this.state = 'attack'; this.atkCd = 0.3; }
       else if (dWolfHome > this.territory * 1.5) this.state = 'return';  // lost you at the edge of its range
     } else if (this.state === 'attack') {
@@ -1887,11 +1918,13 @@ class Predator {
         // close the last strides, plant your feet, THEN bite — a bite from any
         // side (behind, flank, face) lands the same; no more orbiting past
         speed = dWolf > this.sp.reach * 0.6 ? this.sp.walk * 2.6 : 0;
+        if (this.ai.feint && dWolf > this.sp.reach * 0.6)
+          this.heading += Math.sin(tSec * 4.5 + this.phase) * 0.5 * dt * 22;   // a veteran feints as it closes
         if (this.atkCd <= 0) {
-          this.atkCd = this.sp.atkCd;
+          this.atkCd = this.sp.atkCd * this.ai.cdMul * (this.furious ? 0.75 : 1);
           this.biteT = 0.32;
           pool.burst(V3(this.pos.x + dxw / (dWolf || 1) * 1.2, this.pos.y + 1, this.pos.z + dzw / (dWolf || 1) * 1.2), 8, 0xff5040, 0.8, 1.6, 2.2);
-          wolfTakeDamage(this.sp.dmg, this.pos, this.sp.label, this.sp.icon);
+          wolfTakeDamage(this.dmg, this.pos, `Level ${this.level} ${this.sp.label}`, this.sp.icon);
         }
       }
     } else if (this.state === 'hunt') {

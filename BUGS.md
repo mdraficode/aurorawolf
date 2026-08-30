@@ -195,3 +195,14 @@ Live: commit 8109c8B byte-verified.
 **Bug 2 — dead touch zone (above action buttons / below-left of minimap):** the hidden title-screen overlay is inert (opacity 0, pointer-events none) but its CHILD BUTTONS (btnStart/btnMenuAI) carry their own `pointer-events: auto`, re-enabling hit-testing on invisible menu buttons floating over the game — exactly the user's dead band. Found via TRUE hit-tested CDP touches (synthetic dispatchEvent bypasses hit-testing — earlier probes could not see this class of bug). Fixes: `#overlay.hidden * { pointer-events: none !important }` + camera pointerdown moved to WINDOW level with a designated-controls filter (any free area claims the camera, immune to future overlay stacking). Real-path matrix after: dead band ✓ camera · mid-right ✓ · left zone ✓ joystick · minimap ✓ no-claim.
 **Standing lesson: verify touch with CDP hit-tested events and audio with an analyser on the output bus — synthetic dispatch and gain inspection both lie.**
 Gates: touch PASS · audio ALL PASS · ai 15/15. Live: c6c6dba byte-verified.
+
+## M44 / rafzzer session (2026-08-30) — neural-bot bug hunt
+- FIXED peak-quest guide pointed at sub-50 m bumps → 5-min stall loops (guide now requires heightAt>50.5, search 80–470 m, nearest-qualifying).
+- FIXED peak quests offered in throne-less terrain (generator probes before offering; falls through to Gather).
+- FIXED bot whiffed bites: bit same tick as camera-aim while body yaw mid-turn (bite cone ~78° on wolf.yaw); cadence 650→900 sim-ms + body-alignment gate at all 3 strike sites. Shakedown 2→0.
+- FIXED autopilot warnOnce key precedence ('miss'+SIMNOW()|0 → constant 0, strangling dedup).
+- OPEN non-peak quest stall: 1× per ~5 sim-min on seed 7777 (hunt/gather class, cause not yet run to ground).
+## M45 / rafzzer session 2 (2026-08-30) — 20-generation training run
+- OPEN gather-quest stall seen again ("Gather 6 mushrooms stuck at 0/6", 4× in one run + 1× ship shakedown): quest ground can lack the target resource; same family as the fixed peak-quest issue. Next: probe gather-goal finder for resource presence before offering.
+- FIXED (harness) rafzzer_gens poll broke on `dead` before the death scorer ran; 1.2 s auto-respawn zeroed telemetry (produced a bogus SURVIVED/-125 report).
+- No new game-side page errors or tick crashes in ~2.5 h of boosted sim across 20 generations.
