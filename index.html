@@ -42,8 +42,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
   background: rgba(30, 16, 56, 0.55); border: 1px solid rgba(176, 122, 255, 0.45);
   text-shadow: 0 0 12px rgba(176, 122, 255, 0.9);
 }
-#mmOrbit { position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; pointer-events: none; z-index: 12;
-  opacity: .3; transition: opacity .3s ease; }   /* faint at rest — they wake at a touch, like the action buttons */
+#mmOrbit { position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; pointer-events: none; z-index: 60;
+  opacity: .3; transition: opacity .3s ease; }   /* faint at rest — they wake at a touch; z 60: above the inventory shade, so the satchel button can always close its box */
 #mmOrbit.wake, #mmOrbit:hover { opacity: 1; }
 #mmOrbit button { position: absolute; pointer-events: auto; border-radius: 50%;
   left: calc(50% + var(--mx, 0) * var(--orb, 84.3%)); top: calc(50% + var(--my, 0) * var(--orb, 84.3%)); }   /* satellites on the arc — --orb sets the radius */
