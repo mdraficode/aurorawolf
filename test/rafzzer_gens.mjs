@@ -13,7 +13,7 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 
 const DIR = 'test';
-const CHAMP = `${DIR}/rafzzer_champion.json`, CAND = `${DIR}/rafzzer_candidate.json`, LINE = `${DIR}/rafzzer_lineage.json`;
+const CHAMP = `${DIR}/rafzzer_champion.json`, CAND = `${DIR}/rafzzer_candidate.json`, LINE = `${DIR}/rafzzer_lineage.json`, TRAITCHAMP = `${DIR}/rafzzer_traitchamp.json`;
 const read = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 const write = (f, o) => fs.writeFileSync(f, JSON.stringify(o));
 const NI = 20, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;   // M46 · GEN 27+: 20 senses (bear-sense, sky-threat appended)
@@ -80,13 +80,47 @@ if (cmd === 'status') {
 }
 
 if (cmd === 'spawn') {
-  const g = arg, attempt = +process.argv[4] || 1;
+  const g = arg, attempt = +process.argv[4] || 1, mode = process.argv[5] || 'global';
   if (!fs.existsSync(CHAMP)) { write(CHAMP, { v: '1.0', gen: 0, fit: null, weights: freshWeights(), scars: { fight: 0, neglect: 0, water: 0 }, origin: 'wild seed 20070 — the untrained mind' }); console.log('GEN 0 champion created (wild seed)'); }
   const champ = read(CHAMP);
-  const m = mutate(champ.weights, g + 1000 * (attempt - 1));   // attempt re-rolls the dice, never the law
-  const cand = { v: '1.0', gen: g, parents: [champ.gen], weights: m.weights, scars: champ.scars, mutation: m, parentFit: champ.fit };
+  let m, base = champ, baseLabel = 'champion fit ' + champ.fit;
+  if ((mode === 'trait' || mode === 'traitglobal') && fs.existsSync(TRAITCHAMP)) {   // compounding chain
+    const tp = read(TRAITCHAMP);
+    if (tp && tp.weights && tp.weights.length === champ.weights.length) { base = tp; baseLabel = 'trait champs fit ' + tp.fit; }
+  }
+  if (mode === 'trait') {
+    // M46 · the bear-aware experiment (trainer-approved answer to the GEN 28 3-strike):
+    // evolve ONLY the two new sense rows — W1 rows 18 & 19, indices 180..199, the
+    // zero-padded gateway to bear-sense/sky-threat. The proven 256 weights are frozen,
+    // so gate-killing survival reflexes are untouched. σ 0.15 (above the global 0.08
+    // floor) because the rows START at zero — floor-σ steps would idle there for gens.
+    const rnd = mul32(7919 * g + 13 + 1000 * (attempt - 1) + 31);   // own dice stream: re-rolls still re-roll
+    const w = base.weights.slice();
+    let touched = 0, reset = 0;
+    const sd = 0.15;
+    for (let i = 180; i < 200; i++) {
+      if (rnd() < 0.8) { w[i] += gauss(rnd, sd); touched++; }
+      if (rnd() < 0.05) { w[i] = gauss(rnd, sd); reset++; }
+      w[i] = Math.max(-2.5, Math.min(2.5, w[i]));
+    }
+    m = { weights: w, touched, reset, sd: +sd.toFixed(3), mode: 'trait', base: baseLabel };
+  } else m = mutate(base.weights, g + 1000 * (attempt - 1));   // attempt re-rolls the dice, never the law (base = champion for 'global', trait champ for 'traitglobal')
+  const cand = { v: '1.0', gen: g, parents: [base.gen], weights: m.weights, scars: base.scars, mutation: m, parentFit: base.fit };
   write(CAND, cand);
-  console.log(`spawned GEN ${g}${attempt > 1 ? ' (re-roll ' + attempt + ')' : ''}: ${m.touched} weights mutated (σ=${m.sd}), ${m.reset} reborn · scars carried ${JSON.stringify(champ.scars)}`);
+  console.log(`spawned GEN ${g}${attempt > 1 ? ' (re-roll ' + attempt + ')' : ''} [${m.mode || 'global'}]: ${m.touched} weights mutated (σ=${m.sd}), ${m.reset} reborn · parent ${baseLabel} · scars ${JSON.stringify(base.scars)}`);
+  process.exit(0);
+}
+
+if (cmd === 'traitpromote') {   // compound the bear-aware chain (never touches the global champion/crown bar)
+  const g = arg;
+  const cand = read(CAND), run = read(`${DIR}/rafzzer_run_gen${g}.json`);
+  if (!(cand.mutation && cand.mutation.mode === 'trait')) { console.log(`GEN ${g} is not a trait run — no chain move`); process.exit(1); }
+  const prev = fs.existsSync(TRAITCHAMP) ? read(TRAITCHAMP) : null;
+  const prevFit = prev ? prev.fit : -1e9;
+  if (run.fitness > prevFit) {
+    write(TRAITCHAMP, { v: '1.0', gen: g, fit: run.fitness, weights: cand.weights, scars: run.scars || cand.scars, cause: run.cause, mets: run.mets, promoT: Date.now(), note: `trait chain: ${prevFit === -1e9 ? 'seeded' : 'advanced from fit ' + prevFit}` });
+    console.log(`TRAIT CHAIN → GEN ${g} (fit ${prevFit === -1e9 ? 'seeded' : prevFit + ' → ' + run.fitness}) — bear-aware rows now carry ${run.fitness}`);
+  } else console.log(`trait chain holds (fit ${run.fitness} ≤ ${prevFit}) — next trait gen re-mutates from GEN ${prev ? prev.gen : '—'}`);
   process.exit(0);
 }
 
@@ -178,4 +212,4 @@ if (cmd === 'promote') {
   console.log(`GEN ${g}: ${outcome}`);
   process.exit(0);
 }
-console.log('usage: status | spawn <g> | gate <g> | run <g> [capSec] | promote <g> --verdict=promote|reject --note=...');
+console.log('usage: status | spawn <g> [attempt] [global|trait] | traitpromote <g> | gate <g> | run <g> [capSec] | promote <g> --verdict=promote|reject --note=...');
