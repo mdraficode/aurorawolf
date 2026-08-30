@@ -122,8 +122,10 @@
         clamp((typeof weather !== 'undefined' && weather.storm) || 0, 0, 1),
         clamp(((typeof WORLD_EVENTS !== 'undefined' && WORLD_EVENTS.chill) || 0) / 8, 0, 1),
         S.scars.fight / 3, S.scars.neglect / 3, S.scars.water / 3,
-        clamp(bearD / 80, 0, 1),      // 18 · ursine distance (unoccluded by the sky)
-        skyT                          // 19 · graded sky-threat (eagle dive/chase/soar)
+        clamp(1 - bearD / 80, 0, 1),  // 18 · ursine PROXIMITY (1 = bear at your paws, 0 = none) — M46 BUGFIX: was bearD/80,
+                                      //     which fed "no bear for 80m" as a constant 1.0 → hidden-layer bias → saturated
+                                      //     outputs → livingMind gate-strikes (GEN 28a3/29a1/33a1-2 evidence)
+        skyT                          // 19 · graded sky-threat (eagle dive/chase/soar; 0 = no eagle)
       ];
     };
     const think = ctx => {

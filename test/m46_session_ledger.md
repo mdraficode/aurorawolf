@@ -18,3 +18,17 @@ Strategy (trainer Q: "best choice for better generations?" → implemented):
 
 Baseline facts: authentic GEN 9 champion fit 283 (original env). This env replays: −1 / 238 / 131 (median 131).
 Replay evidence: test/history/phase0_replay/ (replay_gate_gen9_pass.json + 3 run records).
+
+Update mid-session:
+- Evidence: traitglobal mostly destructive in this env (31 a1 died, 32 fit -122 after gate-pass; rows-only trait produced the best run 225).
+- GEN 33-36 driver flipped: trait ×2 first (rows-only), traitglobal ×2 fallback.
+
+## GEN 33 investigation — modeling bug found & fixed
+- GEN 33: 4/4 gate FAILs, all `livingMind` with outs-std < 0.004 (saturated cortex).
+- ROOT CAUSE (my sense encoding): input 18 was `clamp(bearD/80)` = "no bear nearby" fed a CONSTANT 1.0
+  (bear at 40m → 0.5; no bear → 1.0 — polarity inverted). The trait rows therefore injected a
+  near-constant bias into the hidden layer → tanh saturation → output variance collapse → livingMind fail.
+- Same signature explains GEN 28a3, 29a1 gate-fails.
+- FIX: `clamp(1 - bearD/80, 0, 1)` (proximity: 1 = close). Champion unaffected (its rows are zero).
+- CHAIN RESET: traitchamp (fit 225) was trained on the inverted sense → deleted; trait experiment re-ran from zero with correct encoding. Run records of gens 27-32 remain as evidence (note: 225 was under the inverted sense).
+- M46 driver: trait ×2 → traitglobal ×2 → stop.

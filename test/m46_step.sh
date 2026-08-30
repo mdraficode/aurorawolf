@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# M46 per-generation driver: traitglobal ×2 attempts, then trait ×2, then STOP (brief cadence).
+# M46 per-generation driver: trait ×2 attempts (proven: rows-only, gate-safe, chain-best 225),
+# then traitglobal ×2 as diversity fallback, then STOP (brief cadence).
 # usage: bash test/m46_step.sh <gen>
 set -u
 cd /home/user/aurorawolf
 G=${1:?gen}
-for MODE in traitglobal trait; do
+for MODE in trait traitglobal; do
   for A in 1 2; do
     node test/rafzzer_gens.mjs spawn "$G" "$A" "$MODE" > /dev/null 2>&1
     if node test/rafzzer_gens.mjs gate "$G" > "test/log_gate_gen$G.log" 2>&1; then
