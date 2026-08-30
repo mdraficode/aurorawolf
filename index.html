@@ -45,10 +45,10 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 #mmOrbit { position: absolute; top: 14px; right: 16px; width: 140px; height: 140px; pointer-events: none; z-index: 60;
   opacity: .3; transition: opacity .3s ease; }   /* faint at rest — they wake at a touch; z 60: above the inventory shade, so the satchel button can always close its box */
 #mmOrbit.wake, #mmOrbit:hover { opacity: 1; }
-#fsBtn {   /* appears whenever the game is NOT fullscreen — one tap fills the screen */
-  position: absolute; top: 176px; right: 16px; width: 36px; height: 36px; border-radius: 50%;
+#fsBtn {   /* at the terrain pill's right — glows & blinks 3s whenever the game leaves fullscreen */
+  width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; margin-left: 2px;
   display: none; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer; z-index: 12;
-  font-size: 17px; line-height: 1; padding: 0; color: #dcecff; font-family: inherit;
+  font-size: 15px; line-height: 1; padding: 0; color: #dcecff; font-family: inherit;
   border: 1px solid rgba(180, 220, 255, 0.35); background: rgba(10, 18, 30, 0.55);
   opacity: .55; transition: opacity .25s ease;
 }
@@ -254,9 +254,6 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   /* small landscape phones: slimmer buttons + minimap so nothing collides */
   body.touch #minimap { top: 14px; width: 84px; height: 84px; }
   body.touch #mmOrbit { top: 14px; width: 84px; height: 84px; --orb: 105%; }
-  #fsBtn { top: 152px; right: 14px; }   /* 84px orbit: pause ends ~137 */
-  #fsBtn { top: 212px; right: 14px; }
-  body.touch #fsBtn { top: 190px; }   /* 118px orbit: pause ends ~178 */
   #mmOrbit button { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 15px; }
   body.touch #btns { width: 72px; height: 72px; right: 19px; bottom: 19px; }   /* deeper into the corner */
   body.touch #tAttack { width: 86px; height: 86px; margin: -43px 0 0 -43px; font-size: 31px; }   /* overtakes the 84px map */
@@ -396,6 +393,7 @@ body.touch #questTracker { display: none; }
     <div class="pill"><span id="weatherIcon">🌤️</span><span id="weatherLabel">Fair</span></div>
     <div class="pill" id="clock">Day 1 · 08:00</div>
     <div class="pill"><span id="biome">🌲 Snowy Taiga</span></div>
+    <button id="fsBtn" title="Fullscreen">⛶</button>
   </div>
   <div id="invWrap">
     <div id="invBox">
@@ -424,7 +422,7 @@ body.touch #questTracker { display: none; }
     <button id="btnAI" title="AI plays (watch mode)">🤖</button>
     <button id="tPause" title="Pause (P)">⏸</button>
   </div>
-  <button id="fsBtn" title="Fullscreen">⛶</button>
+
   <div id="bigmapWrap">
     <div id="bigmapBox">
       <div id="bigmapHead"><span id="bigmapTitle">🗺️ Revontulet — the wild around you</span><button id="bigmapClose">✕</button></div>
@@ -7585,7 +7583,25 @@ for (const id of ['invBtn', 'questBtn', 'btnAI', 'tPause']) { const b = el(id); 
   const root = document.documentElement;
   const canFS = !!(root.requestFullscreen || root.webkitRequestFullscreen);
   if (!canFS) return;   // no fullscreen API (iPhone Safari) — no button
-  const sync = () => fb.classList.toggle('show', !document.fullscreenElement && !document.webkitFullscreenElement);
+  let wasFS = false, attnIv = 0;
+  const attention = () => {   // 3 seconds of glow and blink — the screen let go, look here
+    clearInterval(attnIv);
+    const t0 = performance.now();
+    attnIv = setInterval(() => {
+      const t = (performance.now() - t0) / 1000;
+      if (t > 3 || document.fullscreenElement || document.webkitFullscreenElement) { clearInterval(attnIv); fb.style.opacity = ''; fb.style.boxShadow = ''; return; }
+      const blink = 0.5 + 0.5 * Math.sin(t * 12.57);          // ~2 Hz blink
+      const glow = 0.5 + 0.5 * Math.sin(t * 6.28);            // 1 Hz breathing halo
+      fb.style.opacity = (0.45 + 0.55 * blink).toFixed(2);
+      fb.style.boxShadow = '0 0 ' + (7 + 9 * glow).toFixed(1) + 'px 3px rgba(140, 200, 255, .9)';
+    }, 50);
+  };
+  const sync = () => {
+    const fs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    fb.classList.toggle('show', !fs);
+    if (wasFS && !fs) attention();   // just left fullscreen — demand the eyes
+    wasFS = fs;
+  };
   document.addEventListener('fullscreenchange', sync);
   document.addEventListener('webkitfullscreenchange', sync);
   let sawPtr = false;
