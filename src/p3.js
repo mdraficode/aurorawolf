@@ -2102,7 +2102,7 @@ class SkyEagle {
     this.territory = 0;                         // the sky has no fences
     this.dm = Math.random() < 0.5 ? 1 : -1;     // circling direction
     this.orbitR = 9 + Math.random() * 5;
-    this.breakT = 0; this.abortT = 0;
+    this.breakT = 0; this.abortT = 0; this.abortMsgShown = false;
     this.model.position.copy(this.pos); this.model.position.y = heightAt(x, z) + this.alt;
     eagleTotal++;
     // ---- difficulty level: the sky keeps pace with the wolf who walks it ----
@@ -2167,7 +2167,12 @@ class SkyEagle {
     const gyRef = Math.max(heightAt(this.pos.x, this.pos.z), WATER_Y);   // never dips under a lake
     const day = dayF > 0.3;
     // daylight law: as soon as it is dark enough it aborts — even mid-chase
+    const wasActive = this.state === 'chase' || this.state === 'attack' || this.state === 'climb';
     if (!day || wolf.deadT > 0 || caveState.in) this.state = 'abort';
+    if (!day && wasActive && !this.abortMsgShown) {   // the rescue word, once per eagle
+      this.abortMsgShown = true;
+      toast('🌑 The darkness saved you from the Eagle', true);
+    }
     let speed = 0, altT = this.alt;
     if (this.flinchT > 0) {
       altT = this.alt + 3; speed = 6;                                   // hit — wobbles upward

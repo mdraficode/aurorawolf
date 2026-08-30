@@ -3696,13 +3696,26 @@ function drawMapOverlays(ctx, S, range, opts) {
     ctx.fillText(ldef ? ldef.icon : (lm.mapIcon || '✦'), mx + 6, my + 3);
     if (opts.big) { ctx.fillStyle = '#ffe9b0'; ctx.font = '10px system-ui'; ctx.fillText(ldef ? ldef.label : (lm.label || lm.type), mx + 7, my + 14); ctx.font = '13px system-ui'; }
   }
-  // ---- hunting predators ----
+  // ---- predators: every one is a red dot; a hunting one BLINKS ---- 
   for (const ch of chunks.values())
     for (const pr of ch.predators) {
-      if (pr.dead || !pr.threatening) continue;
+      if (pr.dead) continue;
       const [mx, my] = toMap(pr.pos.x, pr.pos.z);
-      ctx.fillStyle = 'rgba(255,64,40,.95)';
-      ctx.beginPath(); ctx.arc(mx, my, opts.big ? 4 : 3.4, 0, 6.29); ctx.fill();
+      if (mx < -10 || mx > S + 10 || my < -10 || my > S + 10) continue;
+      const active = !!pr.threatening;                      // it has you in its sights
+      if (active) {
+        const pulse = 0.5 + 0.5 * Math.sin((tSec || 0) * 9);   // the warning blink
+        ctx.fillStyle = `rgba(255,36,22,${(0.5 + 0.5 * pulse).toFixed(2)})`;
+        ctx.beginPath(); ctx.arc(mx, my, opts.big ? 4.6 : 4, 0, 6.29); ctx.fill();
+        ctx.strokeStyle = `rgba(255,80,50,${(0.75 * pulse).toFixed(2)})`;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(mx, my, (opts.big ? 7.5 : 6.5) + pulse * 2.6, 0, 6.29); ctx.stroke();
+        window.__mmBlink = (window.__mmBlink || 0) + 1;
+      } else {
+        ctx.fillStyle = 'rgba(255,64,40,.62)';
+        ctx.beginPath(); ctx.arc(mx, my, opts.big ? 3.4 : 2.8, 0, 6.29); ctx.fill();
+      }
+      window.__mmPred = (window.__mmPred || 0) + 1;
     }
   // ---- landmark guidance chevron (nearest within 340 m) ----
   let guide = null, gd = 340;

@@ -31,6 +31,11 @@ const R = await page.evaluate(() => {
   for (let i = 0; i < 40; i++) e.update(dt, tSec + i * dt);
   R.spotted = e.state === 'chase';
   R.threatening = e.threatening;
+  // 3b. minimap: every predator is a red dot, a hunting one blinks
+  window.__mmPred = 0; window.__mmBlink = 0;
+  drawMinimapOverlay();
+  R.mmPredDot = window.__mmPred;
+  R.mmBlink = window.__mmBlink;
   // 4. it circles (tight ring) and dives from the circle — and does not let go
   wolf.invulnT = 600;                       // shield the wolf while we watch the flight
   let circled = false, dived = false, minRing = 1e9, maxRing = 0;
@@ -64,10 +69,11 @@ const R = await page.evaluate(() => {
   R.highUnhittable = !tryBite();
   e.state = 'climb'; e.alt = 0.9; e.pos.x = wolf.pos.x; e.pos.z = wolf.pos.z + 2; e.pos.y = Math.max(heightAt(e.pos.x, e.pos.z), WATER_Y) + e.alt + 1;
   R.lowHittable = tryBite();
-  // 7. darkness aborts it — even mid-chase
-  e.state = 'chase'; dayF = 0.1; e.flinchT = 0;
+  // 7. darkness aborts it — even mid-chase — and says so
+  e.state = 'chase'; dayF = 0.1; e.flinchT = 0; e.abortMsgShown = false;
   for (let i = 0; i < 40; i++) e.update(dt, tSec + i * dt);
   R.abortsAtNight = e.state === 'abort' || e.dead;
+  R.abortMsg = e.abortMsgShown && (ui.toasts.children.length ? ui.toasts.lastChild.textContent : '');
   dayF = 1;
   // 8. kill & bounty (wounded eagle, low pass)
   const meat0 = inv.meat, pelt0 = inv.pelt, bone0 = inv.bone, slain0 = stats.slain;
@@ -92,6 +98,9 @@ if (R.ring && (R.ring[0] > 26 || R.ring[1] > 45)) F.push('ring too wide ' + R.ri
 if (!R.talonHit || !R.talonCd) F.push('talon strike');
 if (!R.highUnhittable || !R.lowHittable) F.push('low-pass hit window');
 if (!R.abortsAtNight) F.push('night abort');
+if (!(R.abortMsg && R.abortMsg.indexOf('darkness saved you') !== -1)) F.push('night-rescue message: ' + R.abortMsg);
+if (!(R.mmPredDot >= 1)) F.push('minimap predator dot');
+if (!(R.mmBlink >= 1)) F.push('minimap blink');
 if (!R.killed || R.bounty.meat !== 3 || R.bounty.pelt !== 1 || R.bounty.bone !== 1 || R.bounty.slain !== 1) F.push('kill/bounty');
 if (R.totalAfter !== 0) F.push('eagleTotal not released');
 if (errors.length) F.push('page errors');
