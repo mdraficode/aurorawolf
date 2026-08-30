@@ -208,3 +208,9 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 ### Mission 38 — deeper still
 - Repeat of M37: arch 22 -> 19px (portrait) / 18.3 (small landscape) via --orb 103->99 / 112->106 (base 96->92); companions trimmed 42->40 and 32->30 so the tighter arc keeps 2.5-2.7px between discs (chord math: gap = 0.429R - disc). Cluster pushed deeper: inset 28->20 (touch) / 26->19 (small) / 30->24 (base) — edge gaps now 10-12px.
 - All satellites in-viewport, arc order intact. quest 32/32. Live: byte-verified.
+
+### Mission 39 — one tap, and the wolf keeps going
+- TAP-TOGGLE LOCKS on Sprint / Attack / Jump (gather/sense/howl stay momentary): first tap starts the action and it RUNS ITSELF — sprint locked (touch.sprint + wolf.sprintLock persist, re-asserted each frame), attack auto-bites every 150ms (wolf.attack() self-gates on its 0.75s cooldown), jump auto-hops (keys.Space held) — until the next tap stops it. Buttons stay lit (.on) while locked.
+- AUTO-REBIRTH sprint: a new Wolf.update line clears 'exhausted' the moment stamina > 1 while the sprint lock is on — after a full drain the wolf sprints again on the smallest refill, exactly as specified.
+- Minimap arch fades at rest like the action cluster: #mmOrbit opacity .3 -> 1 on wake (any orbit-button touch or action-button touch wakes both, 2.2s), CSS transition. Probe-env lesson: the software renderer stalls passive CSS transitions (values advance only on forced style recalcs) — the wake sets opacity INLINE for env-proofness; fade-back via the CSS cascade. Cascade states verified: rest .3 / wake inline 1 / auto-clear.
+- Verified: all three toggles on/off, persistence after pointerup, exhaustion rebirth (stam 2 -> sprinting, exhausted cleared), attack fires with zero input and falls silent on toggle-off. quest 32/32, ai 15/15. Live: byte-verified.
