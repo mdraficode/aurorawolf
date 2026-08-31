@@ -183,9 +183,30 @@ try {
     };
   });
   ck('death fails the deed → manual re-accept (board rebuilt)', R.active === 0 && R.avail >= 3 && R.avail <= 4, `active ${R.active} avail ${R.avail}`);
-  ck('death cancels the bar → restart of the current level', R.level === 5 && R.xp === 0 && R.xpNext === 500, `lvl ${R.level} xp ${R.xp} next ${R.xpNext}`);
+  ck('death cancels the bar → restart of the current level', R.level === 5 && R.xp === 0 && R.xpNext === Math.round(70 * Math.pow(1.24, 5)), `lvl ${R.level} xp ${R.xp} next ${R.xpNext}`);
   ck('death keeps career XP + progression (one pool stands)', R.xpTotal === 1234 && R.stage1 === R.stage0, `total ${R.xpTotal} stage ${R.stage1}`);
   ck('respawn NEAR the fall (≤75 m), alive & healthy', R.near > 0 && R.near <= 75 && R.hp === R.maxHp, `dist ${R.near.toFixed(1)} hp ${R.hp}/${R.maxHp}`);
+
+  /* ---- 9b. DEATH RIGOR: the penalty hardens as the wolf levels ---- */
+  R = await pg.evaluate(() => {
+    wolf.level = 14; wolf.xp = 300; wolf.xpNext = Math.round(70 * Math.pow(1.24, 14)); wolf.xpTotal = 9999;
+    recalcWolfLevel();
+    wolfDie('test predator', '💀');
+    wolfRespawn();
+    return { level: wolf.level, xp: wolf.xp, xpNext: wolf.xpNext, xpTotal: wolf.xpTotal, maxHp: wolf.maxHp, hp: wolf.hp, hpBonus: wolf.hpBonus || 0 };
+  });
+  ck('RIGOR lv14: death regresses one level (12–16 → −1)', R.level === 13 && R.xp === 0 && R.xpNext === Math.round(70 * Math.pow(1.24, 13)), `lvl ${R.level} xp ${R.xp} next ${R.xpNext}`);
+  ck('RIGOR: career XP still STANDS (trophy progress untouched)', R.xpTotal === 9999 && R.hpBonus === 0, `total ${R.xpTotal} bonus ${R.hpBonus}`);
+  ck('RIGOR: wolf healed to the new (smaller) cap', R.hp === R.maxHp && R.maxHp === 100 + 8 * 13, `hp ${R.hp}/${R.maxHp}`);
+  R = await pg.evaluate(() => {
+    wolf.level = 27; wolf.xp = 0; wolf.xpNext = Math.round(70 * Math.pow(1.24, 27)); recalcWolfLevel();
+    wolfDie('test predator', '💀'); wolfRespawn();
+    const cap = { level: wolf.level, xp: wolf.xp };
+    wolf.level = 3; wolf.xp = 0; wolf.xpNext = 500; recalcWolfLevel();
+    wolfDie('test predator', '💀'); wolfRespawn();
+    return { cap, low: { level: wolf.level, xp: wolf.xp } };
+  });
+  ck('RIGOR cap: lv27 → −4 (never endless), low levels untouched', R.cap.level === 23 && R.cap.xp === 0 && R.low.level === 3 && R.low.xp === 0, JSON.stringify(R));
 
   /* ---- 10. trophies screen ---- */
   R = await pg.evaluate(() => { window.CAMP.showTrophies(); return { t: document.getElementById('ovTitle').textContent, body: document.getElementById('ovBody').textContent.slice(0, 300) }; });

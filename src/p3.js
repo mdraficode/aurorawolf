@@ -479,7 +479,7 @@ class Wolf {
     this.atkCd = 0;
     this.atkT = 0;
     this.flyT = 0;
-    this.hp = 100; this.maxHp = 100;
+    this.hp = 100; this.maxHp = 100; this.hpBonus = 0;   // hpBonus = permanent perk bonus, recalc-safe
     this.xp = 0; this.xpTotal = 0; this.level = 0; this.xpNext = 70; this.perks = {}; this.title = 'Young Pup';   // levels begin at ZERO — the wild owes no head start; xpTotal = career XP, never erased
     this.maxStam = 100;   // the sprint pool — it grows with every level earned
     this.lastHurt = -99;

@@ -54,3 +54,9 @@ Update mid-session:
 - Reload = checkpoint: career block (lvl/bar/next/xpTotal) persisted in revontulet_campaign_v1 (S.career); load restores into wolf (recalcWolfLevel). Legacy s.xp field dropped on load.
 - campaign.test.mjs extended to 29 checks: unified-pool equity (career=run payout), death law (board rebuild, bar cancel, career/progression stand, respawn ≤75 m), career restore on reload. ALL PASS.
 - Tests: quest/combat/gather/hunt/wolf/enemies PASS; full npm suite EXIT=0 (collision/audio in-suite FAILs = documented load flakes, PASS rerun).
+
+## DEATH RIGOR — gradually harsher with player level (user follow-up)
+- 2026-08-31 — Scaled death penalty: every death cancels the level bar (as before); from level 12 the wild ALSO takes levels: 12–16 → −1 · 17–21 → −2 · 22–26 → −3 · 27+ → −4 (cap, no endless spiral). De-leveling re-derives xpNext from the new level (bar restarts at the beginning of the previous level — faithful to the original wording).
+- Golden rule kept: career XP (xpTotal), tier, legend, stage, run timer ALWAYS stand → penalties are pure TIME cost; the trophy-speedrun goal (higher tiers, shortest run) is untouched. Deaths still can't be used as a free heal/restart without paying the bar (+ levels from 12).
+- Latent bug fixed en route: recalcWolfLevel() wiped the 'permanent' Wild-Hardened +5 max-HP perk on every level-up/death → hpBonus now tracked and preserved (constructor + recalc + perk grant).
+- campaign.test.mjs → 33/33 PASS (added: lv14 −1, lv27 cap −4, low levels untouched, career stands, healed to new cap, xpNext re-derived). Focused regression wolf/enemies/quest/combat/gather/hunt/events PASS; full npm suite 18/18 + gather/eco/mystic, EXIT=0 (no flakes this run).

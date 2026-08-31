@@ -2611,9 +2611,9 @@ let dawnMistA = 0, pawPrints = null, flareGrp = null, raysGrp = null, mistGrp = 
    ============================================================ */
 const TITLES = ['Young Pup', 'Wanderer', 'Hunter', 'Stalker', 'Storm-Woolf', 'Legend of the Aurora'];
 const xpNeed = L => Math.round(70 * Math.pow(1.24, L));   // each level ~24% dearer — no cap, ever
-function recalcWolfLevel() {   // strength flows FROM the level — so death can take it all back cleanly
+function recalcWolfLevel() {   // strength flows FROM the level — so death can take it back cleanly; permanent perks (hpBonus) survive
   wolf.maxStam = 100 * (1 + 0.05 * wolf.level);    // +5% sprint pool per level, unbounded
-  wolf.maxHp = 100 + 8 * wolf.level;               // +8 max HP per level
+  wolf.maxHp = 100 + 8 * wolf.level + (wolf.hpBonus || 0);   // +8 max HP per level, permanent perk bonus preserved
 }
 const wolfDamageMul = () => Math.pow(0.982, wolf.level);   // damage taken shrinks 1.8% a level — always less, never zero
 window.freshRun = () => ({ t0: performance.now(), kills: 0, predators: 0, quests: 0, landmarks: 0, bosses: 0, xp: 0, maxLevel: 0, perks: [], questTimes: [], dist0: wolf.distance || 0, cause: null, icon: null, dur: 0 });
@@ -2836,7 +2836,7 @@ function completeQuest(q) {
   addXp(q.rw.xp || 100);
   if (q.rw.items) for (const k in q.rw.items) { inv[k] = (inv[k] || 0) + q.rw.items[k]; }
   updateInv();
-  if (q.rw.boost === 'maxHp') { wolf.maxHp += 5; wolf.hp += 5; toast('❤️ The wild hardens you: +5 max HP (permanent)', true); }
+  if (q.rw.boost === 'maxHp') { wolf.maxHp += 5; wolf.hp += 5; wolf.hpBonus = (wolf.hpBonus || 0) + 5; toast('❤️ The wild hardens you: +5 max HP (permanent)', true); }
   if (q.rw.boost === 'strongJaw') { wolf.perks.strongJaw = true; toast('🦷 Your bite deepens: +1 damage (permanent)', true); }
   if (q.rw.perk === 'skywatcher') { wolf.perks.skywatcher = true; toast('🌩️ Storms bite you less now (permanent)', true); }
   if (q.rw.perk === 'stormborn') { wolf.perks.stormborn = true; toast('🌨️ Weather-worn: cold and wet cost less (permanent)', true); }
@@ -3507,7 +3507,7 @@ function wolfDie(label, icon) {
   wolf.fellTo = wolf.killerPos ? { x: wolf.killerPos.x, z: wolf.killerPos.z } : null;   // and away from the killer
   wolf.killerPos = null;
   const ov = el('deathOv');
-  if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… your deed is lost and your level progress resets — but the campaign continues.</span>`; ov.classList.add('show'); }
+  if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">Your deed is lost and your level progress resets — and the higher you climb, the dearer the wild's price.</span>`; ov.classList.add('show'); }
   vignetteA = 0.9;
 }
 function wolfTakeDamage(dmg, fromPos, label, icon, kbMul) {
@@ -3547,8 +3547,16 @@ function wolfRespawn() {
     if (safe) { rx = tx; rz = tz; found = true; }
   }
   wolf.pos.x = rx; wolf.pos.z = rz; wolf.pos.y = heightAt(rx, rz) + 0.2;
-  wolf.xp = 0;   // death cancels the XP progress toward the next level upgrade — you restart the current level's bar
-  // wolf.level, wolf.xpNext and wolf.xpTotal (career XP) all STAND: one bad night costs the bar, not the climb
+  // DEATH RIGOR — the penalty hardens with every level gained (a time cost, never a trophy cost):
+  //   · every death cancels the bar → you restart the current level (beginning of the previous level)
+  //   · from level 12 the wild takes levels too: 12–16 → −1 · 17–21 → −2 · 22–26 → −3 · 27+ → −4 (cap)
+  //   · career XP (xpTotal), tier, legend, stage and the run timer ALWAYS STAND — the goal stays
+  //     "higher-tier trophies in the shortest run", so deaths cost time, never progress.
+  const rigLv = wolf.level;
+  const regress = rigLv >= 12 ? Math.min(4, 1 + ((rigLv - 12) / 5 | 0)) : 0;
+  if (regress) wolf.level = Math.max(0, rigLv - regress);
+  wolf.xp = 0;                              // cancel the level bar
+  wolf.xpNext = xpNeed(wolf.level);         // restart the bar of the (previous) level
   window.RUN = window.freshRun();   // the session record restarts — the campaign record stands
   if (window.CAMP && window.CAMP.onDeath) window.CAMP.onDeath();   // CAMPAIGN: the deed fails → back to the board for a manual re-accept; stage/tier/timer/progression stand (no timer exploit)
   recalcWolfLevel();
@@ -3560,7 +3568,9 @@ function wolfRespawn() {
   if (ov) ov.classList.remove('show');
   vignetteA = 0;
   questHudDirty = true;
-  toast('🐾 You wake near where you fell — the deed is lost, your level progress resets. The hunt for the Legend continues.', true);
+  toast(regress
+    ? `💀 The wild takes its due — Level ${rigLv} → ${wolf.level}. The deed is lost; the hunt for the Legend continues.`
+    : '🐾 You wake near where you fell — the deed is lost, your level bar resets. The hunt for the Legend continues.', true);
 }
 function showTerritoryWarning(sp) {
   const w = el('threatWarn');

@@ -41,10 +41,16 @@ Each stage offers alternative *routes* to the same progression point:
   Prep XP gates read career XP; quests unfold the chain → the higher-tier trophies in a loop.
 - DEATH LAW: the in-flight deed FAILS and returns to the board for a manual re-accept (no XP,
   same stage); the XP progress toward the NEXT level upgrade is cancelled (`wolf.xp = 0` — restart
-  the current level's bar) while `level`, `xpNext`, `xpTotal`, tier/legend/stage and the run timer
-  all STAND; the wolf respawns at a SAFE spot NEAR where it fell (14–44 m, dry land, away from the
-  killer and from living predators). Reload = checkpoint (career XP persisted in the save), never
-  a reset and never a timer exploit.
+  the current level's bar) while `xpTotal` (career), tier/legend/stage and the run timer all STAND;
+  the wolf respawns at a SAFE spot NEAR where it fell (14–44 m, dry land, away from the killer and
+  from living predators). Reload = checkpoint (career XP persisted in the save), never a reset and
+  never a timer exploit.
+- DEATH RIGOR (scaled, added later): the penalty hardens with every level gained — always a TIME
+  cost, never a trophy/progress cost. Every death cancels the bar; from level 12 the wild also
+  takes levels: 12–16 → −1 · 17–21 → −2 · 22–26 → −3 · 27+ → −4 (cap). Rationale: a strong wolf
+  must not be able to treat death as a free reset; but career XP, tier, legend, stage and the run
+  timer always stand, so the goal (higher-tier trophies in the shortest run) is untouched — deaths
+  only cost re-earned time. Permanent perk bonuses are preserved through recalc (hpBonus).
 - Run timer: `now − runStart − pausedMs`. Never resets on death or reload (anti-exploit); only a
   legit Trophy resets it (new tier = new run). Timer keeps counting while playing; pauses only
   while the game is actually paused/menus.
