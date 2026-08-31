@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pathToFileURL, fileURLToPath } from 'url';
 // Marathon runner v2 (restored after workspace incident — behavior-equivalent rewrite).
 // Usage: node test/marathon.mjs [wallSeconds=240] [simMinutes=40]
 // One chapter = one fresh world. Streams bot events to test/marathon.jsonl, appends the chapter
@@ -10,7 +11,7 @@ import path from 'path';
 const [WALL = 240, SIMMIN = 40] = process.argv.slice(2).map(Number);
 const SEED = 10000 + Math.floor(Math.random() * 90000);
 const CH = JSON.parse(fs.readFileSync(new URL('./marathon-chapters.jsonl', import.meta.url), 'utf8').trim().split('\n').pop()).ch + 1;
-const PAGE_URL = `file:///home/user/index.html?autopilot=1&autostart=1&seed=${SEED}&quality=low&speed=12&rate=3&re=3`;
+const PAGE_URL = `${pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href}?autopilot=1&autostart=1&seed=${SEED}&quality=low&speed=12&rate=3&re=3`;
 
 const stamp = () => new Date().toISOString().slice(11, 19);
 fs.writeFileSync('test/marathon-live.json', JSON.stringify({ ch: CH, seed: SEED, state: 'launching', t: Date.now() }));

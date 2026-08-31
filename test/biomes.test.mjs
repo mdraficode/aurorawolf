@@ -1,10 +1,11 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 /* Advanced biomes: 12 ecological regions, per-biome wiring, smooth transitions, hazards */
 import { chromium } from 'playwright';
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
 const errors = [];
 page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
-await page.goto('file:///home/user/index.html?autostart=1&seed=20250827&quality=low');
+await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=20250827&quality=low');
 await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
 await page.waitForTimeout(1500);
 const R = await page.evaluate(() => {

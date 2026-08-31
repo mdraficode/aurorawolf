@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 // Real-game behavior probe: autopilot at TRUE game speed (no ?speed boost, default density) —
 // what a player pressing 🤖 actually sees. Usage: node test/real1x.mjs [seed] [wallSeconds]
 import { chromium } from 'playwright';
@@ -12,7 +13,7 @@ fs.writeFileSync(OUT, '');
 const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const pg = await b.newPage({ viewport: { width: +(process.env.PW || 800), height: +(process.env.PH || 420) } });
 const errs = []; pg.on('pageerror', e => errs.push(e.message));
-await pg.goto(`file:///home/user/index.html?autopilot=1&autostart=1&seed=${SEED}&quality=low`, { timeout: 90000, waitUntil: 'domcontentloaded' });
+await pg.goto(`${pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href}?autopilot=1&autostart=1&seed=${SEED}&quality=low`, { timeout: 90000, waitUntil: 'domcontentloaded' });
 await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
 console.log(`${stamp()} seed ${SEED} · REAL-SPEED run · ${DUR}s`);
 

@@ -1,8 +1,9 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const pg = await b.newPage({ viewport: { width: 640, height: 360 } });
 const errs = []; pg.on('pageerror', e => errs.push(e.message));
-await pg.goto('file:///home/user/index.html?autopilot=1&seed=7777&quality=low&speed=8&rate=3&re=3', { timeout: 90000, waitUntil: 'domcontentloaded' });
+await pg.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autopilot=1&seed=7777&quality=low&speed=8&rate=3&re=3', { timeout: 90000, waitUntil: 'domcontentloaded' });
 await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play' && window.RAFZZER, null, { timeout: 90000 });
 await pg.waitForTimeout(2000);
 const r = await pg.evaluate(() => {

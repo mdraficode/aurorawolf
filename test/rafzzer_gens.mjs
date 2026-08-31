@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 // 🧠 RAFZZER v1.0 — the generational harness
 // The human gate lives HERE: no mutant may run a full generation without passing
 // `gate` (behavioral shakedown on a probe seed), and no mutant may carry its
@@ -43,7 +44,7 @@ const launch = async () => {
   return { b, pg, errs };
 };
 const openGame = async (pg, seed) => {
-  await pg.goto(`file:///home/user/index.html?autopilot=1&nolearn=1&seed=${seed}&quality=low&speed=8&rate=3&re=3`, { timeout: 90000, waitUntil: 'domcontentloaded' });
+  await pg.goto(`${pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href}?autopilot=1&nolearn=1&seed=${seed}&quality=low&speed=8&rate=3&re=3`, { timeout: 90000, waitUntil: 'domcontentloaded' });
   await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play' && window.RAFZZER, null, { timeout: 90000 });
   await pg.waitForTimeout(2000);
 };

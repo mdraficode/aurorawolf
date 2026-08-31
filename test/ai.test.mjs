@@ -1,9 +1,10 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 // 🤖 AI watch-mode feature suite — 15 checks (restored after workspace incident; final behavior-equivalent rewrite)
 // Lessons baked in: domcontentloaded + 90s (1 MB file); NEVER two live game pages (2-CPU sandbox); always page.close();
 // odometer assertions need &speed=8&rate=3&re=3 and ≤20 m thresholds; no waitForTimeout after close.
 import { chromium } from 'playwright';
 
-const URL1 = 'file:///home/user/index.html?autostart=1&seed=4242&quality=low&speed=8&rate=3&re=3';
+const URL1 = pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=4242&quality=low&speed=8&rate=3&re=3';
 let pass = 0, fail = 0;
 const ck = (name, ok, extra = '') => {
   console.log(`${ok ? '✔' : '✘'} ${name}${ok && extra !== true ? ` — ${extra}` : !ok && extra ? ` — ${extra}` : ''}`);
@@ -76,7 +77,7 @@ ck('second press → keys released, wolf is yours', released);
 // 11 · ?autopilot=1 auto-enables (watch builds)
 const page2 = await browser.newPage({ viewport: { width: 640, height: 360 } });
 const errs2 = []; page2.on('pageerror', e => errs2.push(e.message));
-await page2.goto('file:///home/user/index.html?autopilot=1&seed=99&quality=low&speed=8&rate=3&re=3', { timeout: 90000, waitUntil: 'domcontentloaded' });
+await page2.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autopilot=1&seed=99&quality=low&speed=8&rate=3&re=3', { timeout: 90000, waitUntil: 'domcontentloaded' });
 await page2.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 }).catch(() => { });
 await page2.waitForTimeout(9000);
 const urlOn = await page2.evaluate(() => document.body.classList.contains('aiOn') && (window.BOTLOG || []).length > 2 && wolf.distance > 3);
@@ -89,7 +90,7 @@ await page2.close(); await new Promise(r => setTimeout(r, 300));
 // 13 · menu front door: "🤖 Watch the AI play" starts the game with AI on
 const page3 = await browser.newPage({ viewport: { width: 640, height: 360 } });
 const errs3 = []; page3.on('pageerror', e => errs3.push(e.message));
-await page3.goto('file:///home/user/index.html?seed=5150&quality=low&speed=8&rate=3&re=3', { timeout: 90000, waitUntil: 'domcontentloaded' });
+await page3.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?seed=5150&quality=low&speed=8&rate=3&re=3', { timeout: 90000, waitUntil: 'domcontentloaded' });
 await page3.waitForFunction(() => typeof state !== 'undefined' && state === 'menu', null, { timeout: 90000 });
 await page3.waitForTimeout(1500);
 await page3.click('#btnMenuAI');

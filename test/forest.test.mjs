@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 /* Dense Forest upgrade: layering, scale, clustering, clearings, perf, camera views */
 import { chromium } from 'playwright';
 import { PNG } from 'pngjs';
@@ -6,7 +7,7 @@ const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '-
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
-await page.goto('file:///home/user/index.html?autostart=1&seed=20250827&quality=low');
+await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=20250827&quality=low');
 await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
 
 // let the whole view radius generate
@@ -175,7 +176,7 @@ R.steps = await page.evaluate(() => {
 });
 
 // ---- second procedurally generated region (different seed) ----
-await page.goto('file:///home/user/index.html?autostart=1&seed=424242&quality=low');
+await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=424242&quality=low');
 await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
 await page.waitForFunction(() => typeof chunks !== 'undefined' && chunks.size >= 35, null, { timeout: 90000 });
 await page.waitForTimeout(2500);

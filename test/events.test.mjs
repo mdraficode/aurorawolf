@@ -1,10 +1,11 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 /* Dynamic world events: director + storm/blizzard/flood/fire/migration/rival pack */
 import { chromium } from 'playwright';
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
 const errors = [];
 page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
-await page.goto('file:///home/user/index.html?autostart=1&seed=20250827&quality=low');
+await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=20250827&quality=low');
 await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
 await page.waitForFunction(() => typeof chunks !== 'undefined' && chunks.size >= 40, null, { timeout: 90000 });
 await page.waitForTimeout(2000);

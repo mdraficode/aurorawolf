@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 760 } });
@@ -5,7 +6,7 @@ const errs = [];
 page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
 page.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE: ' + m.text()); });
 const R = {};
-await page.goto('file:///home/user/index.html?autostart=1&seed=1337&quality=low');
+await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=1337&quality=low');
 await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 40000 });
 await page.waitForTimeout(600);
 R.wolf = await page.evaluate(() => {

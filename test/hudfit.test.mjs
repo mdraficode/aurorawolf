@@ -1,7 +1,7 @@
 /* HUD FIT — every round HUD button must keep its text/shape ink inside the button circle.
    Layouts: phone portrait (touch), small landscape (touch), desktop (no touch). */
 import { chromium } from 'playwright';
-import { pathToFileURL } from 'url';
+import { pathToFileURL , fileURLToPath } from 'url';
 const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 let fails = 0;
 
@@ -28,7 +28,7 @@ const audit = () => {
 
 const run = async (w, h, label, touch) => {
   const pg = await b.newPage({ viewport: { width: w, height: h } });
-  await pg.goto(pathToFileURL('/home/user/index.html').href + '?seed=7&quality=low&autostart=1', { timeout: 90000, waitUntil: 'domcontentloaded' });
+  await pg.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?seed=7&quality=low&autostart=1', { timeout: 90000, waitUntil: 'domcontentloaded' });
   await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play' && window.CAMP, null, { timeout: 90000 });
   await pg.waitForTimeout(2500);
   await pg.evaluate(t => { if (t) document.body.classList.add('touch'); document.getElementById('btns') && document.getElementById('btns').classList.add('wake'); }, touch);

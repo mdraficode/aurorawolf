@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const ctx = await browser.newContext({
@@ -9,7 +10,7 @@ page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
 const R = {};
 
-await page.goto('file:///home/user/index.html?autostart=1&seed=1337');
+await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=1337');
 await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 40000 });
 await page.waitForTimeout(600);
 

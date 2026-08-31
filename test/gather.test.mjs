@@ -6,9 +6,9 @@
 //   I3  No 'nopickup' warning during the whole run (collect deed with zero nearby pickups).
 //   I4  Every sampled collect quest keeps supply + have >= need (chunks may unload, hence the +1 slack vs the offer rule).
 import { chromium } from 'playwright';
-import { pathToFileURL } from 'url';
+import { pathToFileURL , fileURLToPath } from 'url';
 
-const URL = pathToFileURL('/home/user/index.html').href + '?autopilot=1&nolearn=1&seed=24601&quality=low&speed=8&rate=3&re=3';
+const URL = pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autopilot=1&nolearn=1&seed=24601&quality=low&speed=8&rate=3&re=3';
 
 const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const pg = await b.newPage({ viewport: { width: 640, height: 360 } });

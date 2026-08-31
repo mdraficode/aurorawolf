@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const R = {};
@@ -8,7 +9,7 @@ const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, ha
 const page = await ctx.newPage();
 page.on('pageerror', e => errs.push('P: ' + e.message));
 page.on('console', m => { if (m.type() === 'error') errs.push('C: ' + m.text()); });
-await page.goto('file:///home/user/index.html?autostart=1&seed=1337&quality=low');
+await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=1337&quality=low');
 await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 40000 });
 await page.waitForTimeout(900);
 R.portrait = await page.evaluate(() => ({
@@ -45,7 +46,7 @@ await ctx.close();
 // ---- desktop landscape MENU: row layout (title left / controls right) ----
 const dpage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 dpage.on('pageerror', e => errs.push('D: ' + e.message));
-await dpage.goto('file:///home/user/index.html?seed=42&quality=low');
+await dpage.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?seed=42&quality=low');
 await dpage.waitForFunction(() => { const b = document.getElementById('btnStart'); return b && !b.disabled; }, null, { timeout: 40000 });
 await dpage.waitForTimeout(400);
 R.menuLandscape = await dpage.evaluate(() => {

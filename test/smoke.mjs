@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 760 } });
@@ -6,7 +7,7 @@ page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push('CONSOLE: ' + m.text()); });
 const R = {};
 
-await page.goto('file:///home/user/index.html?seed=777');
+await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?seed=777');
 // menu should appear, button enables after boot
 await page.waitForFunction(() => {
   const b = document.getElementById('btnStart');

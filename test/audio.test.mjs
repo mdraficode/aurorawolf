@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 /* The living soundtrack: adaptive music states, biome themes, wolf voice, wild ambience */
 import { chromium } from 'playwright';
 let failures = 0;
@@ -6,7 +7,7 @@ const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '-
 try {
   const page = await browser.newPage({ viewport: { width: 500, height: 350 } });
   page.on('pageerror', e => { console.log('PAGEERROR:', e.message); failures++; });
-  await page.goto('file:///home/user/index.html?autostart=1&seed=4242&quality=low');
+  await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=4242&quality=low');
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
   await page.waitForFunction(() => typeof chunks !== 'undefined' && chunks.size >= 40, null, { timeout: 90000 });
   await page.waitForTimeout(1500);

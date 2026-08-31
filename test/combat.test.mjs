@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 // Combat fairness: predator & rival bites must land from EVERY side (rear included).
 import { chromium } from 'playwright';
 
@@ -8,7 +9,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file:///home/user/index.html?autostart=1&seed=4242&quality=low');
+  await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=4242&quality=low');
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
   await page.waitForTimeout(1500);
 

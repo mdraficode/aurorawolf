@@ -1,9 +1,10 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const results = [];
 try {
-  await page.goto('file:///home/user/index.html?seed=20250826', { timeout: 60000 });
+  await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?seed=20250826', { timeout: 60000 });
   await page.waitForFunction(() => { const b = document.getElementById('btnStart'); return b && !b.disabled; }, null, { timeout: 60000 });
   await page.waitForTimeout(2500);
   await page.screenshot({ path: 'shots/00_menu.png', timeout: 90000 });

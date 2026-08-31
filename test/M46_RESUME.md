@@ -29,9 +29,9 @@ global ×2 → trait ×2 (rows 180-239 only, σ0.15) → traitglobal ×2 → STO
    (fitness > champion). Crown bar note: the old 283 is obsolete under LAW v4.
 
 ## Pipeline order
-1. build (`python3 build.py` → copy to /home/user/index.html) — training ALWAYS runs the latest build
+1. build (`python3 build.py`) — the tests resolve `index.html` relative to themselves (repo root), so no copy step is needed
 2. node test/rafzzer_gens.mjs status · spawn <g> <a> <mode> · gate <g> · run <g> <cap> · promote <g>
 3. or: bash test/m46_step.sh <g> <cap>   (full generation, auto-cadence)
 4. commit + publish.sh github when the game build changes (live game == training build).
 
-Live state: champion = GEN 34 (fit 25, baseline — first LAW-v4 successor).
+Live state: champion = GEN 35 (fit 59, LAW v4) — see MASTER.md §9; next gen = 40.

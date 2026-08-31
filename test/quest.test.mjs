@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 // Quests, NPCs (Spirit), bosses, XP — headless gate.
 import { chromium } from 'playwright';
 
@@ -8,7 +9,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 500, height: 350 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file:///home/user/index.html?autostart=1&seed=777&quality=low');
+  await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=777&quality=low');
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
   await page.waitForTimeout(900);
 

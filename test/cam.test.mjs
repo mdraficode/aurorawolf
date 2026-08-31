@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 // Free-look camera: the whole sphere, sky to soil.
 import { chromium } from 'playwright';
 
@@ -8,7 +9,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file:///home/user/index.html?autostart=1&seed=2026&quality=low');
+  await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=2026&quality=low');
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
   await page.waitForTimeout(1200);
 
@@ -137,7 +138,7 @@ try {
     const mp = await mctx.newPage();
     const merrs = [];
     mp.on('pageerror', e => merrs.push(e.message));
-    await mp.goto('file:///home/user/index.html?autostart=1&seed=2026&quality=low', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await mp.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=2026&quality=low', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await mp.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
     await mp.waitForTimeout(900);
     const cdp = await mctx.newCDPSession(mp);

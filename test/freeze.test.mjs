@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 // The freeze bug: a meteor site (landmark type outside the LANDMARKS table)
 // crashed the minimap draw → the main loop died → total freeze.
 import { chromium } from 'playwright';
@@ -9,7 +10,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto('file:///home/user/index.html?autostart=1&seed=3141&quality=low');
+  await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=3141&quality=low');
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
   await page.waitForTimeout(1000);
 

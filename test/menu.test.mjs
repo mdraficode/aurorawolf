@@ -1,8 +1,8 @@
 /* MENU FLOW — the start page must re-arm every time it is re-injected.
    Regression for the "TROPHIES → BACK → stuck 'SUMMONING THE WILD…' / 'Growing the forest…'" bug. */
 import { chromium } from 'playwright';
-import { pathToFileURL } from 'url';
-const URL = pathToFileURL('/home/user/index.html').href + '?seed=7&quality=low';
+import { pathToFileURL , fileURLToPath } from 'url';
+const URL = pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?seed=7&quality=low';
 const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const pg = await b.newPage({ viewport: { width: 420, height: 800 } });
 let fails = [];

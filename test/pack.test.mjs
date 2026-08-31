@@ -1,7 +1,7 @@
 /* PACK TEST — howl bonding, pack assist, member-death law, hostile rolls, level scaling, session-only. */
 import { chromium } from 'playwright';
-import { pathToFileURL } from 'url';
-const URL = pathToFileURL('/home/user/index.html').href + '?autostart=1&seed=4242&quality=low';
+import { pathToFileURL , fileURLToPath } from 'url';
+const URL = pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=4242&quality=low';
 const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const pg = await b.newPage({ viewport: { width: 640, height: 360 } });
 let failed = [];

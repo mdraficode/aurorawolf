@@ -1,9 +1,10 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const page = await browser.newPage({ viewport: { width: 640, height: 400 } });
 const errs = [];
 page.on('pageerror', e => errs.push(e.message));
-await page.goto('file:///home/user/index.html?autostart=1&seed=1337&quality=low');
+await page.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=1337&quality=low');
 await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 40000 });
 // fast-forward check: simulate the animate states directly with controlled inputs
 const R = await page.evaluate(() => {

@@ -1,3 +1,4 @@
+import { pathToFileURL, fileURLToPath } from 'url';
 import { chromium } from 'playwright';
 const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
 const R = {};
@@ -5,7 +6,7 @@ const mctx = await browser.newContext({ viewport: { width: 844, height: 390 }, h
 const mp = await mctx.newPage();
 const merrs = [];
 mp.on('pageerror', e => merrs.push('M: ' + e.message));
-await mp.goto('file:///home/user/index.html?autostart=1&seed=1337&quality=low');
+await mp.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=1337&quality=low');
 await mp.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 40000 });
 await mp.waitForTimeout(700);
 R.swarmsGone = await mp.evaluate(() => typeof butterflies === 'undefined' && typeof fireflies === 'undefined');
