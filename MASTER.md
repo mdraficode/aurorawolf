@@ -298,10 +298,19 @@ Then simply continue at §8 (next gen = 40).
 ## 13 · GitHub backup situation
 
 - The full repo (source, tests, docs, history, lineage jsons, logs) is **pushed to
-  github.com/mdraficode/aurorawolf (branch `main`)** — the repo is now the backup of the workspace.
+  github.com/mdraficode/aurorawolf (branch `main`)** — the repo is the backup of the workspace.
+  (On 2026-09-01 the old API-only history was replaced by the full project history via a one-time
+  force push; the live `index.html` content is identical — 1 242 826 bytes.)
 - `index.html` at repo root = the live build; Pages redeploys automatically from `main`.
 - `publish.sh github` still works for live-only updates; preferring `git push` keeps the source and
   the live build in lockstep.
+- **Push recipe (workspace resets wipe `git config`, so the remote URL is not stored):**
+  ```bash
+  cd aurorawolf && git add -A && git commit -m "…"
+  GH=$(cat ~/.ghtoken)   # classic PAT, repo scope — never commit it
+  git push "https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git" main:main
+  ```
+  (No forced pushes needed now — history is shared. The first-time history merge was done once.)
 
 ---
 
@@ -341,4 +350,5 @@ Then simply continue at §8 (next gen = 40).
 - `c62466b` — **side errands** feature (safe fast-XP channel) + senses 24/25 architecture (26/336).
 - `3e899d3` — howl policy (neutral coding).
 - `989a96a` / `399733e` — GEN 38 / GEN 37 rejected.
-- This file (MASTER.md) — added 2026-09-01 with the full-repo GitHub backup.
+- `3a1207a` — MASTER.md added + all test suites made repo-relative (portable on any machine +
+  full-repo GitHub backup pushed).
