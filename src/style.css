@@ -76,7 +76,8 @@ body { font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif; co
 body.touch #minimap { top: 14px; right: 14px; width: 118px; height: 118px; }   /* the corner belongs to the map */
 body.touch #btns { width: 100px; height: 100px; right: 20px; bottom: 20px; }   /* deeper into the corner */
 body.touch #tAttack { width: 120px; height: 120px; margin: -60px 0 0 -60px; font-size: 40px; }   /* overtakes the 118px map */
-body.touch #btns .tbtn:not(#tAttack) { width: 40px; height: 40px; margin: -20px 0 0 -20px; --orb: 99%; }
+body.touch #btns .tbtn:not(#tAttack) { width: 40px; height: 40px; margin: -20px 0 0 -20px; font-size: 12.5px; --orb: 99%; }
+body.touch #btns .tbtn:not(#tAttack) span { font-size: 6px; letter-spacing: 0.02em; }
 body.touch #mmOrbit { top: 14px; right: 14px; width: 118px; height: 118px; }
 body.touch #topbar { top: 14px; left: 50%; transform: translateX(-50%); }   /* upper center on every layout */
 #hpWrap { position: absolute; top: 98px; left: 60px; transform: none;
@@ -115,7 +116,7 @@ body.touch #topbar { top: 14px; left: 50%; transform: translateX(-50%); }   /* u
 #icoXp { top: 14px; } #icoRun { top: 49px; } #icoHp { top: 84px; }   /* 1px seam — the column owns the corner */
 #icoXp span { color: #4a3506; font-size: 12px; font-weight: 800; text-shadow: 0 1px 1px rgba(255,244,214,.4); }
 #icoRun img { width: 88%; height: 88%; position: absolute; left: 6%; top: 6%; }   /* the wolf figure matches the heart's visual span */
-#icoHp span { color: #fff; padding-top: 3px; }
+#icoHp span { color: #fff; padding-top: 3px; font-size: 8.5px; letter-spacing: -0.02em; }   /* scaled: the % stays inside the heart */
 #xpWrap { position: absolute; top: 29px; left: 60px; transform: none; width: 156px; height: 5px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(255, 215, 106, 0.28); overflow: hidden; }
 #xpFill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffd76a, #ffb347); box-shadow: 0 0 6px rgba(255, 215, 106, 0.5); }
 #stamWrap { position: absolute; top: 62px; left: 60px; transform: none; width: 156px; height: 8px; border-radius: 6px; background: rgba(8, 14, 24, 0.55); border: 1px solid rgba(180, 220, 255, 0.16); overflow: hidden; }
@@ -171,7 +172,7 @@ body.touch #joyZone { display: block; pointer-events: auto; }
 #btns .tbtn { position: absolute; left: calc(50% + var(--mx, 0) * var(--orb, 92%)); top: calc(50% + var(--my, 0) * var(--orb, 92%)); }
 #tAttack { left: 50%; top: 50%; width: 142px; height: 142px; margin: -71px 0 0 -71px; font-size: 48px; z-index: 1; }   /* a touch larger than the minimap itself */
 #tAttack span { font-size: 12px; }
-#btns .tbtn:not(#tAttack) { width: 46px; height: 46px; margin: -23px 0 0 -23px; }
+#btns .tbtn:not(#tAttack) { width: 46px; height: 46px; margin: -23px 0 0 -23px; font-size: 14px; }   /* scaled so glyph+label sit inside the circle */
 #tGather { --mx: -0.940; --my:  0.342; }   /* the arch begins at the button's left hip */
 #tJump   { --mx: -0.996; --my: -0.084; }
 #tSprint { --mx: -0.869; --my: -0.494; }
@@ -185,19 +186,20 @@ body.touch #joyZone { display: block; pointer-events: auto; }
   backdrop-filter: blur(4px); -webkit-tap-highlight-color: transparent; padding: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   opacity: .28; transition: opacity .28s ease;   /* faint at rest — they wake at a touch */
+  overflow: hidden;   /* the clip is the circle itself: nothing can render outside the button (device emoji fonts vary) */
 }
 #btns.wake .tbtn, .tbtn.on, .tbtn:active { opacity: 1; }
 #btns .tbtn { pointer-events: auto; }
-.tbtn span { font-size: 8.5px; letter-spacing: 0.09em; margin-top: 3px; color: #9fc3b8; }
-.tbtn.small { width: 50px; height: 50px; font-size: 18px; }
-.tbtn.small span { font-size: 7.5px; }
+.tbtn span { font-size: 6.5px; letter-spacing: 0.04em; margin-top: 2px; color: #9fc3b8; white-space: nowrap; }
+.tbtn.small { width: 50px; height: 50px; font-size: 17px; }
+.tbtn.small span { font-size: 6.5px; }
 .tbtn.on, .tbtn:active { background: rgba(46, 94, 84, 0.7); border-color: rgba(126, 240, 192, 0.65); }
 .tbtn:focus-visible { opacity: 1; outline: 2px solid #7ef0c0; }
 #tPause {
   width: 42px; height: 42px; border-radius: 50%; border: 1.5px solid rgba(180, 220, 255, 0.3);
   background: rgba(10, 18, 30, 0.5); color: #eef3f7; font-size: 15px; font-family: inherit;
   touch-action: none; -webkit-tap-highlight-color: transparent; cursor: pointer;
-  opacity: .35; transition: opacity .28s ease;
+  opacity: .35; transition: opacity .28s ease; overflow: hidden;
 }
 #tPause:active, #tPause.on { opacity: 1; }
 /* ---- satchel: the inventory lives behind a bag button, like the map ---- */

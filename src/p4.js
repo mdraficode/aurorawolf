@@ -4252,6 +4252,7 @@ function showOverlay(mode) {
     ui.ovBody.innerHTML = document.getElementById('tplStart').innerHTML;
     if (window.updateRunRecap) window.updateRunRecap();   // the chronicle greets you on the start page
     if (window.CAMP && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();   // CAMPAIGN: name prompt + trophies wiring
+    if (state === 'menu') menuReady();   // returning from TROPHIES / pause menu — the start button must be live again (fix: stuck "SUMMONING THE WILD…")
   } else if (mode === 'pause') {
     ui.ovTitle.textContent = 'PAUSED';
     ui.ovBody.innerHTML = document.getElementById('tplPause').innerHTML;
@@ -4274,6 +4275,17 @@ function showOverlay(mode) {
   if (b) b.onclick = startGame;
 }
 function hideOverlay() { ui.overlay.classList.add('hidden'); }
+
+/* the start page only becomes tappable once the world has booted — but the template is
+   re-injected every time we return to it (TROPHIES → BACK), so the button must be re-armed
+   on every return, not only during the one-time boot transition. */
+function menuReady() {
+  const b = el('btnStart');
+  if (b) { b.disabled = false; b.textContent = 'ENTER THE WILD'; }
+  if (window.updateRunRecap) window.updateRunRecap();
+  const bl = el('bootLine');
+  if (bl) bl.textContent = 'The wilderness awaits…';
+}
 
 let state = 'boot';
 function setState(s) {
@@ -4809,11 +4821,7 @@ function tick() {
         ui.hud.classList.remove('hidden');
       } else {
         state = 'menu';
-        const b = el('btnStart');
-        if (b) { b.disabled = false; b.textContent = 'ENTER THE WILD'; }
-        if (window.updateRunRecap) window.updateRunRecap();
-        const bl = el('bootLine');
-        if (bl) bl.textContent = 'The wilderness awaits…';
+        menuReady();
       }
     }
     updateAtmosphere(rdt);
