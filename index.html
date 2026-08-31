@@ -493,6 +493,7 @@ body.touch #questTracker { display: none; }
 </div>
 
 <template id="tplStart">
+  <div id="nameRow" style="display:none;margin:4px 0 10px;font:13px monospace;color:#cfe3d0">🐺 Name the wolf: <input id="plName2" maxlength="14" placeholder="Your name" style="width:150px;padding:4px 8px;font-size:13px;border:1px solid #2c3a46;background:#0d141c;color:#dfeee6;border-radius:6px"></div>
   <div class="ctrl-grid">
     <span><b>WASD / arrows</b> — run through the wilds</span>
     <span><b>Shift</b> — sprint (stamina)</span>
@@ -508,6 +509,7 @@ body.touch #questTracker { display: none; }
   <div id="runRecap" style="display:none"></div>
   <div style="margin-top:26px"><button class="btn" id="btnStart" disabled>SUMMONING THE WILD…</button></div>
   <div style="margin-top:12px"><button class="btn ai" id="btnMenuAI" style="font-size:15px;padding:8px 22px" title="The wolf plays itself — you watch">🧠 Watch Rafzzer play</button></div>
+  <div style="margin-top:10px"><button class="btn ghost" id="btnTrophies" style="font-size:15px;padding:8px 22px" title="Trophy records & personal bests">🏆 TROPHIES</button></div>
   <div class="ov-tip">Every world is unique — endless terrain, weather and auroras.<br>
   Hunt with <b>F</b>: small prey falls in one bite, elk take four — bigger prey, bigger bounty.<br>
   🐻 Beware <b>territorial predators</b> — bear, tiger, snow leopard. Heed the red warning and the threat arrow; fight back or flee!<br>
@@ -2450,11 +2452,16 @@ const PREDATORS = {
   snowLeopard: { name: 'snowLeopard', label: 'Snow Leopard', icon: '🐆', scale: 1.3, hp: 5, dmg: 9, walk: 2.5, run: 12.6, reach: 3.4, atkCd: 1.0,
            body: 0xcfd6dd, belly: 0xeef2f5, legs: 0xb8c2cb, head: 0xcfd6dd, meat: 4, pelt: 2, bone: 2, build: 'cat', spots: 0x4a5158 },
   eagle: { name: 'eagle', label: 'Golden Eagle', icon: '🦅', scale: 1.1, hp: 6, dmg: 10, walk: 6.5, run: 17, reach: 2.3, atkCd: 3.6, huntsWolf: 1,
-           body: 0x8a5a1c, belly: 0xc9a45a, legs: 0xe8b820, head: 0xa8763a, meat: 3, pelt: 1, bone: 1, build: 'eagle' }
+           body: 0x8a5a1c, belly: 0xc9a45a, legs: 0xe8b820, head: 0xa8763a, meat: 3, pelt: 1, bone: 1, build: 'eagle' },
+  leopard: { name: 'leopard', label: 'Leopard', icon: '🐆', scale: 1.32, hp: 5, dmg: 10, walk: 2.5, run: 12.8, reach: 3.4, atkCd: 1.05, huntsWolf: 1,
+             body: 0xd8a44a, belly: 0xf2e2c0, legs: 0xc28a36, head: 0xd8a44a, meat: 4, pelt: 2, bone: 2, build: 'cat', spots: 0x4a3320 },
+  lion: { name: 'lion', label: 'Lion', icon: '🦁', scale: 1.55, hp: 7, dmg: 13, walk: 2.4, run: 12.2, reach: 3.8, atkCd: 1.25, huntsWolf: 1,
+          body: 0xc79a54, belly: 0xe8d5ac, legs: 0xa87f3e, head: 0xc79a54, meat: 6, pelt: 2, bone: 3, build: 'cat', mane: 1, maneC: 0x4a3018 }
 };
 const PREDATOR_TABLE = {
-  taiga: [['bear', 1]], forest: [['bear', 0.6], ['tiger', 0.4]],
-  grove: [['tiger', 0.7], ['bear', 0.3]], mountain: [['snowLeopard', 1]], tundra: [['snowLeopard', 0.65], ['bear', 0.35]],
+  taiga: [['bear', 1]], forest: [['bear', 0.45], ['tiger', 0.3], ['leopard', 0.25]],
+  grove: [['tiger', 0.6], ['leopard', 0.4]], meadow: [['lion', 1]],
+  mountain: [['snowLeopard', 1]], tundra: [['snowLeopard', 0.65], ['bear', 0.35]],
   highland: [['snowLeopard', 1]]
 };
 
@@ -2556,6 +2563,18 @@ function buildPredator(sp) {
       spt.position.set((i % 2 ? 1 : -1) * bh * 0.37, lh + bh * (0.45 + 0.1 * (i % 4)), -bl * 0.4 + i * (bl * 0.09));
       g.add(spt);
     }
+  }
+  if (sp.mane) { // lion's ruff — a dark crown of fur around the neck
+    const mM = matColor(sp.maneC || 0x5a3c1c);
+    for (let i = 0; i < 7; i++) {
+      const a = i / 7 * 6.2832;
+      const tuft = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.17, bh * 0.34 + bh * 0.08 * Math.sin(i * 2.1), bh * 0.3), mM);
+      tuft.position.set(Math.sin(a) * bh * 0.42, lh + bh * 0.92 + bh * 0.1 * Math.cos(a), bl * 0.34 + Math.cos(a) * bh * 0.16);
+      tuft.rotation.z = Math.sin(a) * 0.5;
+      g.add(tuft);
+    }
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.9, bh * 0.3, bh * 0.3), mM);
+    crown.position.set(0, lh + bh * 1.02, bl * 0.3); g.add(crown);
   }
   const head = new THREE.Group();
   head.position.set(0, lh + bh * 1.12, bl * 0.52); g.add(head);
@@ -6437,6 +6456,7 @@ window.questSize = function (q) {   // the weight of a deed — errand, journey,
   return 'small';
 };
 function refillQuests() {   // a FULL board: every kind of deed the land can offer, always visible
+  if (window.CAMP && window.CAMP.on()) { window.CAMP.refill(); return; }   // CAMPAIGN: the board is the campaign's 3–4 choices
   const BOARD = ['survive', 'hunt', 'explore', 'collect', 'rival', 'hunt', 'collect', 'explore'];
   const dup = q => QUESTS.avail.some(o => o.title === q.title) || QUESTS.active.some(o => o.title === q.title);
   for (const kind of BOARD) {
@@ -6450,10 +6470,13 @@ function refillQuests() {   // a FULL board: every kind of deed the land can off
 }
 function acceptQuest(id) {
   const q0 = (QUESTS.pool || []).find(q2 => q2.id === id); if (q0 && !q0.t0) q0.t0 = performance.now();   // the clock starts at acceptance
-  if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
+  if (window.CAMP && window.CAMP.on()) {   // CAMPAIGN: ONE deed at a time — the rule is fundamental
+    if (QUESTS.active.length >= 1) { toast('📜 One deed at a time — the campaign demands focus'); return; }
+  } else if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
   const i = QUESTS.avail.findIndex(q => q.id === id);
   if (i < 0) return;
   const q = QUESTS.avail.splice(i, 1)[0];
+  if (window.CAMP && window.CAMP.onAccept) window.CAMP.onAccept(q);
   q.acceptedDay = dayCount;
   if (!q.t0) q.t0 = performance.now(); QUESTS.active.push(q);
   audio.uiClick();
@@ -6464,11 +6487,16 @@ function abandonQuest(id) {
   const i = QUESTS.active.findIndex(q => q.id === id);
   if (i < 0) return;
   const q = QUESTS.active.splice(i, 1)[0];
+  if (window.CAMP && window.CAMP.onAbandon) {   // CAMPAIGN: setting a deed aside returns you to the choice board — no XP, same stage
+    if (window.CAMP.onAbandon(q)) { questHudDirty = true; return; }
+  }
   QUESTS.avail.push(q); q.have = q.days ? 0 : q.have;
   toast(`📋 Set aside: ${q.title}`);
   questHudDirty = true; renderQuests();
 }
 function completeQuest(q) {
+  if (q._done) return;   // M46 CAMPAIGN: completion is atomic — exactly once, ever (anti-exploit)
+  q._done = true;
   RUN.quests++;
   if (q.t0) RUN.questTimes.push(+((performance.now() - q.t0) / 1000).toFixed(1));   // accept→complete age, seconds
   if (q.rw && q.rw.perk) RUN.perks.push({ stormborn: '🌩️ Weather-Worn', skywatcher: '⚡ Storm-Touched' }[q.rw.perk] || q.rw.perk);
@@ -6489,14 +6517,15 @@ function completeQuest(q) {
   if (q.rw.ft && q.ftPos) { FAST_TRAVEL.push({ name: q.title.replace('Discover: ', ''), x: q.ftPos.x, z: q.ftPos.z }); toast('🗺️ Fast-travel point unlocked — click it on the big map', true); }
   toast(`✅ Quest complete: ${q.title} · +${q.rw.xp} XP`, true);
   music.fanfare();
-  refillQuests();
-  maybeAwakenBoss(q.biome);
+  if (window.CAMP && window.CAMP.on() && q.camp) window.CAMP.onQuestComplete(q);   // CAMPAIGN: advance the machine, then refill
+  else { refillQuests(); maybeAwakenBoss(q.biome); }   // free deeds (tests, ancients) keep the old board
   questHudDirty = true; renderQuests();
 }
 let caveDaysLock = -1;   // survival quests reset if you den
 function questEvent(kind, data) {
   if (kind === 'kill') { RUN.kills++; if (data && data.species === 'predator') RUN.predators++; }
   for (const q of [...QUESTS.active]) {
+    if (q.camp && window.CAMP && window.CAMP.onEvent && window.CAMP.onEvent(q, kind, data)) continue;   // CAMPAIGN kinds answer first; classic kinds fall through
     if (q.kind === 'hunt' && kind === 'kill' && data.species === q.species) {
       const bk = dominantBiomeAt(data.pos.x, data.pos.z).key;
       if (bk === q.biome || data.species !== 'deer') { q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); } }
@@ -6543,7 +6572,8 @@ function questHudTick() {
     questHudDirty = false;
     const tr = el('questTracker');
     if (tr) {
-      let h = `<div class="qt-line">⭐ Lv ${wolf.level} <b>${wolf.title}</b> · ${wolf.xp | 0}/${wolf.xpNext} XP</div>`;
+      let h = (window.CAMP && window.CAMP.on() && window.CAMP.hud) ? window.CAMP.hud() : '';
+      h += `<div class="qt-line">⭐ Lv ${wolf.level} <b>${wolf.title}</b> · ${wolf.xp | 0}/${wolf.xpNext} XP</div>`;
       for (const q of QUESTS.active) h += `<div class="qt-line">${q.icon} ${q.title} — <b>${q.have}/${q.need}</b></div>`;
       tr.innerHTML = h;
     }
@@ -6627,6 +6657,17 @@ function buildBossModel(def) {
     const built = buildPredator(PREDATORS.bear);
     g = built.group;
     g.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color.setHex(0xe8f0f4); } });
+  } else if (def.modelSp) {
+    // CAMPAIGN legends: the same species as the wild animal, scaled up and crowned
+    let built;
+    if (def.modelSp === 'eagle') built = buildEagle(PREDATORS.eagle).group;
+    else built = buildPredator(PREDATORS[def.modelSp]).group;
+    built.traverse(o => {   // a legend wears its aura
+      if (o.isMesh && o.material && o.material.color && !o.material.emissive) {
+        o.material = o.material.clone(); o.material.emissive = new THREE.Color(def.glow); o.material.emissiveIntensity = 0.16;
+      }
+    });
+    g = built;
   } else {
     const built = buildAnimal(SPECIES.reindeer);
     g = built.group || built;
@@ -6643,9 +6684,9 @@ function buildBossModel(def) {
   return g;
 }
 class Boss {
-  constructor(biomeKey, x, z, isClone) {
+  constructor(biomeKey, x, z, isClone, defOverride) {
     this.biome = biomeKey;
-    this.def = BOSSES[biomeKey];
+    this.def = defOverride || BOSSES[biomeKey];
     this.isClone = !!isClone;
     this.sp = { label: this.def.name, scale: this.def.scale * 0.5, reach: 3.4, icon: this.def.icon };   // sp.scale*0.7 sets bite range for the player
     this.model = buildBossModel(this.def);
@@ -6653,7 +6694,7 @@ class Boss {
     scene.add(this.model);
     this.pos = V3(x, heightAt(x, z), z);
     this.heading = 0;
-    this.hp = isClone ? 8 : this.def.hp;
+    this.hp = isClone ? Math.max(8, Math.round(this.def.hp * 0.32)) : this.def.hp;
     this.maxHp = this.hp;
     this.dead = false;
     this.state = 'stalk';
@@ -6665,6 +6706,7 @@ class Boss {
     this.charging = false;
     this.icePatches = [];
     this.phase = 0;
+    this.alt = 0;           // the eagle legend's sky
     this.chunkKey = ck(Math.floor(x / CHUNK), Math.floor(z / CHUNK));
     const ch = chunks.get(this.chunkKey);
     if (ch) ch.predators.push(this);
@@ -6672,7 +6714,8 @@ class Boss {
       toast(`💀 ${this.def.name} has come!`, true);
       audio.growlVar('aggressive');
       const q = { id: 'boss' + (Math.random() * 1e9 | 0), kind: 'boss', biome: biomeKey, icon: this.def.icon, title: `Legend: ${this.def.name}`,
-        desc: `Defeat ${this.def.name}. Its gift will be yours forever.`, need: 1, have: 0, rw: { xp: 400 }, rwText: `400 XP · ✨ ${this.def.abilityName} — ${this.def.abilityDesc}` };
+        desc: `Defeat ${this.def.name}. Its gift will be yours forever.`, need: 1, have: 0, rw: { xp: this.def.xp || 400 }, rwText: `${this.def.xp || 400} XP · ✨ ${this.def.abilityName} — ${this.def.abilityDesc}` };
+      if (this.def.camp) { q.camp = this.def.camp; q.bossRef = this; q.campStage = 'boss'; }
       if (!q.t0) q.t0 = performance.now(); QUESTS.active.push(q);
       this.quest = q;
       questHudDirty = true;
@@ -6703,9 +6746,10 @@ class Boss {
     if (!this.isClone) {
       this.def.slain = true; this.def.awake = false; this.def.live = false;   // a legend falls but once
       wolf.perks[this.def.ability] = true;
-      addXp(400); RUN.bosses++;
+      addXp(this.def.xp || 400); RUN.bosses++;
       toast(`✨ ${this.def.name} falls — its gift is yours: ${this.def.abilityName} (${this.def.abilityDesc})`, true);
-      if (this.quest) { const i = QUESTS.active.indexOf(this.quest); if (i >= 0) QUESTS.active.splice(i, 1); QUESTS.done.push(this.quest); questsDoneByBiome[this.biome] = (questsDoneByBiome[this.biome] || 0) + 1; questHudDirty = true; }
+      if (this.quest) { const i = QUESTS.active.indexOf(this.quest); if (i >= 0) QUESTS.active.splice(i, 1); if (!this.quest._done) { this.quest._done = true; QUESTS.done.push(this.quest); questsDoneByBiome[this.biome] = (questsDoneByBiome[this.biome] || 0) + 1; } questHudDirty = true; }
+      if (this.def.onSlain) this.def.onSlain(this);   // CAMPAIGN: story, rewards, next Legend
       const bb = el('bossBar'); if (bb) bb.classList.remove('show');
       music.boss = false;
     }
@@ -6725,7 +6769,7 @@ class Boss {
     if (this.dead) return;
     const dx = wolf.pos.x - this.pos.x, dz = wolf.pos.z - this.pos.z;
     const d = Math.hypot(dx, dz);
-    const sp = this.def.speed * (1 + this.phase * 0.14);
+    const sp = this.def.speed * (1 + this.phase * (0.14 + (this.def.fury ? 0.10 : 0)));   // the tiger's fury: faster as it bleeds
     // submerged / burrowed: unhittable, repositions, then strikes
     if (this.subT > 0) {
       this.subT -= dt;
@@ -6754,6 +6798,57 @@ class Boss {
       this.model.position.copy(this.pos); this.model.rotation.y = this.chargeDir;
       return;
     }
+    // the Golden Eagle Legend: airborne — your window is the dive
+    if (this.def.flight) {
+      this.diveT = Math.max(0, (this.diveT || 0) - dt);
+      this.diveCd = Math.max(0, (this.diveCd || 0) - dt);
+      if (this.alt <= 1.35 && this.diveT <= 0) this.alt = Math.min(this.def.cruiseAlt || 13, this.alt + 5 * dt);
+      if (this.diveT > 0) this.alt = Math.max(1.1, this.alt - 17 * dt);
+      const onGround = this.alt <= 1.35;
+      this.invuln = !onGround;                               // only strikeable in the dive window
+      if (this.diveT <= 0 && d < 34 && this.diveCd <= 0) {
+        this.diveT = 1.12; this.diveHit = false; this.divePass = 0;
+        this.diveCd = (this.def.diveGap || 6) - this.phase * 1.1;
+        audio.cry(0.5);
+      }
+      if (this.diveT > 0) {
+        if (onGround) {
+          const dw = Math.hypot(dx, dz) || 1;
+          if (dw < 3.1 && !this.diveHit) { this.diveHit = true; wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon); }
+          this.divePass += dt;
+          this.pos.x += (dx / dw) * this.def.speed * 0.9 * dt;
+          this.pos.z += (dz / dw) * this.def.speed * 0.9 * dt;
+          if (this.divePass > 0.55) this.diveT = 0.01;        // skim past, climb away
+        } else {
+          this.pos.x += Math.sin(this.heading) * this.def.speed * 0.8 * dt;
+          this.pos.z += Math.cos(this.heading) * this.def.speed * 0.8 * dt;
+        }
+      } else {
+        this.circleA = (this.circleA === undefined ? Math.random() * 6.28 : this.circleA + dt * 1.15);
+        this.pos.x = wolf.pos.x + Math.sin(this.circleA) * 11;
+        this.pos.z = wolf.pos.z + Math.cos(this.circleA) * 11;
+      }
+      this.pos.y = heightAt(this.pos.x, this.pos.z) + this.alt;
+      this.model.position.copy(this.pos);
+      this.model.rotation.x = this.diveT > 0 ? 0.5 : -0.06;
+      this.model.rotation.y = Math.atan2(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
+      return;
+    }
+    // the Lion Legend's tactics: pace a ring around the prey, then pounce
+    if (this.tacT > 0) {
+      this.tacT -= dt;
+      this.tacA = (this.tacA === undefined ? Math.random() * 6.28 : this.tacA + dt * 2.1);
+      this.pos.x = wolf.pos.x + Math.sin(this.tacA) * 9;
+      this.pos.z = wolf.pos.z + Math.cos(this.tacA) * 9;
+      this.pos.y = heightAt(this.pos.x, this.pos.z);
+      this.model.position.copy(this.pos); this.model.rotation.y = this.tacA + Math.PI;
+      if (this.tacT <= 0) {                                   // the pounce
+        this.charging = true; this.chargeHit = false; this.chargeT = 0.52;
+        this.chargeDir = Math.atan2(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
+        audio.thud();
+      }
+      return;
+    }
     // approach
     this.heading = Math.atan2(dx, dz);
     if (d > this.sp.reach + 0.6) {
@@ -6761,15 +6856,18 @@ class Boss {
       this.pos.z += Math.cos(this.heading) * sp * dt;
       this.pos.y = heightAt(this.pos.x, this.pos.z);
     } else if (this.atkCd <= 0) {
-      this.atkCd = 1.25 - this.phase * 0.15;
-      wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon);
+      this.atkCd = (this.def.atkGap || 1.25) - this.phase * 0.15;
+      let kbMul = 1;
+      if (this.def.special === 'knockback') { kbMul = 2.6; this.atkCd += 0.3; }   // the Bear Legend throws you
+      wolfTakeDamage(this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1), this.pos, this.def.name, this.def.icon, this.ambushNext ? Math.max(kbMul, 1.7) : kbMul);
+      this.ambushNext = 0;
       audio.growlVar('aggressive');
     }
     this.atkCd -= dt;
     // the special, each legend its own
     this.specT -= dt * (1 + this.phase * 0.3);
     if (this.specT <= 0 && d < 60) {
-      this.specT = this.def.special === 'shadow' ? 7 : 11 - this.phase * 2;
+      this.specT = this.def.special === 'shadow' ? 7 : this.def.special === 'ambush' ? 8 : this.def.special === 'tactics' ? 9 : this.def.special === 'fury' ? 10 : this.def.special === 'echo' ? 8 : this.def.special === 'dive' ? 7 : 11 - this.phase * 2;
       const sp2 = this.def.special;
       if (sp2 === 'summon') {
         for (let i = 0; i < 2; i++) {
@@ -6801,6 +6899,30 @@ class Boss {
         this.pos.y = heightAt(this.pos.x, this.pos.z);
         pool.burst(this.pos, 22, 0x8a6ae2, 1.6, 2.8, 2.4);
         if (this.phase >= 1 && bosses.filter(b => !b.dead && b.isClone).length < 2) bosses.push(new Boss(this.biome, this.pos.x + 2, this.pos.z, true));   // shadows breed shadows
+      } else if (sp2 === 'ambush') {   // LEOPARD: gone, then at your flank in a breath
+        pool.burst(this.pos, 18, 0xcfe0ee, 1.5, 2.5, 2.2);
+        const back = wolf.yaw + Math.PI + (Math.random() < 0.5 ? 0.55 : -0.55);
+        this.pos.x = wolf.pos.x + Math.sin(back) * 6.5; this.pos.z = wolf.pos.z + Math.cos(back) * 6.5;
+        this.pos.y = heightAt(this.pos.x, this.pos.z);
+        this.ambushNext = 1;
+        pool.burst(this.pos, 14, 0xd8ecf8, 1.3, 2.1, 1.9);
+        audio.cry(0.3);
+      } else if (sp2 === 'fury') {     // TIGER: a lunge across the clearing
+        this.charging = true; this.chargeHit = false; this.chargeT = 0.62;
+        this.chargeDir = Math.atan2(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
+        pool.burst(this.pos, 12, 0xc2a273, 1.2, 2, 1.8);
+        audio.thud();
+      } else if (sp2 === 'tactics') {  // LION: mark the ring…
+        this.tacT = 2.4;
+        pool.burst(this.pos, 10, 0xe6cf9a, 1.2, 2, 1.6);
+        audio.growlVar('warning');
+      } else if (sp2 === 'echo') {     // BEAST MASTER: the dark gives back your own
+        pool.burst(this.pos, 26, 0xff5040, 1.9, 3.1, 2.7);
+        const a = Math.random() * 6.28;
+        this.pos.x = wolf.pos.x + Math.sin(a) * 12; this.pos.z = wolf.pos.z + Math.cos(a) * 12;
+        this.pos.y = heightAt(this.pos.x, this.pos.z);
+        pool.burst(this.pos, 20, 0xff8a70, 1.5, 2.6, 2.3);
+        if (this.phase >= 1 && bosses.filter(b => !b.dead && b.isClone).length < 3) bosses.push(new Boss(this.biome, this.pos.x + 3, this.pos.z, true, this.def));
       }
     }
     // fade ice patches
@@ -7059,17 +7181,18 @@ function wolfDie(label, icon) {
   if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… you wake far away — every level lost, back to 0.</span>`; ov.classList.add('show'); }
   vignetteA = 0.9;
 }
-function wolfTakeDamage(dmg, fromPos, label, icon) {
+function wolfTakeDamage(dmg, fromPos, label, icon, kbMul) {
   if (state !== 'play' || wolf.deadT > 0 || wolf.invulnT > 0 || wolf.flyT > 0) return;
   wolf.hp -= dmg * wolfDamageMul();   // an experienced wolf stiffens against the blow
   wolf.lastHurt = tSec;
   wolf.invulnT = 0.6;
   vignetteA = Math.min(0.85, vignetteA + 0.45);
   audio.thud();
-  // knocked back a step
+  // knocked back a step (kbMul: the Bear Legend and pals throw the wolf for real)
+  const kb = Math.max(0.4, kbMul || 1);
   const dx = wolf.pos.x - fromPos.x, dz = wolf.pos.z - fromPos.z;
   const l = Math.hypot(dx, dz) || 1;
-  const nx = wolf.pos.x + dx / l * 1.1, nz = wolf.pos.z + dz / l * 1.1;
+  const nx = wolf.pos.x + dx / l * 1.1 * kb, nz = wolf.pos.z + dz / l * 1.1 * kb;
   if (heightAt(nx, nz) > WATER_Y + 0.2) { wolf.pos.x = nx; wolf.pos.z = nz; }
   if (wolf.hp <= 0) wolfDie(`the ${label || 'wild'}`, icon);
 }
@@ -7086,6 +7209,7 @@ function wolfRespawn() {
   wolf.pos.x = rx; wolf.pos.z = rz; wolf.pos.y = heightAt(rx, rz) + 0.2;
   wolf.level = 0; wolf.xp = 0; wolf.xpNext = xpNeed(0);   // death takes everything earned — the record stands, the wolf restarts
   window.RUN = window.freshRun();   // and a new run begins
+  if (window.CAMP && window.CAMP.onDeath) window.CAMP.onDeath();   // CAMPAIGN: the deed returns to the board — progression, XP and the timer stand (no timer exploit)
   recalcWolfLevel();
   wolf.hp = wolf.maxHp;
   wolf.invulnT = 3;
@@ -7223,6 +7347,8 @@ window.questGuide = function () {
           const fb = window.__qgCache.pt;
           if (fb) c = { x: fb.x, z: fb.z, d: dist2(fb.x, fb.z), label: q.title, kind: 'biome' };
         }
+      } else if (q.wp) {   // CAMPAIGN: the machine hands the guide a point (altar, scout, travel…)
+        c = { x: q.wp.x, z: q.wp.z, d: dist2(q.wp.x, q.wp.z), label: q.title, kind: 'wp' };
       } else if (q.kind === 'collect' && q.item) {
         for (const [, ch] of chunks) for (const pk of ch.pickups) {
           if (pk.gathered) continue;
@@ -7254,6 +7380,19 @@ window.questGuide = function () {
 function drawMapOverlays(ctx, S, range, opts) {
   const half = S / 2;
   const toMap = (wx, wz) => [half + (wx - wolf.pos.x) / (range * 2) * S, half + (wz - wolf.pos.z) / (range * 2) * S];
+  // CAMPAIGN: the legend's ground (ring) and the awakening altar (gold pulse)
+  if (window.CAMP && window.CAMP.mapMarks) for (const m of window.CAMP.mapMarks()) {
+    const [mx, my] = toMap(m.x, m.z);
+    if (Math.abs(mx - half) > half + 40 || Math.abs(my - half) > half + 40) continue;
+    if (m.ring) {
+      ctx.strokeStyle = m.color; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(mx, my, Math.max(6, m.ring / (range * 2) * S), 0, 6.29); ctx.stroke();
+    }
+    const pulse = 4 + Math.sin(tSec * 3) * 1.2;
+    ctx.strokeStyle = m.color; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(mx, my, pulse + 2.5, 0, 6.29); ctx.stroke();
+    ctx.fillStyle = m.color; ctx.beginPath(); ctx.arc(mx, my, 2.6, 0, 6.29); ctx.fill();
+  }
   // ---- quest waypoint: where the deed calls you ----
   for (const q of QUESTS.active) {
     if (q.kind !== 'explore' || !q.lmType) continue;
@@ -7761,6 +7900,7 @@ function showOverlay(mode) {
     ui.ovTitle.textContent = 'REVONTULET';
     ui.ovBody.innerHTML = document.getElementById('tplStart').innerHTML;
     if (window.updateRunRecap) window.updateRunRecap();   // the chronicle greets you on the start page
+    if (window.CAMP && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();   // CAMPAIGN: name prompt + trophies wiring
   } else if (mode === 'pause') {
     ui.ovTitle.textContent = 'PAUSED';
     ui.ovBody.innerHTML = document.getElementById('tplPause').innerHTML;
@@ -7787,10 +7927,10 @@ function hideOverlay() { ui.overlay.classList.add('hidden'); }
 let state = 'boot';
 function setState(s) {
   state = s;
-  if (s === 'play') { hideOverlay(); ui.hud.classList.remove('hidden'); }
+  if (s === 'play') { hideOverlay(); ui.hud.classList.remove('hidden'); if (window.CAMP && window.CAMP.onResume) window.CAMP.onResume(); }
   else {
     if (typeof toggleQuestLog === 'function') toggleQuestLog(false);
-    if (s === 'pause') { showOverlay('pause'); inputClear(); }
+    if (s === 'pause') { showOverlay('pause'); inputClear(); if (window.CAMP && window.CAMP.onPause) window.CAMP.onPause(); }
   }
 }
 function enterLandscape() {
@@ -7835,6 +7975,8 @@ function nearWaterEdge() {
   return false;
 }
 function doGather() {
+  // CAMPAIGN: the awakening altar — channel the ritual with the same interact key (it outranks nearby pickups)
+  if (window.CAMP && window.CAMP.ritualReady()) { window.CAMP.useAltar(); return; }
   const p = nearestPickup();
   if (p) { gather(p); return; }
   if (drinkCd <= 0 && !wolf.swimming && wolf.grounded && wolf.flyT <= 0 && nearWaterEdge()) {
@@ -8387,7 +8529,7 @@ function tick() {
   if (caveState.in) caveTick(dt);
   updateSeasons();
   if (!caveState.in) updateEco(dt);
-  if (running) { bossTick(dt); spiritTick(rdt); questTick(dt); }
+  if (running) { bossTick(dt); spiritTick(rdt); questTick(dt); if (window.CAMP && window.CAMP.tick) window.CAMP.tick(dt); }
   updateEnvironment(dt);
   if (audio.ready && audio.fireG) {
     const f = WORLD_EVENTS.fireAt;
@@ -8485,6 +8627,481 @@ window.addEventListener('error', e => {
   if (d) { d.style.display = 'block'; d.textContent = '⚠ ' + (e.message || 'error'); }
 });
 tick();
+
+/* ============================================================
+   🏆 THE CAMPAIGN — progressive quest chain · legend hierarchy
+   · infinite trophy speedrun (M46 major update)
+   The open world stays free; progression is a controlled state
+   machine: per Legend = 3 quest stages → prep → scout → awaken →
+   boss → story. Five Legends, then the Beast Master, then a
+   Trophy, then the next tier — forever, harder every cycle.
+   ============================================================ */
+window.CAMP = (() => {
+  const LS = 'revontulet_campaign_v1';
+  let S = null;                 // persistent state (saved)
+  let alt = null;               // altar visual {mesh, glowT, x, z}
+  let lastKills = 0, lastDsc = 0, autosaveT = 0, hudT = 0, prepNeedCache = 2;
+
+  /* ---------- the hierarchy (data-driven, see CAMPAIGN_DESIGN.md) ---------- */
+  const LEGENDS = [
+    { key: 'Leopard',    sp: 'leopard', biome: 'forest',    icon: '🐆', glow: 0xd8a44a, special: 'ambush',    ability: 'shadowStep',    abilityName: 'Shadow Step',    abilityDesc: 'prowling is nearly invisible',      stats: { hp: 45,  dmg: 14, speed: 12.5, scale: 2.6 }, territory: 'the dense pine forest', story: 'The first Legend has fallen. But its roar has awakened something deeper in the wilderness.' },
+    { key: 'Tiger',      sp: 'tiger',   biome: 'grove',     icon: '🐯', glow: 0xc26a1e, special: 'fury',      ability: 'secondWind',    abilityName: 'Second Wind',    abilityDesc: 'health regenerates 50% faster',        stats: { hp: 62,  dmg: 16, speed: 12.6, scale: 3.0 }, territory: 'deep wooded dells',    story: 'The forest grows silent. Something stronger is watching.' },
+    { key: 'Lion',       sp: 'lion',    biome: 'meadow',    icon: '🦁', glow: 0xc79a54, special: 'tactics',   ability: 'thunderCharge', abilityName: 'Thunder Charge', abilityDesc: 'sprint 12% faster',                  stats: { hp: 74,  dmg: 18, speed: 11.8, scale: 3.2 }, territory: 'the open grasslands',  story: 'The meadows bow beneath a golden mane — the land has a new king, and it knows your scent.' },
+    { key: 'Bear',       sp: 'bear',    biome: 'taiga',     icon: '🐻', glow: 0xffb060, special: 'knockback', ability: 'winterCoat',    abilityName: 'Winter Coat',    abilityDesc: 'blizzards and bitter cold bite half as deep', stats: { hp: 112, dmg: 22, speed: 10.4, scale: 3.6 }, territory: 'the snowbound taiga',   story: 'The mountains have answered.' },
+    { key: 'Eagle',      sp: 'eagle',   biome: 'mountain',  icon: '🦅', glow: 0xffe2a0, special: 'dive', flight: true, ability: 'springSteps', abilityName: 'Spring Steps', abilityDesc: 'sprint stamina drains 25% slower',     stats: { hp: 54,  dmg: 15, speed: 16.0, scale: 2.4, cruiseAlt: 13, diveGap: 5.5 }, territory: 'the mountain cliffs', story: 'The sky itself hunts you now. Only the ground is your ally.' }
+  ];
+  const BEAST = { key: 'Beast Master', sp: 'bear', biome: 'enchanted', icon: '👑', glow: 0xff5040, special: 'echo', ability: 'sandStride', abilityName: 'Sand Stride', abilityDesc: 'stamina returns 25% faster', stats: { hp: 190, dmg: 26, speed: 13.6, scale: 4.2 }, territory: 'the Enchanted Grove', story: 'You have defeated the greatest predators of this land. Now something ancient awakens.' };
+
+  /* ---------- controlled scaling (never aggressive, never capped) ---------- */
+  const xpMul = t => Math.pow(1.5, t - 1);
+  const thp = t => 1 + 0.7 * (t - 1);
+  const tdmg = t => 1 + 0.28 * (t - 1);
+  const tspd = t => 1 + 0.05 * (t - 1);
+  const tscale = t => 1 + 0.07 * (t - 1);
+  const prepNeed = t => Math.min(3, 2 + ((t - 1) / 2 | 0));
+  const xpGate = (t, leg) => Math.round((260 + leg * 45) * xpMul(t));
+
+  const fresh = () => ({
+    v: 1, name: '', tier: 1, leg: 0, stage: 'q0', prepDone: 0,
+    xp: 0, runT0: 0, pausedAcc: 0, pausedAt: null,
+    trophies: [], best: {}, terr: null, altar: null, seen: {}, created: Date.now()
+  });
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { } };
+  const load = () => { try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s && s.v === 1) { S = s; return; } } catch (e) { } S = fresh(); };
+  load();
+  if (typeof TITLES === 'undefined' || !S.name) { /* name handled in menu */ }
+
+  const curLegend = () => (S.leg < LEGENDS.length ? LEGENDS[S.leg] : BEAST);
+  const legendName = () => {
+    const L = curLegend(), t = S.tier;
+    const n = L.key + (L.key === 'Beast Master' ? '' : ' Legend');
+    return n + (t > 1 ? ' L' + t : '');
+  };
+  const stageLabel = () => ({ q0: 'Stage 1 · choose your hunt', q1: 'Stage 2 · the land deepens', prep: 'Preparation for the ' + curLegend().key, awaken: 'Awaken the ' + curLegend().key, boss: curLegend().key + ' is loose!' }[S.stage] || '');
+
+  /* ---------- the boss definition handed to the Boss class ---------- */
+  const legendDef = () => {
+    const L = curLegend(), t = S.tier, st = L.stats;
+    return {
+      name: legendName(), icon: L.icon, glow: L.glow, special: L.special, flight: !!L.flight,
+      hp: Math.round(st.hp * thp(t)), dmg: Math.round(st.dmg * tdmg(t)), speed: st.speed * tspd(t),
+      scale: st.scale * tscale(t), build: L.sp, modelSp: L.sp, cruiseAlt: st.cruiseAlt, diveGap: st.diveGap,
+      atkGap: L.key === 'Bear' ? 1.6 : 1.25, xp: Math.round(320 * xpMul(t)),
+      ability: L.ability, abilityName: L.abilityName, abilityDesc: L.abilityDesc,
+      camp: L.key === 'Beast Master' ? 'beast' : 'legend',
+      onSlain: () => onLegendSlain()
+    };
+  };
+
+  const uid = () => 'camp' + (Math.random() * 1e9 | 0) + (S.leg) + (S.tier);
+  const icon = k => ({ hunt: '⚔️', explore: '🧭', collect: '🌿', survive: '🌙', combat: '🗡️', xp: '✦', harvest: '🍖', herbal: '💊', scout: '🐾', ritual: '🪨', travel: '🚶' }[k] || '📜');
+  const Σ = () => xpMul(S.tier);
+  const campXp = n => { S.xp += Math.round(n * Σ()); };
+
+  /* ---------- world helpers ---------- */
+  const dist = (x, z) => Math.hypot(x - wolf.pos.x, z - wolf.pos.z);
+  const lmTypes = ['stoneCircle', 'ruins', 'cabin', 'waterfall', 'shrine', 'frozenLake', 'wolfShrine', 'hiddenValley', 'deposit', 'shroomForest'];
+  const pickLandmark = () => {   // the nearest UNFOUND landmark of a real type — routing respects the map
+    let best = null, bd = 1e9;
+    for (const lm of landmarkList) {
+      if (lm.found) continue;
+      if (!lmTypes.includes(lm.type)) continue;
+      const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
+      if (d < bd) { bd = d; best = lm; }
+    }
+    return best;
+  };
+  const pickBiomeSpot = biome => {   // nearest ground of the legend's land — never an island of water
+    let best = null, bd = 1e9;
+    for (let r = 90; r <= 760; r += 95) for (let k = 0; k < 16; k++) {
+      const a = k / 16 * 6.2832, x = wolf.pos.x + Math.sin(a) * r, z = wolf.pos.z + Math.cos(a) * r;
+      if (heightAt(x, z) < WATER_Y + 0.9) continue;
+      if (dominantBiomeAt(x, z).key !== biome) continue;
+      const d = r; if (d < bd) { bd = d; best = { x, z }; }
+    }
+    return best;
+  };
+  const isValidSpot = (x, z, biome) => heightAt(x, z) > WATER_Y + 0.9 && dominantBiomeAt(x, z).key === biome;
+  const resolveTerritory = () => {
+    const L = curLegend();
+    if (S.terr && S.terr.leg === L.key && S.terr.tier === S.tier && isValidSpot(S.terr.x, S.terr.z, L.biome)) return S.terr;
+    const sp = pickBiomeSpot(L.biome) || { x: wolf.pos.x + 300, z: wolf.pos.z };
+    S.terr = { leg: L.key, tier: S.tier, biome: L.biome, x: sp.x, z: sp.z };
+    return S.terr;
+  };
+  const buildAltar = () => {
+    const L = curLegend();
+    if (S.altar && S.altar.leg === L.key && S.altar.tier === S.tier && isValidSpot(S.altar.x, S.altar.z, L.biome)) { placeAltarMesh(); return S.altar; }
+    const t = resolveTerritory();
+    let ax = 0, az = 0, ok = false;
+    for (let k = 0; k < 24 && !ok; k++) {
+      const a = Math.random() * 6.2832, r = 20 + Math.random() * 45;
+      ax = t.x + Math.sin(a) * r; az = t.z + Math.cos(a) * r;
+      if (heightAt(ax, az) > WATER_Y + 1.2 && dominantBiomeAt(ax, az).key === L.biome) ok = true;
+    }
+    if (!ok) { ax = t.x; az = t.z; }
+    S.altar = { leg: L.key, tier: S.tier, x: ax, z: az };
+    placeAltarMesh();
+    return S.altar;
+  };
+  const placeAltarMesh = () => {
+    if (alt && alt.mesh && alt.mesh.parent) scene.remove(alt.mesh);
+    if (!S.altar) { alt = null; return; }
+    const g = new THREE.Group();
+    const stone = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.1, 1.6), matColor(0x6a6a78));
+    stone.position.y = 0.55; g.add(stone);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.4, 1.1), matColor(0x84849a));
+    top.position.y = 1.3; g.add(top);
+    const rune = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.5), new THREE.MeshBasicMaterial({ color: curLegend().glow }));
+    rune.position.y = 1.54; g.add(rune);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: texGlow, color: curLegend().glow, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
+    halo.scale.setScalar(3.2); halo.position.y = 2.2; g.add(halo);
+    g.position.set(S.altar.x, heightAt(S.altar.x, S.altar.z), S.altar.z);
+    scene.add(g);
+    alt = { mesh: g, halo, x: S.altar.x, z: S.altar.z };
+  };
+
+  /* ---------- quest factories (templates + tier scaling — controlled, not random) ---------- */
+  const qHunt = (species, need, kindT) => {
+    const ref = SPECIES[species] || { label: species };
+    return { id: uid(), camp: true, stage: kindT, kind: 'hunt', species, need, have: 0, icon: icon('hunt'),
+      title: 'Hunt ' + need + ' ' + pluralOf(ref.label, need), biome: curBiomeKey,
+      desc: 'Proof of the hunt — bring down ' + need + ' ' + pluralOf(ref.label, need) + '.',
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+  };
+  const qExplore = () => {
+    const lm = pickLandmark();
+    if (lm) return { id: uid(), camp: true, stage: 'q0', kind: 'explore', lmType: lm.type, need: 1, have: 0, icon: icon('explore'),
+      title: 'Discover the ' + (lm.label || lm.type), biome: lm.biome || curBiomeKey,
+      desc: 'Seek out an unfound place on the map — the land keeps secrets.',
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+    return { id: uid(), camp: true, stage: 'q0', kind: 'explore', peak: true, need: 1, have: 0, icon: icon('explore'),
+      title: 'Stand where the eagles stand', biome: 'mountain',
+      desc: 'Reach a height of 50 meters — the world unrolls below you.',
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+  };
+  const qCollect = (item, need, stage) => {
+    const c = COLLECT_ITEMS[item] || { label: item, icon: '🌿' };
+    return { id: uid(), camp: true, stage, kind: 'collect', item, need, have: 0, icon: icon('collect'),
+      title: 'Gather ' + need + ' ' + c.label, biome: curBiomeKey,
+      desc: 'Collect ' + need + ' ' + c.label + ' from the wild.',
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+  };
+  const qSurvive = () => {
+    const days = 1 + ((S.tier - 1) / 2 | 0);
+    return { id: uid(), camp: true, stage: 'q0', kind: 'survive', days, need: days, have: 0, prog0: undefined, icon: icon('survive'),
+      title: 'Survive ' + days + ' day' + (days > 1 ? 's' : '') + ' in the wild', biome: curBiomeKey,
+      desc: 'Outlast the sky itself — one dawn at a time.',
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+  };
+  const qTrack = () => {
+    const lm = pickLandmark();
+    const need = 2 + (S.tier - 1);
+    if (!lm) return qCollect(lmTypes.length ? 'mushroom' : 'herb', 3 + (S.tier - 1), 'q1');
+    return { id: uid(), camp: true, stage: 'q1', kind: 'explore', lmType: lm.type, need, have: 0, icon: icon('scout'),
+      title: 'Track: find ' + need + ' landmarks', biome: lm.biome || curBiomeKey,
+      desc: 'Read the land like a tracker — ' + need + ' undiscovered places.',
+      rw: { xp: 130 * Σ() }, rwText: Math.round(130 * Σ()) + ' XP · ⚜ ' + Math.round(90 * Σ()) + ' campaign XP', campXp: 90 };
+  };
+  const qHuntMedium = () => {
+    const tbl = (SPECIES_TABLE[curBiomeKey] || SPECIES_TABLE.forest).map(e => e[0]);
+    const med = tbl.filter(k => { const d = SPECIES[k]; return d && d.hp >= 4 && !d.huntsWolf; });
+    const species = med.length ? med[(Math.random() * med.length) | 0] : 'deer';
+    const need = 2 + (S.tier - 1);
+    const ref = SPECIES[species] || { label: species };
+    const q = { id: uid(), camp: true, stage: 'q1', kind: 'hunt', species, need, have: 0, icon: icon('hunt'),
+      title: 'Hunt ' + need + ' ' + pluralOf(ref.label, need), biome: curBiomeKey,
+      desc: 'Bigger prey, bigger tale — ' + need + ' ' + pluralOf(ref.label, need) + '.',
+      rw: { xp: 130 * Σ() }, rwText: Math.round(130 * Σ()) + ' XP · ⚜ ' + Math.round(90 * Σ()) + ' campaign XP', campXp: 90 };
+    if (S.tier >= 2 && Math.random() < 0.5) { q.timed = true; q.deadline = tSec + 150 + S.tier * 25; q.title = 'Hunt ' + need + ' ' + pluralOf(ref.label, need) + ' in time'; q.desc += ' Beat the clock!'; }
+    return q;
+  };
+  const qCombat = () => {
+    const need = 1 + ((S.tier - 1) / 2 | 0);
+    return { id: uid(), camp: true, stage: 'q1', kind: 'combat', need, have: 0, icon: icon('combat'),
+      title: 'Slay ' + need + ' predator' + (need > 1 ? 's' : ''), biome: curBiomeKey,
+      desc: 'Turn the tables — put down ' + need + ' of the hunters that stalk you.',
+      rw: { xp: 140 * Σ() }, rwText: Math.round(140 * Σ()) + ' XP · ⚜ ' + Math.round(90 * Σ()) + ' campaign XP', campXp: 90 };
+  };
+  const qPrep = kind => {
+    const t = S.tier, leg = S.leg;
+    if (kind === 'xp') {
+      const gate = xpGate(t, leg);
+      return { id: uid(), camp: true, stage: 'prep', kind: 'xp', need: gate, have: 0, base: S.xp, icon: icon('xp'),
+        title: 'Reach ' + gate + ' campaign XP', biome: curBiomeKey,
+        desc: 'Earn ' + gate + ' more campaign XP — quests, hunts, discoveries. Your moment is near.',
+        rw: { xp: 170 * Σ() }, rwText: Math.round(170 * Σ()) + ' XP · ⚜ ' + Math.round(140 * Σ()) + ' campaign XP', campXp: 140 };
+    }
+    if (kind === 'harvest') {
+      const need = 4 + (t - 1) * 2;
+      return { id: uid(), camp: true, stage: 'prep', kind: 'harvest', need, have: 0, icon: icon('harvest'),
+        title: 'Gather ' + need + ' meat for the journey', biome: curBiomeKey,
+        desc: 'Stock provisions — hunt ' + need + ' pieces of meat for the trial ahead.',
+        rw: { xp: 170 * Σ(), items: { meat: need } }, rwText: Math.round(170 * Σ()) + ' XP · ' + need + ' 🍖 · ⚜ ' + Math.round(140 * Σ()) + ' campaign XP', campXp: 140 };
+    }
+    if (kind === 'herbal') {
+      const need = 5 + (t - 1) * 2;
+      return { id: uid(), camp: true, stage: 'prep', kind: 'herbal', need, have: 0, icon: icon('herbal'),
+        title: 'Gather ' + need + ' healing herbs & mushrooms', biome: curBiomeKey,
+        desc: 'The Legend will not fall to a tired wolf — stock herbs and mushrooms.',
+        rw: { xp: 170 * Σ(), items: { herb: need } }, rwText: Math.round(170 * Σ()) + ' XP · 🌿×' + need + ' · ⚜ ' + Math.round(140 * Σ()) + ' campaign XP', campXp: 140 };
+    }
+    const terr = resolveTerritory();
+    return { id: uid(), camp: true, stage: 'prep', kind: 'scout', need: 1, have: 0, icon: icon('scout'), wp: { x: terr.x, z: terr.z },
+      title: 'Scout the ' + curLegend().key + '\u2019s territory', biome: terr.biome,
+      desc: 'Walk ' + curLegend().territory + ' — know the ground before the awakening.',
+      rw: { xp: 170 * Σ() }, rwText: Math.round(170 * Σ()) + ' XP · ⚜ ' + Math.round(140 * Σ()) + ' campaign XP', campXp: 140 };
+  };
+  const qRitual = () => {
+    const a = buildAltar();
+    return { id: uid(), camp: true, stage: 'awaken', kind: 'ritual', need: 1, have: 0, icon: icon('ritual'), wp: { x: a.x, z: a.z },
+      title: 'Awaken the ' + curLegend().key, biome: curLegend().biome,
+      desc: 'Reach the glowing altar in ' + curLegend().territory + ' and press E to channel the awakening.',
+      rw: { xp: 100 * Σ() }, rwText: Math.round(100 * Σ()) + ' XP · ⚜ ' + Math.round(40 * Σ()) + ' campaign XP', campXp: 40 };
+  };
+
+  /* ---------- the board: 3-4 choices, one active at a time ---------- */
+  const buildChoices = () => {
+    QUESTS.avail.length = 0;
+    if (QUESTS.active.length) return;   // the other choices disappear — one deed at a time
+    const t = S.tier;
+    const spread = (arr, ids) => { for (const k of ids) { const q = arr[k](); if (q) QUESTS.avail.push(q); } };
+    if (S.stage === 'q0') {
+      const cops = { hunt: () => { const live = nearbySpeciesCounts(); const small = Object.keys(live).filter(k2 => SPECIES[k2] && SPECIES[k2].hp <= 3 && !SPECIES[k2].huntsWolf && !/predator/i.test(k2)); const sp = small.length ? small[(Math.random() * small.length) | 0] : 'rabbit'; return qHunt(sp, 2 + (t - 1), 'q0'); },
+        explore: qExplore, collect: () => { const items = Object.keys(COLLECT_ITEMS).filter(k2 => pickupSupply(k2) >= 4 + (t - 1)); if (!items.length) return qCollect('berry', 3 + (t - 1), 'q0'); return qCollect(items[(Math.random() * items.length) | 0], 3 + (t - 1), 'q0'); }, survive: qSurvive };
+      spread(cops, ['hunt', 'explore', 'collect', 'survive']);
+    } else if (S.stage === 'q1') {
+      const cops = { track: qTrack, huntM: qHuntMedium, combat: qCombat, collect: () => { const items = ['herb', 'mushroom'].filter(k2 => pickupSupply(k2) >= 5 + (t - 1)); const k2 = items.length ? items[(Math.random() * items.length) | 0] : 'berry'; return qCollect(k2, 4 + (t - 1), 'q1'); } };
+      spread(cops, ['track', 'huntM', 'combat', 'collect']);
+    } else if (S.stage === 'prep') {
+      spread({ xp: () => qPrep('xp'), harvest: () => qPrep('harvest'), herbal: () => qPrep('herbal'), scout: () => qPrep('scout') }, ['xp', 'harvest', 'herbal', 'scout']);
+    } else if (S.stage === 'awaken') {
+      QUESTS.avail.push(qRitual());
+    }
+    questHudDirty = true;
+  };
+  const refill = () => { buildChoices(); if (typeof renderQuests === 'function') renderQuests(); };
+
+  /* ---------- event & tick plumbing ---------- */
+  const onEvent = (q, kind, data) => {   // campaign kinds answer first; return true = handled
+    if (q.kind === 'combat' && kind === 'kill' && data.species === 'predator') {
+      q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); }
+      return true;
+    }
+    if (q.kind === 'harvest' && kind === 'kill' && data.species && data.species !== 'predator') {
+      q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need} meat`); }
+      return true;
+    }
+    if (q.kind === 'herbal' && kind === 'gather' && (data.item === 'herb' || data.item === 'mushroom')) {
+      q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); }
+      return true;
+    }
+    return false;
+  };
+  const onQuestComplete = q => {
+    if (!q || !q.camp) return;
+    campXp(q.campXp || 60);
+    const st = q.stage;
+    if (st === 'q0') { S.stage = 'q1'; toast(`📜 Stage 1 complete — the land deepens. Choose your next deed.`, true); }
+    else if (st === 'q1') { S.stage = 'prep'; S.prepDone = 0; toast(`📜 Stage 2 complete — prepare for the ${curLegend().key}.`, true); }
+    else if (st === 'prep') {
+      S.prepDone++;
+      if (S.prepDone >= prepNeed(S.tier)) { S.stage = 'awaken'; toast(`🪨 The ${curLegend().key} stirs. An altar glows in ${curLegend().territory} — go and AWAKEN it.`, true); audio.growlVar('warning'); }
+      else toast(`📜 Preparation ${S.prepDone}/${prepNeed(S.tier)} — one more deed before the trial.`);
+    }
+    if (st === 'awaken' || st === 'ritual') { /* ritual completes in useAltar */ }
+    refill(); save(); questHudDirty = true;
+  };
+  const onAccept = q => {
+    QUESTS.avail.length = 0;   // the other choices disappear — ONE deed at a time (spec rule)
+    save(); questHudDirty = true;
+  };
+  const onAbandon = q => {   // returning to the board — no XP, no stage change (anti-exploit: no reaccept farming)
+    if (q.camp && q.stage === 'boss') { toast('💀 The ' + curLegend().key + ' will not be set aside — face it, or fall.'); rebuildBoard(); return true; }
+    toast(`📜 Set aside: ${q.title} (no XP — the board offers the stage again)`);
+    rebuildBoard(); save();
+    return true;
+  };
+  const onDeath = () => {
+    // progression, campaign XP and the run timer STAND; only the in-flight deed returns to the board
+    if (S.stage === 'boss') {   // the legend waits — full retry: despawn, re-channel the altar
+      for (const b of [...bosses]) if (b.def && b.def.camp) { b.dead = true; b.dispose(); }
+      S.stage = 'awaken';
+    }
+    for (const q of [...QUESTS.active]) if (q.camp) { const i = QUESTS.active.indexOf(q); if (i >= 0) QUESTS.active.splice(i, 1); }
+    rebuildBoard(); save(); questHudDirty = true;
+  };
+  const rebuildBoard = () => { refill(); };
+  const onLegendSlain = () => {
+    const wasBeast = S.leg >= LEGENDS.length;
+    campXp(wasBeast ? 700 : 320);
+    const L = curLegend();
+    if (!S.seen[L.key + S.tier]) { S.seen[L.key + S.tier] = 1; setTimeout(() => toast('📖 ' + L.story, true), 1600); }
+    addXp(0); // (wolf XP already paid via Boss.die)
+    if (wasBeast) {
+      const t = elapsed();
+      const rec = { tier: S.tier, name: S.name || 'Wolf', date: new Date().toISOString().slice(0, 10), time: +t.toFixed(1), xp: S.xp, bestLegend: LEGENDS[LEGENDS.length - 1].key + ' Legend' };
+      S.trophies.push(rec);
+      const b = S.best[S.tier];
+      if (!b || t < b.t) S.best[S.tier] = { t: +t.toFixed(1), date: rec.date, name: rec.name };
+      toast(`🏆 TROPHY — TIER ${S.tier} · ${fmt(t)}! The cycle closes. A harder one begins.`, true);
+      music.fanfare();
+      S.tier++; S.leg = 0; S.stage = 'q0'; S.prepDone = 0; S.runT0 = performance.now(); S.pausedAcc = 0; S.terr = null; S.altar = null;
+      if (alt && alt.mesh && alt.mesh.parent) scene.remove(alt.mesh); alt = null;
+    } else {
+      S.leg++;
+      if (S.leg >= LEGENDS.length) { S.stage = 'prep'; S.prepDone = 0; toast('👑 All Legends of this land have fallen… Prepare for the BEAST MASTER.', true); }
+      else { S.stage = 'q0'; toast(`📜 The ${curLegend().key} awaits — new deeds unlock its awakening.`, true); }
+      S.terr = null; S.altar = null; if (alt && alt.mesh && alt.mesh.parent) scene.remove(alt.mesh); alt = null;
+    }
+    refill(); save(); questHudDirty = true;
+  };
+
+  /* ---------- the altar ---------- */
+  const nearAltar = () => { if (!S.altar || (S.stage !== 'awaken' && S.stage !== 'boss')) return false; return Math.hypot(wolf.pos.x - S.altar.x, wolf.pos.z - S.altar.z) < 3.6; };
+  const ritualReady = () => S.stage === 'awaken' && nearAltar() && QUESTS.active.some(q2 => q2.camp && q2.stage === 'awaken');   // the awakening wins the interact key
+  const useAltar = () => {
+    if (S.stage !== 'awaken' || !nearAltar()) return;
+    const ritualQ = QUESTS.active.find(q2 => q2.camp && q2.stage === 'awaken');
+    S.stage = 'boss';   // before completion so its hook is a no-op
+    if (ritualQ) completeQuest(ritualQ);
+    const def = legendDef();
+    const a = Math.random() * 6.2832;
+    let bx = 0, bz = 0, ok = false;
+    for (let k = 0; k < 20 && !ok; k++) { const r = 14 + Math.random() * 18; bx = S.altar.x + Math.sin(a) * r; bz = S.altar.z + Math.cos(a) * r; if (heightAt(bx, bz) > WATER_Y + 0.9) ok = true; }
+    if (!ok) { bx = S.altar.x + 20; bz = S.altar.z; }
+    bosses.push(new Boss(S.altar.biome || curLegend().biome, bx, bz, false, def));   // the engine registers legends in `bosses`
+    pool.burst(V3(S.altar.x, heightAt(S.altar.x, S.altar.z) + 1.4, S.altar.z), 40, def.glow, 2.6, 4, 3.4);
+    audio.growlVar('aggressive'); music.fanfare();
+    toast(`🪨 You channel the awakening… ${def.name} rises from ${curLegend().territory}!`, true);
+    save(); questHudDirty = true;
+  };
+
+  /* ---------- timer (speedrun law: it never rewinds; pause is honest) ---------- */
+  const elapsed = () => Math.max(0, (performance.now() - (S.runT0 || performance.now()) - (S.pausedAcc || 0) - (S.pausedAt ? (performance.now() - S.pausedAt) : 0)) / 1000);
+  const fmt = s => { s = Math.max(0, s | 0); const h = (s / 3600 | 0), m = ((s % 3600) / 60 | 0), ss = s % 60; return (h > 0 ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0'); };
+  const onPause = () => { if (!S.pausedAt) S.pausedAt = performance.now(); };
+  let armed = false;
+  const arm = () => {   // the campaign owns the board from the first play tick
+    if (armed) return;
+    armed = true;
+    if (!S.runT0) S.runT0 = performance.now() - (S.pausedAcc || 0);
+    QUESTS.avail.length = 0;   // drop the legacy first-deeds board (built before p5 loaded)
+    for (const q of [...QUESTS.active]) if (!q.camp) QUESTS.active.splice(QUESTS.active.indexOf(q), 1);
+    refill(); save(); questHudDirty = true;
+  };
+  const onResume = () => {
+    arm();
+    if (S.pausedAt) { S.pausedAcc += performance.now() - S.pausedAt; S.pausedAt = null; }
+    if (!QUESTS.avail.length && !QUESTS.active.length) refill();   // the board greets the first play
+    questHudDirty = true;
+    save();
+  };
+  const hud = () => {
+    const t = Math.round(elapsed());
+    let h = `<div class="qt-line" style="color:#ffd76a">🏆 Tier <b>${S.tier}</b> · <b>${legendName()}</b> · ⏱ ${fmt(t)}</div>`;
+    if (S.stage === 'prep' && S.prepDone > 0) h += `<div class="qt-line" style="opacity:.9">📜 Preparation ${S.prepDone}/${prepNeed(S.tier)}</div>`;
+    if (S.stage === 'prep') { const g = xpGate(S.tier, S.leg); h += `<div class="qt-line" style="opacity:.8">⚜ ${S.xp}/${g} campaign XP</div>`; }
+    return h;
+  };
+  const mapMarks = () => {
+    const out = [];
+    if (S.stage === 'prep' || S.stage === 'awaken' || S.stage === 'boss') {
+      const t = resolveTerritory();
+      if (t) out.push({ x: t.x, z: t.z, color: '#' + curLegend().glow.toString(16).padStart(6, '0'), ring: 130 });
+      if (S.altar && (S.stage === 'awaken' || S.stage === 'boss')) out.push({ x: S.altar.x, z: S.altar.z, color: '#ffd76a' });
+    }
+    return out;
+  };
+
+  /* ---------- tick: progress, deadlines, deltas, altar pulse, autosave ---------- */
+  let acc = 0;
+  const tick = dt => {
+    if (!S) return;
+    arm();   // first play tick: claim the board for the campaign (covers autostart too)
+    acc += dt;
+    if (alt) { alt.mesh.rotation.y += dt * 0.6; if (alt.halo) alt.halo.material.opacity = 0.38 + 0.2 * Math.sin(tSec * 3.2); }
+    if (acc < 0.5) return;
+    acc = 0;
+    if (!S.runT0) return;
+    // ambient campaign XP: hunts & discoveries trickle in (quest XP stays primary)
+    if (typeof RUN !== 'undefined' && RUN.kills > lastKills) { campXp((RUN.kills - lastKills) * 3); lastKills = RUN.kills; }
+    if (typeof stats !== 'undefined' && stats.discoveries && stats.discoveries.size > lastDsc) { campXp((stats.discoveries.size - lastDsc) * 4); lastDsc = stats.discoveries.size; }
+    // the active deed's own progress
+    for (const q of [...QUESTS.active]) {
+      if (!q.camp) continue;
+      if (q.kind === 'xp') { q.have = Math.min(q.need, Math.max(0, S.xp - q.base)); if (q.have >= q.need) completeQuest(q); else questHudDirty = true; }
+      else if (q.kind === 'travel') { q.have = Math.min(q.need, Math.max(0, wolf.distance - (q.fromDist || wolf.distance))); if (q.have >= q.need) completeQuest(q); else questHudDirty = true; }
+      else if (q.kind === 'scout') { const d = dist(q.wp.x, q.wp.z); q.have = d < 40 ? 1 : 0; if (q.have >= q.need) completeQuest(q); }
+      else if (q.kind === 'ritual') { const d = dist(q.wp.x, q.wp.z); if (d < 4 && !q._prompted) { q._prompted = true; toast('🪨 Press E to channel the awakening'); } }
+      if (q.timed && q.kind === 'hunt' && tSec > q.deadline) {   // the clock is the hunt's law
+        toast(`⏳ Hunt failed — the ${curLegend().key} does not wait for slow hunters.`); abandonQuest(q.id); rebuildBoard(); save();
+      }
+    }
+    autosaveT += dt;
+    if (autosaveT > 60) { autosaveT = 0; save(); }
+    if (hudT === undefined || performance.now() - hudT > 1000) { hudT = performance.now(); questHudDirty = true; }
+  };
+
+  /* ---------- trophies screen (Home menu) ---------- */
+  const showTrophies = () => {
+    ui.overlay.classList.remove('hidden');
+    ui.overlay.dataset.mode = 'trophies';
+    ui.ovTitle.textContent = '🏆 TROPHIES';
+    let h = `<div style="font-size:14px;margin:6px 0 14px">PLAYER: <input id="plName" maxlength="14" value="${(S.name || '').replace(/"/g, '&quot;')}" style="width:150px;padding:4px 8px;font:13px monospace;border:1px solid #2c3a46;background:#0d141c;color:#dfeee6;border-radius:6px"></div>`;
+    h += '<div style="font:12px monospace;color:#9fb4c4;margin-bottom:8px">━━━━━━━━━━━━━━━━━━━━━━</div>';
+    const top = Math.max(S.tier, S.trophies.length + 1, Object.keys(S.best).length ? Math.max(...Object.keys(S.best).map(Number)) : 1);
+    for (let t = 1; t <= top; t++) {
+      const tr = S.best[t];
+      if (tr) h += `<div style="margin:8px 0;font:13px monospace;color:#ffd76a">🏆 TIER ${t} <span style="color:#8fe6b0">Completed</span><br><span style="color:#cfe3d0;margin-left:20px">Time: ${fmt(tr.t)} · ${tr.date} · ${tr.name}</span></div>`;
+      else h += `<div style="margin:8px 0;font:13px monospace;color:#5c6f7c">🔒 TIER ${t} <span style="color:#5c6f7c">Not completed</span></div>`;
+    }
+    h += '<div style="font:12px monospace;color:#9fb4c4;margin:12px 0 8px">━━━━━━━━━━━━━━━━━━━━━━</div><div style="font:13px monospace;color:#ffe9b0">BEST TIER TIME</div>';
+    const all = Object.values(S.best);
+    h += `<div style="font:20px monospace;color:#fff">${all.length ? fmt(Math.min(...all.map(b => b.t))) : '—'}</div>`;
+    h += `<div style="margin-top:18px"><button class="btn" id="btnTrophiesBack">BACK</button></div>`;
+    ui.ovBody.innerHTML = h;
+    el('btnTrophiesBack').onclick = () => showOverlay('start');
+    el('plName').addEventListener('change', e => { S.name = e.target.value.trim() || 'Wolf'; save(); });
+    if (typeof audio !== 'undefined' && audio.uiClick) audio.uiClick();
+  };
+
+  /* ---------- public face ---------- */
+  window.CAMPDBG = {
+    state: () => JSON.parse(JSON.stringify(S)),
+    grantXp: n => { campXp(n); },
+    setStage: s => { S.stage = s; refill(); save(); },
+    setLeg: n => { S.leg = n; },
+    terr: () => resolveTerritory(), altar: () => S.altar, elapsed: () => elapsed(), fmt,
+    reset: () => { S = fresh(); S.runT0 = performance.now(); save(); refill(); }
+  };
+  const onMenuRefresh = () => {   // the start page: ask for a name until the wolf has one
+    const r = el('nameRow');
+    if (r) r.style.display = S.name ? 'none' : 'block';
+    const i = el('plName2');
+    if (i && !i.value && S.name) i.value = S.name;
+  };
+  /* menu delegation — the start template is re-injected, listeners below survive it */
+  document.addEventListener('click', e => {
+    if (!e.target || !e.target.id) return;
+    if (e.target.id === 'btnTrophies') showTrophies();
+    else if (e.target.id === 'btnStart') {
+      const i = el('plName2');
+      if (i && i.value && i.value.trim()) S.name = i.value.trim().slice(0, 14);
+      else if (!S.name) S.name = 'Wolf';
+      save();
+    }
+  });
+  document.addEventListener('input', e => { if (e.target && e.target.id === 'plName2') { const r = el('nameRow'); if (r) r.style.display = 'none'; } });
+
+  return {
+    on: () => true,
+    init: () => { load(); },
+    refill, tick, hud, mapMarks, onEvent, onQuestComplete, onAccept, onAbandon, onDeath,
+    onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh
+  };
+})();
+if (window.CAMP && window.CAMP.init) window.CAMP.init();
 
 /* ============ 🤖 AI PLAY — the wolf plays itself (in-game watch mode) ============
    RAFZZER v1.0 — The Neural AI. The v7 "True Hunter" reflex ladder survives underneath
@@ -8932,6 +9549,15 @@ tick();
       const sup = typeof pickupSupply === 'function' ? pickupSupply(q.item) : 1e9;
       const left = Math.max(1, (q.need || 1) - (q.have || 0));
       s = sup >= left + 1 ? (nearestPk(q.item).d < 120 ? 3.6 : 1.4) : 0.25;
+    } else if (q.kind === 'combat') {
+      s = wolf.hp > wolf.maxHp * 0.8 && wolf.level >= 1 ? 3.4 : 0.35;   // strong wolves take the fight
+    } else if (q.kind === 'xp') {
+      s = 4.6;   // earns itself — the wolf just keeps living well
+    } else if (q.kind === 'harvest' || q.kind === 'herbal') {
+      s = nearestAnimal(an => !an.dead && an.sp && an.sp.meat > 0).d < 240 ? 3.2 : 1.6;
+    } else if (q.kind === 'scout' || q.kind === 'ritual' || q.kind === 'travel') {
+      const d = q.wp ? Math.hypot(q.wp.x - wolf.pos.x, q.wp.z - wolf.pos.z) : 400;
+      s = d < 320 ? 3.4 : 1.2;
     } else if (q.kind === 'explore') {
       let bd = 1e9, any = false;
       for (const lm of landmarkList) { if (q.lmType && lm.type !== q.lmType) continue; any = true; const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z); if (d < bd) bd = d; }
@@ -9172,12 +9798,14 @@ tick();
       } else if (wolf.stamina >= 88) bot.drinking = false;
 
       /* ---------- 3.5 a hunter is close: yield ground, live to hunt again ---------- */
+      // CAMPAIGN: on a combat deed, a healthy wolf takes the fight instead of yielding
+      bot.huntCombat = !!(QUESTS.active[0] && QUESTS.active[0].camp && QUESTS.active[0].kind === 'combat' && wolf.hp > wolf.maxHp * 0.8);
       // M46 · ursine guard (brainstem rule): against an apex bear while spent, the safe
       // ground starts farther out — a tired wolf cannot out-run a Ursus. Still inside the
       // SAFK envelope: the cortex's own yield knob sets the base, the rule only stretches it.
       const bearApex = pred.a && pred.a.sp && pred.a.sp.build === 'bear' && (pred.a.level || 1) >= wolf.level + 2 && (wolf.stamina < 35 || wolf.exhausted);
       const yieldR = bearApex ? Math.min(NK.yieldR * 1.8, 60) : NK.yieldR;
-      if (pred.a && pred.d < yieldR && !bot.drinking && bossHit.d > 90) {
+      if (pred.a && pred.d < yieldR && !bot.drinking && bossHit.d > 90 && !bot.huntCombat) {
         RAFZ.bump('yield');
         const away = Math.atan2(wolf.pos.x - pred.a.pos.x, wolf.pos.z - pred.a.pos.z) + (bot.giveSide || 0);
         aim(away, 0.55);
@@ -9275,6 +9903,16 @@ tick();
           if (hit) bot.gatherStick = { p: hit.p, at: SIMNOW() };
           if (hit.p && hit.d < bestD) { bestD = hit.d; q = cq; goal = { x: hit.p.x, z: hit.p.z }; targetPk = hit.p; mode = 'gather'; }
           else if (!hit.p) warnOnce('nopickup', 'bug-no-pickup-nearby', { key: cq.item, msg: 'collect quest but no ' + cq.item + ' pickups nearby' });
+        } else if (cq.kind === 'combat') {
+          // CAMPAIGN: slay the hunter — chase the nearest predator while strong
+          const pr2 = nearestPred();
+          if (pr2.a && pr2.d < 320 && wolf.hp > wolf.maxHp * 0.8) {
+            if (pr2.d < bestD) { bestD = pr2.d; q = cq; goal = { x: pr2.a.pos.x, z: pr2.a.pos.z }; targetAnimal = pr2.a; mode = 'hunt'; bot.combatStick = { a: pr2.a, at: SIMNOW() }; }
+          }
+        } else if (cq.wp) {
+          // CAMPAIGN: the machine's waypoint (scout · ritual · travel routes)
+          const d = Math.hypot(cq.wp.x - wolf.pos.x, cq.wp.z - wolf.pos.z);
+          if (d < bestD) { bestD = d; q = cq; goal = { x: cq.wp.x, z: cq.wp.z }; mode = 'travel'; if (cq.kind === 'ritual') bot.ritualWp = { x: cq.wp.x, z: cq.wp.z }; }
         } else if (cq.kind === 'explore') {
           if (cq.peak) { if (wolf.pos.y < 49) {   // ⛰️ climb the mountain itself — greedy walkable ascent
               let by2 = 0, bg2 = -1e9;
@@ -9534,6 +10172,12 @@ tick();
         if (probe(bestYaw, 3.6) > 0.6) log('jump', { msg: 'hopped an obstacle' });
       }
       keys.Space = bot.jumpT && SIMNOW() - bot.jumpT < 170;
+
+      /* ---------- 6.5 the awakening altar (CAMPAIGN) ---------- */
+      if (bot.ritualWp && q && q.kind === 'ritual' && Math.hypot(bot.ritualWp.x - wolf.pos.x, bot.ritualWp.z - wolf.pos.z) < 3.4 && SIMNOW() - (bot.altarCd || 0) > 1400) {
+        bot.altarCd = SIMNOW();
+        try { doGather(); } catch (e) { }
+      }
 
       /* ---------- 7. strike (prey & rivals) ---------- */
       if (targetAnimal && mode !== 'rival') {

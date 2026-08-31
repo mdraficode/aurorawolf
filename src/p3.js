@@ -1060,11 +1060,16 @@ const PREDATORS = {
   snowLeopard: { name: 'snowLeopard', label: 'Snow Leopard', icon: '🐆', scale: 1.3, hp: 5, dmg: 9, walk: 2.5, run: 12.6, reach: 3.4, atkCd: 1.0,
            body: 0xcfd6dd, belly: 0xeef2f5, legs: 0xb8c2cb, head: 0xcfd6dd, meat: 4, pelt: 2, bone: 2, build: 'cat', spots: 0x4a5158 },
   eagle: { name: 'eagle', label: 'Golden Eagle', icon: '🦅', scale: 1.1, hp: 6, dmg: 10, walk: 6.5, run: 17, reach: 2.3, atkCd: 3.6, huntsWolf: 1,
-           body: 0x8a5a1c, belly: 0xc9a45a, legs: 0xe8b820, head: 0xa8763a, meat: 3, pelt: 1, bone: 1, build: 'eagle' }
+           body: 0x8a5a1c, belly: 0xc9a45a, legs: 0xe8b820, head: 0xa8763a, meat: 3, pelt: 1, bone: 1, build: 'eagle' },
+  leopard: { name: 'leopard', label: 'Leopard', icon: '🐆', scale: 1.32, hp: 5, dmg: 10, walk: 2.5, run: 12.8, reach: 3.4, atkCd: 1.05, huntsWolf: 1,
+             body: 0xd8a44a, belly: 0xf2e2c0, legs: 0xc28a36, head: 0xd8a44a, meat: 4, pelt: 2, bone: 2, build: 'cat', spots: 0x4a3320 },
+  lion: { name: 'lion', label: 'Lion', icon: '🦁', scale: 1.55, hp: 7, dmg: 13, walk: 2.4, run: 12.2, reach: 3.8, atkCd: 1.25, huntsWolf: 1,
+          body: 0xc79a54, belly: 0xe8d5ac, legs: 0xa87f3e, head: 0xc79a54, meat: 6, pelt: 2, bone: 3, build: 'cat', mane: 1, maneC: 0x4a3018 }
 };
 const PREDATOR_TABLE = {
-  taiga: [['bear', 1]], forest: [['bear', 0.6], ['tiger', 0.4]],
-  grove: [['tiger', 0.7], ['bear', 0.3]], mountain: [['snowLeopard', 1]], tundra: [['snowLeopard', 0.65], ['bear', 0.35]],
+  taiga: [['bear', 1]], forest: [['bear', 0.45], ['tiger', 0.3], ['leopard', 0.25]],
+  grove: [['tiger', 0.6], ['leopard', 0.4]], meadow: [['lion', 1]],
+  mountain: [['snowLeopard', 1]], tundra: [['snowLeopard', 0.65], ['bear', 0.35]],
   highland: [['snowLeopard', 1]]
 };
 
@@ -1166,6 +1171,18 @@ function buildPredator(sp) {
       spt.position.set((i % 2 ? 1 : -1) * bh * 0.37, lh + bh * (0.45 + 0.1 * (i % 4)), -bl * 0.4 + i * (bl * 0.09));
       g.add(spt);
     }
+  }
+  if (sp.mane) { // lion's ruff — a dark crown of fur around the neck
+    const mM = matColor(sp.maneC || 0x5a3c1c);
+    for (let i = 0; i < 7; i++) {
+      const a = i / 7 * 6.2832;
+      const tuft = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.17, bh * 0.34 + bh * 0.08 * Math.sin(i * 2.1), bh * 0.3), mM);
+      tuft.position.set(Math.sin(a) * bh * 0.42, lh + bh * 0.92 + bh * 0.1 * Math.cos(a), bl * 0.34 + Math.cos(a) * bh * 0.16);
+      tuft.rotation.z = Math.sin(a) * 0.5;
+      g.add(tuft);
+    }
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(bh * 0.9, bh * 0.3, bh * 0.3), mM);
+    crown.position.set(0, lh + bh * 1.02, bl * 0.3); g.add(crown);
   }
   const head = new THREE.Group();
   head.position.set(0, lh + bh * 1.12, bl * 0.52); g.add(head);

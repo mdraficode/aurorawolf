@@ -444,6 +444,15 @@
       const sup = typeof pickupSupply === 'function' ? pickupSupply(q.item) : 1e9;
       const left = Math.max(1, (q.need || 1) - (q.have || 0));
       s = sup >= left + 1 ? (nearestPk(q.item).d < 120 ? 3.6 : 1.4) : 0.25;
+    } else if (q.kind === 'combat') {
+      s = wolf.hp > wolf.maxHp * 0.8 && wolf.level >= 1 ? 3.4 : 0.35;   // strong wolves take the fight
+    } else if (q.kind === 'xp') {
+      s = 4.6;   // earns itself — the wolf just keeps living well
+    } else if (q.kind === 'harvest' || q.kind === 'herbal') {
+      s = nearestAnimal(an => !an.dead && an.sp && an.sp.meat > 0).d < 240 ? 3.2 : 1.6;
+    } else if (q.kind === 'scout' || q.kind === 'ritual' || q.kind === 'travel') {
+      const d = q.wp ? Math.hypot(q.wp.x - wolf.pos.x, q.wp.z - wolf.pos.z) : 400;
+      s = d < 320 ? 3.4 : 1.2;
     } else if (q.kind === 'explore') {
       let bd = 1e9, any = false;
       for (const lm of landmarkList) { if (q.lmType && lm.type !== q.lmType) continue; any = true; const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z); if (d < bd) bd = d; }
@@ -684,12 +693,14 @@
       } else if (wolf.stamina >= 88) bot.drinking = false;
 
       /* ---------- 3.5 a hunter is close: yield ground, live to hunt again ---------- */
+      // CAMPAIGN: on a combat deed, a healthy wolf takes the fight instead of yielding
+      bot.huntCombat = !!(QUESTS.active[0] && QUESTS.active[0].camp && QUESTS.active[0].kind === 'combat' && wolf.hp > wolf.maxHp * 0.8);
       // M46 · ursine guard (brainstem rule): against an apex bear while spent, the safe
       // ground starts farther out — a tired wolf cannot out-run a Ursus. Still inside the
       // SAFK envelope: the cortex's own yield knob sets the base, the rule only stretches it.
       const bearApex = pred.a && pred.a.sp && pred.a.sp.build === 'bear' && (pred.a.level || 1) >= wolf.level + 2 && (wolf.stamina < 35 || wolf.exhausted);
       const yieldR = bearApex ? Math.min(NK.yieldR * 1.8, 60) : NK.yieldR;
-      if (pred.a && pred.d < yieldR && !bot.drinking && bossHit.d > 90) {
+      if (pred.a && pred.d < yieldR && !bot.drinking && bossHit.d > 90 && !bot.huntCombat) {
         RAFZ.bump('yield');
         const away = Math.atan2(wolf.pos.x - pred.a.pos.x, wolf.pos.z - pred.a.pos.z) + (bot.giveSide || 0);
         aim(away, 0.55);
@@ -787,6 +798,16 @@
           if (hit) bot.gatherStick = { p: hit.p, at: SIMNOW() };
           if (hit.p && hit.d < bestD) { bestD = hit.d; q = cq; goal = { x: hit.p.x, z: hit.p.z }; targetPk = hit.p; mode = 'gather'; }
           else if (!hit.p) warnOnce('nopickup', 'bug-no-pickup-nearby', { key: cq.item, msg: 'collect quest but no ' + cq.item + ' pickups nearby' });
+        } else if (cq.kind === 'combat') {
+          // CAMPAIGN: slay the hunter — chase the nearest predator while strong
+          const pr2 = nearestPred();
+          if (pr2.a && pr2.d < 320 && wolf.hp > wolf.maxHp * 0.8) {
+            if (pr2.d < bestD) { bestD = pr2.d; q = cq; goal = { x: pr2.a.pos.x, z: pr2.a.pos.z }; targetAnimal = pr2.a; mode = 'hunt'; bot.combatStick = { a: pr2.a, at: SIMNOW() }; }
+          }
+        } else if (cq.wp) {
+          // CAMPAIGN: the machine's waypoint (scout · ritual · travel routes)
+          const d = Math.hypot(cq.wp.x - wolf.pos.x, cq.wp.z - wolf.pos.z);
+          if (d < bestD) { bestD = d; q = cq; goal = { x: cq.wp.x, z: cq.wp.z }; mode = 'travel'; if (cq.kind === 'ritual') bot.ritualWp = { x: cq.wp.x, z: cq.wp.z }; }
         } else if (cq.kind === 'explore') {
           if (cq.peak) { if (wolf.pos.y < 49) {   // ⛰️ climb the mountain itself — greedy walkable ascent
               let by2 = 0, bg2 = -1e9;
@@ -1046,6 +1067,12 @@
         if (probe(bestYaw, 3.6) > 0.6) log('jump', { msg: 'hopped an obstacle' });
       }
       keys.Space = bot.jumpT && SIMNOW() - bot.jumpT < 170;
+
+      /* ---------- 6.5 the awakening altar (CAMPAIGN) ---------- */
+      if (bot.ritualWp && q && q.kind === 'ritual' && Math.hypot(bot.ritualWp.x - wolf.pos.x, bot.ritualWp.z - wolf.pos.z) < 3.4 && SIMNOW() - (bot.altarCd || 0) > 1400) {
+        bot.altarCd = SIMNOW();
+        try { doGather(); } catch (e) { }
+      }
 
       /* ---------- 7. strike (prey & rivals) ---------- */
       if (targetAnimal && mode !== 'rival') {

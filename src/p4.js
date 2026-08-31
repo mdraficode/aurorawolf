@@ -2782,6 +2782,7 @@ window.questSize = function (q) {   // the weight of a deed — errand, journey,
   return 'small';
 };
 function refillQuests() {   // a FULL board: every kind of deed the land can offer, always visible
+  if (window.CAMP && window.CAMP.on()) { window.CAMP.refill(); return; }   // CAMPAIGN: the board is the campaign's 3–4 choices
   const BOARD = ['survive', 'hunt', 'explore', 'collect', 'rival', 'hunt', 'collect', 'explore'];
   const dup = q => QUESTS.avail.some(o => o.title === q.title) || QUESTS.active.some(o => o.title === q.title);
   for (const kind of BOARD) {
@@ -2795,10 +2796,13 @@ function refillQuests() {   // a FULL board: every kind of deed the land can off
 }
 function acceptQuest(id) {
   const q0 = (QUESTS.pool || []).find(q2 => q2.id === id); if (q0 && !q0.t0) q0.t0 = performance.now();   // the clock starts at acceptance
-  if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
+  if (window.CAMP && window.CAMP.on()) {   // CAMPAIGN: ONE deed at a time — the rule is fundamental
+    if (QUESTS.active.length >= 1) { toast('📜 One deed at a time — the campaign demands focus'); return; }
+  } else if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
   const i = QUESTS.avail.findIndex(q => q.id === id);
   if (i < 0) return;
   const q = QUESTS.avail.splice(i, 1)[0];
+  if (window.CAMP && window.CAMP.onAccept) window.CAMP.onAccept(q);
   q.acceptedDay = dayCount;
   if (!q.t0) q.t0 = performance.now(); QUESTS.active.push(q);
   audio.uiClick();
@@ -2809,11 +2813,16 @@ function abandonQuest(id) {
   const i = QUESTS.active.findIndex(q => q.id === id);
   if (i < 0) return;
   const q = QUESTS.active.splice(i, 1)[0];
+  if (window.CAMP && window.CAMP.onAbandon) {   // CAMPAIGN: setting a deed aside returns you to the choice board — no XP, same stage
+    if (window.CAMP.onAbandon(q)) { questHudDirty = true; return; }
+  }
   QUESTS.avail.push(q); q.have = q.days ? 0 : q.have;
   toast(`📋 Set aside: ${q.title}`);
   questHudDirty = true; renderQuests();
 }
 function completeQuest(q) {
+  if (q._done) return;   // M46 CAMPAIGN: completion is atomic — exactly once, ever (anti-exploit)
+  q._done = true;
   RUN.quests++;
   if (q.t0) RUN.questTimes.push(+((performance.now() - q.t0) / 1000).toFixed(1));   // accept→complete age, seconds
   if (q.rw && q.rw.perk) RUN.perks.push({ stormborn: '🌩️ Weather-Worn', skywatcher: '⚡ Storm-Touched' }[q.rw.perk] || q.rw.perk);
@@ -2834,14 +2843,15 @@ function completeQuest(q) {
   if (q.rw.ft && q.ftPos) { FAST_TRAVEL.push({ name: q.title.replace('Discover: ', ''), x: q.ftPos.x, z: q.ftPos.z }); toast('🗺️ Fast-travel point unlocked — click it on the big map', true); }
   toast(`✅ Quest complete: ${q.title} · +${q.rw.xp} XP`, true);
   music.fanfare();
-  refillQuests();
-  maybeAwakenBoss(q.biome);
+  if (window.CAMP && window.CAMP.on() && q.camp) window.CAMP.onQuestComplete(q);   // CAMPAIGN: advance the machine, then refill
+  else { refillQuests(); maybeAwakenBoss(q.biome); }   // free deeds (tests, ancients) keep the old board
   questHudDirty = true; renderQuests();
 }
 let caveDaysLock = -1;   // survival quests reset if you den
 function questEvent(kind, data) {
   if (kind === 'kill') { RUN.kills++; if (data && data.species === 'predator') RUN.predators++; }
   for (const q of [...QUESTS.active]) {
+    if (q.camp && window.CAMP && window.CAMP.onEvent && window.CAMP.onEvent(q, kind, data)) continue;   // CAMPAIGN kinds answer first; classic kinds fall through
     if (q.kind === 'hunt' && kind === 'kill' && data.species === q.species) {
       const bk = dominantBiomeAt(data.pos.x, data.pos.z).key;
       if (bk === q.biome || data.species !== 'deer') { q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); } }
@@ -2888,7 +2898,8 @@ function questHudTick() {
     questHudDirty = false;
     const tr = el('questTracker');
     if (tr) {
-      let h = `<div class="qt-line">⭐ Lv ${wolf.level} <b>${wolf.title}</b> · ${wolf.xp | 0}/${wolf.xpNext} XP</div>`;
+      let h = (window.CAMP && window.CAMP.on() && window.CAMP.hud) ? window.CAMP.hud() : '';
+      h += `<div class="qt-line">⭐ Lv ${wolf.level} <b>${wolf.title}</b> · ${wolf.xp | 0}/${wolf.xpNext} XP</div>`;
       for (const q of QUESTS.active) h += `<div class="qt-line">${q.icon} ${q.title} — <b>${q.have}/${q.need}</b></div>`;
       tr.innerHTML = h;
     }
@@ -2972,6 +2983,17 @@ function buildBossModel(def) {
     const built = buildPredator(PREDATORS.bear);
     g = built.group;
     g.traverse(o => { if (o.isMesh && o.material && o.material.color) { o.material = o.material.clone(); o.material.color.setHex(0xe8f0f4); } });
+  } else if (def.modelSp) {
+    // CAMPAIGN legends: the same species as the wild animal, scaled up and crowned
+    let built;
+    if (def.modelSp === 'eagle') built = buildEagle(PREDATORS.eagle).group;
+    else built = buildPredator(PREDATORS[def.modelSp]).group;
+    built.traverse(o => {   // a legend wears its aura
+      if (o.isMesh && o.material && o.material.color && !o.material.emissive) {
+        o.material = o.material.clone(); o.material.emissive = new THREE.Color(def.glow); o.material.emissiveIntensity = 0.16;
+      }
+    });
+    g = built;
   } else {
     const built = buildAnimal(SPECIES.reindeer);
     g = built.group || built;
@@ -2988,9 +3010,9 @@ function buildBossModel(def) {
   return g;
 }
 class Boss {
-  constructor(biomeKey, x, z, isClone) {
+  constructor(biomeKey, x, z, isClone, defOverride) {
     this.biome = biomeKey;
-    this.def = BOSSES[biomeKey];
+    this.def = defOverride || BOSSES[biomeKey];
     this.isClone = !!isClone;
     this.sp = { label: this.def.name, scale: this.def.scale * 0.5, reach: 3.4, icon: this.def.icon };   // sp.scale*0.7 sets bite range for the player
     this.model = buildBossModel(this.def);
@@ -2998,7 +3020,7 @@ class Boss {
     scene.add(this.model);
     this.pos = V3(x, heightAt(x, z), z);
     this.heading = 0;
-    this.hp = isClone ? 8 : this.def.hp;
+    this.hp = isClone ? Math.max(8, Math.round(this.def.hp * 0.32)) : this.def.hp;
     this.maxHp = this.hp;
     this.dead = false;
     this.state = 'stalk';
@@ -3010,6 +3032,7 @@ class Boss {
     this.charging = false;
     this.icePatches = [];
     this.phase = 0;
+    this.alt = 0;           // the eagle legend's sky
     this.chunkKey = ck(Math.floor(x / CHUNK), Math.floor(z / CHUNK));
     const ch = chunks.get(this.chunkKey);
     if (ch) ch.predators.push(this);
@@ -3017,7 +3040,8 @@ class Boss {
       toast(`💀 ${this.def.name} has come!`, true);
       audio.growlVar('aggressive');
       const q = { id: 'boss' + (Math.random() * 1e9 | 0), kind: 'boss', biome: biomeKey, icon: this.def.icon, title: `Legend: ${this.def.name}`,
-        desc: `Defeat ${this.def.name}. Its gift will be yours forever.`, need: 1, have: 0, rw: { xp: 400 }, rwText: `400 XP · ✨ ${this.def.abilityName} — ${this.def.abilityDesc}` };
+        desc: `Defeat ${this.def.name}. Its gift will be yours forever.`, need: 1, have: 0, rw: { xp: this.def.xp || 400 }, rwText: `${this.def.xp || 400} XP · ✨ ${this.def.abilityName} — ${this.def.abilityDesc}` };
+      if (this.def.camp) { q.camp = this.def.camp; q.bossRef = this; q.campStage = 'boss'; }
       if (!q.t0) q.t0 = performance.now(); QUESTS.active.push(q);
       this.quest = q;
       questHudDirty = true;
@@ -3048,9 +3072,10 @@ class Boss {
     if (!this.isClone) {
       this.def.slain = true; this.def.awake = false; this.def.live = false;   // a legend falls but once
       wolf.perks[this.def.ability] = true;
-      addXp(400); RUN.bosses++;
+      addXp(this.def.xp || 400); RUN.bosses++;
       toast(`✨ ${this.def.name} falls — its gift is yours: ${this.def.abilityName} (${this.def.abilityDesc})`, true);
-      if (this.quest) { const i = QUESTS.active.indexOf(this.quest); if (i >= 0) QUESTS.active.splice(i, 1); QUESTS.done.push(this.quest); questsDoneByBiome[this.biome] = (questsDoneByBiome[this.biome] || 0) + 1; questHudDirty = true; }
+      if (this.quest) { const i = QUESTS.active.indexOf(this.quest); if (i >= 0) QUESTS.active.splice(i, 1); if (!this.quest._done) { this.quest._done = true; QUESTS.done.push(this.quest); questsDoneByBiome[this.biome] = (questsDoneByBiome[this.biome] || 0) + 1; } questHudDirty = true; }
+      if (this.def.onSlain) this.def.onSlain(this);   // CAMPAIGN: story, rewards, next Legend
       const bb = el('bossBar'); if (bb) bb.classList.remove('show');
       music.boss = false;
     }
@@ -3070,7 +3095,7 @@ class Boss {
     if (this.dead) return;
     const dx = wolf.pos.x - this.pos.x, dz = wolf.pos.z - this.pos.z;
     const d = Math.hypot(dx, dz);
-    const sp = this.def.speed * (1 + this.phase * 0.14);
+    const sp = this.def.speed * (1 + this.phase * (0.14 + (this.def.fury ? 0.10 : 0)));   // the tiger's fury: faster as it bleeds
     // submerged / burrowed: unhittable, repositions, then strikes
     if (this.subT > 0) {
       this.subT -= dt;
@@ -3099,6 +3124,57 @@ class Boss {
       this.model.position.copy(this.pos); this.model.rotation.y = this.chargeDir;
       return;
     }
+    // the Golden Eagle Legend: airborne — your window is the dive
+    if (this.def.flight) {
+      this.diveT = Math.max(0, (this.diveT || 0) - dt);
+      this.diveCd = Math.max(0, (this.diveCd || 0) - dt);
+      if (this.alt <= 1.35 && this.diveT <= 0) this.alt = Math.min(this.def.cruiseAlt || 13, this.alt + 5 * dt);
+      if (this.diveT > 0) this.alt = Math.max(1.1, this.alt - 17 * dt);
+      const onGround = this.alt <= 1.35;
+      this.invuln = !onGround;                               // only strikeable in the dive window
+      if (this.diveT <= 0 && d < 34 && this.diveCd <= 0) {
+        this.diveT = 1.12; this.diveHit = false; this.divePass = 0;
+        this.diveCd = (this.def.diveGap || 6) - this.phase * 1.1;
+        audio.cry(0.5);
+      }
+      if (this.diveT > 0) {
+        if (onGround) {
+          const dw = Math.hypot(dx, dz) || 1;
+          if (dw < 3.1 && !this.diveHit) { this.diveHit = true; wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon); }
+          this.divePass += dt;
+          this.pos.x += (dx / dw) * this.def.speed * 0.9 * dt;
+          this.pos.z += (dz / dw) * this.def.speed * 0.9 * dt;
+          if (this.divePass > 0.55) this.diveT = 0.01;        // skim past, climb away
+        } else {
+          this.pos.x += Math.sin(this.heading) * this.def.speed * 0.8 * dt;
+          this.pos.z += Math.cos(this.heading) * this.def.speed * 0.8 * dt;
+        }
+      } else {
+        this.circleA = (this.circleA === undefined ? Math.random() * 6.28 : this.circleA + dt * 1.15);
+        this.pos.x = wolf.pos.x + Math.sin(this.circleA) * 11;
+        this.pos.z = wolf.pos.z + Math.cos(this.circleA) * 11;
+      }
+      this.pos.y = heightAt(this.pos.x, this.pos.z) + this.alt;
+      this.model.position.copy(this.pos);
+      this.model.rotation.x = this.diveT > 0 ? 0.5 : -0.06;
+      this.model.rotation.y = Math.atan2(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
+      return;
+    }
+    // the Lion Legend's tactics: pace a ring around the prey, then pounce
+    if (this.tacT > 0) {
+      this.tacT -= dt;
+      this.tacA = (this.tacA === undefined ? Math.random() * 6.28 : this.tacA + dt * 2.1);
+      this.pos.x = wolf.pos.x + Math.sin(this.tacA) * 9;
+      this.pos.z = wolf.pos.z + Math.cos(this.tacA) * 9;
+      this.pos.y = heightAt(this.pos.x, this.pos.z);
+      this.model.position.copy(this.pos); this.model.rotation.y = this.tacA + Math.PI;
+      if (this.tacT <= 0) {                                   // the pounce
+        this.charging = true; this.chargeHit = false; this.chargeT = 0.52;
+        this.chargeDir = Math.atan2(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
+        audio.thud();
+      }
+      return;
+    }
     // approach
     this.heading = Math.atan2(dx, dz);
     if (d > this.sp.reach + 0.6) {
@@ -3106,15 +3182,18 @@ class Boss {
       this.pos.z += Math.cos(this.heading) * sp * dt;
       this.pos.y = heightAt(this.pos.x, this.pos.z);
     } else if (this.atkCd <= 0) {
-      this.atkCd = 1.25 - this.phase * 0.15;
-      wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon);
+      this.atkCd = (this.def.atkGap || 1.25) - this.phase * 0.15;
+      let kbMul = 1;
+      if (this.def.special === 'knockback') { kbMul = 2.6; this.atkCd += 0.3; }   // the Bear Legend throws you
+      wolfTakeDamage(this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1), this.pos, this.def.name, this.def.icon, this.ambushNext ? Math.max(kbMul, 1.7) : kbMul);
+      this.ambushNext = 0;
       audio.growlVar('aggressive');
     }
     this.atkCd -= dt;
     // the special, each legend its own
     this.specT -= dt * (1 + this.phase * 0.3);
     if (this.specT <= 0 && d < 60) {
-      this.specT = this.def.special === 'shadow' ? 7 : 11 - this.phase * 2;
+      this.specT = this.def.special === 'shadow' ? 7 : this.def.special === 'ambush' ? 8 : this.def.special === 'tactics' ? 9 : this.def.special === 'fury' ? 10 : this.def.special === 'echo' ? 8 : this.def.special === 'dive' ? 7 : 11 - this.phase * 2;
       const sp2 = this.def.special;
       if (sp2 === 'summon') {
         for (let i = 0; i < 2; i++) {
@@ -3146,6 +3225,30 @@ class Boss {
         this.pos.y = heightAt(this.pos.x, this.pos.z);
         pool.burst(this.pos, 22, 0x8a6ae2, 1.6, 2.8, 2.4);
         if (this.phase >= 1 && bosses.filter(b => !b.dead && b.isClone).length < 2) bosses.push(new Boss(this.biome, this.pos.x + 2, this.pos.z, true));   // shadows breed shadows
+      } else if (sp2 === 'ambush') {   // LEOPARD: gone, then at your flank in a breath
+        pool.burst(this.pos, 18, 0xcfe0ee, 1.5, 2.5, 2.2);
+        const back = wolf.yaw + Math.PI + (Math.random() < 0.5 ? 0.55 : -0.55);
+        this.pos.x = wolf.pos.x + Math.sin(back) * 6.5; this.pos.z = wolf.pos.z + Math.cos(back) * 6.5;
+        this.pos.y = heightAt(this.pos.x, this.pos.z);
+        this.ambushNext = 1;
+        pool.burst(this.pos, 14, 0xd8ecf8, 1.3, 2.1, 1.9);
+        audio.cry(0.3);
+      } else if (sp2 === 'fury') {     // TIGER: a lunge across the clearing
+        this.charging = true; this.chargeHit = false; this.chargeT = 0.62;
+        this.chargeDir = Math.atan2(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
+        pool.burst(this.pos, 12, 0xc2a273, 1.2, 2, 1.8);
+        audio.thud();
+      } else if (sp2 === 'tactics') {  // LION: mark the ring…
+        this.tacT = 2.4;
+        pool.burst(this.pos, 10, 0xe6cf9a, 1.2, 2, 1.6);
+        audio.growlVar('warning');
+      } else if (sp2 === 'echo') {     // BEAST MASTER: the dark gives back your own
+        pool.burst(this.pos, 26, 0xff5040, 1.9, 3.1, 2.7);
+        const a = Math.random() * 6.28;
+        this.pos.x = wolf.pos.x + Math.sin(a) * 12; this.pos.z = wolf.pos.z + Math.cos(a) * 12;
+        this.pos.y = heightAt(this.pos.x, this.pos.z);
+        pool.burst(this.pos, 20, 0xff8a70, 1.5, 2.6, 2.3);
+        if (this.phase >= 1 && bosses.filter(b => !b.dead && b.isClone).length < 3) bosses.push(new Boss(this.biome, this.pos.x + 3, this.pos.z, true, this.def));
       }
     }
     // fade ice patches
@@ -3404,17 +3507,18 @@ function wolfDie(label, icon) {
   if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… you wake far away — every level lost, back to 0.</span>`; ov.classList.add('show'); }
   vignetteA = 0.9;
 }
-function wolfTakeDamage(dmg, fromPos, label, icon) {
+function wolfTakeDamage(dmg, fromPos, label, icon, kbMul) {
   if (state !== 'play' || wolf.deadT > 0 || wolf.invulnT > 0 || wolf.flyT > 0) return;
   wolf.hp -= dmg * wolfDamageMul();   // an experienced wolf stiffens against the blow
   wolf.lastHurt = tSec;
   wolf.invulnT = 0.6;
   vignetteA = Math.min(0.85, vignetteA + 0.45);
   audio.thud();
-  // knocked back a step
+  // knocked back a step (kbMul: the Bear Legend and pals throw the wolf for real)
+  const kb = Math.max(0.4, kbMul || 1);
   const dx = wolf.pos.x - fromPos.x, dz = wolf.pos.z - fromPos.z;
   const l = Math.hypot(dx, dz) || 1;
-  const nx = wolf.pos.x + dx / l * 1.1, nz = wolf.pos.z + dz / l * 1.1;
+  const nx = wolf.pos.x + dx / l * 1.1 * kb, nz = wolf.pos.z + dz / l * 1.1 * kb;
   if (heightAt(nx, nz) > WATER_Y + 0.2) { wolf.pos.x = nx; wolf.pos.z = nz; }
   if (wolf.hp <= 0) wolfDie(`the ${label || 'wild'}`, icon);
 }
@@ -3431,6 +3535,7 @@ function wolfRespawn() {
   wolf.pos.x = rx; wolf.pos.z = rz; wolf.pos.y = heightAt(rx, rz) + 0.2;
   wolf.level = 0; wolf.xp = 0; wolf.xpNext = xpNeed(0);   // death takes everything earned — the record stands, the wolf restarts
   window.RUN = window.freshRun();   // and a new run begins
+  if (window.CAMP && window.CAMP.onDeath) window.CAMP.onDeath();   // CAMPAIGN: the deed returns to the board — progression, XP and the timer stand (no timer exploit)
   recalcWolfLevel();
   wolf.hp = wolf.maxHp;
   wolf.invulnT = 3;
@@ -3568,6 +3673,8 @@ window.questGuide = function () {
           const fb = window.__qgCache.pt;
           if (fb) c = { x: fb.x, z: fb.z, d: dist2(fb.x, fb.z), label: q.title, kind: 'biome' };
         }
+      } else if (q.wp) {   // CAMPAIGN: the machine hands the guide a point (altar, scout, travel…)
+        c = { x: q.wp.x, z: q.wp.z, d: dist2(q.wp.x, q.wp.z), label: q.title, kind: 'wp' };
       } else if (q.kind === 'collect' && q.item) {
         for (const [, ch] of chunks) for (const pk of ch.pickups) {
           if (pk.gathered) continue;
@@ -3599,6 +3706,19 @@ window.questGuide = function () {
 function drawMapOverlays(ctx, S, range, opts) {
   const half = S / 2;
   const toMap = (wx, wz) => [half + (wx - wolf.pos.x) / (range * 2) * S, half + (wz - wolf.pos.z) / (range * 2) * S];
+  // CAMPAIGN: the legend's ground (ring) and the awakening altar (gold pulse)
+  if (window.CAMP && window.CAMP.mapMarks) for (const m of window.CAMP.mapMarks()) {
+    const [mx, my] = toMap(m.x, m.z);
+    if (Math.abs(mx - half) > half + 40 || Math.abs(my - half) > half + 40) continue;
+    if (m.ring) {
+      ctx.strokeStyle = m.color; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(mx, my, Math.max(6, m.ring / (range * 2) * S), 0, 6.29); ctx.stroke();
+    }
+    const pulse = 4 + Math.sin(tSec * 3) * 1.2;
+    ctx.strokeStyle = m.color; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.arc(mx, my, pulse + 2.5, 0, 6.29); ctx.stroke();
+    ctx.fillStyle = m.color; ctx.beginPath(); ctx.arc(mx, my, 2.6, 0, 6.29); ctx.fill();
+  }
   // ---- quest waypoint: where the deed calls you ----
   for (const q of QUESTS.active) {
     if (q.kind !== 'explore' || !q.lmType) continue;
@@ -4106,6 +4226,7 @@ function showOverlay(mode) {
     ui.ovTitle.textContent = 'REVONTULET';
     ui.ovBody.innerHTML = document.getElementById('tplStart').innerHTML;
     if (window.updateRunRecap) window.updateRunRecap();   // the chronicle greets you on the start page
+    if (window.CAMP && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();   // CAMPAIGN: name prompt + trophies wiring
   } else if (mode === 'pause') {
     ui.ovTitle.textContent = 'PAUSED';
     ui.ovBody.innerHTML = document.getElementById('tplPause').innerHTML;
@@ -4132,10 +4253,10 @@ function hideOverlay() { ui.overlay.classList.add('hidden'); }
 let state = 'boot';
 function setState(s) {
   state = s;
-  if (s === 'play') { hideOverlay(); ui.hud.classList.remove('hidden'); }
+  if (s === 'play') { hideOverlay(); ui.hud.classList.remove('hidden'); if (window.CAMP && window.CAMP.onResume) window.CAMP.onResume(); }
   else {
     if (typeof toggleQuestLog === 'function') toggleQuestLog(false);
-    if (s === 'pause') { showOverlay('pause'); inputClear(); }
+    if (s === 'pause') { showOverlay('pause'); inputClear(); if (window.CAMP && window.CAMP.onPause) window.CAMP.onPause(); }
   }
 }
 function enterLandscape() {
@@ -4180,6 +4301,8 @@ function nearWaterEdge() {
   return false;
 }
 function doGather() {
+  // CAMPAIGN: the awakening altar — channel the ritual with the same interact key (it outranks nearby pickups)
+  if (window.CAMP && window.CAMP.ritualReady()) { window.CAMP.useAltar(); return; }
   const p = nearestPickup();
   if (p) { gather(p); return; }
   if (drinkCd <= 0 && !wolf.swimming && wolf.grounded && wolf.flyT <= 0 && nearWaterEdge()) {
@@ -4732,7 +4855,7 @@ function tick() {
   if (caveState.in) caveTick(dt);
   updateSeasons();
   if (!caveState.in) updateEco(dt);
-  if (running) { bossTick(dt); spiritTick(rdt); questTick(dt); }
+  if (running) { bossTick(dt); spiritTick(rdt); questTick(dt); if (window.CAMP && window.CAMP.tick) window.CAMP.tick(dt); }
   updateEnvironment(dt);
   if (audio.ready && audio.fireG) {
     const f = WORLD_EVENTS.fireAt;

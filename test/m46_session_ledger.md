@@ -41,3 +41,9 @@ Update mid-session:
 - Chain reset (traitchamp deleted) — old 225 state was inverted-sense-era; trait restarts from zero rows.
 - Sense-18 polarity fix COMMITTED 8fed10e (proximity encoding). Champion unaffected.
 - Next: soften trait σ → re-run GEN 33 (fresh) → 34-36 → Phase 3 (crown bar question open: 283 vs env-median 131).
+
+## CAMPAIGN LANDED (progress-quest update, between M46 sessions)
+- 2026-08-31 — Major gameplay update built & verified while M46 training stays paused.
+- `test/campaign.test.mjs` 26/26 PASS (board 3-4 choices, one-active rule, q0→q1→prep→awaken→ritual→boss→legend→Beast Master→TROPHY tier 1→tier 2, atomic XP, stash: no reaccept farm, no double trophy, timer laws, death keeps progression, reload persistence).
+- Regression: quest.test PASS, combat.test PASS, gather/ecosystem/mystic PASS (chain exit 0); 18-test loop 14 PASS in-suite, 4 flakes (landscape/events/hunt/audio) all PASS standalone — same load-flake class as the noted audio/collision flakes.
+- Fixes found by the campaign suite: legacy board collision (`arm()`), E-key pickup hijacking the altar (`ritualReady()` outranks pickups), legend boss never registered in `bosses` (`useAltar` push), timer drift under pause (`elapsed()` minus live pause).
