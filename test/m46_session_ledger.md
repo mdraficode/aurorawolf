@@ -65,3 +65,32 @@ Update mid-session:
 - 2026-08-31 — BUG 1: TROPHIES → BACK re-injects the start template with btnStart disabled ("SUMMONING THE WILD…" / bootLine "Growing the forest…"); the enable-code ran only in the one-time boot transition → dead start page. FIX: extracted `menuReady()` (enable button, ENTER THE WILD, bootLine, runRecap) — called by the boot transition AND by `showOverlay('start')` when state==='menu'. Menu test `test/menu.test.mjs` (repro'd first: stuck disabled) → PASS; added to npm test loop.
 - BUG 2: arch action buttons (✋⬆️⚡🐾🐺👃) text ink 6–8px past the circle (fixed 18–23px emoji + labels in 40–46px circles); heart badge "100%" +2.4px past. FIX: scaled fonts (46px: 14px icon / 6.5px label; touch 40px: 12.5px / 6px; labels nowrap; attack kept) + `overflow:hidden` clip guard on .tbtn/#tPause (clips to the circle on any device whose emoji font renders wider); #icoHp % 10.5→8.5px. `test/hudfit.test.mjs` measures ink-vs-inscribed-circle across phone-portrait/small-landscape/desktop → ALL FIT (-0.6..-18.9px margins); added to npm test loop.
 - Suite: 20/21 in-loop PASS + gather/eco/mystic EXIT=0; collision in-loop FAIL = pre-existing load flake — PROVEN by running the PREVIOUS build (f3dc2c0:index.html) under the same conditions: identical 2/3 fail pattern, differing line each run. menu/hudfit/campaign standalone PASS.
+
+## 🏆 LAW v4 — THE TROPHY LAW (un-pause, trainer's new core rule, 2026-08-31)
+User: "generation success = the upper TIER TROPHIES; TRUE success = how fast the HIGHEST tier is
+achieved and how EFFICIENTLY." Training now measures the CAMPAIGN, not kills.
+- ARCHITECTURE: 20 → 24 senses (316 weights). New senses: 20 through-tier progress (legs+stage,
+  0..1), 21 tier ladder (tier/5), 22 current deed meter (have/need), 23 tier clock (wall-s, par 600).
+  Sense 18 bear-PROXIMITY + 19 sky-threat kept. Old 276-weight champion archived
+  (rafzzer_champion_lawv3_archive.json) — brain re-seeded to wild seed 20070 (316 w) in-page + harness.
+- FITNESS (single law, in-page `fitness()` = harness): trophies 1200·2.5^(tier−1) EACH; top-tier best
+  record time (1000−min)·0.6·2.5^(topTier−1); road gradient 220·prog·2.5^(tier−1) + 60·bosses;
+  efficiency −clock·0.03·2.5^(tier−1) − 0.012·durS; small keeps (xp/min·0.5, quests·3, xp·0.04,
+  level·1.5, kills·1); death pen ×(1+0.6·(tier−1)); stuck/loop penalties unchanged.
+- SENSES/NEUTRAL CODING: campProbe() (single CAMP.state source), CAMP.clock exported (p5),
+  herbal prep deeds now route AND score on herb/mushroom pickups (was meat-scored, no routing),
+  objective picker handles collect|herbal via wantOk().
+- HARNESS: rafzzer_gens.mjs NI/NW 24/316, trait rows 180..239 (bear+sky+campaign rows), polls +
+  run reports carry `camp`/`trophy` snapshot (tier, trophies, topTier, topTime, clock), spawn
+  auto-archives + re-seeds champion on architecture change. m46_gen.sh/m46_step.sh: cadence
+  global×2 → trait×2 → traitglobal×2, RUN_CAP default 900 s wall (~2700 sim-s @ rate3 — one tier
+  needs the long road).
+- CROWN BAR: the old 283 is obsolete (new scale); promote stays human-gated (gate PASS + fitness
+  > champion), the trainer reads trophy/topTime/clock in each run report. The howl/pack system is
+  part of the world: the bot howls every 90-180 s, packs may bond/attack — luck that can speed or
+  end a generation (accepted: it's the shipped game).
+
+| gen | mode | gate | outcome | fit | tier | trophies | topT | clock | notes |
+|-----|------|------|---------|-----|------|----------|------|-------|-------|
+| 34 | global | PASS (1st) | SURVIVED(cap) | 25 | 1 | 0 | — | 902 | FIRST LAW-v4 gen (wild-mind re-seed). L7 · 1122xp · 31.2xp/min · 226s avg quest · walked q0→q1→prep→awaken, ritual accepted at cap · 0 warns 0 errs · PROMOTED → champion (fit 25) |
+| 35 | global | … | … | … | … | … | … | … | base = GEN 34 (global×2 → trait×2 → traitglobal×2 cadence) |

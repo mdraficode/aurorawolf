@@ -10,7 +10,7 @@
    that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1. */
 (function () {
   const URL_ON = /[?&]autopilot=1/.test(location.search);
-  window.RAFZZER_SEED = [-0.4275, -0.5621, 0.3544, 0.0937, 0.1233, -0.0392, 0.225, -0.1682, -0.4771, 0.1247, 0.3347, 0.1592, 0.072, -0.327, -0.2189, 0.1688, 0.1704, -0.0449, 0.1319, 0.0071, -0.068, -0.3689, 0.7677, 0.4352, -0.1013, -0.3401, 0.6516, -0.119, 0.3584, 0.5204, 0.3895, 0.0574, -0.3805, 0.2048, 0.2275, 0.2447, -0.3806, -0.367, 0.15, 0.03, 0.2712, -0.2437, 0.812, 0.7585, 0.1496, -0.2585, -0.1197, 0.2902, -0.2292, -0.1125, -0.3817, 0.51, -0.1273, 0.1735, -0.6642, 0.7167, 0.0844, 0.2185, 0.2623, -0.7994, 0.324, -0.1826, -0.3134, 0.1041, 0.2952, -0.2811, -0.5011, -0.0523, -0.2643, 0.2403, 0.2959, 1.1479, -0.0084, 0.1906, 0.2284, 0.0609, 0.1058, -0.113, -0.0632, 0.3524, 0.3339, 0.5088, -0.4354, 0.0909, -0.5425, 0.3696, 0.4913, -0.5636, 0.1206, 0.081, 0.0955, -0.5546, -0.3483, -0.6543, -0.5792, 0.5498, -0.2714, -0.1454, 0.4709, -0.4027, 0.5627, -0.6885, 0.2653, 0.1655, 0.4135, -0.5718, 0.2635, -0.285, 0.1458, -0.0457, 0.4714, 0.5489, 0.0896, 0.06, 0.109, 0.2939, -0.2464, -0.1812, 0.5143, 0.1813, 0.3312, -1.1187, -0.073, -0.059, -0.3915, -0.6037, 0.0131, 0.283, -0.3432, -0.1549, 0.6349, 0.302, -0.2537, -0.4975, -0.4685, 0.244, -0.384, 0.1435, 0.3505, 0.0189, 0.4478, 0.182, -0.6263, -0.0281, 0.0019, 0.0581, 0.5331, -0.201, -0.0167, 0.3879, -0.2461, -0.5454, 0.0221, -0.2978, -0.312, 0.3038, 0.4282, -0.3542, 0.2503, 0.4884, 0.1741, 0.3236, 0.3636, 0.4144, 0.0595, 0.4054, 0.1336, 0.4986, 0.1905, 0.308, -0.8774, -0.4744, 0.7997, -0.6927, -0.0452, 0.0672, 0.1553, 0.2218, -0.2398, 0.6635, 0, -0.2442, 0.0011, 0.0501, 0.1706, 0.684, -0.1054, 0.1545, 0.5467, 0, 0.2187, -0.3672, 0.3153, 0.2493, 0.2983, 0.2756, -0.362, 0.0992, 0.1834, -0.3045, -0.1546, -0.1377, 0.3166, -0.0706, -0.1017, 0.1698, -0.3049, -0.2573, -0.2422, 0.9128, -0.9293, -0.3168, -0.2908, -0.6962, 0.2723, 0.3899, -0.1078, 0.6351, -0.2546, -0.2625, 0.0701, -0.24, -0.1438, 0.2042, -0.12, 1.2427, 0.0976, 0.6959, 0.3604, -0.0997, -0.4476, -0.1074, 0.5036, -0.5659, -0.0206, -0.0431, -0.6678, 0.2697, -0.1028, 0.8447, 0.0871, 0.0638, 0.3363, -0.1559, 0.1791, -0.4211, 0.3456, 0.5136, -0.1436, 0.1861, -0.3524, 0.4064, -0.0854, 0.7326, -1.1194, -0.4266];   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
+  window.RAFZZER_SEED = [0.0234,-0.5621,0.4874,0.6369,0.1669,0.3710,0.2250,-0.1630,-0.4771,0.1247,0.3347,0.1592,1.1324,-0.3270,-0.0719,0.1688,0.1704,-0.2587,0.1319,-0.0261,-0.0932,-0.3689,0.7677,0.4295,-0.1013,-0.1660,0.6516,-0.1190,0.1782,0.6965,0.0414,0.0574,-0.2697,0.0026,0.2275,0.2447,0.0218,-0.3459,0.1511,-0.0260,0.1172,-0.2437,0.8120,-0.1727,0.1496,-0.2585,-0.0010,0.2902,0.1305,-0.2601,-0.1165,0.5100,-0.3546,0.1033,0.1996,0.7167,0.0844,0.2185,0.2309,-0.8122,0.4198,-0.7888,-0.0726,0.1041,0.6261,-0.5373,-0.4313,-0.0523,-0.2643,0.2403,0.2959,-0.0621,-0.0084,0.5432,0.2284,0.0606,0.1058,-0.1130,0.1410,0.3524,0.3378,0.2277,-0.4354,0.0909,-0.5425,0.3781,0.5307,0.0248,0.1206,0.0810,-0.0391,-0.6601,-0.3483,-0.6543,-0.6308,0.6237,-0.2714,-0.1454,0.4709,-0.4027,0.4038,-0.6885,0.2765,0.1655,0.0855,-0.5718,0.2635,-0.2850,0.1458,-0.0457,0.4714,0.1289,0.0896,0.1290,0.1090,0.2939,-0.1423,0.0308,0.5143,0.1813,0.3823,-0.9089,-0.0177,0.7681,-0.3915,0.1884,-0.1664,0.2830,-0.2703,-0.1549,0.6349,0.3020,-0.2537,-0.4975,-0.4685,0.2440,-0.3840,0.1435,0.3505,0.0189,0.4478,0.1418,-0.3464,0.4441,0.0019,-0.1113,0.4427,-0.2581,-0.2510,0.3879,-0.4745,-0.3063,0.0221,0.1360,-0.3120,0.2218,0.2008,-0.3542,-0.0697,-0.1130,0.1741,0.3236,0.3391,0.4144,0.0595,0.3413,0.1899,0.4986,0.0764,0.3310,-0.8774,-0.4744,0.7997,-0.2007,0.0401,0.0619,0.1553,0.2630,-0.2398,0.0586,0.1847,-0.3100,0.1579,-0.2572,0.2519,0.1735,-0.3057,0.0837,0.1766,-0.2572,-0.1305,-0.0525,0.2673,-0.0153,-0.1829,0.3615,-0.2330,-0.2173,-0.2046,0.6633,-0.1308,-0.2675,-0.2456,-0.6664,-0.5133,0.2025,-0.0114,0.5363,0.0133,-0.0664,0.0592,-0.3889,-0.1544,0.1725,0.2479,1.0494,0.1634,0.5876,0.3043,0.1107,-0.3780,-0.0907,0.4253,0.1973,-0.0174,-0.0364,-0.6411,0.0699,-0.0868,0.7133,0.7998,0.2525,0.2840,-0.1488,0.1123,-0.0531,0.3306,0.4337,-0.0737,0.1571,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,-0.6925,0.0542,0.0859,0.6342,-0.8360,-0.4266,-0.6151,-0.4088,-1.0398,-0.3954,-0.3039,-0.2527,-0.3186,-0.4549,0.5306,-0.7392,-0.3871,-0.0353,-0.6873,-0.1391,-0.3349,-0.4804,0.2859,0.2231,0.5640,-0.4285,-0.4295,0.7369,-0.3899,0.6057,0.6709,0.2712,0.0826,0.6131,-0.5638,0.5733,-0.5669,0.2608,-0.3220,-0.2185,1.0300,0.3593,0.2050,0.2064,-0.0268,-0.0498,0.7662,-1.2373,-0.2882,-0.2788,-0.3750,-0.3401,-0.4301,0.3875,-0.8657,-0.6018,0.0501,0.2768,0.1230,0.5261,-0.0059,0.7503,0.6658,-0.3090,-0.6752,0.1582];   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
 
   /* ---------------- sim boost (?speed=N&rate=R, special builds only) ----------------
      Software GL renders at ~2-3 fps here and dt clamps at 0.05 → the sim crawls at
@@ -68,14 +68,17 @@
   };
 
   /* ============ 🧠 RAFZZER v1.0 — the neural cortex (generational) ============
-     20 senses → 10 tanh → 6 urges, ALL clamped before the brainstem ever sees them:
+     24 senses → 10 tanh → 6 urges, ALL clamped before the brainstem ever sees them:
      a mutant can be brave or cowardly, patient or rash — never suicidal or inert.
      SAFK (safe knobs) ≈ v7.20 baseline: with the cortex dreaming, the wolf still
      plays the proven game. fitness() is the single scoring law, identical in-page
      and in the harness, so no generation can be judged by two different rulers.
-     M46 · GEN 27+ two senses appended (bear-sense, sky-threat) — see sense(). */
+     M46 · LAW v4 (TROPHY LAW, 2026-08-31, trainer's core rule): a generation earns
+     its keep on TIER TROPHIES — highest tier, fastest top-tier time, most efficient
+     road (time/stalls). Senses 20-23 append the campaign cortex (progress, tier,
+     deed meter, tier clock); senses 18-19 remain bear-proximity / sky-threat. */
   const RAFZ = window.RAFZZER = (() => {
-    const NI = 20, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;
+    const NI = 24, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     const mul32 = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
     const gauss = (rnd, sd) => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283185307179586 * v) * sd; };
@@ -89,8 +92,25 @@
     if (!S.weights) S.weights = (window.RAFZZER_SEED && window.RAFZZER_SEED.length === NW) ? window.RAFZZER_SEED.slice() : fresh();
     const SAFK = { aggression: 0.5, flee: 0.5, bossEngage: 0.6, restAt: 0.62, drinkAt: 24, yieldR: 26, stalkGive: 8, commitStam: 28, sprintRes: 55, fearMul: 0.95 };
     const K = Object.assign({}, SAFK);
+    /* ---- LAW v4 · campaign probe: the trophy machine's live state (one source, in-page law + senses) ---- */
+    const NLEG = (() => { try { return (typeof LEGENDS !== 'undefined' ? LEGENDS.length : 5) + 1; } catch (e) { return 6; } })();   // 5 legends + the Beast Master
+    const campProbe = () => {
+      const C = (window.CAMP && window.CAMP.state) ? window.CAMP.state() : null;
+      if (!C) return { on: false, tier: 1, leg: 0, stage: 'q0', prepDone: 0, trophies: [], topTier: 0, topTimes: [], prog: 0, clock: 0 };
+      const trophies = (C.trophies || []);
+      const topTier = trophies.length ? Math.max(...trophies.map(t => t.tier | 0)) : 0;
+      const topTimes = trophies.filter(t => (t.tier | 0) === topTier).map(t => +t.time || 0);
+      const stF = ({ q0: 0, q1: 0.25, prep: 0.4, awaken: 0.62, boss: 0.8 })[C.stage] || 0;
+      const prepF = C.stage === 'prep' ? Math.min(0.24, 0.08 * (C.prepDone | 0)) : 0;   // prepNeed ≤ 3 ⇒ ≤ 0.24
+      const prog = Math.min(1, ((C.leg | 0) + stF + prepF) / NLEG);
+      let clock = 0; try { clock = (window.CAMP && CAMP.clock) ? CAMP.clock() : 0; } catch (e) { }
+      return { on: true, tier: Math.max(1, C.tier | 0), leg: C.leg | 0, stage: C.stage, prepDone: C.prepDone | 0, trophies, topTier, topTimes, prog, clock };
+    };
     const sense = ctx => {
       const p = ctx.pred && ctx.pred.a, r = (typeof nearestRival === 'function' && nearestRival()) || { d: 999 };
+      const CP = campProbe();
+      let deedP = 0;
+      try { const qa = (typeof QUESTS !== 'undefined' && QUESTS.active && QUESTS.active[0]) || null; if (qa && qa.camp && qa.need) deedP = clamp((qa.have || 0) / qa.need, 0, 1); } catch (e) { }
       let preyD = 999, preyMeat = 0;
       try { const a = nearestAnimal(an => !an.dead && an.sp && an.sp.meat > 0 && !(bot.preyShun && an.sp.label === bot.preyShun.label)); if (a) { preyD = Math.hypot(a.pos.x - wolf.pos.x, a.pos.z - wolf.pos.z); preyMeat = a.sp.meat; } } catch (e) { }
       // M46 · GEN 27+ (bear-aware scar, born from the eagle-dive evasions): the old
@@ -125,7 +145,12 @@
         clamp(1 - bearD / 80, 0, 1),  // 18 · ursine PROXIMITY (1 = bear at your paws, 0 = none) — M46 BUGFIX: was bearD/80,
                                       //     which fed "no bear for 80m" as a constant 1.0 → hidden-layer bias → saturated
                                       //     outputs → livingMind gate-strikes (GEN 28a3/29a1/33a1-2 evidence)
-        skyT                          // 19 · graded sky-threat (eagle dive/chase/soar; 0 = no eagle)
+        skyT,                         // 19 · graded sky-threat (eagle dive/chase/soar; 0 = no eagle)
+        // ---- LAW v4 · the four campaign senses (20-23): the trophy machine, in the cortex's view ----
+        CP.prog,                      // 20 · through-tier progress 0..1 — legends slain + stage (q0 0 → trophy 1)
+        clamp((CP.tier - 1) / 4, 0, 1),   // 21 · the ladder: tier 1..5 (higher tier = bigger prize, harsher wild)
+        deedP,                        // 22 · the CURRENT deed's meter (have/need, 0 = no deed on the board)
+        clamp(CP.clock / 600, 0, 2)   // 23 · the tier clock (wall-s since the tier began; 600 s = par)
       ];
     };
     const think = ctx => {
@@ -156,25 +181,35 @@
       } catch (e) { Object.assign(K, SAFK); return K; }   // the brainstem never dies for the cortex's dreams
     };
     const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag|eagle/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
-    const fitness = () => {   // the one law of this lineage
+    const fitness = () => {   // LAW v4 · THE TROPHY LAW (single scoring law, 2026-08-31 — trainer's core rule):
+      //   "generation success = the upper-tier TIER TROPHIES; TRUE success = how fast
+      //    the highest tier is achieved and how EFFICIENTLY." So the law is:
+      //      (1) TROPHIES dominate — exponential in tier (every trophy counts; higher tiers crush lower);
+      //      (2) SPEED at the top tier — the faster the trophy's record time, the more honour;
+      //      (3) THE ROAD — progress within the current tier is the gradient for runs that
+      //          haven't closed the cycle yet (plus legend kills), so evolution never flies blind;
+      //      (4) EFFICIENCY — the tier clock and sim time cost, and the wolf pays only for its
+      //          own misbehaviour (stuck/loops); deaths end the run and pay a tier-scaled pen.
       const R = window.RUN || {};
-      const cls = classify(R.cause);
-      const pen = { fight: 120, water: 200, neglect: 90, unknown: 60 }[cls] || 60;
       const BN = window.BOTN || {};
-      // AMENDED LAW (between GEN 2 and GEN 3): the wolf pays ONLY for its own
-      // misbehavior — stuck 8/event, circling loops 15/event. Game-bug detections
-      // (bug-quest-stalled, bug-bite-no-effect…) are the WORLD's failures: they go
-      // to the bug-hunt ledger, never against the lineage.
+      const CP = campProbe();
+      const cls = classify(R.cause);
+      const pen = ({ fight: 120, water: 200, neglect: 90, unknown: 60 }[cls] || 60) * (1 + 0.6 * (CP.tier - 1));
       const stall = 8 * (BN['stuck'] || 0) + 15 * (BN['bug-bot-loop'] || 0);
-      // LAW v3 (from GEN 7): the trainer's three honors — fastest quests, most XP per
-      // minute, longest survival. durS falls back to the boost tick-clock for living wolves.
       const durS = Math.max(1, R.dur || ((window.__boost && __boost.ticks) ? __boost.ticks * 0.05 : (performance.now() - (R.t0 || performance.now())) / 1000));
-      const xpRate = (R.xp || 0) * 60 / durS;                       // XP per sim-minute
-      const questRate = (R.quests || 0) * 60 / durS;                // quests per sim-minute
-      let qFast = 0; try {   // FASTEST-QUEST honor: each accept→complete age under 90 wall-s (≈120 sim-s) earns up to +15
-        for (const age of (R.questTimes || [])) qFast += Math.min(60, Math.max(0, 90 - age)) * 0.25;
-      } catch (e) { }
-      return Math.round(14 * (R.maxLevel || 0) + 0.05 * (R.xp || 0) + 1 * (R.kills || 0) + 2.5 * (R.predators || 0) + 4 * (R.quests || 0) + 5 * (R.landmarks || 0) + 60 * (R.bosses || 0) + 0.08 * durS + 0.5 * Math.min(xpRate, 240) + 60 * Math.min(questRate, 1.5) + qFast - pen - stall);
+      let f = 0;
+      // (1) THE TROPHIES — the one thing that decides a generation
+      for (const t of CP.trophies) f += 1200 * Math.pow(2.5, Math.max(0, (t.tier | 0) - 1));
+      // (2) SPEED at the top tier (best record time of the highest tier achieved)
+      if (CP.topTimes.length) f += Math.max(0, 1000 - Math.min(...CP.topTimes)) * 0.6 * Math.pow(2.5, Math.max(0, CP.topTier - 1));
+      // (3) THE ROAD — the gradient: tier progress + the legends felled
+      f += 220 * CP.prog * Math.pow(2.5, CP.tier - 1) + 60 * (R.bosses || 0);
+      // (4) EFFICIENCY — every second of the road costs; mistakes cost more than time
+      f -= CP.clock * 0.03 * Math.pow(2.5, CP.tier - 1) + 0.012 * durS;
+      // small keeps (they feed the campaign's XP gates — never allowed to decide a generation)
+      const xpRate = (R.xp || 0) * 60 / durS;
+      f += 0.5 * Math.min(xpRate, 240) + 3 * (R.quests || 0) + 0.04 * (R.xp || 0) + 1.5 * (R.maxLevel || 0) + 1 * (R.kills || 0);
+      return Math.round(f - pen - stall);
     };
     const die = ctx => {
       try {
@@ -448,8 +483,12 @@
       s = wolf.hp > wolf.maxHp * 0.8 && wolf.level >= 1 ? 3.4 : 0.35;   // strong wolves take the fight
     } else if (q.kind === 'xp') {
       s = 4.6;   // earns itself — the wolf just keeps living well
-    } else if (q.kind === 'harvest' || q.kind === 'herbal') {
+    } else if (q.kind === 'harvest') {
       s = nearestAnimal(an => !an.dead && an.sp && an.sp.meat > 0).d < 240 ? 3.2 : 1.6;
+    } else if (q.kind === 'herbal') {
+      // herbal prep deeds are GATHER deeds (herb or mushroom) — score on supply, like collect
+      const sup = (typeof pickupSupply === 'function' ? pickupSupply('herb') + pickupSupply('mushroom') : 1e9);
+      s = sup >= (q.need || 1) ? (nearestPk('herb').d < 120 || nearestPk('mushroom').d < 120 ? 3.6 : 1.5) : 0.3;
     } else if (q.kind === 'scout' || q.kind === 'ritual' || q.kind === 'travel') {
       const d = q.wp ? Math.hypot(q.wp.x - wolf.pos.x, q.wp.z - wolf.pos.z) : 400;
       s = d < 320 ? 3.4 : 1.2;
@@ -762,14 +801,17 @@
             const t2 = bot.travStick && bot.travStick.qid === cq.id && SIMNOW() < bot.travStick.until ? bot.travStick.pt : bot.travelToBiome(cq.biome);
             if (t2 && (bestD === 1e9 || t2.d + 120 < bestD)) { bestD = t2.d + 120; q = cq; goal = t2; mode = 'travel'; if (!(bot.travStick && bot.travStick.qid === cq.id && SIMNOW() < bot.travStick.until)) bot.travStick = { qid: cq.id, pt: t2, until: SIMNOW() + 25000 }; }
           }
-        } else if (cq.kind === 'collect') {
-          // pick the nearest REACHABLE pickup — some lie across water or behind cliffs
+        } else if (cq.kind === 'collect' || cq.kind === 'herbal') {
+          // pick the nearest REACHABLE pickup — some lie across water or behind cliffs.
+          // herbal (campaign prep) accepts either herb or mushroom, like the deed itself does.
+          const wantInv = cq.kind === 'herbal' ? null : cq.item;
+          const wantOk = def2 => def2 ? (wantInv ? def2.inv === wantInv : (def2.inv === 'herb' || def2.inv === 'mushroom')) : false;
           if (!bot.pkBlack) bot.pkBlack = new Set();
           if (bot.pkBlack.size > 40) bot.pkBlack.clear();
           let hit = null;
           if (bot.gatherStick && SIMNOW() - (bot.gatherStick.at || 0) < 40000) {
             const p = bot.gatherStick.p, def2 = PICKUP_DEF[p.type];
-            if (p && !p.gathered && def2 && def2.inv === cq.item && !bot.pkBlack.has(p)) hit = { p, d: Math.hypot(p.x - wolf.pos.x, p.z - wolf.pos.z) };
+            if (p && !p.gathered && wantOk(def2) && !bot.pkBlack.has(p)) hit = { p, d: Math.hypot(p.x - wolf.pos.x, p.z - wolf.pos.z) };
             else bot.gatherStick = null;
           }
           if (!hit) {
@@ -777,7 +819,7 @@
             for (const [, ch2] of chunks) for (const p of ch2.pickups) {
               if (p.gathered || bot.pkBlack.has(p)) continue;
               const def2 = PICKUP_DEF[p.type];
-              if (!def2 || def2.inv !== cq.item) continue;
+              if (!wantOk(def2)) continue;
               const d = Math.hypot(p.x - wolf.pos.x, p.z - wolf.pos.z);
               if (d < 240) cands.push({ p, d }); else if (d < 640) cands2.push({ p, d });
             }
@@ -797,7 +839,7 @@
           }
           if (hit) bot.gatherStick = { p: hit.p, at: SIMNOW() };
           if (hit.p && hit.d < bestD) { bestD = hit.d; q = cq; goal = { x: hit.p.x, z: hit.p.z }; targetPk = hit.p; mode = 'gather'; }
-          else if (!hit.p) warnOnce('nopickup', 'bug-no-pickup-nearby', { key: cq.item, msg: 'collect quest but no ' + cq.item + ' pickups nearby' });
+          else if (!hit.p) warnOnce('nopickup', 'bug-no-pickup-nearby', { key: cq.item || (cq.kind === 'herbal' ? 'herb' : '?'), msg: (cq.kind === 'herbal' ? 'herbal' : 'collect') + ' quest but no ' + (cq.item || 'herb/mushroom') + ' pickups nearby' });
         } else if (cq.kind === 'combat') {
           // CAMPAIGN: slay the hunter — chase the nearest predator while strong
           const pr2 = nearestPred();
