@@ -69,22 +69,34 @@ Update mid-session:
 ## 🏆 LAW v4 — THE TROPHY LAW (un-pause, trainer's new core rule, 2026-08-31)
 User: "generation success = the upper TIER TROPHIES; TRUE success = how fast the HIGHEST tier is
 achieved and how EFFICIENTLY." Training now measures the CAMPAIGN, not kills.
-- ARCHITECTURE: 20 → 24 senses (316 weights). New senses: 20 through-tier progress (legs+stage,
-  0..1), 21 tier ladder (tier/5), 22 current deed meter (have/need), 23 tier clock (wall-s, par 600).
-  Sense 18 bear-PROXIMITY + 19 sky-threat kept. Old 276-weight champion archived
-  (rafzzer_champion_lawv3_archive.json) — brain re-seeded to wild seed 20070 (316 w) in-page + harness.
+- ARCHITECTURE: 20 → 24 → 26 senses (336 weights today). Senses 20-23: through-tier progress, tier
+  ladder, deed meter, tier clock (par 600); 18-19: bear-proximity + sky-threat; 24: SIDE-CHANNEL
+  (sideP: 1 errand slotted / 0.6 offered / 0 none), 25: GATE URGENCY (level-up deed meter). Old
+  276-weight champion archived (rafzzer_champion_lawv3_archive.json) — brain re-seeded to wild seed
+  20070; the 316-weight champion (GEN 35) was zero-padded 316→336 (rows 24-25 = 0, behavior
+  preserved, no reseed) for the side-errant law build (commit c62466b).
 - FITNESS (single law, in-page `fitness()` = harness): trophies 1200·2.5^(tier−1) EACH; top-tier best
   record time (1000−min)·0.6·2.5^(topTier−1); road gradient 220·prog·2.5^(tier−1) + 60·bosses;
   efficiency −clock·0.03·2.5^(tier−1) − 0.012·durS; small keeps (xp/min·0.5, quests·3, xp·0.04,
-  level·1.5, kills·1); death pen ×(1+0.6·(tier−1)); stuck/loop penalties unchanged.
+  level·1.5, kills·1, side errands +25·min(3,RUN.side)); death pen ×(1+0.6·(tier−1)); stuck/loop
+  penalties unchanged.
 - SENSES/NEUTRAL CODING: campProbe() (single CAMP.state source), CAMP.clock exported (p5),
   herbal prep deeds now route AND score on herb/mushroom pickups (was meat-scored, no routing),
   objective picker handles collect|herbal via wantOk().
-- HARNESS: rafzzer_gens.mjs NI/NW 24/316, trait rows 180..239 (bear+sky+campaign rows), polls +
-  run reports carry `camp`/`trophy` snapshot (tier, trophies, topTier, topTime, clock), spawn
-  auto-archives + re-seeds champion on architecture change. m46_gen.sh/m46_step.sh: cadence
+- HARNESS: rafzzer_gens.mjs NI/NW 26/336, trait rows 180..259 (bear+sky+campaign+side/gate rows),
+  polls + run reports carry `camp`/`trophy` snapshot (tier, trophies, topTier, topTime, clock) and
+  `side` (RUN.side at run end; GEN 39+), spawn auto-archives + re-seeds champion on architecture
+  change (316→336 = ZERO-PAD, no reseed). m46_gen.sh/m46_step.sh: cadence
   global×2 → trait×2 → traitglobal×2, RUN_CAP default 900 s wall (~2700 sim-s @ rate3 — one tier
   needs the long road).
+- SIDE ERRANDS (shipped c62466b, live on Pages bda2201): the level-up (XP-gate) deed turns the
+  board to 3 side errands — Bloodline Sprint (timed small-game, 60·Σ XP), Full Pannier
+  (supply-checked collect, 55·Σ), Twin Fangs (double-kills, 80·Σ), Trail of Firsts (unfound
+  landmark, 65·Σ). NO risk, NO luck (no predators/rivals/bosses/weather; generous clocks;
+  timeout = zero penalty); one errand at a time, only while the gate lives; completion feeds the
+  ONE XP pool, counts RUN.side, never advances the campaign. Bot policy: keepQuestsFilled slots
+  one side errand while a gate deed rides, side flatline 10 min; questScore +3.2/min-6 for side.
+  test/side.test.mjs 25/25 + regressions green.
 - CROWN BAR: the old 283 is obsolete (new scale); promote stays human-gated (gate PASS + fitness
   > champion), the trainer reads trophy/topTime/clock in each run report. The howl/pack system is
   part of the world: the bot howls every 90-180 s, packs may bond/attack — luck that can speed or
@@ -94,3 +106,7 @@ achieved and how EFFICIENTLY." Training now measures the CAMPAIGN, not kills.
 |-----|------|------|---------|-----|------|----------|------|-------|-------|
 | 34 | global | PASS (1st) | SURVIVED(cap) | 25 | 1 | 0 | — | 902 | FIRST LAW-v4 gen (wild-mind re-seed). L7 · 1122xp · 31.2xp/min · 226s avg quest · walked q0→q1→prep→awaken, ritual accepted at cap · 0 warns 0 errs · PROMOTED → champion (fit 25) |
 | 35 | global | PASS (1st) | DIED(fight) | 59 | 1 | 0 | — | ~600 | L7 · 1200xp · 126.6xp/min (4x faster road than 34) · awaken again · fell to a Level-8 Leopard predator (fight scar 1) · PROMOTED → champion (fit 59) |
+| 36 | global | PASS (1st) | DIED(fight) | 19 | 1 | 0 | — | 548.6 | L7 · 1032xp · 112.9xp/min · first ritual + first Leopard-Legend fight (~18s combat) · REJECTED |
+| 37 | global | PASS (2nd) | DIED(fight) | -43 | 1 | 0 | — | 373.5 | L4 · 481xp · 77.3xp/min · died in prep to a Rival Wolf PACK ATTACK (unlucky howl roll) → howl policy added (commit 3e899d3) · REJECTED |
+| 38 | global | PASS (2nd) | DIED(fight) | -117 | 1 | 0 | — | 868.6 | L5 · 756xp · 52.2xp/min · near-cap road, fell to a Level-7 Brown Bear in prep · REJECTED |
+| 39 | global | PASS (2nd) | DIED(fight) | -97 | 1 | 0 | — | 382.7 | L3 · 275xp · 43.1xp/min · first gen under the SIDE-ERRAND law build: accepted a Trail-of-Firsts errand at 334.7s (fast-lane) but fell to the Rival Alpha 48s later, never banking it (RUN.side 0) · REJECTED |

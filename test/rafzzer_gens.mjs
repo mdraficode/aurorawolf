@@ -58,7 +58,7 @@ const poll = async (pg, wallCapMs, onTick) => {
         if (window.CAMP && window.CAMP.state) { const c = window.CAMP.state(); const tr = (c.trophies || []); const tm = tr.length ? Math.max(...tr.map(t => t.tier | 0)) : 0;
           camp = { tier: c.tier | 0, leg: c.leg | 0, stage: c.stage, trophies: tr.length, topTier: tm, topTime: tm ? Math.min(...tr.filter(t => (t.tier | 0) === tm).map(t => +t.time || 0)) : null, clock: (window.CAMP.clock ? +window.CAMP.clock().toFixed(1) : 0) }; }
       } catch (e) { }
-      return { s, camp, dead: wolf.deadT > 0, last: window.RAFZZER_LAST || null, dist: +wolf.distance.toFixed(1), hp: +wolf.hp.toFixed(1), stam: +wolf.stamina.toFixed(0), lvl: wolf.level, run: { xp: R.xp, kills: R.kills, quests: R.quests }, simS: (window.__boost && __boost.ticks) ? +(window.__boost.ticks * 0.05).toFixed(0) : 0, qTimes: ((window.RUN || {}).questTimes || []).slice(-14), warns: (window.__boost && window.__boost.warns) || 0 };
+      return { s, camp, dead: wolf.deadT > 0, last: window.RAFZZER_LAST || null, dist: +wolf.distance.toFixed(1), hp: +wolf.hp.toFixed(1), stam: +wolf.stamina.toFixed(0), lvl: wolf.level, run: { xp: R.xp, kills: R.kills, quests: R.quests, side: R.side | 0 }, sideC: (window.CAMP && window.CAMP.side) ? window.CAMP.side() : null, simS: (window.__boost && __boost.ticks) ? +(window.__boost.ticks * 0.05).toFixed(0) : 0, qTimes: ((window.RUN || {}).questTimes || []).slice(-14), warns: (window.__boost && window.__boost.warns) || 0 };
     }).catch(e => ({ evalErr: String(e.message).slice(0, 120) }));
     if (last.evalErr) break;
     if (onTick) onTick(((Date.now() - t0) / 1000).toFixed(0), last);
@@ -195,9 +195,9 @@ if (cmd === 'run') {
     const trophy = snap.camp || {};   // LAW v4: the trophy machine's state at run end
     mets.trophy = trophy;
     const durSimS = last ? last.dur : (full.simS || snap.simS || 1);   // living wolves: no R.dur — fall back to the boost tick-clock
-    const report = { gen: g, fitness, outcome, mets, trophy, cause: last ? last.cause : null, cls: last ? last.cls : null, durSimS, maxLevel: last ? last.maxLevel : snap.lvl, xp: last ? last.xp : full.run.xp, hist: (last ? last.hist : snap.s.hist) || {}, scars: snap.s.scars, beats, knobs: snap.s.knobs, warns: snap.warns, errs: errs.slice(0, 6), botn: full.botn, logTail: full.logTail };
+    const report = { gen: g, fitness, outcome, mets, trophy, cause: last ? last.cause : null, cls: last ? last.cls : null, durSimS, maxLevel: last ? last.maxLevel : snap.lvl, xp: last ? last.xp : full.run.xp, hist: (last ? last.hist : snap.s.hist) || {}, scars: snap.s.scars, beats, knobs: snap.s.knobs, warns: snap.warns, errs: errs.slice(0, 6), botn: full.botn, logTail: full.logTail, side: (full.run ? (full.run.side | 0) : 0) };
     write(`${DIR}/rafzzer_run_gen${g}.json`, report);
-    console.log(`RUN GEN ${g}: ${outcome} · fitness ${fitness} · L${report.maxLevel} · ${report.xp}xp · ${report.durSimS}s(sim) · ${mets.xpMin}xp/min · TIER ${trophy.topTier || 0} (${trophy.trophies || 0} trophies, best ${trophy.topTime ?? '—'}s) · stage ${trophy.stage || '-'} leg${trophy.leg ?? '-'} · warns ${snap.warns} · errs ${errs.length}`);
+    console.log(`RUN GEN ${g}: ${outcome} · fitness ${fitness} · L${report.maxLevel} · ${report.xp}xp · ${report.durSimS}s(sim) · ${mets.xpMin}xp/min · TIER ${trophy.topTier || 0} (${trophy.trophies || 0} trophies, best ${trophy.topTime ?? '—'}s) · stage ${trophy.stage || '-'} leg${trophy.leg ?? '-'} · side ${report.side} · warns ${snap.warns} · errs ${errs.length}`);
     if (last) console.log(`  cause: ${last.cause} · scars now ${JSON.stringify(last.scars)}`);
     await pg.close(); await b.close();
     process.exit(0);
