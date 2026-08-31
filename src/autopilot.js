@@ -1236,9 +1236,21 @@
       } else bot.stuckPos = null;
       if (bot.unstickT && SIMNOW() - bot.unstickT < 1500) { keys.Space = true; keys.KeyA = bot.unstickA !== undefined ? bot.unstickA : (bot.unstickA = Math.random() < 0.5); }   // one calm side, no shudder
 
-      /* ---------- 9. flavour: the wolf's voice ---------- */
+      /* ---------- 9. flavour: the wolf's voice — and the pack gamble ---------- */
+      // LAW v4 · howl POLICY (trainer: the bonding dice live in the policy layer, not the
+      // cortex): a speedrunner takes the gamble only when the roll can't kill the run —
+      // strong, whole, no legend at the door, no pack already on the attack. Weak or
+      // wounded wolves never roll the fangs; they listen again soon.
       bot.howlT -= 0.15;
-      if (bot.howlT <= 0) { bot.howlT = 90 + Math.random() * 90; wolf.howl(); }
+      if (bot.howlT <= 0) {
+        const hpFracNow = wolf.hp / Math.max(1, wolf.maxHp);
+        const bHitNow = liveBoss();
+        const hostilePack = !!(typeof WORLD_EVENTS !== 'undefined' && WORLD_EVENTS.pack && WORLD_EVENTS.pack.stance === 'attack');
+        if (hpFracNow > 0.75 && wolf.level >= 4 && !wolf.swimming && bHitNow.d > 60 && !hostilePack) {
+          wolf.howl();
+          bot.howlT = 90 + Math.random() * 90;
+        } else bot.howlT = 30;   // the wild isn't ready — listen again soon
+      }
 
       /* ---------- 10. quest stall detector (bug-hunt) ---------- */
       const q0 = QUESTS.active[0];
