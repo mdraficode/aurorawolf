@@ -2633,6 +2633,7 @@ window.updateRunRecap = function () {   // the start page's chronicle of the las
 };
 function addXp(n) {
   wolf.xp += n;
+  wolf.xpTotal = (wolf.xpTotal || 0) + Math.max(0, n);   // ONE unified XP pool — career XP, monotonic (death resets level progress only)
   RUN.xp += n; if (wolf.level > RUN.maxLevel) RUN.maxLevel = wolf.level;
   while (wolf.xp >= wolf.xpNext) {
     wolf.xp -= wolf.xpNext;
@@ -2849,7 +2850,7 @@ function completeQuest(q) {
 }
 let caveDaysLock = -1;   // survival quests reset if you den
 function questEvent(kind, data) {
-  if (kind === 'kill') { RUN.kills++; if (data && data.species === 'predator') RUN.predators++; }
+  if (kind === 'kill') { RUN.kills++; if (data && data.species === 'predator') RUN.predators++; addXp(data && data.species === 'predator' ? 6 : 3); }   // unified XP trickle — bigger deeds, bigger XP
   for (const q of [...QUESTS.active]) {
     if (q.camp && window.CAMP && window.CAMP.onEvent && window.CAMP.onEvent(q, kind, data)) continue;   // CAMPAIGN kinds answer first; classic kinds fall through
     if (q.kind === 'hunt' && kind === 'kill' && data.species === q.species) {
@@ -3502,15 +3503,18 @@ function wolfDie(label, icon) {
   } catch (e) { }
   wolf.hp = 0;
   wolf.deadT = 2.6;
+  wolf.diedAt = { x: wolf.pos.x, z: wolf.pos.z };                       // the fall's spot — you wake NEAR it
+  wolf.fellTo = wolf.killerPos ? { x: wolf.killerPos.x, z: wolf.killerPos.z } : null;   // and away from the killer
   wolf.killerPos = null;
   const ov = el('deathOv');
-  if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… you wake far away — every level lost, back to 0.</span>`; ov.classList.add('show'); }
+  if (ov) { ov.querySelector('#deathMsg').innerHTML = `${icon || '💀'} <b>Slain by ${label || 'the wild'}</b><br><span style="font-size:14px;opacity:.85">The wild claims you… your deed is lost and your level progress resets — but the campaign continues.</span>`; ov.classList.add('show'); }
   vignetteA = 0.9;
 }
 function wolfTakeDamage(dmg, fromPos, label, icon, kbMul) {
   if (state !== 'play' || wolf.deadT > 0 || wolf.invulnT > 0 || wolf.flyT > 0) return;
   wolf.hp -= dmg * wolfDamageMul();   // an experienced wolf stiffens against the blow
   wolf.lastHurt = tSec;
+  wolf.killerPos = { x: fromPos.x, z: fromPos.z };   // remembered for the respawn: wake NEAR the fall, away from the killer
   wolf.invulnT = 0.6;
   vignetteA = Math.min(0.85, vignetteA + 0.45);
   audio.thud();
@@ -3524,18 +3528,29 @@ function wolfTakeDamage(dmg, fromPos, label, icon, kbMul) {
 }
 function wolfRespawn() {
   if (caveState.in) exitCave();   // no dying underground: the wild carries you back to the mouth
-  let ang = Math.random() * Math.PI * 2;
-  if (wolf.killerPos) ang = Math.atan2(wolf.pos.x - wolf.killerPos.x, wolf.pos.z - wolf.killerPos.z); // run away from the killer
-  let rx = wolf.pos.x, rz = wolf.pos.z;
-  for (let i = 0; i < 14; i++) {
-    const a2 = ang + (i % 2 ? 1 : -1) * i * 0.35;
-    const tx = wolf.pos.x + Math.sin(a2) * 95, tz = wolf.pos.z + Math.cos(a2) * 95;
-    if (heightAt(tx, tz) > WATER_Y + 0.8) { rx = tx; rz = tz; break; }
+  // NEW LAW: wake NEAR the fall (14–44 m), on dry land, away from the killer and from living predators
+  const spot = wolf.diedAt || { x: wolf.pos.x, z: wolf.pos.z };
+  const away = wolf.fellTo ? Math.atan2(spot.x - wolf.fellTo.x, spot.z - wolf.fellTo.z) : Math.random() * Math.PI * 2;
+  let rx = spot.x, rz = spot.z, found = false;
+  for (let i = 0; i < 22 && !found; i++) {
+    const a2 = away + (Math.random() - 0.5) * 1.9;   // mostly away, some scatter
+    const r = 14 + Math.random() * 30;
+    const tx = spot.x + Math.sin(a2) * r, tz = spot.z + Math.cos(a2) * r;
+    if (heightAt(tx, tz) <= WATER_Y + 0.8) continue;
+    let safe = true;
+    const ccx = Math.floor(tx / CHUNK), ccz = Math.floor(tz / CHUNK);
+    for (let dzz = -1; dzz <= 1 && safe; dzz++) for (let dxx = -1; dxx <= 1 && safe; dxx++) {
+      const ch = chunks.get(ck(ccx + dxx, ccz + dzz));
+      if (!ch) continue;
+      for (const pr of ch.predators) if (!pr.dead && Math.hypot(pr.pos.x - tx, pr.pos.z - tz) < 24) { safe = false; break; }
+    }
+    if (safe) { rx = tx; rz = tz; found = true; }
   }
   wolf.pos.x = rx; wolf.pos.z = rz; wolf.pos.y = heightAt(rx, rz) + 0.2;
-  wolf.level = 0; wolf.xp = 0; wolf.xpNext = xpNeed(0);   // death takes everything earned — the record stands, the wolf restarts
-  window.RUN = window.freshRun();   // and a new run begins
-  if (window.CAMP && window.CAMP.onDeath) window.CAMP.onDeath();   // CAMPAIGN: the deed returns to the board — progression, XP and the timer stand (no timer exploit)
+  wolf.xp = 0;   // death cancels the XP progress toward the next level upgrade — you restart the current level's bar
+  // wolf.level, wolf.xpNext and wolf.xpTotal (career XP) all STAND: one bad night costs the bar, not the climb
+  window.RUN = window.freshRun();   // the session record restarts — the campaign record stands
+  if (window.CAMP && window.CAMP.onDeath) window.CAMP.onDeath();   // CAMPAIGN: the deed fails → back to the board for a manual re-accept; stage/tier/timer/progression stand (no timer exploit)
   recalcWolfLevel();
   wolf.hp = wolf.maxHp;
   wolf.invulnT = 3;
@@ -3545,7 +3560,7 @@ function wolfRespawn() {
   if (ov) ov.classList.remove('show');
   vignetteA = 0;
   questHudDirty = true;
-  toast('🐾 You awaken, shaken but alive — your levels are lost: Level 0 again', true);
+  toast('🐾 You wake near where you fell — the deed is lost, your level progress resets. The hunt for the Legend continues.', true);
 }
 function showTerritoryWarning(sp) {
   const w = el('threatWarn');

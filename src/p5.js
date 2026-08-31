@@ -10,7 +10,7 @@ window.CAMP = (() => {
   const LS = 'revontulet_campaign_v1';
   let S = null;                 // persistent state (saved)
   let alt = null;               // altar visual {mesh, glowT, x, z}
-  let lastKills = 0, lastDsc = 0, autosaveT = 0, hudT = 0, prepNeedCache = 2;
+  let autosaveT = 0, hudT = 0, prepNeedCache = 2;
 
   /* ---------- the hierarchy (data-driven, see CAMPAIGN_DESIGN.md) ---------- */
   const LEGENDS = [
@@ -33,11 +33,23 @@ window.CAMP = (() => {
 
   const fresh = () => ({
     v: 1, name: '', tier: 1, leg: 0, stage: 'q0', prepDone: 0,
-    xp: 0, runT0: 0, pausedAcc: 0, pausedAt: null,
+    runT0: 0, pausedAcc: 0, pausedAt: null,
     trophies: [], best: {}, terr: null, altar: null, seen: {}, created: Date.now()
   });
-  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { } };
-  const load = () => { try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s && s.v === 1) { S = s; return; } } catch (e) { } S = fresh(); };
+  const save = () => {   // the checkpoint: campaign + the ONE career XP pool (level, bar, lifetime)
+    try {
+      if (typeof wolf !== 'undefined') S.career = { xp: wolf.xpTotal | 0, lvl: wolf.level, bar: wolf.xp | 0, next: wolf.xpNext };
+      localStorage.setItem(LS, JSON.stringify(S));
+    } catch (e) { }
+  };
+  const load = () => {
+    try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s && s.v === 1) { delete s.xp; S = s; } } catch (e) { }
+    if (!S) S = fresh();
+    if (S.career && typeof wolf !== 'undefined') {   // the unified pool resumes from the checkpoint — reload is not a reset
+      wolf.xpTotal = S.career.xp | 0; wolf.level = S.career.lvl | 0; wolf.xp = S.career.bar | 0;
+      wolf.xpNext = S.career.next || xpNeed(wolf.level); recalcWolfLevel();
+    }
+  };
   load();
   if (typeof TITLES === 'undefined' || !S.name) { /* name handled in menu */ }
 
@@ -66,7 +78,6 @@ window.CAMP = (() => {
   const uid = () => 'camp' + (Math.random() * 1e9 | 0) + (S.leg) + (S.tier);
   const icon = k => ({ hunt: '⚔️', explore: '🧭', collect: '🌿', survive: '🌙', combat: '🗡️', xp: '✦', harvest: '🍖', herbal: '💊', scout: '🐾', ritual: '🪨', travel: '🚶' }[k] || '📜');
   const Σ = () => xpMul(S.tier);
-  const campXp = n => { S.xp += Math.round(n * Σ()); };
 
   /* ---------- world helpers ---------- */
   const dist = (x, z) => Math.hypot(x - wolf.pos.x, z - wolf.pos.z);
@@ -137,32 +148,32 @@ window.CAMP = (() => {
     return { id: uid(), camp: true, stage: kindT, kind: 'hunt', species, need, have: 0, icon: icon('hunt'),
       title: 'Hunt ' + need + ' ' + pluralOf(ref.label, need), biome: curBiomeKey,
       desc: 'Proof of the hunt — bring down ' + need + ' ' + pluralOf(ref.label, need) + '.',
-      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP' };
   };
   const qExplore = () => {
     const lm = pickLandmark();
     if (lm) return { id: uid(), camp: true, stage: 'q0', kind: 'explore', lmType: lm.type, need: 1, have: 0, icon: icon('explore'),
       title: 'Discover the ' + (lm.label || lm.type), biome: lm.biome || curBiomeKey,
       desc: 'Seek out an unfound place on the map — the land keeps secrets.',
-      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP' };
     return { id: uid(), camp: true, stage: 'q0', kind: 'explore', peak: true, need: 1, have: 0, icon: icon('explore'),
       title: 'Stand where the eagles stand', biome: 'mountain',
       desc: 'Reach a height of 50 meters — the world unrolls below you.',
-      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP' };
   };
   const qCollect = (item, need, stage) => {
     const c = COLLECT_ITEMS[item] || { label: item, icon: '🌿' };
     return { id: uid(), camp: true, stage, kind: 'collect', item, need, have: 0, icon: icon('collect'),
       title: 'Gather ' + need + ' ' + c.label, biome: curBiomeKey,
       desc: 'Collect ' + need + ' ' + c.label + ' from the wild.',
-      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP' };
   };
   const qSurvive = () => {
     const days = 1 + ((S.tier - 1) / 2 | 0);
     return { id: uid(), camp: true, stage: 'q0', kind: 'survive', days, need: days, have: 0, prog0: undefined, icon: icon('survive'),
       title: 'Survive ' + days + ' day' + (days > 1 ? 's' : '') + ' in the wild', biome: curBiomeKey,
       desc: 'Outlast the sky itself — one dawn at a time.',
-      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP · ⚜ ' + Math.round(60 * Σ()) + ' campaign XP', campXp: 60 };
+      rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP' };
   };
   const qTrack = () => {
     const lm = pickLandmark();
@@ -171,7 +182,7 @@ window.CAMP = (() => {
     return { id: uid(), camp: true, stage: 'q1', kind: 'explore', lmType: lm.type, need, have: 0, icon: icon('scout'),
       title: 'Track: find ' + need + ' landmarks', biome: lm.biome || curBiomeKey,
       desc: 'Read the land like a tracker — ' + need + ' undiscovered places.',
-      rw: { xp: 130 * Σ() }, rwText: Math.round(130 * Σ()) + ' XP · ⚜ ' + Math.round(90 * Σ()) + ' campaign XP', campXp: 90 };
+      rw: { xp: 130 * Σ() }, rwText: Math.round(130 * Σ()) + ' XP' };
   };
   const qHuntMedium = () => {
     const tbl = (SPECIES_TABLE[curBiomeKey] || SPECIES_TABLE.forest).map(e => e[0]);
@@ -182,7 +193,7 @@ window.CAMP = (() => {
     const q = { id: uid(), camp: true, stage: 'q1', kind: 'hunt', species, need, have: 0, icon: icon('hunt'),
       title: 'Hunt ' + need + ' ' + pluralOf(ref.label, need), biome: curBiomeKey,
       desc: 'Bigger prey, bigger tale — ' + need + ' ' + pluralOf(ref.label, need) + '.',
-      rw: { xp: 130 * Σ() }, rwText: Math.round(130 * Σ()) + ' XP · ⚜ ' + Math.round(90 * Σ()) + ' campaign XP', campXp: 90 };
+      rw: { xp: 130 * Σ() }, rwText: Math.round(130 * Σ()) + ' XP' };
     if (S.tier >= 2 && Math.random() < 0.5) { q.timed = true; q.deadline = tSec + 150 + S.tier * 25; q.title = 'Hunt ' + need + ' ' + pluralOf(ref.label, need) + ' in time'; q.desc += ' Beat the clock!'; }
     return q;
   };
@@ -191,43 +202,43 @@ window.CAMP = (() => {
     return { id: uid(), camp: true, stage: 'q1', kind: 'combat', need, have: 0, icon: icon('combat'),
       title: 'Slay ' + need + ' predator' + (need > 1 ? 's' : ''), biome: curBiomeKey,
       desc: 'Turn the tables — put down ' + need + ' of the hunters that stalk you.',
-      rw: { xp: 140 * Σ() }, rwText: Math.round(140 * Σ()) + ' XP · ⚜ ' + Math.round(90 * Σ()) + ' campaign XP', campXp: 90 };
+      rw: { xp: 140 * Σ() }, rwText: Math.round(140 * Σ()) + ' XP' };
   };
   const qPrep = kind => {
     const t = S.tier, leg = S.leg;
     if (kind === 'xp') {
       const gate = xpGate(t, leg);
-      return { id: uid(), camp: true, stage: 'prep', kind: 'xp', need: gate, have: 0, base: S.xp, icon: icon('xp'),
-        title: 'Reach ' + gate + ' campaign XP', biome: curBiomeKey,
-        desc: 'Earn ' + gate + ' more campaign XP — quests, hunts, discoveries. Your moment is near.',
-        rw: { xp: 170 * Σ() }, rwText: Math.round(170 * Σ()) + ' XP · ⚜ ' + Math.round(140 * Σ()) + ' campaign XP', campXp: 140 };
+      return { id: uid(), camp: true, stage: 'prep', kind: 'xp', need: gate, have: 0, base: wolf.xpTotal, icon: icon('xp'),
+        title: 'Reach ' + gate + ' total career XP', biome: curBiomeKey,
+        desc: 'Grow to ' + gate + ' lifetime XP — quests, hunts, discoveries all feed the one pool. Your moment is near.',
+        rw: { xp: 170 * Σ() }, rwText: Math.round(170 * Σ()) + ' XP' };
     }
     if (kind === 'harvest') {
       const need = 4 + (t - 1) * 2;
       return { id: uid(), camp: true, stage: 'prep', kind: 'harvest', need, have: 0, icon: icon('harvest'),
         title: 'Gather ' + need + ' meat for the journey', biome: curBiomeKey,
         desc: 'Stock provisions — hunt ' + need + ' pieces of meat for the trial ahead.',
-        rw: { xp: 170 * Σ(), items: { meat: need } }, rwText: Math.round(170 * Σ()) + ' XP · ' + need + ' 🍖 · ⚜ ' + Math.round(140 * Σ()) + ' campaign XP', campXp: 140 };
+        rw: { xp: 170 * Σ(), items: { meat: need } }, rwText: Math.round(170 * Σ()) + ' XP · ' + need + ' 🍖' };
     }
     if (kind === 'herbal') {
       const need = 5 + (t - 1) * 2;
       return { id: uid(), camp: true, stage: 'prep', kind: 'herbal', need, have: 0, icon: icon('herbal'),
         title: 'Gather ' + need + ' healing herbs & mushrooms', biome: curBiomeKey,
         desc: 'The Legend will not fall to a tired wolf — stock herbs and mushrooms.',
-        rw: { xp: 170 * Σ(), items: { herb: need } }, rwText: Math.round(170 * Σ()) + ' XP · 🌿×' + need + ' · ⚜ ' + Math.round(140 * Σ()) + ' campaign XP', campXp: 140 };
+        rw: { xp: 170 * Σ(), items: { herb: need } }, rwText: Math.round(170 * Σ()) + ' XP · 🌿×' + need };
     }
     const terr = resolveTerritory();
     return { id: uid(), camp: true, stage: 'prep', kind: 'scout', need: 1, have: 0, icon: icon('scout'), wp: { x: terr.x, z: terr.z },
       title: 'Scout the ' + curLegend().key + '\u2019s territory', biome: terr.biome,
       desc: 'Walk ' + curLegend().territory + ' — know the ground before the awakening.',
-      rw: { xp: 170 * Σ() }, rwText: Math.round(170 * Σ()) + ' XP · ⚜ ' + Math.round(140 * Σ()) + ' campaign XP', campXp: 140 };
+      rw: { xp: 170 * Σ() }, rwText: Math.round(170 * Σ()) + ' XP' };
   };
   const qRitual = () => {
     const a = buildAltar();
     return { id: uid(), camp: true, stage: 'awaken', kind: 'ritual', need: 1, have: 0, icon: icon('ritual'), wp: { x: a.x, z: a.z },
       title: 'Awaken the ' + curLegend().key, biome: curLegend().biome,
       desc: 'Reach the glowing altar in ' + curLegend().territory + ' and press E to channel the awakening.',
-      rw: { xp: 100 * Σ() }, rwText: Math.round(100 * Σ()) + ' XP · ⚜ ' + Math.round(40 * Σ()) + ' campaign XP', campXp: 40 };
+      rw: { xp: 100 * Σ() }, rwText: Math.round(100 * Σ()) + ' XP' };
   };
 
   /* ---------- the board: 3-4 choices, one active at a time ---------- */
@@ -270,7 +281,8 @@ window.CAMP = (() => {
   };
   const onQuestComplete = q => {
     if (!q || !q.camp) return;
-    campXp(q.campXp || 60);
+    // the deed's XP was already paid into the ONE pool by completeQuest() → addXp(q.rw.xp)
+    // here the machine only advances: quests unfold the chain to the higher-tier trophies
     const st = q.stage;
     if (st === 'q0') { S.stage = 'q1'; toast(`📜 Stage 1 complete — the land deepens. Choose your next deed.`, true); }
     else if (st === 'q1') { S.stage = 'prep'; S.prepDone = 0; toast(`📜 Stage 2 complete — prepare for the ${curLegend().key}.`, true); }
@@ -293,7 +305,7 @@ window.CAMP = (() => {
     return true;
   };
   const onDeath = () => {
-    // progression, campaign XP and the run timer STAND; only the in-flight deed returns to the board
+    // the deed FAILS → back to the board for manual re-accept; career XP, level, tier, stage and run timer STAND
     if (S.stage === 'boss') {   // the legend waits — full retry: despawn, re-channel the altar
       for (const b of [...bosses]) if (b.def && b.def.camp) { b.dead = true; b.dispose(); }
       S.stage = 'awaken';
@@ -304,13 +316,13 @@ window.CAMP = (() => {
   const rebuildBoard = () => { refill(); };
   const onLegendSlain = () => {
     const wasBeast = S.leg >= LEGENDS.length;
-    campXp(wasBeast ? 700 : 320);
+    addXp(wasBeast ? 650 : 400);   // the biggest deed, the biggest XP — the same one pool
     const L = curLegend();
     if (!S.seen[L.key + S.tier]) { S.seen[L.key + S.tier] = 1; setTimeout(() => toast('📖 ' + L.story, true), 1600); }
     addXp(0); // (wolf XP already paid via Boss.die)
     if (wasBeast) {
       const t = elapsed();
-      const rec = { tier: S.tier, name: S.name || 'Wolf', date: new Date().toISOString().slice(0, 10), time: +t.toFixed(1), xp: S.xp, bestLegend: LEGENDS[LEGENDS.length - 1].key + ' Legend' };
+      const rec = { tier: S.tier, name: S.name || 'Wolf', date: new Date().toISOString().slice(0, 10), time: +t.toFixed(1), xp: wolf.xpTotal | 0, bestLegend: LEGENDS[LEGENDS.length - 1].key + ' Legend' };   // trophy XP = lifetime career XP in the ONE pool
       S.trophies.push(rec);
       const b = S.best[S.tier];
       if (!b || t < b.t) S.best[S.tier] = { t: +t.toFixed(1), date: rec.date, name: rec.name };
@@ -371,7 +383,7 @@ window.CAMP = (() => {
     const t = Math.round(elapsed());
     let h = `<div class="qt-line" style="color:#ffd76a">🏆 Tier <b>${S.tier}</b> · <b>${legendName()}</b> · ⏱ ${fmt(t)}</div>`;
     if (S.stage === 'prep' && S.prepDone > 0) h += `<div class="qt-line" style="opacity:.9">📜 Preparation ${S.prepDone}/${prepNeed(S.tier)}</div>`;
-    if (S.stage === 'prep') { const g = xpGate(S.tier, S.leg); h += `<div class="qt-line" style="opacity:.8">⚜ ${S.xp}/${g} campaign XP</div>`; }
+    if (S.stage === 'prep') { const g = xpGate(S.tier, S.leg); h += `<div class="qt-line" style="opacity:.8">⚜ ${wolf.xpTotal | 0}/${g} career XP · Lv ${wolf.level} ${wolf.xp | 0}/${wolf.xpNext}</div>`; }
     return h;
   };
   const mapMarks = () => {
@@ -394,13 +406,12 @@ window.CAMP = (() => {
     if (acc < 0.5) return;
     acc = 0;
     if (!S.runT0) return;
-    // ambient campaign XP: hunts & discoveries trickle in (quest XP stays primary)
-    if (typeof RUN !== 'undefined' && RUN.kills > lastKills) { campXp((RUN.kills - lastKills) * 3); lastKills = RUN.kills; }
-    if (typeof stats !== 'undefined' && stats.discoveries && stats.discoveries.size > lastDsc) { campXp((stats.discoveries.size - lastDsc) * 4); lastDsc = stats.discoveries.size; }
+    // the ONE unified pool earns on its own everywhere: kills & boss kills (questEvent→addXp),
+    // pickups (gather→addXp), discoveries (discoverTick→addXp), quests (completeQuest→addXp).
     // the active deed's own progress
     for (const q of [...QUESTS.active]) {
       if (!q.camp) continue;
-      if (q.kind === 'xp') { q.have = Math.min(q.need, Math.max(0, S.xp - q.base)); if (q.have >= q.need) completeQuest(q); else questHudDirty = true; }
+      if (q.kind === 'xp') { q.have = Math.min(q.need, Math.max(0, wolf.xpTotal - q.base)); if (q.have >= q.need) completeQuest(q); else questHudDirty = true; }
       else if (q.kind === 'travel') { q.have = Math.min(q.need, Math.max(0, wolf.distance - (q.fromDist || wolf.distance))); if (q.have >= q.need) completeQuest(q); else questHudDirty = true; }
       else if (q.kind === 'scout') { const d = dist(q.wp.x, q.wp.z); q.have = d < 40 ? 1 : 0; if (q.have >= q.need) completeQuest(q); }
       else if (q.kind === 'ritual') { const d = dist(q.wp.x, q.wp.z); if (d < 4 && !q._prompted) { q._prompted = true; toast('🪨 Press E to channel the awakening'); } }
@@ -439,7 +450,7 @@ window.CAMP = (() => {
   /* ---------- public face ---------- */
   window.CAMPDBG = {
     state: () => JSON.parse(JSON.stringify(S)),
-    grantXp: n => { campXp(n); },
+    grantXp: n => { addXp(n); },   // test helper — feed the ONE pool
     setStage: s => { S.stage = s; refill(); save(); },
     setLeg: n => { S.leg = n; },
     terr: () => resolveTerritory(), altar: () => S.altar, elapsed: () => elapsed(), fmt,

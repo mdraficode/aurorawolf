@@ -480,7 +480,7 @@ class Wolf {
     this.atkT = 0;
     this.flyT = 0;
     this.hp = 100; this.maxHp = 100;
-    this.xp = 0; this.level = 0; this.xpNext = 70; this.perks = {}; this.title = 'Young Pup';   // levels begin at ZERO — the wild owes no head start
+    this.xp = 0; this.xpTotal = 0; this.level = 0; this.xpNext = 70; this.perks = {}; this.title = 'Young Pup';   // levels begin at ZERO — the wild owes no head start; xpTotal = career XP, never erased
     this.maxStam = 100;   // the sprint pool — it grows with every level earned
     this.lastHurt = -99;
     this.invulnT = 0;
@@ -488,6 +488,8 @@ class Wolf {
     this.impactCd = 0;   // solid-collision injury cooldown
     this.crouch = false;  // prowling: low, quiet, unseen
     this.killerPos = null;
+    this.diedAt = null;    // where the wolf fell — respawn lands NEAR it
+    this.fellTo = null;    // the killer's spot — respawn faces away from it
     this.flyDirY = 0;
     this.trailAcc = 0;
     this.stepAcc = 0;

@@ -62,23 +62,23 @@ try {
   ck('accept → ONE active, choices vanish', R.after1.active === 1 && R.after1.avail === 0, JSON.stringify(R.after1));
   ck('second accept refused', R.after2.active === 1 && R.after2.avail === 0, JSON.stringify(R.after2));
 
-  /* ---- 3. complete the q0 deed → stage q1, campaign XP paid once ---- */
+  /* ---- 3. complete the q0 deed → stage q1; ONE unified XP pool (deed + trickle together) ---- */
   R = await pg.evaluate(() => {
     const q = QUESTS.active[0];
-    const xp0 = wolf.xp, cx0 = window.CAMP.state().xp;
+    const xp0 = wolf.xp, tot0 = wolf.xpTotal, run0 = RUN.xp;
     if (q.kind === 'hunt') { q.have = q.need - 1; questEvent('kill', { species: q.species, pos: { x: wolf.pos.x, z: wolf.pos.z } }); }
     else if (q.kind === 'explore') { q.have = 1; completeQuest(q); }
     else if (q.kind === 'collect') { q.have = q.need - 1; questEvent('gather', { item: q.item }); }
     else if (q.kind === 'survive') { q.have = q.need; completeQuest(q); }
-    const xpAfter = wolf.xp, cxAfter = window.CAMP.state().xp;
+    const xpAfter = wolf.xp, totAfter = wolf.xpTotal, runAfter = RUN.xp;
     completeQuest(q);   // double-complete must be a no-op
-    return { xp0, cx0, xpPaid: xpAfter - xp0, campPaid: cxAfter - cx0, xp2: wolf.xp - xpAfter, done: QUESTS.active.length };
+    return { xp0, tot0, run0, xpPaid: xpAfter - xp0, totPaid: totAfter - tot0, runPaid: runAfter - run0, xp2: wolf.xp - xpAfter, tot2: wolf.xpTotal - totAfter };
   });
   await until(() => window.CAMP.state().stage === 'q1');
   R = Object.assign(R, await board());
   ck('q0 completes → stage q1 offered', R.stage === 'q1' && R.avail >= 3 && R.avail <= 4 && R.camp, JSON.stringify(R));
-  ck('quest XP paid exactly once (atomic)', R.xpPaid > 0 && R.xp2 === 0, `paid ${R.xpPaid}, double ${R.xp2}`);
-  ck('campaign XP paid once', R.campPaid > 0, String(R.campPaid));
+  ck('deed XP paid exactly once (atomic)', R.xpPaid > 0 && R.xp2 === 0, `paid ${R.xpPaid}, double ${R.xp2}`);
+  ck('ONE unified pool: career XP = run XP = the single payout', R.totPaid === R.runPaid && R.totPaid > 0 && R.tot2 === 0, `career ${R.totPaid} run ${R.runPaid} (level bar wraps at level-up)`);
 
   /* ---- 4. q1 → prep ---- */
   await doDeed();
@@ -166,21 +166,40 @@ try {
   });
   ck('timer pauses honestly (≤ small drift)', Math.abs(R.t1 - R.t0) < 0.2, `${R.t0} → ${R.t1}`);
   ck('timer runs when playing again', R.grewAfter > 0.5, String(R.grewAfter));
-  R = await pg.evaluate(() => { const S = window.CAMP.state(); const xp0 = S.xp; const stage0 = S.stage; wolfRespawn(); return { xp0, xp1: window.CAMP.state().xp, stage0, stage1: window.CAMP.state().stage }; });
-  ck('death keeps progression + campaign XP', R.xp1 === R.xp0 && R.stage1 === R.stage0, JSON.stringify(R));
+  R = await pg.evaluate(() => {
+    // build a known state: level 5 with a partial bar, a deed in flight, a hard position
+    wolf.level = 5; wolf.xp = 40; wolf.xpNext = 500; wolf.xpTotal = 1234;
+    const stage0 = window.CAMP.state().stage;
+    const q0 = QUESTS.avail[0];
+    acceptQuest(q0.id);
+    wolf.pos.set(200, heightAt(200, 250) + 0.5, 250);
+    const diedAt = { x: wolf.pos.x, z: wolf.pos.z };
+    wolfDie('test predator', '💀');
+    wolfRespawn();
+    return {
+      diedAt, stage0, level: wolf.level, xp: wolf.xp, xpNext: wolf.xpNext, xpTotal: wolf.xpTotal,
+      stage1: window.CAMP.state().stage, active: QUESTS.active.length, avail: QUESTS.avail.length,
+      near: Math.hypot(wolf.pos.x - diedAt.x, wolf.pos.z - diedAt.z), hp: wolf.hp, maxHp: wolf.maxHp
+    };
+  });
+  ck('death fails the deed → manual re-accept (board rebuilt)', R.active === 0 && R.avail >= 3 && R.avail <= 4, `active ${R.active} avail ${R.avail}`);
+  ck('death cancels the bar → restart of the current level', R.level === 5 && R.xp === 0 && R.xpNext === 500, `lvl ${R.level} xp ${R.xp} next ${R.xpNext}`);
+  ck('death keeps career XP + progression (one pool stands)', R.xpTotal === 1234 && R.stage1 === R.stage0, `total ${R.xpTotal} stage ${R.stage1}`);
+  ck('respawn NEAR the fall (≤75 m), alive & healthy', R.near > 0 && R.near <= 75 && R.hp === R.maxHp, `dist ${R.near.toFixed(1)} hp ${R.hp}/${R.maxHp}`);
 
   /* ---- 10. trophies screen ---- */
   R = await pg.evaluate(() => { window.CAMP.showTrophies(); return { t: document.getElementById('ovTitle').textContent, body: document.getElementById('ovBody').textContent.slice(0, 300) }; });
   ck('TROPHIES panel lists the record', /TROPHIES/i.test(R.t) && /TIER 1/.test(R.body) && /BEST TIER TIME/.test(R.body), R.t);
 
   /* ---- 11. persistence across reload ---- */
-  await pg.evaluate(() => { localStorage.setItem('revontulet_tester', (window.CAMP.state().tier) + '|' + (window.CAMP.state().trophies.length)); });
+  await pg.evaluate(() => { localStorage.setItem('revontulet_tester', (window.CAMP.state().tier) + '|' + (window.CAMP.state().trophies.length)); wolf.xpTotal = 987; wolf.level = 3; window.CAMP.save(); });
   await pg.goto(URL, { timeout: 90000, waitUntil: 'domcontentloaded' });
   await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play' && window.CAMP, null, { timeout: 90000 });
   await sleep(2500);
-  R = await pg.evaluate(() => { const S = window.CAMP.state(); return { tier: S.tier, trophies: S.trophies.length, stage: S.stage, avail: QUESTS.avail.length, key: localStorage.getItem('revontulet_tester') }; });
+  R = await pg.evaluate(() => { const S = window.CAMP.state(); return { tier: S.tier, trophies: S.trophies.length, stage: S.stage, avail: QUESTS.avail.length, key: localStorage.getItem('revontulet_tester'), career: wolf.xpTotal, lvl: wolf.level }; });
   ck('save survives reload (tier 2, trophy kept)', R.tier === 2 && R.trophies === 1 && R.key === '2|1', JSON.stringify(R));
   ck('board rebuilt for the resumed tier', R.avail >= 3 && R.avail <= 4 && R.stage === 'q0', JSON.stringify(R));
+  ck('career XP pool restored from checkpoint (reload ≠ reset)', R.career === 987 && R.lvl === 3, `career ${R.career} lvl ${R.lvl}`);
 } catch (e) {
   failed.push('crash: ' + String(e.message).slice(0, 200));
 } finally {

@@ -47,3 +47,10 @@ Update mid-session:
 - `test/campaign.test.mjs` 26/26 PASS (board 3-4 choices, one-active rule, q0→q1→prep→awaken→ritual→boss→legend→Beast Master→TROPHY tier 1→tier 2, atomic XP, stash: no reaccept farm, no double trophy, timer laws, death keeps progression, reload persistence).
 - Regression: quest.test PASS, combat.test PASS, gather/ecosystem/mystic PASS (chain exit 0); 18-test loop 14 PASS in-suite, 4 flakes (landscape/events/hunt/audio) all PASS standalone — same load-flake class as the noted audio/collision flakes.
 - Fixes found by the campaign suite: legacy board collision (`arm()`), E-key pickup hijacking the altar (`ritualReady()` outranks pickups), legend boss never registered in `bosses` (`useAltar` push), timer drift under pause (`elapsed()` minus live pause).
+
+## XP refinement (user follow-up spec) — DEATH LAW + ONE POOL
+- 2026-08-31 — Unified XP: removed the separate campaign XP counter; wolf.xp (level bar) + wolf.xpTotal (career, monotonic) are ONE pool. Sources: pickups +3, kills +3/predators +6, discoveries +10/25/60, quests 80–170·1.5^(t−1), legends/Beast Master biggest. Bigger deed = bigger XP; quests unfold the chain to higher-tier trophies.
+- Death (new law): deed FAILS → board, manual re-accept (no XP, same stage); level bar cancelled (wolf.xp=0, restart current level) while level/xpNext/xpTotal/tier/stage/timer stand; respawn NEAR the fall (14–44 m, dry, away from killer + living predators, safety-scanned chunks). Removed old "every level lost / teleport 95 m / restart session" reset.
+- Reload = checkpoint: career block (lvl/bar/next/xpTotal) persisted in revontulet_campaign_v1 (S.career); load restores into wolf (recalcWolfLevel). Legacy s.xp field dropped on load.
+- campaign.test.mjs extended to 29 checks: unified-pool equity (career=run payout), death law (board rebuild, bar cancel, career/progression stand, respawn ≤75 m), career restore on reload. ALL PASS.
+- Tests: quest/combat/gather/hunt/wolf/enemies PASS; full npm suite EXIT=0 (collision/audio in-suite FAILs = documented load flakes, PASS rerun).

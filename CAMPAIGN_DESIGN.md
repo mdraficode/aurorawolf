@@ -35,17 +35,24 @@ Each stage offers alternative *routes* to the same progression point:
   winterCoat → springSteps → sandStride).
 
 ## 4 · XP / speedrun / trophies
-- Campaign XP is its own persistent counter (quest rewards are the primary source; kills/landmarks
-  still trickle into wolf XP/levels as before). Prep XP gates reference campaign XP — never wolf
-  level (death resets levels, NOT campaign progress).
+- ONE unified XP pool (the wolf): quest completions are the big payouts, pickups/kills/discoveries
+  trickle in, bosses pay the most — bigger deed, bigger XP. `wolf.xp` (level bar) and
+  `wolf.xpTotal` (career XP, monotonic) are the same pool; there is no separate campaign counter.
+  Prep XP gates read career XP; quests unfold the chain → the higher-tier trophies in a loop.
+- DEATH LAW: the in-flight deed FAILS and returns to the board for a manual re-accept (no XP,
+  same stage); the XP progress toward the NEXT level upgrade is cancelled (`wolf.xp = 0` — restart
+  the current level's bar) while `level`, `xpNext`, `xpTotal`, tier/legend/stage and the run timer
+  all STAND; the wolf respawns at a SAFE spot NEAR where it fell (14–44 m, dry land, away from the
+  killer and from living predators). Reload = checkpoint (career XP persisted in the save), never
+  a reset and never a timer exploit.
 - Run timer: `now − runStart − pausedMs`. Never resets on death or reload (anti-exploit); only a
   legit Trophy resets it (new tier = new run). Timer keeps counting while playing; pauses only
   while the game is actually paused/menus.
-- Trophy record per Beast Master tier: player name, date, tier time, campaign XP, best Legend.
+- Trophy record per Beast Master tier: player name, date, tier time, career XP, best Legend.
   Personal best per tier (name/date/time). Trophies screen in the Home menu (🏆 TROPHIES) + first-run
   player name prompt.
-- Save `revontulet_campaign_v1` (localStorage): name, tier, step, xp, timer, trophies, best,
-  territory/altar, active quest descriptor. Autosave on accept/complete/abandon/ritual/legend/crash(milestones).
+- Save `revontulet_campaign_v1` (localStorage): name, tier, step, career (level/bar/next/lifetime),
+  timer, trophies, best, territory/altar. Autosave on accept/complete/abandon/ritual/legend + every 60 s.
 
 ## 5 · Anti-exploit (spec §27)
 - `completeQuest` is now atomic-once (`q._done` flag) — no double XP from double-fires.
