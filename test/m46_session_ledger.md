@@ -93,4 +93,4 @@ achieved and how EFFICIENTLY." Training now measures the CAMPAIGN, not kills.
 | gen | mode | gate | outcome | fit | tier | trophies | topT | clock | notes |
 |-----|------|------|---------|-----|------|----------|------|-------|-------|
 | 34 | global | PASS (1st) | SURVIVED(cap) | 25 | 1 | 0 | — | 902 | FIRST LAW-v4 gen (wild-mind re-seed). L7 · 1122xp · 31.2xp/min · 226s avg quest · walked q0→q1→prep→awaken, ritual accepted at cap · 0 warns 0 errs · PROMOTED → champion (fit 25) |
-| 35 | global | … | … | … | … | … | … | … | base = GEN 34 (global×2 → trait×2 → traitglobal×2 cadence) |
+| 35 | global | PASS (1st) | DIED(fight) | 59 | 1 | 0 | — | ~600 | L7 · 1200xp · 126.6xp/min (4x faster road than 34) · awaken again · fell to a Level-8 Leopard predator (fight scar 1) · PROMOTED → champion (fit 59) |
