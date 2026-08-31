@@ -10,7 +10,7 @@
    that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1. */
 (function () {
   const URL_ON = /[?&]autopilot=1/.test(location.search);
-  window.RAFZZER_SEED = [0.0234,-0.5621,0.4874,0.6369,0.1669,0.3710,0.2250,-0.1630,-0.4771,0.1247,0.3347,0.1592,1.1324,-0.3270,-0.0719,0.1688,0.1704,-0.2587,0.1319,-0.0261,-0.0932,-0.3689,0.7677,0.4295,-0.1013,-0.1660,0.6516,-0.1190,0.1782,0.6965,0.0414,0.0574,-0.2697,0.0026,0.2275,0.2447,0.0218,-0.3459,0.1511,-0.0260,0.1172,-0.2437,0.8120,-0.1727,0.1496,-0.2585,-0.0010,0.2902,0.1305,-0.2601,-0.1165,0.5100,-0.3546,0.1033,0.1996,0.7167,0.0844,0.2185,0.2309,-0.8122,0.4198,-0.7888,-0.0726,0.1041,0.6261,-0.5373,-0.4313,-0.0523,-0.2643,0.2403,0.2959,-0.0621,-0.0084,0.5432,0.2284,0.0606,0.1058,-0.1130,0.1410,0.3524,0.3378,0.2277,-0.4354,0.0909,-0.5425,0.3781,0.5307,0.0248,0.1206,0.0810,-0.0391,-0.6601,-0.3483,-0.6543,-0.6308,0.6237,-0.2714,-0.1454,0.4709,-0.4027,0.4038,-0.6885,0.2765,0.1655,0.0855,-0.5718,0.2635,-0.2850,0.1458,-0.0457,0.4714,0.1289,0.0896,0.1290,0.1090,0.2939,-0.1423,0.0308,0.5143,0.1813,0.3823,-0.9089,-0.0177,0.7681,-0.3915,0.1884,-0.1664,0.2830,-0.2703,-0.1549,0.6349,0.3020,-0.2537,-0.4975,-0.4685,0.2440,-0.3840,0.1435,0.3505,0.0189,0.4478,0.1418,-0.3464,0.4441,0.0019,-0.1113,0.4427,-0.2581,-0.2510,0.3879,-0.4745,-0.3063,0.0221,0.1360,-0.3120,0.2218,0.2008,-0.3542,-0.0697,-0.1130,0.1741,0.3236,0.3391,0.4144,0.0595,0.3413,0.1899,0.4986,0.0764,0.3310,-0.8774,-0.4744,0.7997,-0.2007,0.0401,0.0619,0.1553,0.2630,-0.2398,0.0586,0.1847,-0.3100,0.1579,-0.2572,0.2519,0.1735,-0.3057,0.0837,0.1766,-0.2572,-0.1305,-0.0525,0.2673,-0.0153,-0.1829,0.3615,-0.2330,-0.2173,-0.2046,0.6633,-0.1308,-0.2675,-0.2456,-0.6664,-0.5133,0.2025,-0.0114,0.5363,0.0133,-0.0664,0.0592,-0.3889,-0.1544,0.1725,0.2479,1.0494,0.1634,0.5876,0.3043,0.1107,-0.3780,-0.0907,0.4253,0.1973,-0.0174,-0.0364,-0.6411,0.0699,-0.0868,0.7133,0.7998,0.2525,0.2840,-0.1488,0.1123,-0.0531,0.3306,0.4337,-0.0737,0.1571,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,-0.6925,0.0542,0.0859,0.6342,-0.8360,-0.4266,-0.6151,-0.4088,-1.0398,-0.3954,-0.3039,-0.2527,-0.3186,-0.4549,0.5306,-0.7392,-0.3871,-0.0353,-0.6873,-0.1391,-0.3349,-0.4804,0.2859,0.2231,0.5640,-0.4285,-0.4295,0.7369,-0.3899,0.6057,0.6709,0.2712,0.0826,0.6131,-0.5638,0.5733,-0.5669,0.2608,-0.3220,-0.2185,1.0300,0.3593,0.2050,0.2064,-0.0268,-0.0498,0.7662,-1.2373,-0.2882,-0.2788,-0.3750,-0.3401,-0.4301,0.3875,-0.8657,-0.6018,0.0501,0.2768,0.1230,0.5261,-0.0059,0.7503,0.6658,-0.3090,-0.6752,0.1582];   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
+  window.RAFZZER_SEED = [0.0234,-0.5621,0.4874,0.6369,0.1669,0.371,0.225,-0.163,-0.4771,0.1247,0.3347,0.1592,1.1324,-0.327,-0.0719,0.1688,0.1704,-0.2587,0.1319,-0.0261,-0.0932,-0.3689,0.7677,0.4295,-0.1013,-0.166,0.6516,-0.119,0.1782,0.6965,0.0414,0.0574,-0.2697,0.0026,0.2275,0.2447,0.0218,-0.3459,0.1511,-0.026,0.1172,-0.2437,0.812,-0.1727,0.1496,-0.2585,-0.001,0.2902,0.1305,-0.2601,-0.1165,0.51,-0.3546,0.1033,0.1996,0.7167,0.0844,0.2185,0.2309,-0.8122,0.4198,-0.7888,-0.0726,0.1041,0.6261,-0.5373,-0.4313,-0.0523,-0.2643,0.2403,0.2959,-0.0621,-0.0084,0.5432,0.2284,0.0606,0.1058,-0.113,0.141,0.3524,0.3378,0.2277,-0.4354,0.0909,-0.5425,0.3781,0.5307,0.0248,0.1206,0.081,-0.0391,-0.6601,-0.3483,-0.6543,-0.6308,0.6237,-0.2714,-0.1454,0.4709,-0.4027,0.4038,-0.6885,0.2765,0.1655,0.0855,-0.5718,0.2635,-0.285,0.1458,-0.0457,0.4714,0.1289,0.0896,0.129,0.109,0.2939,-0.1423,0.0308,0.5143,0.1813,0.3823,-0.9089,-0.0177,0.7681,-0.3915,0.1884,-0.1664,0.283,-0.2703,-0.1549,0.6349,0.302,-0.2537,-0.4975,-0.4685,0.244,-0.384,0.1435,0.3505,0.0189,0.4478,0.1418,-0.3464,0.4441,0.0019,-0.1113,0.4427,-0.2581,-0.251,0.3879,-0.4745,-0.3063,0.0221,0.136,-0.312,0.2218,0.2008,-0.3542,-0.0697,-0.113,0.1741,0.3236,0.3391,0.4144,0.0595,0.3413,0.1899,0.4986,0.0764,0.331,-0.8774,-0.4744,0.7997,-0.2007,0.0401,0.0619,0.1553,0.263,-0.2398,0.0586,0.1847,-0.31,0.1579,-0.2572,0.2519,0.1735,-0.3057,0.0837,0.1766,-0.2572,-0.1305,-0.0525,0.2673,-0.0153,-0.1829,0.3615,-0.233,-0.2173,-0.2046,0.6633,-0.1308,-0.2675,-0.2456,-0.6664,-0.5133,0.2025,-0.0114,0.5363,0.0133,-0.0664,0.0592,-0.3889,-0.1544,0.1725,0.2479,1.0494,0.1634,0.5876,0.3043,0.1107,-0.378,-0.0907,0.4253,0.1973,-0.0174,-0.0364,-0.6411,0.0699,-0.0868,0.7133,0.7998,0.2525,0.284,-0.1488,0.1123,-0.0531,0.3306,0.4337,-0.0737,0.1571,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.6925,0.0542,0.0859,0.6342,-0.836,-0.4266,-0.6151,-0.4088,-1.0398,-0.3954,-0.3039,-0.2527,-0.3186,-0.4549,0.5306,-0.7392,-0.3871,-0.0353,-0.6873,-0.1391,-0.3349,-0.4804,0.2859,0.2231,0.564,-0.4285,-0.4295,0.7369,-0.3899,0.6057,0.6709,0.2712,0.0826,0.6131,-0.5638,0.5733,-0.5669,0.2608,-0.322,-0.2185,1.03,0.3593,0.205,0.2064,-0.0268,-0.0498,0.7662,-1.2373,-0.2882,-0.2788,-0.375,-0.3401,-0.4301,0.3875,-0.8657,-0.6018,0.0501,0.2768,0.123,0.5261,-0.0059,0.7503,0.6658,-0.309,-0.6752,0.1582];   // 🧠 LAW-v4 mind: seed 20070, 26 senses (336 weights) — trophy lineage; rows 24-25 = side-channel + gate urgency (zero-padded from the 316 brain)   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
 
   /* ---------------- sim boost (?speed=N&rate=R, special builds only) ----------------
      Software GL renders at ~2-3 fps here and dt clamps at 0.05 → the sim crawls at
@@ -78,7 +78,7 @@
      road (time/stalls). Senses 20-23 append the campaign cortex (progress, tier,
      deed meter, tier clock); senses 18-19 remain bear-proximity / sky-threat. */
   const RAFZ = window.RAFZZER = (() => {
-    const NI = 24, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;
+    const NI = 26, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;   // 26 senses: + side-channel + gate urgency (LAW v4)
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     const mul32 = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
     const gauss = (rnd, sd) => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283185307179586 * v) * sd; };
@@ -96,7 +96,7 @@
     const NLEG = (() => { try { return (typeof LEGENDS !== 'undefined' ? LEGENDS.length : 5) + 1; } catch (e) { return 6; } })();   // 5 legends + the Beast Master
     const campProbe = () => {
       const C = (window.CAMP && window.CAMP.state) ? window.CAMP.state() : null;
-      if (!C) return { on: false, tier: 1, leg: 0, stage: 'q0', prepDone: 0, trophies: [], topTier: 0, topTimes: [], prog: 0, clock: 0 };
+      if (!C) return { on: false, tier: 1, leg: 0, stage: 'q0', prepDone: 0, trophies: [], topTier: 0, topTimes: [], prog: 0, clock: 0, sideP: 0, gateU: 0 };
       const trophies = (C.trophies || []);
       const topTier = trophies.length ? Math.max(...trophies.map(t => t.tier | 0)) : 0;
       const topTimes = trophies.filter(t => (t.tier | 0) === topTier).map(t => +t.time || 0);
@@ -104,13 +104,20 @@
       const prepF = C.stage === 'prep' ? Math.min(0.24, 0.08 * (C.prepDone | 0)) : 0;   // prepNeed ≤ 3 ⇒ ≤ 0.24
       const prog = Math.min(1, ((C.leg | 0) + stF + prepF) / NLEG);
       let clock = 0; try { clock = (window.CAMP && CAMP.clock) ? CAMP.clock() : 0; } catch (e) { }
-      return { on: true, tier: Math.max(1, C.tier | 0), leg: C.leg | 0, stage: C.stage, prepDone: C.prepDone | 0, trophies, topTier, topTimes, prog, clock };
+      // LAW v4 · SIDE-ERRAND SENSES: the fast-XP channel the level-up deed opens — the cortex
+      // must SEE it to urge the wolf onto it. sideP = 1 errand slotted, 0.6 offered on the board,
+      // 0 none. gateU = the level-up deed's own meter (how close the climb is).
+      let sideP = 0, gateU = 0;
+      try { const si = (window.CAMP && window.CAMP.side) ? window.CAMP.side() : null;
+        if (si && si.on) { sideP = si.active ? 1 : (si.avail > 0 ? 0.6 : 0); if (si.need) gateU = clamp((si.have || 0) / si.need, 0, 1); }
+      } catch (e) { }
+      return { on: true, tier: Math.max(1, C.tier | 0), leg: C.leg | 0, stage: C.stage, prepDone: C.prepDone | 0, trophies, topTier, topTimes, prog, clock, sideP, gateU };
     };
     const sense = ctx => {
       const p = ctx.pred && ctx.pred.a, r = (typeof nearestRival === 'function' && nearestRival()) || { d: 999 };
       const CP = campProbe();
       let deedP = 0;
-      try { const qa = (typeof QUESTS !== 'undefined' && QUESTS.active && QUESTS.active[0]) || null; if (qa && qa.camp && qa.need) deedP = clamp((qa.have || 0) / qa.need, 0, 1); } catch (e) { }
+      try { const qa = (typeof QUESTS !== 'undefined' && QUESTS.active && (QUESTS.active.find(q => q.side) || QUESTS.active[0])) || null; if (qa && qa.camp && qa.need) deedP = clamp((qa.have || 0) / qa.need, 0, 1); } catch (e) { }
       let preyD = 999, preyMeat = 0;
       try { const a = nearestAnimal(an => !an.dead && an.sp && an.sp.meat > 0 && !(bot.preyShun && an.sp.label === bot.preyShun.label)); if (a) { preyD = Math.hypot(a.pos.x - wolf.pos.x, a.pos.z - wolf.pos.z); preyMeat = a.sp.meat; } } catch (e) { }
       // M46 · GEN 27+ (bear-aware scar, born from the eagle-dive evasions): the old
@@ -150,7 +157,9 @@
         CP.prog,                      // 20 · through-tier progress 0..1 — legends slain + stage (q0 0 → trophy 1)
         clamp((CP.tier - 1) / 4, 0, 1),   // 21 · the ladder: tier 1..5 (higher tier = bigger prize, harsher wild)
         deedP,                        // 22 · the CURRENT deed's meter (have/need, 0 = no deed on the board)
-        clamp(CP.clock / 600, 0, 2)   // 23 · the tier clock (wall-s since the tier began; 600 s = par)
+        clamp(CP.clock / 600, 0, 2),  // 23 · the tier clock (wall-s since the tier began; 600 s = par)
+        CP.sideP,                     // 24 · the fast-XP channel: 1 = side errand slotted, 0.6 = offered, 0 = none
+        CP.gateU                      // 25 · the level-up deed's meter (how close the climb is)
       ];
     };
     const think = ctx => {
@@ -206,9 +215,11 @@
       f += 220 * CP.prog * Math.pow(2.5, CP.tier - 1) + 60 * (R.bosses || 0);
       // (4) EFFICIENCY — every second of the road costs; mistakes cost more than time
       f -= CP.clock * 0.03 * Math.pow(2.5, CP.tier - 1) + 0.012 * durS;
-      // small keeps (they feed the campaign's XP gates — never allowed to decide a generation)
+      // small keeps (they feed the campaign's XP gates — never allowed to decide a generation).
+      // SIDE ERRANDS (the level-up deed's fast-XP channel): +25 each, capped at 3 — a clear
+      // efficiency gradient, but one trophy (1200·2.5^tier) still dwarfs any side streak.
       const xpRate = (R.xp || 0) * 60 / durS;
-      f += 0.5 * Math.min(xpRate, 240) + 3 * (R.quests || 0) + 0.04 * (R.xp || 0) + 1.5 * (R.maxLevel || 0) + 1 * (R.kills || 0);
+      f += 0.5 * Math.min(xpRate, 240) + 3 * (R.quests || 0) + 0.04 * (R.xp || 0) + 1.5 * (R.maxLevel || 0) + 1 * (R.kills || 0) + 25 * Math.min(3, (R.side || 0));
       return Math.round(f - pen - stall);
     };
     const die = ctx => {
@@ -497,6 +508,7 @@
       for (const lm of landmarkList) { if (q.lmType && lm.type !== q.lmType) continue; any = true; const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z); if (d < bd) bd = d; }
       s = !any ? 0.4 : bd < 220 ? 3.4 : bd < 500 ? 2 : 1;
     } else if (q.kind === 'rival') s = wolf.level >= 3 && wolf.hp > 70 ? 3 : 0.3;
+    if (q.side) s = Math.max(s + 3.2, 6);   // LAW v4 · side errands = the fast-XP channel — always worth a slot
     if (q.biome === curBiomeKey) s += 1.2;                                 // work the land I'm standing in
     const deeds = (typeof questsDoneByBiome !== 'undefined' ? (questsDoneByBiome[q.biome] || 0) : 0);
     const legendLand = BOSSES[q.biome] && !BOSSES[q.biome].slain;
@@ -505,39 +517,68 @@
     if (deeds >= 3 && !legendLand) s -= 0.8;                               // spent lands with no legend — move on
     return s;
   };
-  /* ---- quest discipline: ONE deed at a time — three errands, two journeys, one trial, repeat ---- */
+  /* ---- quest discipline: ONE main deed at a time, at most ONE side errand riding it
+         (the level-up deed opens the fast-XP channel: errands are slotted and worked
+         as the deed, because they are the efficient road) ---- */
   const QUEST_SEQ = ['small', 'small', 'small', 'medium', 'medium', 'big'];
+  const trackProgress = q => {   // shared stall-clock: numeric progress OR approach both count as living
+    const pr = q.have || 0;
+    if (bot.qPr !== pr) { bot.qPr = pr; bot.qPrT = SIMNOW(); }
+    const g = window.questGuide && window.questGuide();
+    // M46 BUGFIX (gen11 record): APPROACH is progress for every clock, not just the
+    // 12-min flatline — a wolf closing 100 m on the next pickup (or a quarry it can
+    // nearly see) is not stalled, and the 5-min/150-s clocks must know it.
+    if (g) { const d = g.d | 0; if (bot.qGd === undefined || d < bot.qGd - 3) { bot.qGd = d; bot.qPrT = SIMNOW(); bot.stallT = bot.hardT = SIMNOW(); } bot.qGd = Math.min(bot.qGd === undefined ? d : bot.qGd, d); bot.lastQGd = d; }
+    else bot.lastQGd = -1;
+  };
   const keepQuestsFilled = () => {
     if (bot.seqIx === undefined) bot.seqIx = 0;
     if (bot.questId === undefined) bot.questId = null;
-    while (QUESTS.active.length > 1) {   // never two at once — an extra (e.g. adopted on restart) goes back
-      const extra = QUESTS.active.find(q => q.id !== bot.questId) || QUESTS.active[QUESTS.active.length - 1];
+    if (bot.questIdSide === undefined) bot.questIdSide = false;
+    // discipline: ONE main deed, at most ONE side errand — extras go back
+    for (let guard = 0; guard < 4; guard++) {
+      const mains = QUESTS.active.filter(q => !q.side), sides = QUESTS.active.filter(q => q.side);
+      const extra = mains.length > 1 ? (mains.find(q => q.id !== bot.questId) || mains[1])
+        : sides.length > 1 ? (sides.find(q => q.id !== bot.questId) || sides[1]) : null;
+      if (!extra) break;
       log('quest-extra-back', { msg: 'one deed at a time — ' + extra.title + ' goes back on the board' });
       abandonQuest(extra.id);
     }
-    if (QUESTS.active.length === 1) {
-      const q = QUESTS.active[0];
-      if (!bot.questId) bot.questId = q.id;   // adopted a deed already underway — finish it
-      const pr = q.have || 0;
-      if (bot.qPr !== pr) { bot.qPr = pr; bot.qPrT = SIMNOW(); }
-      const g = window.questGuide && window.questGuide();   // approaching the mark counts as living progress
-      // M46 BUGFIX (gen11 record): APPROACH is progress for every clock, not just the
-      // 12-min flatline — a wolf closing 100 m on the next pickup (or a quarry it can
-      // nearly see) is not stalled, and the 5-min/150-s clocks must know it.
-      if (g) { const d = g.d | 0; if (bot.qGd === undefined || d < bot.qGd - 3) { bot.qGd = d; bot.qPrT = SIMNOW(); bot.stallT = bot.hardT = SIMNOW(); } bot.qGd = Math.min(bot.qGd === undefined ? d : bot.qGd, d); bot.lastQGd = d; }
-      else bot.lastQGd = -1;
-      if (q.kind !== 'survive' && SIMNOW() - (bot.qPrT || SIMNOW()) > 720000) {   // 12 min utterly flat — the one honest escape
-        log('quest-flatlined', { msg: q.title + ' — no progress nor approach for 12 minutes; setting it aside' });
-        bot.shunned.add(q.title);
-        abandonQuest(q.id);
+    const sideQ = QUESTS.active.find(q => q.side) || null;
+    const mainQ = QUESTS.active.find(q => !q.side) || null;
+    if (sideQ) {   // the errand IS the deed now — the fast channel gets commitment
+      if (bot.questId !== sideQ.id) { bot.questId = sideQ.id; bot.questIdSide = true; }
+      trackProgress(sideQ);
+      if (sideQ.kind !== 'survive' && SIMNOW() - (bot.qPrT || SIMNOW()) > 600000) {   // 10 min flat — drop the errand, board offers another
+        log('side-flatlined', { msg: sideQ.title + ' — not closing; setting the errand aside' });
+        bot.shunned.add(sideQ.title);
+        abandonQuest(sideQ.id);
+        if (bot.questId === sideQ.id) { bot.questId = mainQ ? mainQ.id : null; bot.questIdSide = false; }
+        bot.qGd = undefined;
+      }
+      return;
+    }
+    if (mainQ) {
+      if (!bot.questId || bot.questIdSide) { bot.questId = mainQ.id; bot.questIdSide = false; }   // adopted, or the errand just ended — the main deed is the lock
+      trackProgress(mainQ);
+      if (mainQ.kind !== 'survive' && SIMNOW() - (bot.qPrT || SIMNOW()) > 720000) {   // 12 min utterly flat — the one honest escape
+        log('quest-flatlined', { msg: mainQ.title + ' — no progress nor approach for 12 minutes; setting it aside' });
+        bot.shunned.add(mainQ.title);
+        abandonQuest(mainQ.id);
         bot.questId = null; bot.qGd = undefined;
         return;
       }
-      return;   // committed: finish what was started — no second deed, no shuffling
+      // LAW v4 · the level-up deed opens the fast channel — slot the best side errand offered
+      if (mainQ.kind === 'xp' && QUESTS.avail.some(q => q.side)) {
+        let best = null, bs = -1e9;
+        for (const q of QUESTS.avail) if (q.side) { const sc = questScore(q) - (bot.shunned.has(q.title) ? 60 : 0); if (sc > bs) { bs = sc; best = q; } }
+        if (best) { acceptQuest(best.id); bot.questId = best.id; bot.questIdSide = true; log('side-accept', { msg: 'fast lane: ' + best.title }); }
+      }
+      return;   // committed: finish what was started — no shuffling
     }
     if (bot.questId) {   // the deed left active — completed (or the rare flatline) — next step of the cycle
       bot.seqIx = (bot.seqIx + 1) % QUEST_SEQ.length;
-      bot.questId = null; bot.qGd = undefined;
+      bot.questId = null; bot.qGd = undefined; bot.questIdSide = false;
     }
     const want = QUEST_SEQ[bot.seqIx];
     if (typeof refillQuests === 'function') refillQuests();

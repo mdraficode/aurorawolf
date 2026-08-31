@@ -2798,8 +2798,13 @@ function refillQuests() {   // a FULL board: every kind of deed the land can off
 }
 function acceptQuest(id) {
   const q0 = (QUESTS.pool || []).find(q2 => q2.id === id); if (q0 && !q0.t0) q0.t0 = performance.now();   // the clock starts at acceptance
-  if (window.CAMP && window.CAMP.on()) {   // CAMPAIGN: ONE deed at a time — the rule is fundamental
-    if (QUESTS.active.length >= 1) { toast('📜 One deed at a time — the campaign demands focus'); return; }
+  const pre = QUESTS.avail.find(q2 => q2.id === id) || null;
+  if (window.CAMP && window.CAMP.on()) {   // CAMPAIGN: ONE main deed at a time — side errands ride WITH the level-up deed
+    const mainN = QUESTS.active.filter(q2 => !q2.side).length, sideN = QUESTS.active.filter(q2 => q2.side).length;
+    if (pre && pre.side) {
+      if (sideN >= 1) { toast('⚡ One side errand at a time — finish it or set it aside'); return; }
+      if (!QUESTS.active.some(q2 => q2.kind === 'xp')) { toast('⚡ Side errands serve the level-up deed — accept it first'); return; }
+    } else if (mainN >= 1) { toast('📜 One deed at a time — the campaign demands focus'); return; }
   } else if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
   const i = QUESTS.avail.findIndex(q => q.id === id);
   if (i < 0) return;
@@ -2826,6 +2831,7 @@ function completeQuest(q) {
   if (q._done) return;   // M46 CAMPAIGN: completion is atomic — exactly once, ever (anti-exploit)
   q._done = true;
   RUN.quests++;
+  if (q.side) RUN.side = (RUN.side || 0) + 1;   // the fast-XP channel, counted for the law's efficiency term
   if (q.t0) RUN.questTimes.push(+((performance.now() - q.t0) / 1000).toFixed(1));   // accept→complete age, seconds
   if (q.rw && q.rw.perk) RUN.perks.push({ stormborn: '🌩️ Weather-Worn', skywatcher: '⚡ Storm-Touched' }[q.rw.perk] || q.rw.perk);
   if (q.rw && q.rw.boost) RUN.perks.push({ maxHp: '❤️ Wild-Hardened', strongJaw: '🦷 Deep Bite' }[q.rw.boost] || q.rw.boost);

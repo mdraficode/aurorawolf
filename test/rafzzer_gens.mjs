@@ -16,7 +16,7 @@ const DIR = 'test';
 const CHAMP = `${DIR}/rafzzer_champion.json`, CAND = `${DIR}/rafzzer_candidate.json`, LINE = `${DIR}/rafzzer_lineage.json`, TRAITCHAMP = `${DIR}/rafzzer_traitchamp.json`;
 const read = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 const write = (f, o) => fs.writeFileSync(f, JSON.stringify(o));
-const NI = 24, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;   // M46 · LAW v4: 24 senses (bear, sky-threat + 4 campaign senses)
+const NI = 26, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;   // M46 · LAW v4: 26 senses (bear, sky-threat, 4 campaign + side-channel, gate urgency)
 
 // ---- the lineage's own randomness (identical law in-page and in-harness) ----
 const mul32 = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -87,10 +87,18 @@ if (cmd === 'spawn') {
   const g = arg, attempt = +process.argv[4] || 1, mode = process.argv[5] || 'global';
   if (!fs.existsSync(CHAMP)) { write(CHAMP, { v: '1.0', gen: 0, fit: null, weights: freshWeights(), scars: { fight: 0, neglect: 0, water: 0 }, origin: 'wild seed 20070 — the untrained mind' }); console.log('GEN 0 champion created (wild seed)'); }
   let champ = read(CHAMP);
-  if (champ.weights.length !== NW) {   // LAW v4: 24 senses → 316 weights — the old brain cannot be carried over
-    fs.copyFileSync(CHAMP, `${DIR}/rafzzer_champion_lawv3_archive.json`);
-    write(CHAMP, { v: '1.0', gen: 0, fit: null, weights: freshWeights(), scars: { fight: 0, neglect: 0, water: 0 }, origin: 'LAW v4 re-seed: 24 senses (316 w) — the trophy lineage, wild mind' });
-    console.log(`LAW v4 architecture change — champion re-seeded (${champ.weights.length} → ${NW}); old champion archived`);
+  if (champ.weights.length !== NW) {   // LAW v4 architecture moves: 316 (24 senses) → 336 (26 senses) is a ZERO-PAD
+    if (champ.weights.length === 316 && NW === 336) {   // 24-sense brain extended: rows 24-25 = side-channel + gate urgency, silent until evolved
+      const w = champ.weights.slice();
+      champ.weights = w.slice(0, 240).concat(new Array(20).fill(0), w.slice(240));
+      champ.origin = (champ.origin || 'LAW v4') + ' → zero-padded to 26 senses (336 w)';
+      write(CHAMP, champ);
+      console.log(`LAW v4 architecture move 316 → 336 (side-channel + gate senses) — champion GEN ${champ.gen} (fit ${champ.fit}) ZERO-PADDED, behavior preserved`);
+    } else {
+      fs.copyFileSync(CHAMP, `${DIR}/rafzzer_champion_arch_${champ.weights.length}_archive.json`);
+      write(CHAMP, { v: '1.0', gen: 0, fit: null, weights: freshWeights(), scars: { fight: 0, neglect: 0, water: 0 }, origin: 'LAW v4 re-seed: ' + NI + ' senses (' + NW + ' w) — the trophy lineage, wild mind' });
+      console.log(`LAW v4 architecture change — champion re-seeded (${champ.weights.length} → ${NW}); old champion archived`);
+    }
     champ = read(CHAMP);
   }
   let m, base = champ, baseLabel = 'champion fit ' + champ.fit;
@@ -100,15 +108,15 @@ if (cmd === 'spawn') {
   }
   if (mode === 'trait') {
     // M46 · LAW v4 rows experiment (trainer-approved cadence, proven gate-safe):
-    // evolve ONLY the new-sense rows — W1 rows 18..23 (bear-proximity, sky-threat and
-    // the four campaign senses), indices 180..239. The proven survival rows are frozen,
-    // so gate-killing reflexes are untouched. σ 0.15 (above the global 0.08 floor)
-    // because fresh rows start near zero — floor-σ steps would idle there for gens.
+    // evolve ONLY the new-sense rows — W1 rows 18..25 (bear-proximity, sky-threat,
+    // the four campaign senses, side-channel, gate urgency), indices 180..259.
+    // The proven survival rows are frozen, so gate-killing reflexes are untouched.
+    // σ 0.15 (above the global 0.08 floor) because fresh rows start near zero.
     const rnd = mul32(7919 * g + 13 + 1000 * (attempt - 1) + 31);   // own dice stream: re-rolls still re-roll
     const w = base.weights.slice();
     let touched = 0, reset = 0;
     const sd = 0.15;
-    for (let i = 180; i < 240; i++) {
+    for (let i = 180; i < 260; i++) {
       if (rnd() < 0.8) { w[i] += gauss(rnd, sd); touched++; }
       if (rnd() < 0.05) { w[i] = gauss(rnd, sd); reset++; }
       w[i] = Math.max(-2.5, Math.min(2.5, w[i]));

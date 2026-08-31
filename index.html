@@ -6541,8 +6541,13 @@ function refillQuests() {   // a FULL board: every kind of deed the land can off
 }
 function acceptQuest(id) {
   const q0 = (QUESTS.pool || []).find(q2 => q2.id === id); if (q0 && !q0.t0) q0.t0 = performance.now();   // the clock starts at acceptance
-  if (window.CAMP && window.CAMP.on()) {   // CAMPAIGN: ONE deed at a time — the rule is fundamental
-    if (QUESTS.active.length >= 1) { toast('📜 One deed at a time — the campaign demands focus'); return; }
+  const pre = QUESTS.avail.find(q2 => q2.id === id) || null;
+  if (window.CAMP && window.CAMP.on()) {   // CAMPAIGN: ONE main deed at a time — side errands ride WITH the level-up deed
+    const mainN = QUESTS.active.filter(q2 => !q2.side).length, sideN = QUESTS.active.filter(q2 => q2.side).length;
+    if (pre && pre.side) {
+      if (sideN >= 1) { toast('⚡ One side errand at a time — finish it or set it aside'); return; }
+      if (!QUESTS.active.some(q2 => q2.kind === 'xp')) { toast('⚡ Side errands serve the level-up deed — accept it first'); return; }
+    } else if (mainN >= 1) { toast('📜 One deed at a time — the campaign demands focus'); return; }
   } else if (QUESTS.active.length >= 2) { toast('📋 Two deeds at most — finish what you started'); return; }
   const i = QUESTS.avail.findIndex(q => q.id === id);
   if (i < 0) return;
@@ -6569,6 +6574,7 @@ function completeQuest(q) {
   if (q._done) return;   // M46 CAMPAIGN: completion is atomic — exactly once, ever (anti-exploit)
   q._done = true;
   RUN.quests++;
+  if (q.side) RUN.side = (RUN.side || 0) + 1;   // the fast-XP channel, counted for the law's efficiency term
   if (q.t0) RUN.questTimes.push(+((performance.now() - q.t0) / 1000).toFixed(1));   // accept→complete age, seconds
   if (q.rw && q.rw.perk) RUN.perks.push({ stormborn: '🌩️ Weather-Worn', skywatcher: '⚡ Storm-Touched' }[q.rw.perk] || q.rw.perk);
   if (q.rw && q.rw.boost) RUN.perks.push({ maxHp: '❤️ Wild-Hardened', strongJaw: '🦷 Deep Bite' }[q.rw.boost] || q.rw.boost);
@@ -8968,6 +8974,95 @@ window.CAMP = (() => {
       desc: 'Walk ' + curLegend().territory + ' — know the ground before the awakening.',
       rw: { xp: 170 * Σ() }, rwText: Math.round(170 * Σ()) + ' XP' };
   };
+
+  /* ---------- SIDE ERRANDS — the level-up quest's fast-XP channel ----------
+     Accepted a "reach X career XP" deed? The board turns to SIDE ERRANDS:
+     different in nature (timed sprints, full panniers, combo doubles, discovery
+     runs) — and they pay XP faster per minute than any un-quested deed (kills +3,
+     pickups +3). They carry NO RISK and NO LUCK by construction:
+     · no predator / rival / boss / weather content — hunting small game and gathering only;
+     · every offer is SUPPLY-CHECKED (the animals / items / landmarks exist nearby);
+     · timers are generous, and a timeout costs nothing (the errand just goes away).
+     Completing one feeds the ONE XP pool — which IS the level-up quest's progress.
+     So side errands are the deterministic, zero-gamble road to the trophy. */
+  const sideSmallPrey = () => {
+    try {
+      const live = nearbySpeciesCounts();
+      return Object.keys(live).filter(k2 => SPECIES[k2] && SPECIES[k2].hp <= 4 && !SPECIES[k2].huntsWolf && !/predator/i.test(k2) && (live[k2] | 0) > 0);
+    } catch (e) { return []; }
+  };
+  const qSideSprint = () => {   // ⚡ a timed hunt — the tale of the clock, not the claws
+    const t = S.tier;
+    const small = sideSmallPrey();
+    if (!small.length) return null;
+    const sp = small[(Math.random() * small.length) | 0], ref = SPECIES[sp];
+    const need = 2 + Math.min(2, t - 1);
+    const dead = tSec + 140 + 40 * t;
+    return { id: uid(), camp: true, side: true, stage: 'prep', kind: 'hunt', species: sp, need, have: 0, icon: '⚡',
+      title: 'Side: Bloodline Sprint — ' + need + ' ' + pluralOf(ref.label, need) + ' in time', biome: curBiomeKey,
+      timed: true, deadline: dead,
+      desc: 'A timed sprint: ' + need + ' ' + pluralOf(ref.label, need) + ' before the sand runs. No claws, no luck — speed pays.',
+      rw: { xp: Math.round(60 * Σ()) }, rwText: Math.round(60 * Σ()) + ' XP' };
+  };
+  const qSidePannier = () => {   // ✨ fill the basket — the board pays double for a full one
+    const t = S.tier;
+    const items = Object.keys(COLLECT_ITEMS).filter(k2 => pickupSupply(k2) >= 6 + (t - 1) * 2);
+    if (!items.length) return null;
+    const item = items[(Math.random() * items.length) | 0], c = COLLECT_ITEMS[item];
+    const need = 6 + (t - 1) * 2;
+    return { id: uid(), camp: true, side: true, stage: 'prep', kind: 'collect', item, need, have: 0, icon: '✨',
+      title: 'Side: Full Pannier — ' + need + ' ' + c.label, biome: curBiomeKey,
+      timed: true, deadline: tSec + 200 + 60 * t,
+      desc: 'Fill the pannier — ' + need + ' ' + c.label + '. The board pays double for a full basket.',
+      rw: { xp: Math.round(55 * Σ()) }, rwText: Math.round(55 * Σ()) + ' XP' };
+  };
+  const qSideTwin = () => {   // ⚡ the combo hunt — two kills inside fifteen seconds
+    const t = S.tier;
+    const small = sideSmallPrey();
+    if (!small.length) return null;
+    const sp = small[(Math.random() * small.length) | 0], ref = SPECIES[sp];
+    const need = 1 + (t - 1);
+    return { id: uid(), camp: true, side: true, stage: 'prep', kind: 'hunt', species: sp, need, have: 0, icon: '⚡',
+      title: 'Side: Twin Fangs — ' + need + ' double-kill' + (need > 1 ? 's' : '') + ' (2 kills within 15s)', biome: curBiomeKey,
+      timed: true, deadline: tSec + 200 + 50 * t,
+      streak: true, lastKillT: -99,
+      desc: 'A combo hunt — every two kills inside fifteen seconds count as one double. ' + need + ' double(s).',
+      rw: { xp: Math.round(80 * Σ()) }, rwText: Math.round(80 * Σ()) + ' XP' };
+  };
+  const qSideTrail = () => {   // 🧭 a discovery run — read the land, find the unfound
+    const t = S.tier;
+    let lm = null;
+    try { lm = (landmarkList || []).find(l => !l.found && l.type && (!(t > 1) || l.biome === curBiomeKey || Math.random() < 0.6)) || (landmarkList || []).find(l => !l.found); } catch (e) { }
+    if (!lm) return null;
+    return { id: uid(), camp: true, side: true, stage: 'prep', kind: 'explore', lmType: lm.type, need: 1, have: 0, icon: '🧭',
+      title: 'Side: Trail of Firsts — find a ' + (lm.label || lm.type), biome: lm.biome || curBiomeKey,
+      timed: true, deadline: tSec + 180 + 40 * t,
+      desc: 'A discovery run: map an unfound place of the ' + (lm.type || 'land') + '. The map pays, the map remembers.',
+      rw: { xp: Math.round(65 * Σ()) }, rwText: Math.round(65 * Σ()) + ' XP' };
+  };
+  const SIDE_MAKERS = [qSideSprint, qSidePannier, qSideTwin, qSideTrail];
+  /* the side board: only while a level-up (XP-gate) quest is the active deed */
+  const sideRefill = () => {
+    QUESTS.avail.length = 0;
+    if (!(QUESTS.active || []).some(q => q && q.kind === 'xp')) { if (typeof renderQuests === 'function') renderQuests(); return; }
+    const guard = { used: new Set(), tries: 0 };
+    while (QUESTS.avail.length < 3 && guard.tries++ < 40) {
+      const make = SIDE_MAKERS[(Math.random() * SIDE_MAKERS.length) | 0];
+      const q = make();
+      if (!q || guard.used.has(q.title) || QUESTS.avail.some(o => o.title === q.title) || QUESTS.active.some(o => o.title === q.title)) continue;
+      QUESTS.avail.push(q); guard.used.add(q.title);
+    }
+    if (typeof renderQuests === 'function') renderQuests();
+    questHudDirty = true;
+  };
+  const sideInfo = () => {   // the cortex's window onto the fast-XP channel
+    const gate = (QUESTS.active || []).find(q => q && q.kind === 'xp') || null;
+    const side = (QUESTS.active || []).find(q => q && q.side) || null;
+    return {
+      on: !!gate, avail: (QUESTS.avail || []).filter(q => q.side).length,
+      active: side ? side.kind : null, need: gate ? gate.need : 0, have: gate ? (gate.have | 0) : 0
+    };
+  };
   const qRitual = () => {
     const a = buildAltar();
     return { id: uid(), camp: true, stage: 'awaken', kind: 'ritual', need: 1, have: 0, icon: icon('ritual'), wp: { x: a.x, z: a.z },
@@ -9000,6 +9095,26 @@ window.CAMP = (() => {
 
   /* ---------- event & tick plumbing ---------- */
   const onEvent = (q, kind, data) => {   // campaign kinds answer first; return true = handled
+    if (q.side) {   // side errands answer here first — the classic branches must never double-count
+      if (q.kind === 'hunt' && kind === 'kill' && data.species === q.species && data.species !== 'predator') {
+        if (q.streak) {
+          const gap = tSec - (q.lastKillT || -99);
+          q.lastKillT = tSec;
+          if (gap > 15) { questHudDirty = true; toast(`${q.icon} ${q.title}: double armed — another within 15s!`); }
+          else { q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`⚡ Twin Fangs ${q.have}/${q.need} doubles!`); } }
+        } else {
+          q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); }
+        }
+        return true;
+      }
+      if (q.kind === 'collect' && kind === 'gather' && data.item === q.item) {
+        q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); }
+        return true;
+      }
+      if (q.kind === 'explore' && q.lmType && kind === 'discover' && data.type === q.lmType) { q.have = 1; completeQuest(q); return true; }
+      if (q.kind === 'explore' && q.peak && kind === 'height' && data.y > 50) { q.have = 1; completeQuest(q); return true; }
+      return false;
+    }
     if (q.kind === 'combat' && kind === 'kill' && data.species === 'predator') {
       q.have++; if (q.have >= q.need) completeQuest(q); else { questHudDirty = true; toast(`${q.icon} ${q.title}: ${q.have}/${q.need}`); }
       return true;
@@ -9016,8 +9131,18 @@ window.CAMP = (() => {
   };
   const onQuestComplete = q => {
     if (!q || !q.camp) return;
+    if (q.side) {   // a side errand banked: NO stage advance — the board simply offers another
+      toast(`⚡ Side errand complete: ${q.title} · +${q.rw.xp} XP — the level-up road shortens!`, true);
+      if (window.PACK && window.PACK.onQuestDone) window.PACK.onQuestDone(q);
+      sideRefill(); save(); questHudDirty = true;
+      return;
+    }
     // the deed's XP was already paid into the ONE pool by completeQuest() → addXp(q.rw.xp)
     // here the machine only advances: quests unfold the chain to the higher-tier trophies
+    if (q.kind === 'xp') {   // the level-up quest closed — its errands are moot
+      for (const qq of [...QUESTS.active]) if (qq.side) { const i = QUESTS.active.indexOf(qq); if (i >= 0) QUESTS.active.splice(i, 1); }
+      toast('⚜ The level-up is banked — side errands retire with it.', true);
+    }
     const st = q.stage;
     if (st === 'q0') { S.stage = 'q1'; toast(`📜 Stage 1 complete — the land deepens. Choose your next deed.`, true); }
     else if (st === 'q1') { S.stage = 'prep'; S.prepDone = 0; toast(`📜 Stage 2 complete — prepare for the ${curLegend().key}.`, true); }
@@ -9031,11 +9156,16 @@ window.CAMP = (() => {
     refill(); save(); questHudDirty = true;
   };
   const onAccept = q => {
+    if (q.side) { save(); questHudDirty = true; return; }   // other side errands stay on the board — one slotted, the rest wait
     QUESTS.avail.length = 0;   // the other choices disappear — ONE deed at a time (spec rule)
+    if (q.kind === 'xp') { toast('⚜ A level-up deed — the board turns to SIDE ERRANDS: quick, safe, fat XP. Accept one to speed the climb.', true); sideRefill(); }
+    else if (typeof renderQuests === 'function') renderQuests();
     save(); questHudDirty = true;
   };
   const onAbandon = q => {   // returning to the board — no XP, no stage change (anti-exploit: no reaccept farming)
+    if (q.side) { toast(`📜 Errand set aside: ${q.title} (no XP — the board offers another)`); sideRefill(); save(); return true; }
     if (q.camp && q.stage === 'boss') { toast('💀 The ' + curLegend().key + ' will not be set aside — face it, or fall.'); rebuildBoard(); return true; }
+    for (const qq of [...QUESTS.active]) if (qq.side) { const i = QUESTS.active.indexOf(qq); if (i >= 0) QUESTS.active.splice(i, 1); }   // the gate is down — its errands retire with it
     toast(`📜 Set aside: ${q.title} (no XP — the board offers the stage again)`);
     rebuildBoard(); save();
     return true;
@@ -9148,10 +9278,24 @@ window.CAMP = (() => {
     // the active deed's own progress
     for (const q of [...QUESTS.active]) {
       if (!q.camp) continue;
-      if (q.kind === 'xp') { q.have = Math.min(q.need, Math.max(0, wolf.xpTotal - q.base)); if (q.have >= q.need) completeQuest(q); else questHudDirty = true; }
+      if (q.kind === 'xp') {
+        q.have = Math.min(q.need, Math.max(0, wolf.xpTotal - q.base));
+        if (q.have >= q.need) completeQuest(q);   // the climb ends — the main machine refills
+        else {
+          questHudDirty = true;
+          // the level-up deed opens the SIDE ERRAND board. (acceptQuest calls onAccept
+          // before the deed lands in QUESTS.active, so the tick is the reliable trigger —
+          // retried every 30 s if the land offers nothing, so a quiet world still finds errands.)
+          if (!QUESTS.avail.some(a => a.side) && (q._sideT === undefined || tSec - q._sideT > 30)) { q._sideT = tSec; sideRefill(); }
+        }
+      }
       else if (q.kind === 'travel') { q.have = Math.min(q.need, Math.max(0, wolf.distance - (q.fromDist || wolf.distance))); if (q.have >= q.need) completeQuest(q); else questHudDirty = true; }
       else if (q.kind === 'scout') { const d = dist(q.wp.x, q.wp.z); q.have = d < 40 ? 1 : 0; if (q.have >= q.need) completeQuest(q); }
       else if (q.kind === 'ritual') { const d = dist(q.wp.x, q.wp.z); if (d < 4 && !q._prompted) { q._prompted = true; toast('🪨 Press E to channel the awakening'); } }
+      if (q.timed && q.side && tSec > q.deadline) {   // an errand's clock ran out — zero penalty, the board offers another
+        toast(`⏳ Side errand over: ${q.title} — the clock ran out. No penalty; the board offers another.`);
+        abandonQuest(q.id); save(); continue;
+      }
       if (q.timed && q.kind === 'hunt' && tSec > q.deadline) {   // the clock is the hunt's law
         toast(`⏳ Hunt failed — the ${curLegend().key} does not wait for slow hunters.`); abandonQuest(q.id); rebuildBoard(); save();
       }
@@ -9216,7 +9360,7 @@ window.CAMP = (() => {
     on: () => true,
     init: () => { load(); },
     refill, tick, hud, mapMarks, onEvent, onQuestComplete, onAccept, onAbandon, onDeath,
-    onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh, clock: elapsed
+    onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh, clock: elapsed, side: sideInfo
   };
 })();
 if (window.CAMP && window.CAMP.init) window.CAMP.init();
@@ -9531,7 +9675,7 @@ window.PACK = (() => {
    that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1. */
 (function () {
   const URL_ON = /[?&]autopilot=1/.test(location.search);
-  window.RAFZZER_SEED = [0.0234,-0.5621,0.4874,0.6369,0.1669,0.3710,0.2250,-0.1630,-0.4771,0.1247,0.3347,0.1592,1.1324,-0.3270,-0.0719,0.1688,0.1704,-0.2587,0.1319,-0.0261,-0.0932,-0.3689,0.7677,0.4295,-0.1013,-0.1660,0.6516,-0.1190,0.1782,0.6965,0.0414,0.0574,-0.2697,0.0026,0.2275,0.2447,0.0218,-0.3459,0.1511,-0.0260,0.1172,-0.2437,0.8120,-0.1727,0.1496,-0.2585,-0.0010,0.2902,0.1305,-0.2601,-0.1165,0.5100,-0.3546,0.1033,0.1996,0.7167,0.0844,0.2185,0.2309,-0.8122,0.4198,-0.7888,-0.0726,0.1041,0.6261,-0.5373,-0.4313,-0.0523,-0.2643,0.2403,0.2959,-0.0621,-0.0084,0.5432,0.2284,0.0606,0.1058,-0.1130,0.1410,0.3524,0.3378,0.2277,-0.4354,0.0909,-0.5425,0.3781,0.5307,0.0248,0.1206,0.0810,-0.0391,-0.6601,-0.3483,-0.6543,-0.6308,0.6237,-0.2714,-0.1454,0.4709,-0.4027,0.4038,-0.6885,0.2765,0.1655,0.0855,-0.5718,0.2635,-0.2850,0.1458,-0.0457,0.4714,0.1289,0.0896,0.1290,0.1090,0.2939,-0.1423,0.0308,0.5143,0.1813,0.3823,-0.9089,-0.0177,0.7681,-0.3915,0.1884,-0.1664,0.2830,-0.2703,-0.1549,0.6349,0.3020,-0.2537,-0.4975,-0.4685,0.2440,-0.3840,0.1435,0.3505,0.0189,0.4478,0.1418,-0.3464,0.4441,0.0019,-0.1113,0.4427,-0.2581,-0.2510,0.3879,-0.4745,-0.3063,0.0221,0.1360,-0.3120,0.2218,0.2008,-0.3542,-0.0697,-0.1130,0.1741,0.3236,0.3391,0.4144,0.0595,0.3413,0.1899,0.4986,0.0764,0.3310,-0.8774,-0.4744,0.7997,-0.2007,0.0401,0.0619,0.1553,0.2630,-0.2398,0.0586,0.1847,-0.3100,0.1579,-0.2572,0.2519,0.1735,-0.3057,0.0837,0.1766,-0.2572,-0.1305,-0.0525,0.2673,-0.0153,-0.1829,0.3615,-0.2330,-0.2173,-0.2046,0.6633,-0.1308,-0.2675,-0.2456,-0.6664,-0.5133,0.2025,-0.0114,0.5363,0.0133,-0.0664,0.0592,-0.3889,-0.1544,0.1725,0.2479,1.0494,0.1634,0.5876,0.3043,0.1107,-0.3780,-0.0907,0.4253,0.1973,-0.0174,-0.0364,-0.6411,0.0699,-0.0868,0.7133,0.7998,0.2525,0.2840,-0.1488,0.1123,-0.0531,0.3306,0.4337,-0.0737,0.1571,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,0.0000,-0.6925,0.0542,0.0859,0.6342,-0.8360,-0.4266,-0.6151,-0.4088,-1.0398,-0.3954,-0.3039,-0.2527,-0.3186,-0.4549,0.5306,-0.7392,-0.3871,-0.0353,-0.6873,-0.1391,-0.3349,-0.4804,0.2859,0.2231,0.5640,-0.4285,-0.4295,0.7369,-0.3899,0.6057,0.6709,0.2712,0.0826,0.6131,-0.5638,0.5733,-0.5669,0.2608,-0.3220,-0.2185,1.0300,0.3593,0.2050,0.2064,-0.0268,-0.0498,0.7662,-1.2373,-0.2882,-0.2788,-0.3750,-0.3401,-0.4301,0.3875,-0.8657,-0.6018,0.0501,0.2768,0.1230,0.5261,-0.0059,0.7503,0.6658,-0.3090,-0.6752,0.1582];   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
+  window.RAFZZER_SEED = [0.0234,-0.5621,0.4874,0.6369,0.1669,0.371,0.225,-0.163,-0.4771,0.1247,0.3347,0.1592,1.1324,-0.327,-0.0719,0.1688,0.1704,-0.2587,0.1319,-0.0261,-0.0932,-0.3689,0.7677,0.4295,-0.1013,-0.166,0.6516,-0.119,0.1782,0.6965,0.0414,0.0574,-0.2697,0.0026,0.2275,0.2447,0.0218,-0.3459,0.1511,-0.026,0.1172,-0.2437,0.812,-0.1727,0.1496,-0.2585,-0.001,0.2902,0.1305,-0.2601,-0.1165,0.51,-0.3546,0.1033,0.1996,0.7167,0.0844,0.2185,0.2309,-0.8122,0.4198,-0.7888,-0.0726,0.1041,0.6261,-0.5373,-0.4313,-0.0523,-0.2643,0.2403,0.2959,-0.0621,-0.0084,0.5432,0.2284,0.0606,0.1058,-0.113,0.141,0.3524,0.3378,0.2277,-0.4354,0.0909,-0.5425,0.3781,0.5307,0.0248,0.1206,0.081,-0.0391,-0.6601,-0.3483,-0.6543,-0.6308,0.6237,-0.2714,-0.1454,0.4709,-0.4027,0.4038,-0.6885,0.2765,0.1655,0.0855,-0.5718,0.2635,-0.285,0.1458,-0.0457,0.4714,0.1289,0.0896,0.129,0.109,0.2939,-0.1423,0.0308,0.5143,0.1813,0.3823,-0.9089,-0.0177,0.7681,-0.3915,0.1884,-0.1664,0.283,-0.2703,-0.1549,0.6349,0.302,-0.2537,-0.4975,-0.4685,0.244,-0.384,0.1435,0.3505,0.0189,0.4478,0.1418,-0.3464,0.4441,0.0019,-0.1113,0.4427,-0.2581,-0.251,0.3879,-0.4745,-0.3063,0.0221,0.136,-0.312,0.2218,0.2008,-0.3542,-0.0697,-0.113,0.1741,0.3236,0.3391,0.4144,0.0595,0.3413,0.1899,0.4986,0.0764,0.331,-0.8774,-0.4744,0.7997,-0.2007,0.0401,0.0619,0.1553,0.263,-0.2398,0.0586,0.1847,-0.31,0.1579,-0.2572,0.2519,0.1735,-0.3057,0.0837,0.1766,-0.2572,-0.1305,-0.0525,0.2673,-0.0153,-0.1829,0.3615,-0.233,-0.2173,-0.2046,0.6633,-0.1308,-0.2675,-0.2456,-0.6664,-0.5133,0.2025,-0.0114,0.5363,0.0133,-0.0664,0.0592,-0.3889,-0.1544,0.1725,0.2479,1.0494,0.1634,0.5876,0.3043,0.1107,-0.378,-0.0907,0.4253,0.1973,-0.0174,-0.0364,-0.6411,0.0699,-0.0868,0.7133,0.7998,0.2525,0.284,-0.1488,0.1123,-0.0531,0.3306,0.4337,-0.0737,0.1571,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.6925,0.0542,0.0859,0.6342,-0.836,-0.4266,-0.6151,-0.4088,-1.0398,-0.3954,-0.3039,-0.2527,-0.3186,-0.4549,0.5306,-0.7392,-0.3871,-0.0353,-0.6873,-0.1391,-0.3349,-0.4804,0.2859,0.2231,0.564,-0.4285,-0.4295,0.7369,-0.3899,0.6057,0.6709,0.2712,0.0826,0.6131,-0.5638,0.5733,-0.5669,0.2608,-0.322,-0.2185,1.03,0.3593,0.205,0.2064,-0.0268,-0.0498,0.7662,-1.2373,-0.2882,-0.2788,-0.375,-0.3401,-0.4301,0.3875,-0.8657,-0.6018,0.0501,0.2768,0.123,0.5261,-0.0059,0.7503,0.6658,-0.309,-0.6752,0.1582];   // 🧠 LAW-v4 mind: seed 20070, 26 senses (336 weights) — trophy lineage; rows 24-25 = side-channel + gate urgency (zero-padded from the 316 brain)   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
 
   /* ---------------- sim boost (?speed=N&rate=R, special builds only) ----------------
      Software GL renders at ~2-3 fps here and dt clamps at 0.05 → the sim crawls at
@@ -9599,7 +9743,7 @@ window.PACK = (() => {
      road (time/stalls). Senses 20-23 append the campaign cortex (progress, tier,
      deed meter, tier clock); senses 18-19 remain bear-proximity / sky-threat. */
   const RAFZ = window.RAFZZER = (() => {
-    const NI = 24, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;
+    const NI = 26, NH = 10, NO = 6, NW = NI * NH + NH + NH * NO + NO;   // 26 senses: + side-channel + gate urgency (LAW v4)
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     const mul32 = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
     const gauss = (rnd, sd) => { let u = 0, v = 0; while (!u) u = rnd(); while (!v) v = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(6.283185307179586 * v) * sd; };
@@ -9617,7 +9761,7 @@ window.PACK = (() => {
     const NLEG = (() => { try { return (typeof LEGENDS !== 'undefined' ? LEGENDS.length : 5) + 1; } catch (e) { return 6; } })();   // 5 legends + the Beast Master
     const campProbe = () => {
       const C = (window.CAMP && window.CAMP.state) ? window.CAMP.state() : null;
-      if (!C) return { on: false, tier: 1, leg: 0, stage: 'q0', prepDone: 0, trophies: [], topTier: 0, topTimes: [], prog: 0, clock: 0 };
+      if (!C) return { on: false, tier: 1, leg: 0, stage: 'q0', prepDone: 0, trophies: [], topTier: 0, topTimes: [], prog: 0, clock: 0, sideP: 0, gateU: 0 };
       const trophies = (C.trophies || []);
       const topTier = trophies.length ? Math.max(...trophies.map(t => t.tier | 0)) : 0;
       const topTimes = trophies.filter(t => (t.tier | 0) === topTier).map(t => +t.time || 0);
@@ -9625,13 +9769,20 @@ window.PACK = (() => {
       const prepF = C.stage === 'prep' ? Math.min(0.24, 0.08 * (C.prepDone | 0)) : 0;   // prepNeed ≤ 3 ⇒ ≤ 0.24
       const prog = Math.min(1, ((C.leg | 0) + stF + prepF) / NLEG);
       let clock = 0; try { clock = (window.CAMP && CAMP.clock) ? CAMP.clock() : 0; } catch (e) { }
-      return { on: true, tier: Math.max(1, C.tier | 0), leg: C.leg | 0, stage: C.stage, prepDone: C.prepDone | 0, trophies, topTier, topTimes, prog, clock };
+      // LAW v4 · SIDE-ERRAND SENSES: the fast-XP channel the level-up deed opens — the cortex
+      // must SEE it to urge the wolf onto it. sideP = 1 errand slotted, 0.6 offered on the board,
+      // 0 none. gateU = the level-up deed's own meter (how close the climb is).
+      let sideP = 0, gateU = 0;
+      try { const si = (window.CAMP && window.CAMP.side) ? window.CAMP.side() : null;
+        if (si && si.on) { sideP = si.active ? 1 : (si.avail > 0 ? 0.6 : 0); if (si.need) gateU = clamp((si.have || 0) / si.need, 0, 1); }
+      } catch (e) { }
+      return { on: true, tier: Math.max(1, C.tier | 0), leg: C.leg | 0, stage: C.stage, prepDone: C.prepDone | 0, trophies, topTier, topTimes, prog, clock, sideP, gateU };
     };
     const sense = ctx => {
       const p = ctx.pred && ctx.pred.a, r = (typeof nearestRival === 'function' && nearestRival()) || { d: 999 };
       const CP = campProbe();
       let deedP = 0;
-      try { const qa = (typeof QUESTS !== 'undefined' && QUESTS.active && QUESTS.active[0]) || null; if (qa && qa.camp && qa.need) deedP = clamp((qa.have || 0) / qa.need, 0, 1); } catch (e) { }
+      try { const qa = (typeof QUESTS !== 'undefined' && QUESTS.active && (QUESTS.active.find(q => q.side) || QUESTS.active[0])) || null; if (qa && qa.camp && qa.need) deedP = clamp((qa.have || 0) / qa.need, 0, 1); } catch (e) { }
       let preyD = 999, preyMeat = 0;
       try { const a = nearestAnimal(an => !an.dead && an.sp && an.sp.meat > 0 && !(bot.preyShun && an.sp.label === bot.preyShun.label)); if (a) { preyD = Math.hypot(a.pos.x - wolf.pos.x, a.pos.z - wolf.pos.z); preyMeat = a.sp.meat; } } catch (e) { }
       // M46 · GEN 27+ (bear-aware scar, born from the eagle-dive evasions): the old
@@ -9671,7 +9822,9 @@ window.PACK = (() => {
         CP.prog,                      // 20 · through-tier progress 0..1 — legends slain + stage (q0 0 → trophy 1)
         clamp((CP.tier - 1) / 4, 0, 1),   // 21 · the ladder: tier 1..5 (higher tier = bigger prize, harsher wild)
         deedP,                        // 22 · the CURRENT deed's meter (have/need, 0 = no deed on the board)
-        clamp(CP.clock / 600, 0, 2)   // 23 · the tier clock (wall-s since the tier began; 600 s = par)
+        clamp(CP.clock / 600, 0, 2),  // 23 · the tier clock (wall-s since the tier began; 600 s = par)
+        CP.sideP,                     // 24 · the fast-XP channel: 1 = side errand slotted, 0.6 = offered, 0 = none
+        CP.gateU                      // 25 · the level-up deed's meter (how close the climb is)
       ];
     };
     const think = ctx => {
@@ -9727,9 +9880,11 @@ window.PACK = (() => {
       f += 220 * CP.prog * Math.pow(2.5, CP.tier - 1) + 60 * (R.bosses || 0);
       // (4) EFFICIENCY — every second of the road costs; mistakes cost more than time
       f -= CP.clock * 0.03 * Math.pow(2.5, CP.tier - 1) + 0.012 * durS;
-      // small keeps (they feed the campaign's XP gates — never allowed to decide a generation)
+      // small keeps (they feed the campaign's XP gates — never allowed to decide a generation).
+      // SIDE ERRANDS (the level-up deed's fast-XP channel): +25 each, capped at 3 — a clear
+      // efficiency gradient, but one trophy (1200·2.5^tier) still dwarfs any side streak.
       const xpRate = (R.xp || 0) * 60 / durS;
-      f += 0.5 * Math.min(xpRate, 240) + 3 * (R.quests || 0) + 0.04 * (R.xp || 0) + 1.5 * (R.maxLevel || 0) + 1 * (R.kills || 0);
+      f += 0.5 * Math.min(xpRate, 240) + 3 * (R.quests || 0) + 0.04 * (R.xp || 0) + 1.5 * (R.maxLevel || 0) + 1 * (R.kills || 0) + 25 * Math.min(3, (R.side || 0));
       return Math.round(f - pen - stall);
     };
     const die = ctx => {
@@ -10018,6 +10173,7 @@ window.PACK = (() => {
       for (const lm of landmarkList) { if (q.lmType && lm.type !== q.lmType) continue; any = true; const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z); if (d < bd) bd = d; }
       s = !any ? 0.4 : bd < 220 ? 3.4 : bd < 500 ? 2 : 1;
     } else if (q.kind === 'rival') s = wolf.level >= 3 && wolf.hp > 70 ? 3 : 0.3;
+    if (q.side) s = Math.max(s + 3.2, 6);   // LAW v4 · side errands = the fast-XP channel — always worth a slot
     if (q.biome === curBiomeKey) s += 1.2;                                 // work the land I'm standing in
     const deeds = (typeof questsDoneByBiome !== 'undefined' ? (questsDoneByBiome[q.biome] || 0) : 0);
     const legendLand = BOSSES[q.biome] && !BOSSES[q.biome].slain;
@@ -10026,39 +10182,68 @@ window.PACK = (() => {
     if (deeds >= 3 && !legendLand) s -= 0.8;                               // spent lands with no legend — move on
     return s;
   };
-  /* ---- quest discipline: ONE deed at a time — three errands, two journeys, one trial, repeat ---- */
+  /* ---- quest discipline: ONE main deed at a time, at most ONE side errand riding it
+         (the level-up deed opens the fast-XP channel: errands are slotted and worked
+         as the deed, because they are the efficient road) ---- */
   const QUEST_SEQ = ['small', 'small', 'small', 'medium', 'medium', 'big'];
+  const trackProgress = q => {   // shared stall-clock: numeric progress OR approach both count as living
+    const pr = q.have || 0;
+    if (bot.qPr !== pr) { bot.qPr = pr; bot.qPrT = SIMNOW(); }
+    const g = window.questGuide && window.questGuide();
+    // M46 BUGFIX (gen11 record): APPROACH is progress for every clock, not just the
+    // 12-min flatline — a wolf closing 100 m on the next pickup (or a quarry it can
+    // nearly see) is not stalled, and the 5-min/150-s clocks must know it.
+    if (g) { const d = g.d | 0; if (bot.qGd === undefined || d < bot.qGd - 3) { bot.qGd = d; bot.qPrT = SIMNOW(); bot.stallT = bot.hardT = SIMNOW(); } bot.qGd = Math.min(bot.qGd === undefined ? d : bot.qGd, d); bot.lastQGd = d; }
+    else bot.lastQGd = -1;
+  };
   const keepQuestsFilled = () => {
     if (bot.seqIx === undefined) bot.seqIx = 0;
     if (bot.questId === undefined) bot.questId = null;
-    while (QUESTS.active.length > 1) {   // never two at once — an extra (e.g. adopted on restart) goes back
-      const extra = QUESTS.active.find(q => q.id !== bot.questId) || QUESTS.active[QUESTS.active.length - 1];
+    if (bot.questIdSide === undefined) bot.questIdSide = false;
+    // discipline: ONE main deed, at most ONE side errand — extras go back
+    for (let guard = 0; guard < 4; guard++) {
+      const mains = QUESTS.active.filter(q => !q.side), sides = QUESTS.active.filter(q => q.side);
+      const extra = mains.length > 1 ? (mains.find(q => q.id !== bot.questId) || mains[1])
+        : sides.length > 1 ? (sides.find(q => q.id !== bot.questId) || sides[1]) : null;
+      if (!extra) break;
       log('quest-extra-back', { msg: 'one deed at a time — ' + extra.title + ' goes back on the board' });
       abandonQuest(extra.id);
     }
-    if (QUESTS.active.length === 1) {
-      const q = QUESTS.active[0];
-      if (!bot.questId) bot.questId = q.id;   // adopted a deed already underway — finish it
-      const pr = q.have || 0;
-      if (bot.qPr !== pr) { bot.qPr = pr; bot.qPrT = SIMNOW(); }
-      const g = window.questGuide && window.questGuide();   // approaching the mark counts as living progress
-      // M46 BUGFIX (gen11 record): APPROACH is progress for every clock, not just the
-      // 12-min flatline — a wolf closing 100 m on the next pickup (or a quarry it can
-      // nearly see) is not stalled, and the 5-min/150-s clocks must know it.
-      if (g) { const d = g.d | 0; if (bot.qGd === undefined || d < bot.qGd - 3) { bot.qGd = d; bot.qPrT = SIMNOW(); bot.stallT = bot.hardT = SIMNOW(); } bot.qGd = Math.min(bot.qGd === undefined ? d : bot.qGd, d); bot.lastQGd = d; }
-      else bot.lastQGd = -1;
-      if (q.kind !== 'survive' && SIMNOW() - (bot.qPrT || SIMNOW()) > 720000) {   // 12 min utterly flat — the one honest escape
-        log('quest-flatlined', { msg: q.title + ' — no progress nor approach for 12 minutes; setting it aside' });
-        bot.shunned.add(q.title);
-        abandonQuest(q.id);
+    const sideQ = QUESTS.active.find(q => q.side) || null;
+    const mainQ = QUESTS.active.find(q => !q.side) || null;
+    if (sideQ) {   // the errand IS the deed now — the fast channel gets commitment
+      if (bot.questId !== sideQ.id) { bot.questId = sideQ.id; bot.questIdSide = true; }
+      trackProgress(sideQ);
+      if (sideQ.kind !== 'survive' && SIMNOW() - (bot.qPrT || SIMNOW()) > 600000) {   // 10 min flat — drop the errand, board offers another
+        log('side-flatlined', { msg: sideQ.title + ' — not closing; setting the errand aside' });
+        bot.shunned.add(sideQ.title);
+        abandonQuest(sideQ.id);
+        if (bot.questId === sideQ.id) { bot.questId = mainQ ? mainQ.id : null; bot.questIdSide = false; }
+        bot.qGd = undefined;
+      }
+      return;
+    }
+    if (mainQ) {
+      if (!bot.questId || bot.questIdSide) { bot.questId = mainQ.id; bot.questIdSide = false; }   // adopted, or the errand just ended — the main deed is the lock
+      trackProgress(mainQ);
+      if (mainQ.kind !== 'survive' && SIMNOW() - (bot.qPrT || SIMNOW()) > 720000) {   // 12 min utterly flat — the one honest escape
+        log('quest-flatlined', { msg: mainQ.title + ' — no progress nor approach for 12 minutes; setting it aside' });
+        bot.shunned.add(mainQ.title);
+        abandonQuest(mainQ.id);
         bot.questId = null; bot.qGd = undefined;
         return;
       }
-      return;   // committed: finish what was started — no second deed, no shuffling
+      // LAW v4 · the level-up deed opens the fast channel — slot the best side errand offered
+      if (mainQ.kind === 'xp' && QUESTS.avail.some(q => q.side)) {
+        let best = null, bs = -1e9;
+        for (const q of QUESTS.avail) if (q.side) { const sc = questScore(q) - (bot.shunned.has(q.title) ? 60 : 0); if (sc > bs) { bs = sc; best = q; } }
+        if (best) { acceptQuest(best.id); bot.questId = best.id; bot.questIdSide = true; log('side-accept', { msg: 'fast lane: ' + best.title }); }
+      }
+      return;   // committed: finish what was started — no shuffling
     }
     if (bot.questId) {   // the deed left active — completed (or the rare flatline) — next step of the cycle
       bot.seqIx = (bot.seqIx + 1) % QUEST_SEQ.length;
-      bot.questId = null; bot.qGd = undefined;
+      bot.questId = null; bot.qGd = undefined; bot.questIdSide = false;
     }
     const want = QUEST_SEQ[bot.seqIx];
     if (typeof refillQuests === 'function') refillQuests();
