@@ -1,0 +1,193 @@
+
+> aurorawolf@2.0.0 test
+> for t in smoke.mjs layout.test.mjs landscape.test.mjs wolf.test.mjs pose.check.mjs ui2.test.mjs features.test.mjs enemies.test.mjs world.test.mjs heading.check.mjs forest.test.mjs biomes.test.mjs events.test.mjs mapclose.check.mjs collision.test.mjs hunt.test.mjs audio.test.mjs eagle.test.mjs menu.test.mjs hudfit.test.mjs campaign.test.mjs pack.test.mjs; do printf '%-20s ' $t; node test/$t >/dev/null 2>&1 && echo PASS || echo FAIL; done && node test/gather.test.mjs && node test/ecosystem.test.mjs && node test/mystic.test.mjs
+
+smoke.mjs            PASS
+layout.test.mjs      PASS
+landscape.test.mjs   PASS
+wolf.test.mjs        PASS
+pose.check.mjs       PASS
+ui2.test.mjs         PASS
+features.test.mjs    PASS
+enemies.test.mjs     PASS
+world.test.mjs       PASS
+heading.check.mjs    PASS
+forest.test.mjs      PASS
+biomes.test.mjs      PASS
+events.test.mjs      PASS
+mapclose.check.mjs   PASS
+collision.test.mjs   PASS
+hunt.test.mjs        PASS
+audio.test.mjs       PASS
+eagle.test.mjs       PASS
+menu.test.mjs        PASS
+hudfit.test.mjs      PASS
+campaign.test.mjs    PASS
+pack.test.mjs        PASS
+I1 offer contract: 200 valid offers, 0 rerolls (land too poor) · by item {"mushroom":75,"wood":57,"berry":68}
+  3s · active hunt:arcticFox · gathered 0 · done 0
+  6s · active hunt:arcticFox · gathered 0 · done 0
+  9s · active hunt:arcticFox · gathered 0 · done 0
+  13s · active hunt:arcticFox · gathered 0 · done 0
+  16s · active hunt:arcticFox · gathered 0 · done 0
+  19s · active hunt:arcticFox · gathered 0 · done 0
+  22s · active hunt:arcticFox · gathered 0 · done 0
+  25s · active hunt:arcticFox · gathered 0 · done 0
+  28s · active hunt:arcticFox · gathered 0 · done 0
+  31s · active hunt:arcticFox · gathered 0 · done 0
+  34s · active hunt:arcticFox · gathered 0 · done 0
+  37s · active hunt:arcticFox · gathered 0 · done 0
+  40s · active hunt:arcticFox · gathered 0 · done 0
+  43s · active hunt:arcticFox · gathered 0 · done 0
+  46s · active hunt:arcticFox · gathered 0 · done 0
+  49s · active hunt:arcticFox · gathered 0 · done 0
+  53s · active hunt:arcticFox · gathered 0 · done 0
+  56s · active hunt:arcticFox · gathered 0 · done 0
+  59s · active hunt:arcticFox · gathered 0 · done 0
+  62s · active hunt:arcticFox · gathered 0 · done 0
+  65s · active hunt:arcticFox · gathered 0 · done 0
+  68s · active hunt:arcticFox · gathered 0 · done 0
+  71s · active hunt:arcticFox · gathered 0 · done 0
+  74s · active combat: · gathered 0 · done 1
+  77s · active combat: · gathered 0 · done 1
+  80s · active combat: · gathered 0 · done 1
+  83s · active combat: · gathered 0 · done 1
+  86s · active combat: · gathered 0 · done 1
+  90s · active combat: · gathered 0 · done 1
+  94s · active combat: · gathered 0 · done 1
+  98s · active combat: · gathered 0 · done 1
+  101s · active combat: · gathered 0 · done 1
+  105s · active combat: · gathered 0 · done 1
+  108s · active combat: · gathered 0 · done 1
+  111s · active combat: · gathered 0 · done 1
+  114s · active combat: · gathered 0 · done 1
+  117s · active combat: · gathered 0 · done 1
+  120s · active combat: · gathered 0 · done 1
+  124s · active combat: · gathered 0 · done 1
+  127s · active combat: · gathered 0 · done 1
+  130s · active combat: · gathered 0 · done 1
+  133s · active combat: · gathered 0 · done 1
+  137s · active combat: · gathered 0 · done 1
+  140s · active combat: · gathered 0 · done 1
+  143s · active combat: · gathered 0 · done 1
+  147s · active combat: · gathered 0 · done 1
+  151s · active combat: · gathered 0 · done 1
+run over 151s wall · gathers 0 · quests done 1 · stall-warns 2 (collect 0 / hunt-etc 2) · nopickup-warns 0
+report-only (hunt-deed stalls): ["no progress in 5 min: Hunt 2 Arctic Foxes stuck at 0/2","no progress in 5 min: Slay 1 predator stuck at 0/1"]
+note: wolf gathered nothing this session (world supply may have rerolled to other deeds) — not a failure, report-only
+GATHER TEST PASS
+{
+ "modules": [
+  [
+   "AnimalStats",
+   true
+  ],
+  [
+   "AnimalNeeds",
+   true
+  ],
+  [
+   "AnimalDetection",
+   true
+  ],
+  [
+   "AnimalAIController",
+   true
+  ],
+  [
+   "AnimalFlocking",
+   true
+  ],
+  [
+   "AnimalCombat",
+   true
+  ],
+  [
+   "AnimalLoot",
+   true
+  ],
+  [
+   "AnimalHealthBar",
+   true
+  ],
+  [
+   "AnimalAnimation",
+   true
+  ],
+  [
+   "AnimalLOD",
+   true
+  ],
+  [
+   "AnimalSpawner",
+   true
+  ],
+  [
+   "ECO",
+   true
+  ]
+ ],
+ "wild": {
+  "total": 46,
+  "herds": 15,
+  "young": 2
+ },
+ "personalityDiffers": true,
+ "autonomyStates": [
+  "flee"
+ ],
+ "sawGraze": true,
+ "needsGrow": true,
+ "alertOrFlee": true,
+ "fleesClose": true,
+ "preyTires": true,
+ "herdPanic": true,
+ "ambushBonus": false,
+ "goatRetaliates": true,
+ "goatChargeHit": true,
+ "barRevealed": true,
+ "barHugHead": true,
+ "barHealthy": true,
+ "barHurt": true,
+ "barCritical": true,
+ "barGradual": true,
+ "predBar": true,
+ "sleepsAtNight": true,
+ "wakesOnThreat": true,
+ "detectionMod": {
+  "clearThreat": 0.5,
+  "rainThreat": 0.25,
+  "nightThreatFox": 0.5
+ },
+ "rainMasks": true,
+ "nocturnalKeen": true,
+ "losCover": true,
+ "safetyNeed": true,
+ "seekCover": true,
+ "snowDrags": true,
+ "apexStalksWolf": true,
+ "predatorHunts": true,
+ "huntStateSaw": true,
+ "bearSleepsNight": true,
+ "lodAccumulates": true
+}
+pageerrors: none
+ECOSYSTEM TEST PASS
+  ✓ aurora surge boosts lights (2.35)
+  ✓ aurora bands surge on a cold night (0.85)
+  ✓ aurora boost restored after event
+  ✓ meteor site created + mapped
+  ✓ star-site shard pickup (magicShroom)
+  ✓ shard gathered into inventory
+  ✓ meteor site expires cleanly
+  ✓ white stag spawns luminous
+  ✓ stag remembered as discovery + luminous loot
+  ✓ glow petals in world (3 in 1 chunks)
+  ✓ cave enters dark (fog/sun ok, 11 pickups)
+  ✓ cave exit pickup exists
+  ✓ wolf stands on cave floor (deep below surface)
+  ✓ no false swimming underground
+  ✓ wolf clamped inside cavern
+  ✓ exit restores surface position
+  ✓ death underground respawns on the surface, cave cleared
+ALL PASS

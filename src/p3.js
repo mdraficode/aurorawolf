@@ -775,8 +775,9 @@ class Wolf {
     audio.snap();
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     let best = null, bestD = 99;
+    const fightable = rivals.filter(r => !(r.pack && r.pack.stance === 'bonded'));   // never bite your own pack
     for (const ch of chunks.values()) {
-      const targets = ch.animals.concat(ch.predators).concat(rivals);
+      const targets = ch.animals.concat(ch.predators).concat(fightable);
       for (const a of targets) {
         if (a.dead) continue;
         const dx = a.pos.x - this.pos.x, dz = a.pos.z - this.pos.z;
@@ -821,6 +822,7 @@ class Wolf {
         else if (d < 130 && a.stats && !a.asleep && Math.random() < a.stats.curiosity * 0.4) a.investigate(this.pos);
       }
     }
+    if (window.PACK && window.PACK.onHowl) window.PACK.onHowl();   // THE BONDING CALL — packs in range answer, bond… or bare fangs
     return true;
   }
   wolfSense() {
@@ -854,8 +856,10 @@ const rivals = [];   // roaming rival wolves — targetable by the player's bite
    Rival wolf pack — roams the wilds; may ignore, challenge, or
    attack the player. Coordinated stance, pack morale, retreat.
    ============================================================ */
+let RIVAL_SEQ = 0;
 class RivalWolf {
   constructor(x, z, pack, leader) {
+    this.bondId = ++RIVAL_SEQ;   // PACKDBG attributions address mates by this id
     const built = buildWolf();
     this.model = built.group; this.legs = built.legs; this.lowers = built.lowers; this.head = built.head;
     // darker, scarred coat — recolour every mesh so the player's wolf stays untouched
@@ -872,8 +876,14 @@ class RivalWolf {
     this.sp = { scale: leader ? 1.14 : 0.96, label: leader ? 'Rival Alpha' : 'Rival Wolf' };
     this.pos = V3(x, heightAt(x, z), z);
     this.heading = Math.random() * 6.28;
-    this.hp = leader ? 9 : 6;
-    this.maxHp = this.hp;
+    // ---- PACK LEVEL: packs spawn at the player's XP level (the wild keeps pace) ----
+    // stats tuned so a bonded pack STRONGLY assists but never replaces the player:
+    // mates are mortal (a couple of enemy bites), and pack DPS stays below the player's.
+    this.level = Math.max(1, (pack && pack.level) || 1);
+    const k = this.level - 1;
+    this.hp = this.maxHp = Math.round((leader ? 20 : 14) + (leader ? 4 : 3.5) * k);
+    this.dmg = (leader ? 5 : 4) + 0.45 * k;
+    this.runSpd = 12.2 + Math.min(2.2, 0.06 * k);
     this.dead = false;
     this.state = 'roam';
     this.off = { x: (Math.random() - 0.5) * 14, z: (Math.random() - 0.5) * 14 };
@@ -882,6 +892,10 @@ class RivalWolf {
   }
   hit() {          // player bite lands
     if (this.dead) return;
+    if (this.pack.stance === 'bonded') {   // your own pack — a nip only, trust is never broken
+      if (this.flinchT <= 0) this.flinchT = 0.14;
+      return;
+    }
     this.hp -= (this.pack.stance === 'undecided' || this.pack.stance === 'ignore') ? 2 : 1;   // ambush an unaware pack
     AnimalHealthBar.show(this);
     if (this.flinchT <= 0) this.flinchT = 0.3;
@@ -889,19 +903,33 @@ class RivalWolf {
     this.pack.provoked();          // biting a wolf answers the question of stance
     if (this.hp <= 0) this.die();
   }
-  die() {
+  hurt(dmg, label) {   // enemy blows land on a bonded packmate
+    if (this.dead || this.pack.stance !== 'bonded') return;
+    this.hp -= Math.max(1, Math.round(dmg));
+    this.flinchT = 0.3;
+    bloodBurst(this.pos, 10 + dmg * 3, 1);
+    if (this.hp <= 0) { audio.cry(0.8); this.die(true); }
+  }
+  die(silent) {
     this.dead = true;
-    pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
+    if (!silent) pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
+    scene.remove(this.model);
+    if (silent) {   // a packmate falls to the wild — no loot, no XP, and its quest toil is lost
+      if (typeof updateInv === 'function') updateInv();
+      this.pack.memberDown(this);
+      return;
+    }
     inv.meat += 1; stats.slain++; updateInv();
     audio.cry(0.7);
     if (typeof questEvent === 'function') questEvent('rival', { pos: this.pos });
     if (typeof addXp === 'function') addXp(35);
     toast(`⚔️ Bested a ${this.sp.label}! +1 🥩`, true);
-    scene.remove(this.model);
     this.pack.memberDown(this);
   }
   update(dt, tSec) {
     if (this.dead) return;
+    tSec = tSec || 0;
+    if (this.state === 'bond') { this.bondUpdate(dt, tSec); return; }   // PACK directs a bonded mate's feet
     const pk = this.pack;
     const dxw = wolf.pos.x - this.pos.x, dzw = wolf.pos.z - this.pos.z;
     const dWolf = Math.hypot(dxw, dzw);
@@ -929,12 +957,14 @@ class RivalWolf {
     } else if (this.state === 'attack') {
       faceWolf();
       // a real chase to close in — then plant feet and bite, from any side
-      speed = dWolf > 1.8 ? 12.2 : 0;   // just slower than the player's sprint
+      speed = dWolf > 1.8 ? this.runSpd : 0;   // just slower than the player's sprint
       if (dWolf < 2.4 && this.atkCd <= 0) {
         this.atkCd = 1.15;
         this.biteT = 0.36;              // claw, then bite — like every wolf
         bloodBurst(wolf.pos, 14, 1);
-        wolfTakeDamage(this.leader ? 9 : 6, this.pos, this.sp.label, '🐺');
+        // a bonded packmate may take the bite meant for you
+        if (!(window.PACK && window.PACK.intercept(this, this.dmg, this.sp.label, '🐺')))
+          wolfTakeDamage(this.dmg, this.pos, this.sp.label, '🐺');
       }
       if (dWolf > 90) this.state = 'follow';    // lost it — regroup
     } else if (this.state === 'flee') {
@@ -975,17 +1005,41 @@ class RivalWolf {
     }
     else this.head.rotation.x = this.state === 'challenge' ? 0.12 : Math.sin(tSec * 0.6 + this.phase) * 0.12;
   }
+  /* a bonded mate's feet are directed by PACK (window.PACK.memberTick) — the pack's goal
+     is the player's goal: quests together, fights together, follow when there's nothing to do */
+  bondUpdate(dt, tSec) {
+    this.atkCd = Math.max(0, this.atkCd - dt);
+    const r = (window.PACK && window.PACK.memberTick) ? window.PACK.memberTick(this, dt) : { speed: 0 };
+    const speed = r.speed || 0;
+    if (r.heading !== undefined) this.heading = angLerp(this.heading, r.heading, Math.min(1, dt * 5));
+    if (speed > 0) {
+      this.pos.x += Math.sin(this.heading) * speed * dt;
+      this.pos.z += Math.cos(this.heading) * speed * dt;
+      this.pos.y = heightAt(this.pos.x, this.pos.z);
+      if (!this.bodyR) this.bodyR = 0.5 * (this.model.scale.x || 1);
+      if (pushOutSolids(this, Math.sin(this.heading), Math.cos(this.heading)) < -0.55) this.heading += (Math.random() < 0.5 ? 1 : -1) * 0.5;
+    }
+    this.model.position.copy(this.pos);
+    this.model.rotation.y = this.heading;
+    this.phase += dt * (2 + speed * 1.3);
+    const amp = Math.min(0.55, speed * 0.055);
+    this.legs.forEach((l, i) => { l.rotation.x = Math.sin(this.phase * 2 + i * 1.6) * amp; });
+    this.head.rotation.x = Math.sin(tSec * 0.6 + this.phase) * 0.12;
+  }
   dispose() { if (!this.dead) { this.dead = true; } scene.remove(this.model); }
 }
 
 class RivalPack {
   constructor(x, z) {
-    this.stance = 'undecided';     // undecided -> ignore | challenge | attack -> (fight) -> flee
+    this.stance = 'undecided';     // undecided -> ignore | challenge | attack -> (fight) -> flee | bonded
     this.members = [];
     this.lost = 0;
     this.provokedT = 0;
     this.engageT = 0;
     this.disbanded = false;
+    // ---- PACK LEVEL: the pack spawns at the player's current XP level (scaled, never silly) ----
+    const pl = (typeof wolf !== 'undefined' && wolf) ? (wolf.level | 0) : 0;
+    this.level = Math.max(1, pl + [-1, 0, 0, 1][(Math.random() * 4) | 0]);
     const n = 3 + (Math.random() * 3 | 0);
     for (let i = 0; i < n; i++) {
       const m = new RivalWolf(x + (Math.random() - 0.5) * 18, z + (Math.random() - 0.5) * 18, this, i === 0);
@@ -1000,8 +1054,14 @@ class RivalPack {
     this.provokedT = 0;
   }
   setStates(st) { for (const m of this.members) if (!m.dead) m.state = this.stance === 'ignore' && st === 'attack' ? 'attack' : st; }
-  memberDown() {
+  memberDown(m) {
     this.lost++;
+    if (this.stance === 'bonded') {   // a packmate falls — its toil on the current deed is lost (combat damage stands)
+      if (window.PACK && window.PACK.memberDown) window.PACK.memberDown(m);
+      audio.cry(0.85);
+      if (!this.members.some(x => !x.dead)) { this.disbanded = true; if (window.PACK && window.PACK.onPackGone) window.PACK.onPackGone(); }
+      return;
+    }
     if (this.lost >= 2 || this.members[0].dead) {
       this.stance = 'flee'; this.setStates('flee');
       if (typeof questEvent === 'function') questEvent('packDriven', { pos: { x: this.members[0].pos.x, z: this.members[0].pos.z } });
@@ -1011,6 +1071,10 @@ class RivalPack {
   update(dt, tSec) {
     const alive = this.members.filter(m => !m.dead);
     if (!alive.length) { this.disbanded = true; return; }
+    if (this.stance === 'bonded') {   // the pack's goal is the player's — PACK directs each mate's feet
+      for (const m of this.members) m.update(dt, tSec);
+      return;
+    }
     const dWolf = Math.hypot(alive[0].pos.x - wolf.pos.x, alive[0].pos.z - wolf.pos.z);
     if (this.stance === 'undecided' && dWolf < 80) {
       const r = Math.random();
@@ -2026,7 +2090,8 @@ class Predator {
           this.atkCd = this.sp.atkCd * this.ai.cdMul * (this.furious ? 0.75 : 1);
           this.biteT = 0.36;                                     // claw, then bite
           bloodBurst(wolf.pos, 16, 1.1);                          // the wolf's blood
-          wolfTakeDamage(this.dmg, this.pos, `Level ${this.level} ${this.sp.label}`, this.sp.icon);
+          if (!(window.PACK && window.PACK.intercept(this, this.dmg, this.sp.label, this.sp.icon)))
+            wolfTakeDamage(this.dmg, this.pos, `Level ${this.level} ${this.sp.label}`, this.sp.icon);
         }
       }
     } else if (this.state === 'hunt') {

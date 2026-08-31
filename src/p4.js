@@ -1293,16 +1293,17 @@ const EVENTS = {
       begin() {
         let x = 0, z = 0;
         for (let i = 0; i < 30; i++) {
-          const a = Math.random() * 6.28, d = 260 + Math.random() * 110;
+          const a = Math.random() * 6.28, d = 150 + Math.random() * 90;   // near enough that a brave howl can reach them
           x = wolf.pos.x + Math.sin(a) * d; z = wolf.pos.z + Math.cos(a) * d;
           if (heightAt(x, z) > 1.2) break;
         }
         WORLD_EVENTS.pack = new RivalPack(x, z);
-        toast('🐺 Another pack prowls these lands…', true);
+        toast(`🐺 A Level ${WORLD_EVENTS.pack.level} pack prowls these lands… your howl might reach them.`, true);
       },
       tick(dt) {
         const p = WORLD_EVENTS.pack;
         if (!p) { this.done = true; return; }
+        if (p.stance === 'bonded') { this.done = true; return; }   // sworn packs are PACK's to move now — the event lets go
         p.update(dt, tSec);
         if (p.disbanded) {
           p.dispose();
@@ -1313,8 +1314,8 @@ const EVENTS = {
       },
       finish() {
         const p = WORLD_EVENTS.pack;
-        if (p) { p.dispose(); WORLD_EVENTS.pack = null; }
-        for (let i = rivals.length - 1; i >= 0; i--) rivals.splice(i, 1);
+        if (p && p.stance !== 'bonded') { p.dispose(); WORLD_EVENTS.pack = null; }   // never strike down the player's own pack
+        for (let i = rivals.length - 1; i >= 0; i--) { const r = rivals[i]; if (!(r.pack && r.pack.stance === 'bonded')) rivals.splice(i, 1); }
       }
     };
   }
@@ -3186,7 +3187,9 @@ class Boss {
       this.atkCd = (this.def.atkGap || 1.25) - this.phase * 0.15;
       let kbMul = 1;
       if (this.def.special === 'knockback') { kbMul = 2.6; this.atkCd += 0.3; }   // the Bear Legend throws you
-      wolfTakeDamage(this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1), this.pos, this.def.name, this.def.icon, this.ambushNext ? Math.max(kbMul, 1.7) : kbMul);
+      const bdmg = this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1);
+      if (!(window.PACK && window.PACK.intercept(this, bdmg, this.def.name, this.def.icon)))
+        wolfTakeDamage(bdmg, this.pos, this.def.name, this.def.icon, this.ambushNext ? Math.max(kbMul, 1.7) : kbMul);
       this.ambushNext = 0;
       audio.growlVar('aggressive');
     }
@@ -4888,7 +4891,7 @@ function tick() {
   if (caveState.in) caveTick(dt);
   updateSeasons();
   if (!caveState.in) updateEco(dt);
-  if (running) { bossTick(dt); spiritTick(rdt); questTick(dt); if (window.CAMP && window.CAMP.tick) window.CAMP.tick(dt); }
+  if (running) { bossTick(dt); spiritTick(rdt); questTick(dt); if (window.CAMP && window.CAMP.tick) window.CAMP.tick(dt); if (window.PACK && window.PACK.tick) window.PACK.tick(dt, tSec); }
   updateEnvironment(dt);
   if (audio.ready && audio.fireG) {
     const f = WORLD_EVENTS.fireAt;

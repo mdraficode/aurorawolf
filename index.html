@@ -2169,8 +2169,9 @@ class Wolf {
     audio.snap();
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     let best = null, bestD = 99;
+    const fightable = rivals.filter(r => !(r.pack && r.pack.stance === 'bonded'));   // never bite your own pack
     for (const ch of chunks.values()) {
-      const targets = ch.animals.concat(ch.predators).concat(rivals);
+      const targets = ch.animals.concat(ch.predators).concat(fightable);
       for (const a of targets) {
         if (a.dead) continue;
         const dx = a.pos.x - this.pos.x, dz = a.pos.z - this.pos.z;
@@ -2215,6 +2216,7 @@ class Wolf {
         else if (d < 130 && a.stats && !a.asleep && Math.random() < a.stats.curiosity * 0.4) a.investigate(this.pos);
       }
     }
+    if (window.PACK && window.PACK.onHowl) window.PACK.onHowl();   // THE BONDING CALL — packs in range answer, bond… or bare fangs
     return true;
   }
   wolfSense() {
@@ -2248,8 +2250,10 @@ const rivals = [];   // roaming rival wolves — targetable by the player's bite
    Rival wolf pack — roams the wilds; may ignore, challenge, or
    attack the player. Coordinated stance, pack morale, retreat.
    ============================================================ */
+let RIVAL_SEQ = 0;
 class RivalWolf {
   constructor(x, z, pack, leader) {
+    this.bondId = ++RIVAL_SEQ;   // PACKDBG attributions address mates by this id
     const built = buildWolf();
     this.model = built.group; this.legs = built.legs; this.lowers = built.lowers; this.head = built.head;
     // darker, scarred coat — recolour every mesh so the player's wolf stays untouched
@@ -2266,8 +2270,14 @@ class RivalWolf {
     this.sp = { scale: leader ? 1.14 : 0.96, label: leader ? 'Rival Alpha' : 'Rival Wolf' };
     this.pos = V3(x, heightAt(x, z), z);
     this.heading = Math.random() * 6.28;
-    this.hp = leader ? 9 : 6;
-    this.maxHp = this.hp;
+    // ---- PACK LEVEL: packs spawn at the player's XP level (the wild keeps pace) ----
+    // stats tuned so a bonded pack STRONGLY assists but never replaces the player:
+    // mates are mortal (a couple of enemy bites), and pack DPS stays below the player's.
+    this.level = Math.max(1, (pack && pack.level) || 1);
+    const k = this.level - 1;
+    this.hp = this.maxHp = Math.round((leader ? 20 : 14) + (leader ? 4 : 3.5) * k);
+    this.dmg = (leader ? 5 : 4) + 0.45 * k;
+    this.runSpd = 12.2 + Math.min(2.2, 0.06 * k);
     this.dead = false;
     this.state = 'roam';
     this.off = { x: (Math.random() - 0.5) * 14, z: (Math.random() - 0.5) * 14 };
@@ -2276,6 +2286,10 @@ class RivalWolf {
   }
   hit() {          // player bite lands
     if (this.dead) return;
+    if (this.pack.stance === 'bonded') {   // your own pack — a nip only, trust is never broken
+      if (this.flinchT <= 0) this.flinchT = 0.14;
+      return;
+    }
     this.hp -= (this.pack.stance === 'undecided' || this.pack.stance === 'ignore') ? 2 : 1;   // ambush an unaware pack
     AnimalHealthBar.show(this);
     if (this.flinchT <= 0) this.flinchT = 0.3;
@@ -2283,19 +2297,33 @@ class RivalWolf {
     this.pack.provoked();          // biting a wolf answers the question of stance
     if (this.hp <= 0) this.die();
   }
-  die() {
+  hurt(dmg, label) {   // enemy blows land on a bonded packmate
+    if (this.dead || this.pack.stance !== 'bonded') return;
+    this.hp -= Math.max(1, Math.round(dmg));
+    this.flinchT = 0.3;
+    bloodBurst(this.pos, 10 + dmg * 3, 1);
+    if (this.hp <= 0) { audio.cry(0.8); this.die(true); }
+  }
+  die(silent) {
     this.dead = true;
-    pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
+    if (!silent) pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
+    scene.remove(this.model);
+    if (silent) {   // a packmate falls to the wild — no loot, no XP, and its quest toil is lost
+      if (typeof updateInv === 'function') updateInv();
+      this.pack.memberDown(this);
+      return;
+    }
     inv.meat += 1; stats.slain++; updateInv();
     audio.cry(0.7);
     if (typeof questEvent === 'function') questEvent('rival', { pos: this.pos });
     if (typeof addXp === 'function') addXp(35);
     toast(`⚔️ Bested a ${this.sp.label}! +1 🥩`, true);
-    scene.remove(this.model);
     this.pack.memberDown(this);
   }
   update(dt, tSec) {
     if (this.dead) return;
+    tSec = tSec || 0;
+    if (this.state === 'bond') { this.bondUpdate(dt, tSec); return; }   // PACK directs a bonded mate's feet
     const pk = this.pack;
     const dxw = wolf.pos.x - this.pos.x, dzw = wolf.pos.z - this.pos.z;
     const dWolf = Math.hypot(dxw, dzw);
@@ -2323,12 +2351,14 @@ class RivalWolf {
     } else if (this.state === 'attack') {
       faceWolf();
       // a real chase to close in — then plant feet and bite, from any side
-      speed = dWolf > 1.8 ? 12.2 : 0;   // just slower than the player's sprint
+      speed = dWolf > 1.8 ? this.runSpd : 0;   // just slower than the player's sprint
       if (dWolf < 2.4 && this.atkCd <= 0) {
         this.atkCd = 1.15;
         this.biteT = 0.36;              // claw, then bite — like every wolf
         bloodBurst(wolf.pos, 14, 1);
-        wolfTakeDamage(this.leader ? 9 : 6, this.pos, this.sp.label, '🐺');
+        // a bonded packmate may take the bite meant for you
+        if (!(window.PACK && window.PACK.intercept(this, this.dmg, this.sp.label, '🐺')))
+          wolfTakeDamage(this.dmg, this.pos, this.sp.label, '🐺');
       }
       if (dWolf > 90) this.state = 'follow';    // lost it — regroup
     } else if (this.state === 'flee') {
@@ -2369,17 +2399,41 @@ class RivalWolf {
     }
     else this.head.rotation.x = this.state === 'challenge' ? 0.12 : Math.sin(tSec * 0.6 + this.phase) * 0.12;
   }
+  /* a bonded mate's feet are directed by PACK (window.PACK.memberTick) — the pack's goal
+     is the player's goal: quests together, fights together, follow when there's nothing to do */
+  bondUpdate(dt, tSec) {
+    this.atkCd = Math.max(0, this.atkCd - dt);
+    const r = (window.PACK && window.PACK.memberTick) ? window.PACK.memberTick(this, dt) : { speed: 0 };
+    const speed = r.speed || 0;
+    if (r.heading !== undefined) this.heading = angLerp(this.heading, r.heading, Math.min(1, dt * 5));
+    if (speed > 0) {
+      this.pos.x += Math.sin(this.heading) * speed * dt;
+      this.pos.z += Math.cos(this.heading) * speed * dt;
+      this.pos.y = heightAt(this.pos.x, this.pos.z);
+      if (!this.bodyR) this.bodyR = 0.5 * (this.model.scale.x || 1);
+      if (pushOutSolids(this, Math.sin(this.heading), Math.cos(this.heading)) < -0.55) this.heading += (Math.random() < 0.5 ? 1 : -1) * 0.5;
+    }
+    this.model.position.copy(this.pos);
+    this.model.rotation.y = this.heading;
+    this.phase += dt * (2 + speed * 1.3);
+    const amp = Math.min(0.55, speed * 0.055);
+    this.legs.forEach((l, i) => { l.rotation.x = Math.sin(this.phase * 2 + i * 1.6) * amp; });
+    this.head.rotation.x = Math.sin(tSec * 0.6 + this.phase) * 0.12;
+  }
   dispose() { if (!this.dead) { this.dead = true; } scene.remove(this.model); }
 }
 
 class RivalPack {
   constructor(x, z) {
-    this.stance = 'undecided';     // undecided -> ignore | challenge | attack -> (fight) -> flee
+    this.stance = 'undecided';     // undecided -> ignore | challenge | attack -> (fight) -> flee | bonded
     this.members = [];
     this.lost = 0;
     this.provokedT = 0;
     this.engageT = 0;
     this.disbanded = false;
+    // ---- PACK LEVEL: the pack spawns at the player's current XP level (scaled, never silly) ----
+    const pl = (typeof wolf !== 'undefined' && wolf) ? (wolf.level | 0) : 0;
+    this.level = Math.max(1, pl + [-1, 0, 0, 1][(Math.random() * 4) | 0]);
     const n = 3 + (Math.random() * 3 | 0);
     for (let i = 0; i < n; i++) {
       const m = new RivalWolf(x + (Math.random() - 0.5) * 18, z + (Math.random() - 0.5) * 18, this, i === 0);
@@ -2394,8 +2448,14 @@ class RivalPack {
     this.provokedT = 0;
   }
   setStates(st) { for (const m of this.members) if (!m.dead) m.state = this.stance === 'ignore' && st === 'attack' ? 'attack' : st; }
-  memberDown() {
+  memberDown(m) {
     this.lost++;
+    if (this.stance === 'bonded') {   // a packmate falls — its toil on the current deed is lost (combat damage stands)
+      if (window.PACK && window.PACK.memberDown) window.PACK.memberDown(m);
+      audio.cry(0.85);
+      if (!this.members.some(x => !x.dead)) { this.disbanded = true; if (window.PACK && window.PACK.onPackGone) window.PACK.onPackGone(); }
+      return;
+    }
     if (this.lost >= 2 || this.members[0].dead) {
       this.stance = 'flee'; this.setStates('flee');
       if (typeof questEvent === 'function') questEvent('packDriven', { pos: { x: this.members[0].pos.x, z: this.members[0].pos.z } });
@@ -2405,6 +2465,10 @@ class RivalPack {
   update(dt, tSec) {
     const alive = this.members.filter(m => !m.dead);
     if (!alive.length) { this.disbanded = true; return; }
+    if (this.stance === 'bonded') {   // the pack's goal is the player's — PACK directs each mate's feet
+      for (const m of this.members) m.update(dt, tSec);
+      return;
+    }
     const dWolf = Math.hypot(alive[0].pos.x - wolf.pos.x, alive[0].pos.z - wolf.pos.z);
     if (this.stance === 'undecided' && dWolf < 80) {
       const r = Math.random();
@@ -3420,7 +3484,8 @@ class Predator {
           this.atkCd = this.sp.atkCd * this.ai.cdMul * (this.furious ? 0.75 : 1);
           this.biteT = 0.36;                                     // claw, then bite
           bloodBurst(wolf.pos, 16, 1.1);                          // the wolf's blood
-          wolfTakeDamage(this.dmg, this.pos, `Level ${this.level} ${this.sp.label}`, this.sp.icon);
+          if (!(window.PACK && window.PACK.intercept(this, this.dmg, this.sp.label, this.sp.icon)))
+            wolfTakeDamage(this.dmg, this.pos, `Level ${this.level} ${this.sp.label}`, this.sp.icon);
         }
       }
     } else if (this.state === 'hunt') {
@@ -4971,16 +5036,17 @@ const EVENTS = {
       begin() {
         let x = 0, z = 0;
         for (let i = 0; i < 30; i++) {
-          const a = Math.random() * 6.28, d = 260 + Math.random() * 110;
+          const a = Math.random() * 6.28, d = 150 + Math.random() * 90;   // near enough that a brave howl can reach them
           x = wolf.pos.x + Math.sin(a) * d; z = wolf.pos.z + Math.cos(a) * d;
           if (heightAt(x, z) > 1.2) break;
         }
         WORLD_EVENTS.pack = new RivalPack(x, z);
-        toast('🐺 Another pack prowls these lands…', true);
+        toast(`🐺 A Level ${WORLD_EVENTS.pack.level} pack prowls these lands… your howl might reach them.`, true);
       },
       tick(dt) {
         const p = WORLD_EVENTS.pack;
         if (!p) { this.done = true; return; }
+        if (p.stance === 'bonded') { this.done = true; return; }   // sworn packs are PACK's to move now — the event lets go
         p.update(dt, tSec);
         if (p.disbanded) {
           p.dispose();
@@ -4991,8 +5057,8 @@ const EVENTS = {
       },
       finish() {
         const p = WORLD_EVENTS.pack;
-        if (p) { p.dispose(); WORLD_EVENTS.pack = null; }
-        for (let i = rivals.length - 1; i >= 0; i--) rivals.splice(i, 1);
+        if (p && p.stance !== 'bonded') { p.dispose(); WORLD_EVENTS.pack = null; }   // never strike down the player's own pack
+        for (let i = rivals.length - 1; i >= 0; i--) { const r = rivals[i]; if (!(r.pack && r.pack.stance === 'bonded')) rivals.splice(i, 1); }
       }
     };
   }
@@ -6864,7 +6930,9 @@ class Boss {
       this.atkCd = (this.def.atkGap || 1.25) - this.phase * 0.15;
       let kbMul = 1;
       if (this.def.special === 'knockback') { kbMul = 2.6; this.atkCd += 0.3; }   // the Bear Legend throws you
-      wolfTakeDamage(this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1), this.pos, this.def.name, this.def.icon, this.ambushNext ? Math.max(kbMul, 1.7) : kbMul);
+      const bdmg = this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1);
+      if (!(window.PACK && window.PACK.intercept(this, bdmg, this.def.name, this.def.icon)))
+        wolfTakeDamage(bdmg, this.pos, this.def.name, this.def.icon, this.ambushNext ? Math.max(kbMul, 1.7) : kbMul);
       this.ambushNext = 0;
       audio.growlVar('aggressive');
     }
@@ -8566,7 +8634,7 @@ function tick() {
   if (caveState.in) caveTick(dt);
   updateSeasons();
   if (!caveState.in) updateEco(dt);
-  if (running) { bossTick(dt); spiritTick(rdt); questTick(dt); if (window.CAMP && window.CAMP.tick) window.CAMP.tick(dt); }
+  if (running) { bossTick(dt); spiritTick(rdt); questTick(dt); if (window.CAMP && window.CAMP.tick) window.CAMP.tick(dt); if (window.PACK && window.PACK.tick) window.PACK.tick(dt, tSec); }
   updateEnvironment(dt);
   if (audio.ready && audio.fireG) {
     const f = WORLD_EVENTS.fireAt;
@@ -8959,6 +9027,7 @@ window.CAMP = (() => {
       else toast(`📜 Preparation ${S.prepDone}/${prepNeed(S.tier)} — one more deed before the trial.`);
     }
     if (st === 'awaken' || st === 'ritual') { /* ritual completes in useAltar */ }
+    if (window.PACK && window.PACK.onQuestDone) window.PACK.onQuestDone(q);   // the deed is banked — pack deaths cost nothing now
     refill(); save(); questHudDirty = true;
   };
   const onAccept = q => {
@@ -9051,6 +9120,7 @@ window.CAMP = (() => {
     let h = `<div class="qt-line" style="color:#ffd76a">🏆 Tier <b>${S.tier}</b> · <b>${legendName()}</b> · ⏱ ${fmt(t)}</div>`;
     if (S.stage === 'prep' && S.prepDone > 0) h += `<div class="qt-line" style="opacity:.9">📜 Preparation ${S.prepDone}/${prepNeed(S.tier)}</div>`;
     if (S.stage === 'prep') { const g = xpGate(S.tier, S.leg); h += `<div class="qt-line" style="opacity:.8">⚜ ${wolf.xpTotal | 0}/${g} career XP · Lv ${wolf.level} ${wolf.xp | 0}/${wolf.xpNext}</div>`; }
+    if (window.PACK && window.PACK.status) { const p = window.PACK.status(); if (p) h += `<div class="qt-line" style="color:#9fd8c4">${p}</div>`; }
     return h;
   };
   const mapMarks = () => {
@@ -9150,6 +9220,304 @@ window.CAMP = (() => {
   };
 })();
 if (window.CAMP && window.CAMP.init) window.CAMP.init();
+
+/* ============================================================
+   🐺 THE PACK — howl to bond, hunt together, lose the fallen
+   (M46 gameplay update, follows the campaign)
+   · howl within range of a wild pack → pure luck: bond / fangs / silence
+   · once bonded, the player's goals ARE the pack's goals:
+     quests together (kills, gathers), fights alongside, bosses included
+   · a mate that falls loses what IT carried on the current deed
+     (resources & progress) — EXCEPT combat: the damage it dealt stands
+   · packs spawn leveled to the player's current XP level
+   session-only by design: a bonded pack lives while the wolf lives;
+   a reload leaves the wilds quiet again (no save for the pack).
+   ============================================================ */
+window.PACK = (() => {
+  const HOWL_RANGE = 130;                 // the bonding call only reaches packs this close
+  const BOND_P = 0.45, ATTACK_P = 0.35;   // rest = they look away
+  const REACH = 2.6;                      // a mate's bite reach
+  const PTYPE = { herb: 'herb', mushroom: 'mushroom', berry: 'berryBush', stone: 'stoneP', wood: 'stick', bone: 'bone' };
+  let bonded = null;                      // the RivalPack sworn to the player
+  let forced = null;                      // PACKDBG deterministic roll
+
+  const packNow = () => (typeof WORLD_EVENTS !== 'undefined' && WORLD_EVENTS.pack) || null;
+  const qActive = () => (typeof QUESTS !== 'undefined' && QUESTS.active && QUESTS.active[0]) || null;
+  const d2 = (a, b) => Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z);
+  const toast = (m, imp) => { if (typeof window.toast === 'function') window.toast(m, imp); };
+
+  /* ---------- THE BONDING CALL ---------- */
+  const onHowl = () => {
+    const p = packNow();
+    if (!p) { toast('🐺 Your call rolls over empty land — no pack is near.'); return; }
+    if (bonded) { toast(bonded === p ? '🐺 Your pack is already at your side.' : '🐺 Your own pack walks beside you — one pack, one hunt.'); return; }
+    if (p.stance === 'bonded') { toast('🐺 Your pack is already at your side.'); return; }
+    const alive = p.members.filter(m => !m.dead);
+    if (!alive.length) return;
+    const d = Math.hypot(alive[0].pos.x - wolf.pos.x, alive[0].pos.z - wolf.pos.z);
+    if (d > HOWL_RANGE) { toast('🐺 No pack answers — the nearest pack cannot hear your call from here.'); return; }
+    const r = forced !== null ? forced : Math.random();
+    forced = null;
+    if (r < BOND_P) { bond(p); return; }
+    if (r < BOND_P + ATTACK_P) {
+      p.stance = 'attack'; p.provoked(); p.setStates('attack');
+      toast('🐺 THE PACK ANSWERS WITH FANGS — every wolf is coming for you!', true);
+      if (audio.growl) audio.growl();
+      return;
+    }
+    p.stance = 'undecided';
+    toast('🐺 The pack hears you… and looks away. Luck was not with you this time.');
+  };
+  const bond = p => {
+    if (bonded && bonded !== p) toast('🐺 Your own pack answers instead — one pack, one hunt.');
+    bonded = p;
+    p.stance = 'bonded';
+    let i = 0;
+    for (const m of p.members) {
+      m.state = 'bond';
+      m.offA = (i / Math.max(1, p.members.length)) * 6.2832 + Math.random() * 0.7;
+      m.offR = 7 + Math.random() * 6;
+      m.contrib = null;        // { qid, units, items:{}, combat }
+      m._eng = null;
+      m._catchT = 0;
+      i++;
+    }
+    toast(`🐺 THE PACK JOINS YOU — ${p.members.filter(m => !m.dead).length} wolves, Level ${p.level}. Their hunt is your hunt.`, true);
+    if (audio.chime) audio.chime();
+  };
+
+  /* ---------- goal logic: the player's quest is the pack's quest ---------- */
+  const consider = (e, maxP, maxM, m) => {
+    if (!e || e.dead) return null;
+    const dp = Math.hypot(e.pos.x - wolf.pos.x, e.pos.z - wolf.pos.z);
+    if (dp > maxP) return null;
+    const dm = d2(m, e);
+    if (dm > maxM) return null;
+    return { e, dm };
+  };
+  const pickEnemy = m => {
+    let best = null, bd = 1e9;
+    const tryE = (cand) => { if (cand && cand.dm < bd) { bd = cand.dm; best = cand.e; } };
+    // 1) PROTECT: whatever threatens the player comes first
+    if (typeof bosses !== 'undefined') for (const b of bosses) tryE(consider(b, 210, 260, m));
+    nearChunkEntities(m, ch => { for (const pr of ch.predators) tryE(consider(pr, 120, 150, m)); });
+    for (const r of rivals) if (r.pack && r.pack.stance === 'attack' && r !== m) tryE(consider(r, 120, 150, m));
+    if (best) return best;
+    // 2) the deed's own goal (only when nothing threatens the player)
+    const q = qActive();
+    if (q && q.camp) {
+      if (q.kind === 'hunt' || q.kind === 'harvest') {
+        nearChunkEntities(m, ch => { for (const a of ch.animals) {
+          if (a.dead) continue;
+          if (q.kind === 'hunt' && a.name !== q.species) continue;
+          tryE(consider(a, 170, 150, m));
+        } });
+      } else if (q.kind === 'combat') {
+        nearChunkEntities(m, ch => { for (const pr of ch.predators) tryE(consider(pr, 170, 160, m)); });
+      }
+    }
+    // 3) boss stage: the Legend itself
+    if (!best && window.CAMP) {
+      const st = window.CAMP.state();
+      if (st.stage === 'boss') for (const b of bosses) tryE(consider(b, 240, 240, m));
+    }
+    return best;
+  };
+  const pickGather = m => {
+    const q = qActive();
+    if (!q || !q.camp) return null;
+    let item = null;
+    if (q.kind === 'collect') item = q.item;
+    else if (q.kind === 'herbal') item = 'herb';
+    if (!item || !PTYPE[item]) return null;
+    const ptype = PTYPE[item];
+    let best = null, bd = 1e9;
+    nearChunkEntities(m, ch => {
+      for (const p of ch.pickups) {
+        if (p.gathered || p.type !== ptype) continue;
+        const d = Math.hypot(p.x - m.pos.x, p.z - m.pos.z);
+        if (d < 110 && d < bd) { bd = d; best = p; }
+      }
+    });
+    return best;
+  };
+
+  /* the director: tells a bonded mate where its feet go (called from RivalWolf.bondUpdate).
+     scans are throttled (0.5 s) and scoped to nearby chunks — 5 minds, one budget */
+  const nearChunkEntities = (m, fn) => {
+    const ccx = Math.floor(m.pos.x / CHUNK), ccz = Math.floor(m.pos.z / CHUNK);
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const ch = chunks.get(ck(ccx + dx, ccz + dz));
+      if (ch) fn(ch);
+    }
+  };
+  const memberTick = (m, dt) => {
+    if (m.dead) return { speed: 0 };
+    // ---- gentle regen between fights: a pack that lives, helps ----
+    if (m.hp < m.maxHp && !m._eng) m.hp = Math.min(m.maxHp, m.hp + 0.5 * dt);
+    // ---- throttled perception (the CHASE itself runs every frame) ----
+    if ((m._scanT = (m._scanT || 0) + dt) >= 0.5) {
+      m._scanT = 0;
+      m._eng = pickEnemy(m);
+      m._gather = m._eng ? null : pickGather(m);
+    } else if (m._eng) {
+      const e = m._eng;
+      if (e.dead || d2(m, e) > 260) { m._eng = null; m._gather = null; }   // lost it — re-scan on the next tick
+    }
+    if (m._eng) {
+      const e = m._eng;
+      const d = d2(m, e);
+      return { speed: d > REACH ? (m.runSpd || 12) : 0, heading: Math.atan2(e.pos.x - m.pos.x, e.pos.z - m.pos.z) };
+    }
+    // ---- gather: the deed wants resources ----
+    const g = m._gather;
+    if (g) {
+      if (g.gathered) { m._gather = null; }
+      else {
+        const d = Math.hypot(g.x - m.pos.x, g.z - m.pos.z);
+        if (d < 1.7) { doGatherAs(m, g); m._gather = null; return { speed: 0 }; }
+        return { speed: 8.5, heading: Math.atan2(g.x - m.pos.x, g.z - m.pos.z) };
+      }
+    }
+    // ---- catch-up: never lose the pack to a sprinter ----
+    const dw = Math.hypot(wolf.pos.x - m.pos.x, wolf.pos.z - m.pos.z);
+    if (dw > 140) {
+      m._catchT = (m._catchT || 0) + dt;
+      const a = m.offA || 0;
+      const tx = wolf.pos.x + Math.sin(a) * (m.offR || 8), tz = wolf.pos.z + Math.cos(a) * (m.offR || 8);
+      if (heightAt(tx, tz) > WATER_Y + 0.4) {
+        m.pos.x = tx; m.pos.z = tz; m.pos.y = heightAt(tx, tz);
+        m.model.position.copy(m.pos);
+        if (m._catchT > 30) { m._catchT = 0; toast('🐺 Your pack catches up to you.'); }
+      }
+      return { speed: 0, heading: Math.atan2(wolf.pos.x - m.pos.x, wolf.pos.z - m.pos.z) };
+    }
+    // ---- follow at the ring ----
+    const rx = wolf.pos.x + Math.sin(m.offA || 0) * (m.offR || 8);
+    const rz = wolf.pos.z + Math.cos(m.offA || 0) * (m.offR || 8);
+    const dr = Math.hypot(rx - m.pos.x, rz - m.pos.z);
+    const speed = dw > 26 ? (m.runSpd || 12) : (dr > 2.5 ? 6.5 : 0);
+    return { speed, heading: Math.atan2(rx - m.pos.x, rz - m.pos.z) };
+  };
+
+  /* ---------- attribution: what a mate carries on the deed ---------- */
+  const snapItems = () => ({ meat: inv.meat, herb: inv.herb, mushroom: inv.mushroom, berry: inv.berry, wood: inv.wood, stone: inv.stone });
+  const credit = (m, before) => {
+    const q = qActive();
+    if (!q || !q.camp) return;
+    const units = Math.max(0, (q.have || 0) - before.have);
+    const items = {};
+    for (const k in before.items) {
+      const n = Math.max(0, (inv[k] || 0) - before.items[k]);
+      if (n > 0) items[k] = n;
+    }
+    if (!units && !Object.keys(items).length) return;
+    if (!m.contrib || m.contrib.qid !== q.id) m.contrib = { qid: q.id, units: 0, items: {}, combat: false };
+    m.contrib.units += units;
+    for (const k in items) m.contrib.items[k] = (m.contrib.items[k] || 0) + items[k];
+    if (q.kind === 'combat') m.contrib.combat = true;   // combat progress is damage — it STANDS (spec exception)
+    if (units) toast(q.kind === 'combat' ? '🐺 Your pack tears into the hunters alongside you.' : '🐺 Your pack brings one down for the deed.', false);
+  };
+  const doGatherAs = (m, p) => {
+    const before = { have: (qActive() && qActive().have) || 0, items: snapItems() };
+    try { gather(p); } catch (e) { }
+    credit(m, before);
+  };
+  /* a mate fell: its toil on the current deed is lost — combat damage stands */
+  const memberDown = m => {
+    if (!bonded || !m.contrib) return;
+    const q = qActive();
+    if (q && m.contrib.qid === q.id && !m.contrib.combat) {
+      const u = Math.min(q.have || 0, m.contrib.units || 0);
+      if (u > 0) { q.have = (q.have || 0) - u; if (typeof questHudDirty !== 'undefined') questHudDirty = true; }
+      for (const k in (m.contrib.items || {})) {
+        const n = Math.min(inv[k] || 0, m.contrib.items[k]);
+        if (n > 0) inv[k] -= n;
+      }
+      if (typeof updateInv === 'function') updateInv();
+      toast(`🐺 A packmate has fallen — the deed loses what it carried${u ? ' (' + u + ' progress)' : ''}. Its battle damage remains.`, true);
+    }
+    m.contrib = null;
+  };
+  const onQuestDone = q => {   // the deed is banked — from here a mate's death costs nothing
+    if (!bonded) return;
+    for (const m of bonded.members) m.contrib = null;
+  };
+  const onPackGone = () => {
+    const n = bonded ? bonded.members.length : 0;
+    bonded = null;
+    for (let i = rivals.length - 1; i >= 0; i--) if (rivals[i].dead) rivals.splice(i, 1);   // the fallen leave the roster
+    toast(`🐺 The pack is gone — ${n} wolves gave all they had. The howl can call anew.`, true);
+  };
+
+  /* ---------- combat cadence: bite, and the enemy bites back ---------- */
+  const biteEnemy = (m, e) => {
+    if (e.pack) {   // a rival wolf — a real duel
+      e.hp -= m.dmg;
+      bloodBurst(e.pos, 12, 1);
+      e.flinchT = 0.25;
+      if (e.hp <= 0) e.die();
+      return;
+    }
+    if (typeof e.hit === 'function') e.hit(m.dmg, true, false);   // animals · predators · legends
+  };
+  const tick = (dt, tSec) => {
+    if (!bonded) return;
+    // the pack lives in the GAME LOOP, not in the world event's 240 s window:
+    // once sworn, its feet move here every frame for as long as the bond holds
+    bonded.update(dt || 0, tSec || 0);
+    for (const m of [...bonded.members]) {
+      if (m.dead) continue;
+      const e = m._eng;
+      if (!e || e.dead) { m._eng = null; continue; }
+      const d = d2(m, e);
+      // the mate bites
+      if (d < REACH && m.atkCd <= 0) {
+        m.atkCd = 1.15;
+        const before = { have: (qActive() && qActive().have) || 0, items: snapItems() };
+        try { biteEnemy(m, e); } catch (err) { }
+        credit(m, before);
+      }
+      // the enemy answers
+      if (d < 3.6 && e.atkCd <= 0) {
+        e.atkCd = (e.sp && e.sp.atkCd) || (e.def && (e.def.atkGap || 1.25)) || 1.2;
+        const edmg = e.dmg || (e.def && e.def.dmg) || 7;
+        m.hurt(Math.round(edmg), e.sp ? e.sp.label : (e.def ? e.def.name : 'a predator'));
+      }
+    }
+  };
+
+  /* ---------- a mate takes the blow meant for the player ---------- */
+  const intercept = (attacker, dmg, label, icon) => {
+    if (!bonded) return false;
+    for (const m of bonded.members) {
+      if (m.dead || m.state !== 'bond') continue;
+      if (d2(m, wolf) < 3.6 && Math.random() < 0.45) {
+        m.hurt(Math.max(1, Math.round(dmg)), label || 'a predator');
+        toast(`🐺 ${m.sp.label} throws itself between you and the blow!`, true);
+        if (audio.thud) audio.thud();
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /* ---------- HUD ---------- */
+  const status = () => {
+    if (!bonded) return '';
+    const alive = bonded.members.filter(m => !m.dead).length, total = bonded.members.length;
+    return `🐺 Pack <b>${alive}/${total}</b> · Lv <b>${bonded.level}</b> · bonded`;
+  };
+
+  window.PACKDBG = {
+    state: () => bonded ? { stance: bonded.stance, level: bonded.level, total: bonded.members.length, alive: bonded.members.filter(m => !m.dead).length, members: bonded.members.map(m => ({ id: m.bondId, hp: m.hp, contrib: m.contrib && JSON.parse(JSON.stringify(m.contrib)) })) } : null,
+    setRoll: v => { forced = v; },
+    bondForce: () => { const p = packNow(); if (p) bond(p); return !!p; },
+    spawn: (x, z) => { WORLD_EVENTS.pack = new RivalPack(x, z); return WORLD_EVENTS.pack; },
+    packNow, onHowl, tick, memberDown, status
+  };
+  return { onHowl, tick, memberTick, memberDown, intercept, status, onQuestDone, onPackGone, pack: () => bonded };
+})();
 
 /* ============ 🤖 AI PLAY — the wolf plays itself (in-game watch mode) ============
    RAFZZER v1.0 — The Neural AI. The v7 "True Hunter" reflex ladder survives underneath
@@ -9510,7 +9878,7 @@ if (window.CAMP && window.CAMP.init) window.CAMP.init();
   const nearestRival = () => {
     let best = null, bd = 1e9;
     for (const r of rivals) {
-      if (r.dead) continue;
+      if (r.dead || (r.pack && r.pack.stance === 'bonded')) continue;   // one's own pack is family, never a duel
       const d = Math.hypot(r.pos.x - wolf.pos.x, r.pos.z - wolf.pos.z);
       if (d < bd) { bd = d; best = r; }
     }
@@ -10186,7 +10554,7 @@ if (window.CAMP && window.CAMP.init) window.CAMP.init();
       const fear = Math.round(Math.max(35, Math.min(85, (wolf.level < 3 ? 68 : 55) * NK.fearMul)));
       const fearOf = (px, pz) => { const d = Math.hypot(px - wolf.pos.x, pz - wolf.pos.z); if (d < fear && (!pinfo || d < pinfo.d)) pinfo = { d, yaw: Math.atan2(px - wolf.pos.x, pz - wolf.pos.z) }; };
       for (const [, ch] of chunks) for (const pr of ch.predators) if (!pr.dead) fearOf(pr.pos.x, pr.pos.z);
-      for (const rv of rivals) if (!rv.dead && ((rv.pack && rv.pack.stance === 'attack') || Math.hypot(rv.pos.x - wolf.pos.x, rv.pos.z - wolf.pos.z) < 24)) fearOf(rv.pos.x, rv.pos.z);
+      for (const rv of rivals) if (!rv.dead && rv.pack && rv.pack.stance !== 'bonded' && ((rv.pack.stance === 'attack') || Math.hypot(rv.pos.x - wolf.pos.x, rv.pos.z - wolf.pos.z) < 24)) fearOf(rv.pos.x, rv.pos.z);
       let bestYaw = desired, bestScore = 1e9;
       const look = keys.ShiftLeft ? Math.max(16, LOOK * 0.8) : Math.max(10, LOOK * 0.6);   // sprint needs runway — trunks cost 4 HP a hit
       // commit to an overtake side for 2.5 s once blocked — eyes that pick a side and COMMIT (no dither)

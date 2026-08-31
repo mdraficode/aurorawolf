@@ -292,6 +292,7 @@ window.CAMP = (() => {
       else toast(`📜 Preparation ${S.prepDone}/${prepNeed(S.tier)} — one more deed before the trial.`);
     }
     if (st === 'awaken' || st === 'ritual') { /* ritual completes in useAltar */ }
+    if (window.PACK && window.PACK.onQuestDone) window.PACK.onQuestDone(q);   // the deed is banked — pack deaths cost nothing now
     refill(); save(); questHudDirty = true;
   };
   const onAccept = q => {
@@ -384,6 +385,7 @@ window.CAMP = (() => {
     let h = `<div class="qt-line" style="color:#ffd76a">🏆 Tier <b>${S.tier}</b> · <b>${legendName()}</b> · ⏱ ${fmt(t)}</div>`;
     if (S.stage === 'prep' && S.prepDone > 0) h += `<div class="qt-line" style="opacity:.9">📜 Preparation ${S.prepDone}/${prepNeed(S.tier)}</div>`;
     if (S.stage === 'prep') { const g = xpGate(S.tier, S.leg); h += `<div class="qt-line" style="opacity:.8">⚜ ${wolf.xpTotal | 0}/${g} career XP · Lv ${wolf.level} ${wolf.xp | 0}/${wolf.xpNext}</div>`; }
+    if (window.PACK && window.PACK.status) { const p = window.PACK.status(); if (p) h += `<div class="qt-line" style="color:#9fd8c4">${p}</div>`; }
     return h;
   };
   const mapMarks = () => {

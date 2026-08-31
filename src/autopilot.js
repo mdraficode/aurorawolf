@@ -357,7 +357,7 @@
   const nearestRival = () => {
     let best = null, bd = 1e9;
     for (const r of rivals) {
-      if (r.dead) continue;
+      if (r.dead || (r.pack && r.pack.stance === 'bonded')) continue;   // one's own pack is family, never a duel
       const d = Math.hypot(r.pos.x - wolf.pos.x, r.pos.z - wolf.pos.z);
       if (d < bd) { bd = d; best = r; }
     }
@@ -1033,7 +1033,7 @@
       const fear = Math.round(Math.max(35, Math.min(85, (wolf.level < 3 ? 68 : 55) * NK.fearMul)));
       const fearOf = (px, pz) => { const d = Math.hypot(px - wolf.pos.x, pz - wolf.pos.z); if (d < fear && (!pinfo || d < pinfo.d)) pinfo = { d, yaw: Math.atan2(px - wolf.pos.x, pz - wolf.pos.z) }; };
       for (const [, ch] of chunks) for (const pr of ch.predators) if (!pr.dead) fearOf(pr.pos.x, pr.pos.z);
-      for (const rv of rivals) if (!rv.dead && ((rv.pack && rv.pack.stance === 'attack') || Math.hypot(rv.pos.x - wolf.pos.x, rv.pos.z - wolf.pos.z) < 24)) fearOf(rv.pos.x, rv.pos.z);
+      for (const rv of rivals) if (!rv.dead && rv.pack && rv.pack.stance !== 'bonded' && ((rv.pack.stance === 'attack') || Math.hypot(rv.pos.x - wolf.pos.x, rv.pos.z - wolf.pos.z) < 24)) fearOf(rv.pos.x, rv.pos.z);
       let bestYaw = desired, bestScore = 1e9;
       const look = keys.ShiftLeft ? Math.max(16, LOOK * 0.8) : Math.max(10, LOOK * 0.6);   // sprint needs runway — trunks cost 4 HP a hit
       // commit to an overtake side for 2.5 s once blocked — eyes that pick a side and COMMIT (no dither)
