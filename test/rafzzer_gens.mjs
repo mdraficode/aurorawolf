@@ -44,7 +44,7 @@ const launch = async () => {
   return { b, pg, errs };
 };
 const openGame = async (pg, seed) => {
-  await pg.goto(`${pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href}?autopilot=1&nolearn=1&seed=${seed}&quality=low&speed=8&rate=3&re=3`, { timeout: 90000, waitUntil: 'domcontentloaded' });
+  await pg.goto(`${pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href}?autopilot=1&nolearn=1&seed=${seed}&quality=low&speed=16&rate=8&re=10`, { timeout: 90000, waitUntil: 'domcontentloaded' });
   await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play' && window.RAFZZER, null, { timeout: 90000 });
   await pg.waitForTimeout(2000);
 };
@@ -57,7 +57,7 @@ const poll = async (pg, wallCapMs, onTick) => {
       const s = RAFZZER.snapshot(), R = window.RUN || {};
       let camp = null; try {
         if (window.CAMP && window.CAMP.state) { const c = window.CAMP.state(); const tr = (c.trophies || []); const tm = tr.length ? Math.max(...tr.map(t => t.tier | 0)) : 0;
-          camp = { tier: c.tier | 0, leg: c.leg | 0, stage: c.stage, trophies: tr.length, topTier: tm, topTime: tm ? Math.min(...tr.filter(t => (t.tier | 0) === tm).map(t => +t.time || 0)) : null, clock: (window.CAMP.clock ? +window.CAMP.clock().toFixed(1) : 0) }; }
+          camp = { tier: c.tier | 0, leg: c.leg | 0, stage: c.stage, trophies: tr.length, topTier: tm, topTime: tm ? Math.min(...tr.filter(t => (t.tier | 0) === tm).map(t => +t.time || 0)) : null, clock: (window.CAMP.simClock ? +window.CAMP.simClock().toFixed(1) : (window.CAMP.clock ? +window.CAMP.clock().toFixed(1) : 0)) }; }
       } catch (e) { }
       return { s, camp, dead: wolf.deadT > 0, last: window.RAFZZER_LAST || null, dist: +wolf.distance.toFixed(1), hp: +wolf.hp.toFixed(1), stam: +wolf.stamina.toFixed(0), lvl: wolf.level, run: { xp: R.xp, kills: R.kills, quests: R.quests, side: R.side | 0 }, sideC: (window.CAMP && window.CAMP.side) ? window.CAMP.side() : null, simS: (window.__boost && __boost.ticks) ? +(window.__boost.ticks * 0.05).toFixed(0) : 0, qTimes: ((window.RUN || {}).questTimes || []).slice(-14), warns: (window.__boost && window.__boost.warns) || 0 };
     }).catch(e => ({ evalErr: String(e.message).slice(0, 120) }));
@@ -191,12 +191,13 @@ if (cmd === 'run') {
     const last = snap.last;
     const fitness = last ? last.fitness : snap.s.fitNow;
     const outcome = last ? 'DIED(' + last.cls + ')' : 'SURVIVED(cap)';
-    const simS = last ? last.dur : (snap.simS || full.simS || 1);
+    const simS = last ? ((last.campClock || (snap.camp && snap.camp.clock)) || last.dur) : (snap.simS || full.simS || 1);
     const mets = { xpMin: +(((last ? last.xp : full.run.xp) * 60 / Math.max(1, simS)).toFixed(1)), qMin: +((((last ? last.hist.quests : undefined) ?? full.run.quests ?? 0) * 60 / Math.max(1, simS)).toFixed(2)), avgQuestS: snap.qTimes && snap.qTimes.length ? +(snap.qTimes.reduce((x2, y2) => x2 + y2, 0) / snap.qTimes.length).toFixed(0) : null };
     const trophy = snap.camp || {};   // LAW v4: the trophy machine's state at run end
     mets.trophy = trophy;
-    const durSimS = last ? last.dur : (full.simS || snap.simS || 1);   // living wolves: no R.dur — fall back to the boost tick-clock
-    const report = { gen: g, fitness, outcome, mets, trophy, cause: last ? last.cause : null, cls: last ? last.cls : null, durSimS, maxLevel: last ? last.maxLevel : snap.lvl, xp: last ? last.xp : full.run.xp, hist: (last ? last.hist : snap.s.hist) || {}, scars: snap.s.scars, beats, knobs: snap.s.knobs, warns: snap.warns, errs: errs.slice(0, 6), botn: full.botn, logTail: full.logTail, side: (full.run ? (full.run.side | 0) : 0) };
+    const durSimS = simS || (last ? last.dur : (full.simS || snap.simS || 1));   // M46 v5: GAME clock (sim) — honest, boost-proof
+    const durWallS = last ? last.dur : 0;   // wall seconds (R.dur) — kept for reference only
+    const report = { gen: g, fitness, outcome, mets, trophy, cause: last ? last.cause : null, cls: last ? last.cls : null, durSimS, durWallS, maxLevel: last ? last.maxLevel : snap.lvl, xp: last ? last.xp : full.run.xp, hist: (last ? last.hist : snap.s.hist) || {}, scars: snap.s.scars, beats, knobs: snap.s.knobs, warns: snap.warns, errs: errs.slice(0, 6), botn: full.botn, logTail: full.logTail, side: (full.run ? (full.run.side | 0) : 0) };
     write(`${DIR}/rafzzer_run_gen${g}.json`, report);
     console.log(`RUN GEN ${g}: ${outcome} · fitness ${fitness} · L${report.maxLevel} · ${report.xp}xp · ${report.durSimS}s(sim) · ${mets.xpMin}xp/min · TIER ${trophy.topTier || 0} (${trophy.trophies || 0} trophies, best ${trophy.topTime ?? '—'}s) · stage ${trophy.stage || '-'} leg${trophy.leg ?? '-'} · side ${report.side} · warns ${snap.warns} · errs ${errs.length}`);
     if (last) console.log(`  cause: ${last.cause} · scars now ${JSON.stringify(last.scars)}`);

@@ -9187,14 +9187,14 @@ window.CAMP = (() => {
     if (!S.seen[L.key + S.tier]) { S.seen[L.key + S.tier] = 1; setTimeout(() => toast('📖 ' + L.story, true), 1600); }
     addXp(0); // (wolf XP already paid via Boss.die)
     if (wasBeast) {
-      const t = elapsed();
+      const t = simClock();   // the GAME record — the LAW's speed basis, boost-proof
       const rec = { tier: S.tier, name: S.name || 'Wolf', date: new Date().toISOString().slice(0, 10), time: +t.toFixed(1), xp: wolf.xpTotal | 0, bestLegend: LEGENDS[LEGENDS.length - 1].key + ' Legend' };   // trophy XP = lifetime career XP in the ONE pool
       S.trophies.push(rec);
       const b = S.best[S.tier];
       if (!b || t < b.t) S.best[S.tier] = { t: +t.toFixed(1), date: rec.date, name: rec.name };
       toast(`🏆 TROPHY — TIER ${S.tier} · ${fmt(t)}! The cycle closes. A harder one begins.`, true);
       music.fanfare();
-      S.tier++; S.leg = 0; S.stage = 'q0'; S.prepDone = 0; S.runT0 = performance.now(); S.pausedAcc = 0; S.terr = null; S.altar = null;
+      S.tier++; S.leg = 0; S.stage = 'q0'; S.prepDone = 0; S.runT0 = performance.now(); S.runT0S = tSec; S.pausedAcc = 0; S.terr = null; S.altar = null;
       if (alt && alt.mesh && alt.mesh.parent) scene.remove(alt.mesh); alt = null;
     } else {
       S.leg++;
@@ -9227,6 +9227,12 @@ window.CAMP = (() => {
 
   /* ---------- timer (speedrun law: it never rewinds; pause is honest) ---------- */
   const elapsed = () => Math.max(0, (performance.now() - (S.runT0 || performance.now()) - (S.pausedAcc || 0) - (S.pausedAt ? (performance.now() - S.pausedAt) : 0)) / 1000);
+  /* M46 · THE GAME CLOCK (v5 scoring basis, 2026-09-01): the LAW's "fastest highest tier"
+     is the GAME's own record — the time a player running at 1× would see. `tSec` is the sim
+     clock, so the boost (speed/rate) becomes a pure observation accelerator and can never
+     inflate speed or efficiency scores. At 1× (live play) game clock == wall clock, so the
+     shipped records are unchanged. */
+  const simClock = () => { if (S.runT0S === undefined) S.runT0S = tSec; return Math.max(0, tSec - S.runT0S); };
   const fmt = s => { s = Math.max(0, s | 0); const h = (s / 3600 | 0), m = ((s % 3600) / 60 | 0), ss = s % 60; return (h > 0 ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0'); };
   const onPause = () => { if (!S.pausedAt) S.pausedAt = performance.now(); };
   let armed = false;
@@ -9360,7 +9366,7 @@ window.CAMP = (() => {
     on: () => true,
     init: () => { load(); },
     refill, tick, hud, mapMarks, onEvent, onQuestComplete, onAccept, onAbandon, onDeath,
-    onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh, clock: elapsed, side: sideInfo
+    onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh, clock: elapsed, simClock, side: sideInfo
   };
 })();
 if (window.CAMP && window.CAMP.init) window.CAMP.init();
@@ -9768,7 +9774,7 @@ window.PACK = (() => {
       const stF = ({ q0: 0, q1: 0.25, prep: 0.4, awaken: 0.62, boss: 0.8 })[C.stage] || 0;
       const prepF = C.stage === 'prep' ? Math.min(0.24, 0.08 * (C.prepDone | 0)) : 0;   // prepNeed ≤ 3 ⇒ ≤ 0.24
       const prog = Math.min(1, ((C.leg | 0) + stF + prepF) / NLEG);
-      let clock = 0; try { clock = (window.CAMP && CAMP.clock) ? CAMP.clock() : 0; } catch (e) { }
+      let clock = 0; try { clock = (window.CAMP && CAMP.simClock) ? CAMP.simClock() : ((window.CAMP && CAMP.clock) ? CAMP.clock() : 0); } catch (e) { }   // M46 v5: the GAME clock (sim), not wall — boost-proof
       // LAW v4 · SIDE-ERRAND SENSES: the fast-XP channel the level-up deed opens — the cortex
       // must SEE it to urge the wolf onto it. sideP = 1 errand slotted, 0.6 offered on the board,
       // 0 none. gateU = the level-up deed's own meter (how close the climb is).
@@ -9854,7 +9860,7 @@ window.PACK = (() => {
         return K;
       } catch (e) { Object.assign(K, SAFK); return K; }   // the brainstem never dies for the cortex's dreams
     };
-    const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag|eagle/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
+    const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|lion|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag|eagle|panther|lynx|croc/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
     const fitness = () => {   // LAW v4 · THE TROPHY LAW (single scoring law, 2026-08-31 — trainer's core rule):
       //   "generation success = the upper-tier TIER TROPHIES; TRUE success = how fast
       //    the highest tier is achieved and how EFFICIENTLY." So the law is:

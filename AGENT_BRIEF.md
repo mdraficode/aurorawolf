@@ -164,6 +164,27 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
 - Champion auto-migration on architecture change (archive old champion, zero-pad or re-seed
   explicitly, logged) — never silently reseed.
 
+### 4.5b Session 2026-09-01 (trophy push) decisions — v5 basis
+- **v5 game-clock scoring basis:** `CAMP.simClock()` (tSec-based) replaces wall time for the LAW's
+  clock term, trophy record time (`rec.time`/`best`), sense 23 and all reported rates — the sim boost
+  is now a pure observation accelerator (at 1× live play game == wall, shipped records unchanged).
+  Evidence: GEN 35's recorded clock ≈ its wall dur (568.2 ≈ 568.5 s) proved prior runs could be
+  boost-biased; v5 restores honest cross-gen speed comparison.
+- **Boost upgraded:** harness URL `speed=16&rate=8&re=10` (was 8/3/3) ≈ 2.7–2.8 sim-s per wall-s in
+  this sandbox with warns 0 / errs 0 / no NaN across probes. `speed/rate` ratio kept (0.375) so bot
+  timers behave identically; higher `re` (renders every 10 batches) removes the headless render
+  bottleneck, which CPU-bound analysis showed was never the limiter.
+- **Fight-classifier bugfix:** `lion` (plus panther/lynx/croc) were missing from `classify()` — GEN 40
+  died to a Level-5 Lion but scored `unknown` (pen 60 vs 120) → fit 86 inflated ~60 (honest rescore
+  26). Fixed BEFORE GEN 41; GEN 43's Lion death now scores `fight` correctly.
+- **Gate diagnostics:** `m46_step.sh` snapshots each failed gate attempt
+  (`rafzzer_gate_gen{N}_{mode}{A}.json`) so global-vs-trait failures are diagnosable (observed pattern:
+  GEN 40 global ×2 fail → trait pass; no systematic check fails; 41/42 global a1 passed).
+- **Sessions run & verdicts (2026-09-01, on v5 + 2.7× boost):** GEN 40 fit 26 (rescored, REJECTED),
+  GEN 41 −93, GEN 42 −3 (RUN.side 4 — era of the side channel), GEN 43 −100 — all reached prep, none
+  reached awaken; champion GEN 35 (59) stands. NEXT: GEN 44. Expect: champion falls only to a gen
+  that reaches awaken/boss or slays a leg (or a trophy = 1200+).
+
 ### 4.6 Repository-hygiene decisions (2026-09-01)
 - `test/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.
 - `shots/*.png` regenerable → gitignored; `shots/README.md` + `forest.jpg` tracked.
@@ -202,9 +223,10 @@ seed line (extension must be exact zero-pad; verify seed length = NW).
 
 Lineage (LAW v4): 34 fit 25 SURVIVED(cap) → **35 fit 59 CHAMPION** (died L8 Leopard, 126.6 xp/min)
 → 36 fit 19 (first ritual + first Legend fight ~18 s) → 37 fit −43 (rival pack attack in prep) →
-38 fit −117 (L7 Brown Bear in prep, near-cap road) → 39 fit −97 (first gen on the 26-sense build;
-**accepted a Trail-of-Firsts side errand at 334.7 s but died to the Rival Alpha before banking it**,
-RUN.side 0, 43.1 xp/min).
+38 fit −117 (L7 Brown Bear in prep, near-cap road) → 39 fit −97 (first gen on the 26-sense build; accepted
+a Trail-of-Firsts side errand at 334.7 s but died to the Rival Alpha before banking it, RUN.side 0,
+43.1 xp/min) → **40 fit 26 (rescored; Lion classifier bugfix) → 41 fit −93 → 42 fit −3 (RUN.side 4) →
+43 fit −100** — all REJECTED under the v5 game-clock basis; champion GEN 35 (fit 59) stands.
 
 **Open questions for GEN 40+:** (1) does side-errand awareness measurably raise xp/min + RUN.side?
 (sense 24 rows are fresh/zero — trait rows 180..259 give them evolution room); (2) survivability vs

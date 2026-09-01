@@ -103,7 +103,7 @@
       const stF = ({ q0: 0, q1: 0.25, prep: 0.4, awaken: 0.62, boss: 0.8 })[C.stage] || 0;
       const prepF = C.stage === 'prep' ? Math.min(0.24, 0.08 * (C.prepDone | 0)) : 0;   // prepNeed ≤ 3 ⇒ ≤ 0.24
       const prog = Math.min(1, ((C.leg | 0) + stF + prepF) / NLEG);
-      let clock = 0; try { clock = (window.CAMP && CAMP.clock) ? CAMP.clock() : 0; } catch (e) { }
+      let clock = 0; try { clock = (window.CAMP && CAMP.simClock) ? CAMP.simClock() : ((window.CAMP && CAMP.clock) ? CAMP.clock() : 0); } catch (e) { }   // M46 v5: the GAME clock (sim), not wall — boost-proof
       // LAW v4 · SIDE-ERRAND SENSES: the fast-XP channel the level-up deed opens — the cortex
       // must SEE it to urge the wolf onto it. sideP = 1 errand slotted, 0.6 offered on the board,
       // 0 none. gateU = the level-up deed's own meter (how close the climb is).
@@ -189,7 +189,7 @@
         return K;
       } catch (e) { Object.assign(K, SAFK); return K; }   // the brainstem never dies for the cortex's dreams
     };
-    const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag|eagle/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
+    const classify = c => { c = String(c || ''); if (S.wasSwim) return 'water'; if (/tiger|bear|leopard|lion|wolf|rival|boar|bison|wyrm|dragon|beast|hunter|serpent|stag|eagle|panther|lynx|croc/i.test(c)) return 'fight'; if (/frost|cold|storm|chill|starv|hunger|thirst|ice|freeze/i.test(c)) return 'neglect'; return 'unknown'; };
     const fitness = () => {   // LAW v4 · THE TROPHY LAW (single scoring law, 2026-08-31 — trainer's core rule):
       //   "generation success = the upper-tier TIER TROPHIES; TRUE success = how fast
       //    the highest tier is achieved and how EFFICIENTLY." So the law is:

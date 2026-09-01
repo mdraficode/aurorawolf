@@ -150,7 +150,9 @@ generation at a time, under a human-gated, law-scored death-or-cap regime.
 f = Σ_trophies  1200 · 2.5^(tier−1)                          // (1) THE TROPHIES (dominant)
   + (1000 − min(topTimes)) · 0.6 · 2.5^(topTier−1)           // (2) SPEED at the top tier
   + 220 · prog · 2.5^(tier−1) + 60 · bosses                  // (3) THE ROAD gradient
-  − clock · 0.03 · 2.5^(tier−1) − 0.012 · durS               // (4) EFFICIENCY
+  − clock · 0.03 · 2.5^(tier−1) − 0.012 · durS               // (4) EFFICIENCY — v5 (2026-09-01): clock & durS
+                                                             //     are GAME time (CAMP.simClock, tSec-based), not wall; the
+                                                             //     boost never inflates scores; at 1× live play game == wall
   + 0.5·min(xpRate,240) + 3·quests + 0.04·xp + 1.5·maxLevel + 1·kills
   + 25 · min(3, RUN.side)                                    // side errands (capped at 3)
   − pen − stall
@@ -232,13 +234,19 @@ frontier is surviving the Legend fight and closing a tier.**
 | 37 | global | PASS (2nd) | DIED(fight) | −43 | 1 | died in prep to a rival PACK ATTACK (howl roll) → howl policy · REJECTED |
 | 38 | global | PASS (2nd) | DIED(fight) | −117 | 1 | near-cap road (868 s), fell to L7 Brown Bear in prep · REJECTED |
 | 39 | global | PASS (2nd) | DIED(fight) | −97 | 1 | first gen under the 26-sense build · accepted a Trail-of-Firsts errand at 334.7 s but died to the Rival Alpha before banking it (RUN.side 0) · REJECTED |
+| 40 | global | PASS (trait a1) | DIED(fight) | 86→26 | 1 | v5 clock · 2.7× boost · died PREP L4 to a Level-5 Lion — classifier missed LION ('unknown', pen 60); fixed post-run; honest rescore 26 · RUN.side 2 · REJECTED |
+| 41 | global | PASS (a1) | DIED(fight) | −93 | 1 | slow wanderer (21 xp/sim-min, 8.8 km) · died PREP L2 to a Level-5 Brown Bear · REJECTED |
+| 42 | global | PASS (a1) | DIED(fight) | −3 | 1 | longest road · L6 · 799xp · RUN.side 4 (side-errand channel fully engaged) · died PREP to a Level-7 Tiger · REJECTED |
+| 43 | global | PASS (a2) | DIED(fight) | −100 | 1 | died PREP L3 to a Level-4 Lion (classifier now correct) · 13.7 xp/sim-min · 11.6 km wandered · REJECTED |
 
 Full per-gen record: `test/m46_session_ledger.md` + `test/rafzzer_lineage.json` +
 `test/rafzzer_run_gen{N}.json`. Annotated resume doc: `test/M46_RESUME.md`.
 
-**Open question answered so far:** the cortex takes side errands (GEN 39 log: "side-accept fast
-lane"), but no gen has banked one yet — whether the side channel measurably speeds the gate climb
-is still unproven. GEN 40+ should show it in `xpx/min` + `side` telemetry.
+**Open question answered — side errands ARE banked** (GEN 40: side 2 · GEN 42: side 4 · GEN 43: side 1, under
+the v5 game-clock basis), and the 2.7× boost + game-clock scoring give honest per-sim-minute rates.
+NEW FINDING (gens 40–43): the line now survives long (1100–1500 sim-s road, all reach prep) but is SLOW
+in game time (13–49 xp/sim-min vs the champion's pace ≈47) — the law's efficiency terms keep them
+rejected (26/−93/−3/−100 vs 59). Frontier unchanged: awaken → survive the Legend → close a leg/tier.
 
 ---
 

@@ -446,14 +446,14 @@ window.CAMP = (() => {
     if (!S.seen[L.key + S.tier]) { S.seen[L.key + S.tier] = 1; setTimeout(() => toast('📖 ' + L.story, true), 1600); }
     addXp(0); // (wolf XP already paid via Boss.die)
     if (wasBeast) {
-      const t = elapsed();
+      const t = simClock();   // the GAME record — the LAW's speed basis, boost-proof
       const rec = { tier: S.tier, name: S.name || 'Wolf', date: new Date().toISOString().slice(0, 10), time: +t.toFixed(1), xp: wolf.xpTotal | 0, bestLegend: LEGENDS[LEGENDS.length - 1].key + ' Legend' };   // trophy XP = lifetime career XP in the ONE pool
       S.trophies.push(rec);
       const b = S.best[S.tier];
       if (!b || t < b.t) S.best[S.tier] = { t: +t.toFixed(1), date: rec.date, name: rec.name };
       toast(`🏆 TROPHY — TIER ${S.tier} · ${fmt(t)}! The cycle closes. A harder one begins.`, true);
       music.fanfare();
-      S.tier++; S.leg = 0; S.stage = 'q0'; S.prepDone = 0; S.runT0 = performance.now(); S.pausedAcc = 0; S.terr = null; S.altar = null;
+      S.tier++; S.leg = 0; S.stage = 'q0'; S.prepDone = 0; S.runT0 = performance.now(); S.runT0S = tSec; S.pausedAcc = 0; S.terr = null; S.altar = null;
       if (alt && alt.mesh && alt.mesh.parent) scene.remove(alt.mesh); alt = null;
     } else {
       S.leg++;
@@ -486,6 +486,12 @@ window.CAMP = (() => {
 
   /* ---------- timer (speedrun law: it never rewinds; pause is honest) ---------- */
   const elapsed = () => Math.max(0, (performance.now() - (S.runT0 || performance.now()) - (S.pausedAcc || 0) - (S.pausedAt ? (performance.now() - S.pausedAt) : 0)) / 1000);
+  /* M46 · THE GAME CLOCK (v5 scoring basis, 2026-09-01): the LAW's "fastest highest tier"
+     is the GAME's own record — the time a player running at 1× would see. `tSec` is the sim
+     clock, so the boost (speed/rate) becomes a pure observation accelerator and can never
+     inflate speed or efficiency scores. At 1× (live play) game clock == wall clock, so the
+     shipped records are unchanged. */
+  const simClock = () => { if (S.runT0S === undefined) S.runT0S = tSec; return Math.max(0, tSec - S.runT0S); };
   const fmt = s => { s = Math.max(0, s | 0); const h = (s / 3600 | 0), m = ((s % 3600) / 60 | 0), ss = s % 60; return (h > 0 ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0'); };
   const onPause = () => { if (!S.pausedAt) S.pausedAt = performance.now(); };
   let armed = false;
@@ -619,7 +625,7 @@ window.CAMP = (() => {
     on: () => true,
     init: () => { load(); },
     refill, tick, hud, mapMarks, onEvent, onQuestComplete, onAccept, onAbandon, onDeath,
-    onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh, clock: elapsed, side: sideInfo
+    onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh, clock: elapsed, simClock, side: sideInfo
   };
 })();
 if (window.CAMP && window.CAMP.init) window.CAMP.init();

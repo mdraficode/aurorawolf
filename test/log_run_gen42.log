@@ -1,0 +1,26 @@
+  5s · hp100 stam46 L0 72.9m · fit≈-60
+  25s · hp100 stam100 L0 427.3m · fit≈-63
+  46s · hp104 stam33 L1 774.2m · fit≈-20
+  66s · hp104 stam31 L1 1121.2m · fit≈-30
+  86s · hp99.7 stam35 L1 1532m · fit≈-36
+  107s · hp108 stam69 L1 1959.5m · fit≈-41
+  128s · hp108 stam55 L1 2446.1m · fit≈-44
+  148s · hp116 stam32 L2 2868.5m · fit≈-28
+  168s · hp116 stam34 L2 3254.4m · fit≈-29
+  189s · hp116 stam110 L2 3661.7m · fit≈-65
+RUN GEN 42: DIED(fight) · fitness -65 · L2 · 227xp · 478.4s(sim) · 28.5xp/min · TIER 0   252s · hp124 stam91 L3 4866.9m · fit≈-38
+  272s · hp124 stam93 L3 5371.9m · fit≈-41
+  292s · hp120 stam90 L3 5901.2m · fit≈-27
+  312s · hp63.3 stam19 L3 6459.4m · fit≈-31
+  332s · hp132 stam120 L4 7010.2m · fit≈2
+  352s · hp132 stam38 L4 7399.7m · fit≈-16
+  372s · hp132 stam56 L4 7900.2m · fit≈-20
+  392s · hp132 stam44 L4 8453.1m · fit≈-23
+  412s · hp140 stam46 L5 8945.2m · fit≈26
+  433s · hp140 stam55 L5 9494.1m · fit≈25
+  453s · hp148 stam65 L6 10074.7m · fit≈30
+  473s · hp144 stam32 L6 10558.8m · fit≈26
+  493s · hp148 stam25 L6 10982m · fit≈23
+  513s · hp148 stam51 L6 11492.6m · fit≈19
+RUN GEN 42: DIED(fight) · fitness -3 · L6 · 799xp · 1483.2s(sim) · 32.3xp/min · TIER 0 (0 trophies, best —s) · stage prep leg0 · side 4 · warns 0 · errs 0
+  cause: the Level 7 Tiger · scars now {"fight":2,"neglect":0,"water":0}
