@@ -10335,6 +10335,8 @@ window.PACK = (() => {
       const frac = wolf.hp / wolf.maxHp;
       const NK = RAFZ.think({ pred, bossHit, frac });   // 🧠 the cortex weighs the moment
 
+      let targetPk = null;   // (declared here — v6.4c TDZ fix: the swim branch (below) reads targetPk but its let was 200 lines down → every swim threw 'Cannot access before initialization' and blinded the tick; GEN 53 was jumped right after a swim)
+
       /* ---------- 0. water: a wolf swims to shore, always ---------- */
       if (wolf.swimming) {
         let shoreYaw = null, bestH = -1e9;
@@ -10395,15 +10397,33 @@ window.PACK = (() => {
         const src = bossThreat && (!pred.a || bossHit.d < pred.d) ? bossHit.b.pos : (pN ? { x: pCentX, z: pCentZ } : pred.a.pos);
         const yx = wolf.pos.x - src.x, yz = wolf.pos.z - src.z, m = Math.hypot(yx, yz) || 1;
         let fleeYaw = Math.atan2(yx / m, yz / m);
+        let waterExit = false;
+        if (pN) {   // v6.4c packs NEVER cross deep water (they veer off at the shore) — a swarm
+          // escape aims at the nearest water and COMMITS to the far bank (ford while swimming);
+          // on land the wolf can't open 90 m (they give up at dWolf>90) before stamina dies — GEN 51
+          // and GEN 53 both fled 7-10× and were chewed to death on the ground.
+          let wBest = 1e9;
+          for (let k = 0; k < 12; k++) {
+            const a2 = k * 0.5236;
+            for (let r = 30; r <= 70; r += 20) {
+              if (heightAt(wolf.pos.x + Math.sin(a2) * r, wolf.pos.z + Math.cos(a2) * r) < waterYNow() - 0.4) {
+                if (r < wBest) { wBest = r; fleeYaw = a2; waterExit = true; }
+                break;
+              }
+            }
+          }
+        }
         if (!bot.fleeYaw || (SIMNOW() - (bot.fleeYawAt || 0) > 2000 && !bossThreat)) { bot.fleeYaw = fleeYaw; bot.fleeYawAt = SIMNOW(); }
         fleeYaw = bot.fleeYaw;   // stable heading — no tick-to-tick flip-flop inside a swarm
-        // never flee into the sea: rotate toward dry land until the exit is safe
-        for (let k = 0; k < 8 && heightAt(wolf.pos.x + Math.sin(fleeYaw) * 12, wolf.pos.z + Math.cos(fleeYaw) * 12) < waterYNow() - 0.4; k++) {
+        // never flee into the sea: rotate toward dry land until the exit is safe (unless the
+        // escape IS the water — pack pursuers)
+        if (!waterExit) for (let k = 0; k < 8 && heightAt(wolf.pos.x + Math.sin(fleeYaw) * 12, wolf.pos.z + Math.cos(fleeYaw) * 12) < waterYNow() - 0.4; k++) {
           fleeYaw += (k % 2 ? 1 : -1) * 0.55 * Math.ceil((k + 1) / 2);
         }
         aim(fleeYaw, 0.6);
         keys.KeyW = true; keys.ShiftLeft = !wolf.exhausted && wolf.stamina > 8;   // burn the tank — escape or die
         wolf.crouch = false; bot.fight = null; bot.goalText = '🏃 fleeing at ' + (frac * 100).toFixed(0) + '% hp';
+        if (waterExit && !bot.ford) bot.ford = { yaw: fleeYaw, until: SIMNOW() + 42000 };   // committed crossing — the far bank is the exit
         // hold: keep running until nothing hostile is near AND hp recovered; a missed exit retries
         const safeNow = !bossThreat && pred.d > 45 && frac > fleeAt + 0.06;
         if (safeNow) { bot.fleeUntil = 0; bot.fleeYaw = null; }
@@ -10411,7 +10431,7 @@ window.PACK = (() => {
           if (!bot.fleeStart) bot.fleeStart = SIMNOW();
           bot.fleeUntil = Math.min(SIMNOW() + 6000, bot.fleeStart + 20000);   // 20 sim-s cap per episode
         }
-        if (!bot.fleeLog || SIMNOW() - bot.fleeLog > 15000) { bot.fleeLog = SIMNOW(); log('flee', { msg: 'badly hurt — disengaging', pack: pN || 0, d: Math.round(pred.d) }); }
+        if (!bot.fleeLog || SIMNOW() - bot.fleeLog > 15000) { bot.fleeLog = SIMNOW(); log('flee', { msg: 'badly hurt — disengaging (pack ' + (pN || 0) + ' @ ' + Math.round(pred.d) + 'm → ' + (waterExit ? 'water' : 'land') + ')' }); }
         applyAim(); return;
       }
       bot.fleeUntil = 0; bot.fleeYaw = null; bot.fleeStart = 0;
@@ -10530,20 +10550,34 @@ window.PACK = (() => {
          within 34 m, the wolf BREAKS CLEAN (sprint to separation; when winded, hard-away walk)
          instead of strolling. It resumes the deed once the threat loses the chase. */
       const hChase = pred.a && pred.a.sp && (pred.a.state === 'chase' || pred.a.state === 'attack') && (pred.a.sp.dmg || 0) >= 9 && pred.a.sp.build !== 'eagle';   // v6.1: cats are dmg 9-11 — the 13 gate left Leopard/Tiger/SnowLeopard uncovered (GENS 40-44 died to them in prep)
-      if (hChase && pred.d < 34 && !bot.huntCombat && bossHit.d > 90 && frac > fleeAt) {
+      // v6.4c: a CHALLENGED pack is a face-off, not a duel you must take — its members close at 5.5
+      // while the wolf walks 7-9, so backing off is a clean, honest escape (GEN 53 died hunting
+      // 4 s: the pack converged mid-hunt and chewed it; challenge members never flip pack.stance to
+      // 'attack' so the swarm flee never saw them). Rival deeds (rivalDeed) still meet the challenge.
+      let pkChal = null;
+      if (!rivalDeed) for (const rc of rivals) {
+        if (rc.dead || (rc.pack && rc.pack.stance === 'bonded')) continue;
+        if (rc.pack && rc.pack.stance === 'challenge') {
+          const cd = Math.hypot(rc.pos.x - wolf.pos.x, rc.pos.z - wolf.pos.z);
+          if (cd < 34 && (!pkChal || cd < pkChal.d)) pkChal = { a: rc, d: cd };
+        }
+      }
+      if ((hChase || pkChal) && (hChase ? pred.d : pkChal.d) < 34 && !bot.huntCombat && bossHit.d > 90 && frac > fleeAt) {
+        const foe = hChase ? pred.a : pkChal.a;
+        const fd = hChase ? pred.d : pkChal.d;
         RAFZ.bump('yield');
-        const away = Math.atan2(wolf.pos.x - pred.a.pos.x, wolf.pos.z - pred.a.pos.z) + (bot.giveSide || 0);
+        const away = Math.atan2(wolf.pos.x - foe.pos.x, wolf.pos.z - foe.pos.z) + (bot.giveSide || 0);
         aim(away, 0.9);
-        keys.KeyW = true; keys.ShiftLeft = wolf.stamina > 25 && !wolf.exhausted && pred.d < 26;
+        keys.KeyW = true; keys.ShiftLeft = wolf.stamina > 25 && !wolf.exhausted && fd < 26;
         wolf.crouch = false;
-        bot.goalText = '⚔️ breaking clean from a hunting ' + (pred.a.sp ? pred.a.sp.label : 'apex') + ' (' + pred.d.toFixed(0) + 'm)';
+        bot.goalText = '⚔️ breaking clean from ' + (hChase ? 'a hunting ' + (pred.a.sp ? pred.a.sp.label : 'apex') : 'a rival challenge') + ' (' + fd.toFixed(0) + 'm)';
         if (!bot.giveSide || Math.random() < 0.02) bot.giveSide = (Math.random() < 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.5);
         applyAim(); return;
       }
 
       /* ---------- 4. pick the objective ---------- */
 
-      let q = null, goal = bot.goalOverride || null, targetAnimal = null, targetPk = null, mode = goal ? 'drink' : 'wander', bestD = 1e9;
+      let q = null, goal = bot.goalOverride || null, targetAnimal = null, mode = goal ? 'drink' : 'wander', bestD = 1e9;
       if (bot.questLock && !QUESTS.active.some(qq => qq.id === bot.questLock.id)) bot.questLock = null;   // completed/abandoned
       if (!bot.goalOverride) for (const cq of QUESTS.active) {
         if (bot.questLock && SIMNOW() < bot.questLock.until && cq.id !== bot.questLock.id) continue;   // one deed at a time — juggling two attractors orbits the map between them

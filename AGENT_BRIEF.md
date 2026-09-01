@@ -221,6 +221,15 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   48 −166 · 49 −144 (REACHED AWAKEN + fought the Leopard Legend, too slow — clock −116) ·
   **50 −55 PROMOTED (36.9 xp/min)** · 51 −106 (Rival-Wolf pack swarm → v6.4) · 52 −87 (**stage BOSS**,
   38.3 xp/min, L7, side 6, died to the Leopard Legend → v6.4b legend gate). Champion: GEN 50 (−55).
+- **v6.4c pack-safety round (GEN 53 autopsy):** (a) TDZ bugfix — the swim branch read `targetPk`
+  before its `let` declaration → every swim threw and blinded the tick; GEN 53 was jumped right after
+  a swim. `targetPk` now declared at the top of the tick. (b) Land escape from an attacking pack is
+  physically impossible (sprint stamina ~4-6 s cannot open the pack's 90 m give-up radius; rivals
+  12.2-14.4 vs wolf 18) — but rival wolves REFUSE deep water (veer off at the shore): pack escapes now
+  aim for the nearest water and COMMIT to the far bank via the ford branch. (c) a CHALLENGED pack is a
+  face-off, not a mandatory duel — members close at 5.5 vs the wolf's 7-9 walk, so the wolf backs off
+  cleanly (kite line extended), unless a rival deed is active. (d) the flee log now carries
+  `pack n @ dm → water/land` for future autopsies.
 - **Frontier (v6.4 data):** pace is SOLVED (36.9 → 38.3 xp/sim-min; side 6 errand appetite retained)
   and the road is walkable (GEN 52: q0→q1→prep→awaken→boss at 1840 sim-s). The only wall left is THE
   BOSS — beating the Leopard Legend (45 hp · 14 dmg · 12.5 spd · ambush special). Next steps: v6.4b
