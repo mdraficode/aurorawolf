@@ -230,6 +230,11 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   face-off, not a mandatory duel — members close at 5.5 vs the wolf's 7-9 walk, so the wolf backs off
   cleanly (kite line extended), unless a rival deed is active. (d) the flee log now carries
   `pack n @ dm → water/land` for future autopsies.
+- **v6.4d rest & drink discipline (GEN 54 autopsy):** stamina regen is 0.5/s when still vs 6/s
+  sprint drain — a wolf that leaves cover on a <45-stamina tank gets ~2 s of sprint before the flee
+  line walks it into the jaws (GEN 54: 7 bites at walk speed vs a Level-5 Lion). Gates: rest now
+  continues until hp > max(restAt, 82%) AND stamina > 45; a drink trip only starts at hp > 55%.
+  The flee log payload (`pack n @ dm → water/land`) is now the standard autopsy channel.
 - **Frontier (v6.4 data):** pace is SOLVED (36.9 → 38.3 xp/sim-min; side 6 errand appetite retained)
   and the road is walkable (GEN 52: q0→q1→prep→awaken→boss at 1840 sim-s). The only wall left is THE
   BOSS — beating the Leopard Legend (45 hp · 14 dmg · 12.5 spd · ambush special). Next steps: v6.4b

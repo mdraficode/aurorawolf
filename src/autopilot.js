@@ -820,7 +820,10 @@
       }
 
       /* ---------- 3. rest & drink: a real player manages their bars ---------- */
-      if (frac < NK.restAt && pred.d > 65 && bossHit.d > 130) {
+      // v6.4d: a wolf rests until it can BOTH fight and flee — hp AND a real sprint tank
+      // (stamina regen is a slow 0.5/s when still; GEN 54 left rest at ~70% hp / 20 stamina —
+      // the flee line got 2 s of sprint and the Level-5 Lion chewed it 7 times at walk speed)
+      if ((frac < NK.restAt || (bot.restT && (frac < Math.max(NK.restAt, 0.82) || wolf.stamina < 45))) && pred.d > 65 && bossHit.d > 130) {
         RAFZ.bump('rest');
         if (!bot.restT) { bot.restT = SIMNOW(); log('rest', { msg: 'hurt (' + (frac * 100).toFixed(0) + '%) — resting to heal' }); }
         keys.KeyW = false; keys.ShiftLeft = false; wolf.crouch = false;
@@ -834,7 +837,9 @@
       bot.restT = 0;
       // drink with hysteresis: commit until stamina is actually restored (or the trip times out)
       RAFZ.bump('drink-check');
-      if (((wolf.stamina < NK.drinkAt && !bot.drinking) || (bot.drinking && wolf.stamina < 88)) && pred.d > 55 && !wolf.swimming) {
+      // v6.4d: only set out for water with enough hp to defend the trip (GEN 54 walked 61 m to
+      // drink at 55% hp and a Level-5 Lion met it there — dead at the waterline)
+      if (((wolf.stamina < NK.drinkAt && !bot.drinking && wolf.hp > wolf.maxHp * 0.55) || (bot.drinking && wolf.stamina < 88)) && pred.d > 55 && !wolf.swimming) {
         bot.drinking = true;
         if (nearWaterEdge()) {
           doGather();  // drinking is gather-at-water's-edge
