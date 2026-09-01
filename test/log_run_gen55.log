@@ -1,0 +1,34 @@
+  3s · hp100 stam3 L0 136.1m · fit≈-61
+  23s · hp108 stam13 L1 584.1m · fit≈1
+  43s · hp108 stam55 L1 1077.7m · fit≈-21
+  63s · hp108 stam47 L1 1620.8m · fit≈-32
+  83s · hp108 stam49 L1 2218m · fit≈-52
+  103s · hp104 stam46 L1 2738.2m · fit≈-72
+  123s · hp116 stam44 L2 3308m · fit≈-57
+  144s · hp116 stam45 L2 3712.3m · fit≈-61
+  164s · hp116 stam59 L2 4260.8m · fit≈-65
+  184s · hp116 stam59 L2 4756.2m · fit≈-68
+  204s · hp124 stam51 L3 5313.1m · fit≈-52
+  226s · hp124 stam47 L3 5623.6m · fit≈-55
+  246s · hp124 stam45 L3 6182m · fit≈-58
+  266s · hp124 stam66 L3 6606m · fit≈-61
+  286s · hp124 stam37 L3 7155.6m · fit≈-64
+  306s · hp122.3 stam51 L3 7689.4m · fit≈-82
+  327s · hp124 stam89 L3 8224.2m · fit≈-53
+  347s · hp124 stam53 L3 8802.8m · fit≈-57
+  367s · hp124 stam49 L3 9395m · fit≈-59
+  387s · hp140 stam61 L5 9949.4m · fit≈-25
+  407s · hp140 stam46 L5 10530.4m · fit≈-29
+  427s · hp136 stam49 L5 11082.9m · fit≈-47
+  447s · hp140 stam51 L5 11686.5m · fit≈-49
+  467s · hp140 stam60 L5 12282m · fit≈-45
+  487s · hp140 stam51 L5 12833.1m · fit≈-48
+  508s · hp127.5 stam112 L5 13120m · fit≈-51
+  528s · hp140 stam77 L5 13719.7m · fit≈-84
+  548s · hp140 stam53 L5 14286.5m · fit≈-87
+  568s · hp112.2 stam125 L5 14705.3m · fit≈-91
+  588s · hp140 stam32 L5 15288.3m · fit≈-93
+  608s · hp148 stam51 L6 15864.8m · fit≈-96
+  628s · hp82.9 stam10 L7 16452m · fit≈-75
+RUN GEN 55: DIED(fight) · fitness -136 · L6 · 1124xp · 2032.8s(sim) · 33.2xp/min · TIER 0 (0 trophies, best —s) · stage awaken leg0 · side 7 · warns 0 · errs 0
+  cause: the Level 5 Snow Leopard · scars now {"fight":3,"neglect":0,"water":0}
