@@ -182,8 +182,24 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   GEN 40 global ×2 fail → trait pass; no systematic check fails; 41/42 global a1 passed).
 - **Sessions run & verdicts (2026-09-01, on v5 + 2.7× boost):** GEN 40 fit 26 (rescored, REJECTED),
   GEN 41 −93, GEN 42 −3 (RUN.side 4 — era of the side channel), GEN 43 −100 — all reached prep, none
-  reached awaken; champion GEN 35 (59) stands. NEXT: GEN 44. Expect: champion falls only to a gen
+  reached awaken; champion GEN 35 (59) stands. NEXT: GEN 51. Expect: champion falls only to a gen
   that reaches awaken/boss or slays a leg (or a trophy = 1200+).
+
+### 4.5c Session 2026-09-01 (v6 coach — second trophy-push session)
+- **v6 fitness:** in-page `fitness()` `durS`/`xpRate` now use `CAMP.simClock` (game clock) — completes
+  the v5 harness fix; the boost cannot inflate ANY fitness term. (This revealed gens 40–43's fits were
+  still boost-inflated, e.g. GEN 40's xpRate term +~40.)
+- **v6.1–6.3 policy coach (no brain change):** distance-aware side-errand scoring (flat 6 → supply
+  distance 9/6.5/3); hunter-kite (any dmg ≥ 9 non-eagle predator chasing within 34 m → break clean);
+  **flee line 13 → 9** — ALL wolf-hunters disengage at ~55% hp (cats 9–11 dmg were dying while fleeing
+  at 34%: wolf runs 18 vs cats 12.8–13 — escape is physical, the LINE was the bug).
+- **Crown re-baseline (transparent amendment):** GEN 35's 59 was wall-inflated; two honest v6 runs of
+  the same weights (lineage `35r-v6a` −113, `35r-v6b` −78) → mean **−96** = new bar. GEN 46 (fit −74)
+  promoted on the 2026-09-01 session: first v6 cap-survivor (2667 sim-s, L6, RUN.side 6) — the
+  cat-death disease ended. Gen results (v6): 44 −126 · 45 −194 · 46 −74 **CHAMPION** · 47 −152 ·
+  48 −166 · 49 −144 (REACHED AWAKEN + fought the Leopard Legend, too slow — clock −116).
+- **Frontier (from v6 data):** pace (18–28 xp/sim-min everywhere) + fast-awaken + beating the Legend.
+  The ideal next champion: GEN 46's errand appetite × GEN 49's road-walking × faster clock.
 
 ### 4.6 Repository-hygiene decisions (2026-09-01)
 - `test/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.
@@ -225,8 +241,9 @@ Lineage (LAW v4): 34 fit 25 SURVIVED(cap) → **35 fit 59 CHAMPION** (died L8 Le
 → 36 fit 19 (first ritual + first Legend fight ~18 s) → 37 fit −43 (rival pack attack in prep) →
 38 fit −117 (L7 Brown Bear in prep, near-cap road) → 39 fit −97 (first gen on the 26-sense build; accepted
 a Trail-of-Firsts side errand at 334.7 s but died to the Rival Alpha before banking it, RUN.side 0,
-43.1 xp/min) → **40 fit 26 (rescored; Lion classifier bugfix) → 41 fit −93 → 42 fit −3 (RUN.side 4) →
-43 fit −100** — all REJECTED under the v5 game-clock basis; champion GEN 35 (fit 59) stands.
+43.1 xp/min) → **40 fit 26 (rescored) → 41 −93 → 42 −3 (RUN.side 4) → 43 −100** (all REJECTED, v5 basis) → v6 session:
+**44 −126 · 45 −194 · 46 −74 PROMOTED · 47 −152 · 48 −166 · 49 −144** (awaken + Legend fight, slow) ·
+**50 −55 PROMOTED (best pace 36.9 xp/sim-min)**. Champion: **GEN 50 (fit −55)**; bar ladder −96 → −74 → −55.
 
 **Open questions for GEN 40+:** (1) does side-errand awareness measurably raise xp/min + RUN.side?
 (sense 24 rows are fresh/zero — trait rows 180..259 give them evolution room); (2) survivability vs

@@ -9876,7 +9876,9 @@ window.PACK = (() => {
       const cls = classify(R.cause);
       const pen = ({ fight: 120, water: 200, neglect: 90, unknown: 60 }[cls] || 60) * (1 + 0.6 * (CP.tier - 1));
       const stall = 8 * (BN['stuck'] || 0) + 15 * (BN['bug-bot-loop'] || 0);
-      const durS = Math.max(1, R.dur || ((window.__boost && __boost.ticks) ? __boost.ticks * 0.05 : (performance.now() - (R.t0 || performance.now())) / 1000));
+      const durS = Math.max(1,
+        (() => { try { return (window.CAMP && window.CAMP.simClock) ? window.CAMP.simClock() : 0; } catch (e) { return 0; } })() ||   // M46 v6: the GAME clock — boost-proof
+        R.dur || ((window.__boost && __boost.ticks) ? __boost.ticks * 0.05 : (performance.now() - (R.t0 || performance.now())) / 1000));
       let f = 0;
       // (1) THE TROPHIES — the one thing that decides a generation
       for (const t of CP.trophies) f += 1200 * Math.pow(2.5, Math.max(0, (t.tier | 0) - 1));
@@ -10179,7 +10181,22 @@ window.PACK = (() => {
       for (const lm of landmarkList) { if (q.lmType && lm.type !== q.lmType) continue; any = true; const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z); if (d < bd) bd = d; }
       s = !any ? 0.4 : bd < 220 ? 3.4 : bd < 500 ? 2 : 1;
     } else if (q.kind === 'rival') s = wolf.level >= 3 && wolf.hp > 70 ? 3 : 0.3;
-    if (q.side) s = Math.max(s + 3.2, 6);   // LAW v4 · side errands = the fast-XP channel — always worth a slot
+    if (q.side) {   // LAW v4 · side errands = the fast-XP channel — always worth a slot…
+      // M46 v6 coach · …but a FAR errand is a wandering trap (GENS 41/43 walked 9-12 km for
+      // 0-3 quests): score by real supply distance so the wolf takes the EFFICIENT errands.
+      if (q.kind === 'hunt') {
+        const ref = SPECIES[q.species];
+        const hit = nearestAnimal(a => a.sp === ref || (ref && a.sp.label === ref.label));
+        s = hit.d < 200 ? 9 : hit.d < 500 ? 7 : 4.5;
+      } else if (q.kind === 'collect') {
+        const sup = typeof pickupSupply === 'function' ? pickupSupply(q.item) : 1e9;
+        s = sup >= (q.need || 1) ? (nearestPk(q.item).d < 200 ? 9 : 6.5) : 2;
+      } else if (q.kind === 'explore') {
+        let bd = 1e9, any = false;
+        for (const lm of landmarkList) { if (q.lmType && lm.type !== q.lmType) continue; any = true; const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z); if (d < bd) bd = d; }
+        s = !any ? 2 : bd < 250 ? 8.5 : bd < 600 ? 6 : 3;
+      } else s = Math.max(s + 3.2, 6);
+    }
     if (q.biome === curBiomeKey) s += 1.2;                                 // work the land I'm standing in
     const deeds = (typeof questsDoneByBiome !== 'undefined' ? (questsDoneByBiome[q.biome] || 0) : 0);
     const legendLand = BOSSES[q.biome] && !BOSSES[q.biome].slain;
@@ -10344,7 +10361,7 @@ window.PACK = (() => {
       /* ---------- 1. survive-critical: disengage and run ---------- */
       const bossThreat = bossHit.d < 26;
       const young = wolf.level < 3;
-      const heavyHunter = pred.a && pred.a.sp && (pred.a.sp.dmg || 0) >= 13;   // bears hit 15 — don't trade
+      const heavyHunter = pred.a && pred.a.sp && (pred.a.sp.dmg || 0) >= 9;   // v6.2: ALL wolf-hunters — cats (9-11) were fleeing at 34% hp = dead before the sprint started (GENS 40-45 died to Leopard/Tiger/SnowLeopard doing exactly this); flee starts at ~55% for any hunter
       const fleeBase = young ? 0.62 : heavyHunter ? 0.55 : 0.34;
       const fleeAt = Math.max(young ? 0.30 : 0.12, Math.min(0.75, fleeBase + (NK.flee - 0.5) * 0.5));
       if ((frac < fleeAt && (pred.d < (young ? 55 : 45) || bossThreat)) || (frac < 0.48 && bossThreat)) {
@@ -10458,6 +10475,25 @@ window.PACK = (() => {
         keys.KeyW = true; keys.ShiftLeft = pred.d < 14 && wolf.stamina > 30 && !wolf.exhausted;
         wolf.crouch = false;
         bot.goalText = bearApex ? '🐻 ursine guard — giving way early (' + pred.d.toFixed(0) + 'm, spent)' : '↔️ giving way to a ' + (pred.a.sp ? pred.a.sp.label : 'hunter') + ' (' + pred.d.toFixed(0) + 'm)';
+        if (!bot.giveSide || Math.random() < 0.02) bot.giveSide = (Math.random() < 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.5);
+        applyAim(); return;
+      }
+
+      /* ---------- 3.6 a hunter is CHASING: walking away loses to a lunge (M46 v6 coach) ----------
+         GENS 40-43 all died IN PREP to hunting apexes (Lion L4-5, Bear, Tiger L7) while farming
+         deeds: the walk-away yield (3.5) keeps the wolf inside the kill radius of a predator in
+         full chase and the burst drains through high HP. Like the howl rule, this is neutral
+         coding — no brain change: when a heavy hunter (dmg ≥ 13) is actively chasing/attacking
+         within 34 m, the wolf BREAKS CLEAN (sprint to separation; when winded, hard-away walk)
+         instead of strolling. It resumes the deed once the threat loses the chase. */
+      const hChase = pred.a && pred.a.sp && (pred.a.state === 'chase' || pred.a.state === 'attack') && (pred.a.sp.dmg || 0) >= 9 && pred.a.sp.build !== 'eagle';   // v6.1: cats are dmg 9-11 — the 13 gate left Leopard/Tiger/SnowLeopard uncovered (GENS 40-44 died to them in prep)
+      if (hChase && pred.d < 34 && !bot.huntCombat && bossHit.d > 90 && frac > fleeAt) {
+        RAFZ.bump('yield');
+        const away = Math.atan2(wolf.pos.x - pred.a.pos.x, wolf.pos.z - pred.a.pos.z) + (bot.giveSide || 0);
+        aim(away, 0.9);
+        keys.KeyW = true; keys.ShiftLeft = wolf.stamina > 25 && !wolf.exhausted && pred.d < 26;
+        wolf.crouch = false;
+        bot.goalText = '⚔️ breaking clean from a hunting ' + (pred.a.sp ? pred.a.sp.label : 'apex') + ' (' + pred.d.toFixed(0) + 'm)';
         if (!bot.giveSide || Math.random() < 0.02) bot.giveSide = (Math.random() < 0.5 ? 1 : -1) * (0.3 + Math.random() * 0.5);
         applyAim(); return;
       }

@@ -222,9 +222,12 @@ stop (exit 3 = all attempts failed); collect-at-end publishing; never chain gate
 
 ## 9 · Current state (2026-09-01) — WHERE WE LEFT OFF
 
-**Champion: GEN 35 — fit 59** (L7 · 1200 xp · 126.6 xp/min · reached awaken · died to a Level-8
-Leopard; scars `{fight:1,neglect:0,water:0}`). **No tier trophy yet (tier 1, 0 trophies) — the
-frontier is surviving the Legend fight and closing a tier.**
+**Champion: GEN 50 — fit −55** (v6 basis, 2026-09-01 — second promotion of the session): died PREP L5 at
+1152 sim-s · 708xp · **36.9 xp/sim-min (best pace of the v6 era)** · RUN.side 2. Predecessor GEN 46
+(fit −74): first v6 cap-survivor (2667 sim-s · L6 · RUN.side 6). **Crown re-baseline (same day):** GEN 35's old 59 was
+wall-clock-inflated; two honest v6 samples of its weights → mean **−96** = the bar GEN 46 beat. The
+frontier remains: reach awaken FAST, then survive/beat the Leopard Legend (GEN 49 got there — 2781
+sim-s, died to the Legend, REJECTED for slowness) and close a leg/tier.
 
 | gen | mode | gate | outcome | fit | tier | notes |
 |---|---|---|---|---|---|---|
@@ -238,15 +241,19 @@ frontier is surviving the Legend fight and closing a tier.**
 | 41 | global | PASS (a1) | DIED(fight) | −93 | 1 | slow wanderer (21 xp/sim-min, 8.8 km) · died PREP L2 to a Level-5 Brown Bear · REJECTED |
 | 42 | global | PASS (a1) | DIED(fight) | −3 | 1 | longest road · L6 · 799xp · RUN.side 4 (side-errand channel fully engaged) · died PREP to a Level-7 Tiger · REJECTED |
 | 43 | global | PASS (a2) | DIED(fight) | −100 | 1 | died PREP L3 to a Level-4 Lion (classifier now correct) · 13.7 xp/sim-min · 11.6 km wandered · REJECTED |
+| 44 | global | PASS (a1) | DIED(fight) | −126 | 1 | 0 | — | 1042 | v6.1 coach on · died PREP L3 to a Level-4 Leopard · 21 xp/sim-min · side 0 · REJECTED (kite guard missed dmg 9–11 cats) |
+| 45 | global | PASS (a1) | DIED(fight) | −194 | 1 | 0 | — | 2810 | survived 46 sim-min / 22 km but 20.4 xp/sim-min · died PREP to a Snow Leopard → the cat-flee-line finding · REJECTED |
+| **46** | global | PASS (a1) | **SURVIVED(cap)** | **−74** | 1 | 0 | — | 2667 | **FIRST v6 PROMOTION** — cap-survivor under v6.3 flee line: L6 · 957xp · RUN.side 6 · 0 warns · 0 errs · **CHAMPION** |
+| 47 | global | PASS (a1) | DIED(fight) | −152 | 1 | 0 | — | 1790 | died PREP L4 to a Level-6 Brown Bear · 18.9 xp/sim-min · side 0 · REJECTED (child lost the errand appetite) |
+| 48 | global | PASS (a2) | DIED(fight) | −166 | 1 | 0 | — | 1241 | died PREP L3 to a Level-5 Lion · 19.4 xp/sim-min · side 0 · REJECTED (global mutation keeps shredding the survivor-combo) |
+| 49 | trait | PASS (a2) | DIED(fight) | −144 | 1 | 0 | — | 2782 | **REACHED AWAKEN + first v6 Leopard-Legend fight** (died to it) · L7 · 1282xp · 27.7 xp/sim-min · side 0 · REJECTED for slowness (clock −116) |
 
 Full per-gen record: `test/m46_session_ledger.md` + `test/rafzzer_lineage.json` +
 `test/rafzzer_run_gen{N}.json`. Annotated resume doc: `test/M46_RESUME.md`.
 
 **Open question answered — side errands ARE banked** (GEN 40: side 2 · GEN 42: side 4 · GEN 43: side 1, under
 the v5 game-clock basis), and the 2.7× boost + game-clock scoring give honest per-sim-minute rates.
-NEW FINDING (gens 40–43): the line now survives long (1100–1500 sim-s road, all reach prep) but is SLOW
-in game time (13–49 xp/sim-min vs the champion's pace ≈47) — the law's efficiency terms keep them
-rejected (26/−93/−3/−100 vs 59). Frontier unchanged: awaken → survive the Legend → close a leg/tier.
+NEW FINDING (gens 40–49, v6 coach): the line survives long and now reads the campaign (GEN 49 walked the FULL road to AWAKEN and fought the Leopard Legend, dying to it) but stays SLOW (18–28 xp/sim-min). v6 coaching (flee line ≥9 dmg, near-errand scoring, hunter-kite) broke the 'die in prep' disease — GEN 46 became the first v6 cap-survivor champion (fit −74). Frontier: reach awaken FAST (GEN 49 needed 2781 sim-s → clock −116), then survive/beat the Leopard Legend and close a leg/tier.
 
 ---
 
@@ -351,6 +358,22 @@ Then simply continue at §8 (next gen = 40).
   `/home/user/index.html` again.
 
 ---
+
+## 7b · v6 COACH BUNDLE (2026-09-01 session — policy only, no brain change)
+- **v6 fitness:** in-page `fitness()` now uses the GAME clock for `durS`/`xpRate` (was `R.dur` wall) —
+  the boost can no longer inflate ANY fitness term. (The harness already used `CAMP.simClock` since v5.)
+- **v6.1 side-errand scoring:** errands no longer score a flat 6 — hunt/collect/explore errands score by
+  real supply distance (9 = near, 3–4.5 = far), so the wolf stops trekking 9–12 km for far errands.
+- **v6.2 hunter-kite:** ANY hunting predator (dmg ≥ 9, non-eagle) in chase/attack within 34 m → the wolf
+  breaks clean (sprint to separation) instead of walk-yielding inside the kill radius.
+- **v6.3 flee line:** `heavyHunter` threshold 13 → 9 — all wolf-hunters disengage at ~55% hp (cats
+  9–11 dmg used to flee at 34% = dead before the sprint began; wolf runs 18 vs cats 12.8–13, so escape
+  is physically winnable — the LINE was the bug).
+- **Crown re-baseline:** GEN 35 fit 59 (wall-inflated) → two honest v6 runs of the same weights (lineage
+  `35r-v6a/b`: −113, −78) → mean **−96**; GEN 46 (fit −74) is the current champion. Old 59 kept in history.
+- Session verdicts (v6): 44 −126 · 45 −194 · **46 −74 PROMOTED** · 47 −152 · 48 −166 · 49 −144 (awaken +
+  Legend fight, too slow) · **50 −55 PROMOTED (best pace 36.9 xp/sim-min)**. Crown ladder this session:
+  bar −96 → **−74 → −55**. NEXT: GEN 51.
 
 ## 16 · Recent commits (orientation)
 
