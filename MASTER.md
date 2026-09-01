@@ -400,6 +400,20 @@ Then simply continue at §8 (next gen = 40).
 - Session verdicts (v6.4): 51 −106 · 52 −87 (boss stage reached).
   Crown ladder this session: bar −96 → **−74 → −55**. NEXT: GEN 53.
 
+### 7c · v6.5 SHIPPED CROWN BAKE (2026-09-01)
+
+- **The 🧠 Rafzzer button now plays the lineage champion.** `build.py` reads
+  `test/rafzzer_champion.json` and injects its weights as `RAFZZER_SEED` + `RAFZZER_CHAMP_GEN/FIT`
+  into the built `index.html` (src/autopilot.js keeps the wild seed 20070 as the dev fallback).
+- **Boot order (champion-first):** baked crown → a browser's own `rafzzer_best` may only play if it
+  OUTSCORED the champion (`best.fit > champFit`); local self-evolution starts FROM the champion and
+  must beat fit −55 to take the field. No baked crown (dev build) → old order (local best, then wild).
+- **Label fix:** badge / death-log / load-log dropped the off-by-one `+1` — the page now numbers gens
+  exactly as the lineage (badge: `GEN 50 · 🏆 CHAMPION fit -55 (lineage crown)`).
+- **Verified:** real-page boot = gen 50, external=false (genuine shipped boot); local-best cases:
+  fit −40 → local gen plays; fit −90 → champion GEN 50 plays. Harness runs unaffected
+  (`RAFZ.load` injection overrides the seed); per-gen gates now exercise the champion brain.
+
 ## 16 · Recent commits (orientation)
 
 - `96b9c7d` — GEN 39 rejected (−97); harness records RUN.side; ledger rows 36–39.

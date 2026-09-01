@@ -235,6 +235,13 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   line walks it into the jaws (GEN 54: 7 bites at walk speed vs a Level-5 Lion). Gates: rest now
   continues until hp > max(restAt, 82%) AND stamina > 45; a drink trip only starts at hp > 55%.
   The flee log payload (`pack n @ dm → water/land`) is now the standard autopsy channel.
+- **v6.5 shipped crown bake (user decision: champion-first):** the shipped 🧠 button now boots the
+  lineage crown — `build.py` injects `test/rafzzer_champion.json` weights into `RAFZZER_SEED` +
+  `RAFZZER_CHAMP_GEN/FIT` (src keeps the wild seed as dev fallback). Boot order: baked crown wins
+  unless a browser's own `rafzzer_best` OUTSCORED the champion (local self-evolution starts from the
+  champion and must beat its fit to play). Badge/death-log/load-log `+1` off-by-one removed (page
+  numbering = lineage numbering). Verified in-browser: boots gen 50 / external=false; local best −40
+  plays over the crown, −90 loses to it. Harness unaffected (`RAFZ.load` still overrides).
 - **Frontier (v6.4 data):** pace is SOLVED (36.9 → 38.3 xp/sim-min; side 6 errand appetite retained)
   and the road is walkable (GEN 52: q0→q1→prep→awaken→boss at 1840 sim-s). The only wall left is THE
   BOSS — beating the Leopard Legend (45 hp · 14 dmg · 12.5 spd · ambush special). Next steps: v6.4b

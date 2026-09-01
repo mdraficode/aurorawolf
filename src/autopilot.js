@@ -7,7 +7,11 @@
    baked champion RAFZZER_SEED and evolve ONLY through gated generations: every death is
    scored, and a mutant may carry its learnings forward solely if it passed the human
    verification gate (test/rafzzer_gens.mjs). Deaths also write SCARS — lineage memory
-   that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1. */
+   that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1.
+   M46 v6.5 (crown bake): build.py injects the lineage champion (test/rafzzer_champion.json)
+   into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT, so the shipped 🧠 button plays the current crown
+   (GEN 50, fit −55 at the time of writing); a browser's own rafzzer_best may only play if it
+   outscored the champion. src/autopilot.js keeps the wild mind as the dev fallback. */
 (function () {
   const URL_ON = /[?&]autopilot=1/.test(location.search);
   window.RAFZZER_SEED = [0.0234,-0.5621,0.4874,0.6369,0.1669,0.371,0.225,-0.163,-0.4771,0.1247,0.3347,0.1592,1.1324,-0.327,-0.0719,0.1688,0.1704,-0.2587,0.1319,-0.0261,-0.0932,-0.3689,0.7677,0.4295,-0.1013,-0.166,0.6516,-0.119,0.1782,0.6965,0.0414,0.0574,-0.2697,0.0026,0.2275,0.2447,0.0218,-0.3459,0.1511,-0.026,0.1172,-0.2437,0.812,-0.1727,0.1496,-0.2585,-0.001,0.2902,0.1305,-0.2601,-0.1165,0.51,-0.3546,0.1033,0.1996,0.7167,0.0844,0.2185,0.2309,-0.8122,0.4198,-0.7888,-0.0726,0.1041,0.6261,-0.5373,-0.4313,-0.0523,-0.2643,0.2403,0.2959,-0.0621,-0.0084,0.5432,0.2284,0.0606,0.1058,-0.113,0.141,0.3524,0.3378,0.2277,-0.4354,0.0909,-0.5425,0.3781,0.5307,0.0248,0.1206,0.081,-0.0391,-0.6601,-0.3483,-0.6543,-0.6308,0.6237,-0.2714,-0.1454,0.4709,-0.4027,0.4038,-0.6885,0.2765,0.1655,0.0855,-0.5718,0.2635,-0.285,0.1458,-0.0457,0.4714,0.1289,0.0896,0.129,0.109,0.2939,-0.1423,0.0308,0.5143,0.1813,0.3823,-0.9089,-0.0177,0.7681,-0.3915,0.1884,-0.1664,0.283,-0.2703,-0.1549,0.6349,0.302,-0.2537,-0.4975,-0.4685,0.244,-0.384,0.1435,0.3505,0.0189,0.4478,0.1418,-0.3464,0.4441,0.0019,-0.1113,0.4427,-0.2581,-0.251,0.3879,-0.4745,-0.3063,0.0221,0.136,-0.312,0.2218,0.2008,-0.3542,-0.0697,-0.113,0.1741,0.3236,0.3391,0.4144,0.0595,0.3413,0.1899,0.4986,0.0764,0.331,-0.8774,-0.4744,0.7997,-0.2007,0.0401,0.0619,0.1553,0.263,-0.2398,0.0586,0.1847,-0.31,0.1579,-0.2572,0.2519,0.1735,-0.3057,0.0837,0.1766,-0.2572,-0.1305,-0.0525,0.2673,-0.0153,-0.1829,0.3615,-0.233,-0.2173,-0.2046,0.6633,-0.1308,-0.2675,-0.2456,-0.6664,-0.5133,0.2025,-0.0114,0.5363,0.0133,-0.0664,0.0592,-0.3889,-0.1544,0.1725,0.2479,1.0494,0.1634,0.5876,0.3043,0.1107,-0.378,-0.0907,0.4253,0.1973,-0.0174,-0.0364,-0.6411,0.0699,-0.0868,0.7133,0.7998,0.2525,0.284,-0.1488,0.1123,-0.0531,0.3306,0.4337,-0.0737,0.1571,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-0.6925,0.0542,0.0859,0.6342,-0.836,-0.4266,-0.6151,-0.4088,-1.0398,-0.3954,-0.3039,-0.2527,-0.3186,-0.4549,0.5306,-0.7392,-0.3871,-0.0353,-0.6873,-0.1391,-0.3349,-0.4804,0.2859,0.2231,0.564,-0.4285,-0.4295,0.7369,-0.3899,0.6057,0.6709,0.2712,0.0826,0.6131,-0.5638,0.5733,-0.5669,0.2608,-0.322,-0.2185,1.03,0.3593,0.205,0.2064,-0.0268,-0.0498,0.7662,-1.2373,-0.2882,-0.2788,-0.375,-0.3401,-0.4301,0.3875,-0.8657,-0.6018,0.0501,0.2768,0.123,0.5261,-0.0059,0.7503,0.6658,-0.309,-0.6752,0.1582];   // 🧠 LAW-v4 mind: seed 20070, 26 senses (336 weights) — trophy lineage; rows 24-25 = side-channel + gate urgency (zero-padded from the 316 brain)   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
@@ -85,11 +89,24 @@
     const fresh = () => { const rnd = mul32(20070); const w = new Array(NW).fill(0); for (let i = 0; i < NI * NH; i++) w[i] = gauss(rnd, 0.38); for (let i = NI * NH + NH; i < NW; i++) w[i] = gauss(rnd, 0.45); return w; };   // Xavier-scaled: an unsaturated mind is a living mind
     const S = { gen: 0, weights: null, scars: { fight: 0, neglect: 0, water: 0 }, hist: {}, outs: [], xs: null, last: null, lastXp: null, xpEMA: 0, goalD: 99, wasSwim: false, external: false, ticks: 0 };
     const NOLEARN = /[?&]nolearn=1/.test(location.search) || !!window.RAFZZER_NO_STORE;   // harness builds: node owns the lineage
-    if (!NOLEARN) try {   // shipped mode: remember the on-device champion
+    // M46 v6.5: the shipped game boots the BAKED lineage crown — build.py injects the champion
+    // (test/rafzzer_champion.json) into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT. A browser's own
+    // rafzzer_best may only play if it BEAT the champion's fitness: local evolution starts FROM
+    // the champion and must outscore it to take the field. Without a baked crown (dev/src or a
+    // stale build) the old order stands — local best first, wild seed as the fallback.
+    const champFit = Number.isFinite(+window.RAFZZER_CHAMP_FIT) ? +window.RAFZZER_CHAMP_FIT : null;
+    if (!NOLEARN) try {   // shipped mode: the on-device challenger — champion-first
       const best = JSON.parse(localStorage.getItem('rafzzer_best') || 'null');
-      if (best && best.weights && best.weights.length === NW && best.weights.every(Number.isFinite)) { S.weights = best.weights.slice(); S.gen = best.gen || 0; S.scars = Object.assign(S.scars, best.scars || {}); }
+      if (best && best.weights && best.weights.length === NW && best.weights.every(Number.isFinite) && (champFit === null || best.fit > champFit)) {
+        S.weights = best.weights.slice(); S.gen = best.gen || 0; S.scars = Object.assign(S.scars, best.scars || {});
+      }
     } catch (e) { }
-    if (!S.weights) S.weights = (window.RAFZZER_SEED && window.RAFZZER_SEED.length === NW) ? window.RAFZZER_SEED.slice() : fresh();
+    if (!S.weights) {
+      if (window.RAFZZER_SEED && window.RAFZZER_SEED.length === NW) {
+        S.weights = window.RAFZZER_SEED.slice();   // the baked crown (the wild mind in dev builds)
+        if (Number.isFinite(+window.RAFZZER_CHAMP_GEN)) S.gen = +window.RAFZZER_CHAMP_GEN | 0;   // badge/lineage numbering agree (no +1)
+      } else S.weights = fresh();   // no seed at all — the wild mind
+    }
     const SAFK = { aggression: 0.5, flee: 0.5, bossEngage: 0.6, restAt: 0.62, drinkAt: 24, yieldR: 26, stalkGive: 8, commitStam: 28, sprintRes: 55, fearMul: 0.95 };
     const K = Object.assign({}, SAFK);
     /* ---- LAW v4 · campaign probe: the trophy machine's live state (one source, in-page law + senses) ---- */
@@ -232,7 +249,7 @@
         S.scars[sc] = Math.min(3, (S.scars[sc] || 0) + 1);
         S.last = { fitness: fit, cause: R.cause || 'the wild', cls, dur: +(R.dur || 0).toFixed(1), maxLevel: R.maxLevel || 0, xp: R.xp || 0, hist: Object.assign({}, S.hist), scars: Object.assign({}, S.scars), gen: S.gen, ticks: S.ticks };
         window.RAFZZER_LAST = S.last;
-        log('rafzzer-death', { msg: '🧠 GEN ' + (S.gen + 1) + ' fell — ' + cls + ' · fitness ' + fit + ' · scars ' + S.scars.fight + '/' + S.scars.neglect + '/' + S.scars.water, fitness: fit, cls });
+        log('rafzzer-death', { msg: '🧠 GEN ' + S.gen + ' fell — ' + cls + ' · fitness ' + fit + ' · scars ' + S.scars.fight + '/' + S.scars.neglect + '/' + S.scars.water, fitness: fit, cls });
         if (!S.external) try {   // shipped mode self-evolution (never in the harness — node owns the lineage)
           const best = JSON.parse(localStorage.getItem('rafzzer_best') || 'null');
           if (!best || fit > (best.fit || -1e9)) localStorage.setItem('rafzzer_best', JSON.stringify({ fit, gen: S.gen, weights: S.weights, scars: S.scars }));
@@ -249,7 +266,7 @@
         S.weights = weights.slice(); S.scars = { fight: 0, neglect: 0, water: 0, ...(scars || {}) };
         ['fight', 'neglect', 'water'].forEach(k2 => S.scars[k2] = clamp(S.scars[k2] | 0, 0, 3));
         S.gen = gen | 0; S.external = true; S.hist = {}; S.outs = []; S.last = null; S.lastXp = null; S.xpEMA = 0; S.goalD = 99; S.ticks = 0;
-        log('rafzzer-load', { msg: '🧠 GEN ' + (S.gen + 1) + ' mind loaded — scars ' + S.scars.fight + '/' + S.scars.neglect + '/' + S.scars.water });
+        log('rafzzer-load', { msg: '🧠 GEN ' + S.gen + ' mind loaded — scars ' + S.scars.fight + '/' + S.scars.neglect + '/' + S.scars.water });
       },
       snapshot: () => ({ gen: S.gen, fitNow: fitness(), knobs: Object.assign({}, K), hist: Object.assign({}, S.hist), scars: Object.assign({}, S.scars), ticks: S.ticks, inputs: S.xs ? S.xs.map(v => +v.toFixed(3)) : null, outs: S.outs.slice(-60), external: S.external, last: S.last })
     };
@@ -340,7 +357,7 @@
   panel.style.cssText = 'position:fixed;top:230px;right:14px;z-index:70;width:250px;font:11px/1.45 ui-monospace,monospace;color:#dfeee6;background:rgba(8,14,22,.72);border:1px solid rgba(126,240,192,.35);border-radius:10px;padding:8px 10px;pointer-events:none;white-space:pre-wrap';
   document.body.appendChild(panel);
   const badge = document.createElement('div');
-  badge.textContent = '● LIVE — 🧠 RAFZZER v1.0 NEURAL AI · GEN ' + (RAFZ.gen + 1);
+  badge.textContent = '● LIVE — 🧠 RAFZZER v1.0 NEURAL AI · GEN ' + RAFZ.gen + (Number.isFinite(+window.RAFZZER_CHAMP_FIT) ? ' · 🏆 CHAMPION fit ' + +window.RAFZZER_CHAMP_FIT + ' (lineage crown)' : '');
   badge.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:71;font:11px ui-monospace,monospace;color:#ffd0d0;background:rgba(60,8,8,.75);border:1px solid rgba(255,120,100,.5);border-radius:8px;padding:3px 10px;pointer-events:none';
   document.body.appendChild(badge);
   const feed = [];
