@@ -1,14 +1,14 @@
 {
   "name": "aurorawolf",
   "version": "2.0.0",
-  "description": "REVONTULET · Aurora Wolf — 3D open-world wolf simulator in a single self-contained HTML file",
+  "description": "REVONTULET \u00b7 Aurora Wolf \u2014 3D open-world wolf simulator in a single self-contained HTML file",
   "private": true,
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
     "build": "python3 build.py",
     "publish": "bash publish.sh github \"Game update\"",
-    "test": "for t in smoke.mjs layout.test.mjs landscape.test.mjs wolf.test.mjs pose.check.mjs ui2.test.mjs features.test.mjs enemies.test.mjs world.test.mjs heading.check.mjs forest.test.mjs biomes.test.mjs events.test.mjs mapclose.check.mjs collision.test.mjs hunt.test.mjs audio.test.mjs eagle.test.mjs menu.test.mjs hudfit.test.mjs campaign.test.mjs pack.test.mjs; do printf '%-20s ' $t; node test/$t >/dev/null 2>&1 && echo PASS || echo FAIL; done && node test/gather.test.mjs && node test/ecosystem.test.mjs && node test/mystic.test.mjs"
+    "test": "for t in smoke.mjs layout.test.mjs landscape.test.mjs wolf.test.mjs pose.check.mjs ui2.test.mjs features.test.mjs enemies.test.mjs world.test.mjs heading.check.mjs forest.test.mjs biomes.test.mjs events.test.mjs mapclose.check.mjs collision.test.mjs hunt.test.mjs audio.test.mjs eagle.test.mjs menu.test.mjs menu_trophy_ai.mjs hudfit.test.mjs campaign.test.mjs pack.test.mjs; do printf '%-20s ' $t; node test/$t >/dev/null 2>&1 && echo PASS || echo FAIL; done && node test/gather.test.mjs && node test/ecosystem.test.mjs && node test/mystic.test.mjs"
   },
   "devDependencies": {
     "playwright": "^1.55.1"

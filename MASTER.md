@@ -414,6 +414,22 @@ Then simply continue at §8 (next gen = 40).
   fit −40 → local gen plays; fit −90 → champion GEN 50 plays. Harness runs unaffected
   (`RAFZ.load` injection overrides the seed); per-gen gates now exercise the champion brain.
 
+### 7d · CRITICAL BUGFIX — Rafzzer button died after TROPHIES → BACK (2026-09-01, user report)
+
+- **Symptom:** opening 🏆 TROPHIES from the main menu and returning (BACK) made the 🧠 Rafzzer
+  button do nothing.
+- **Root cause:** `showOverlay('start')` re-injects `#tplStart` into the overlay body on every
+  return (TROPHIES → BACK, pause → start). The start-template `#btnMenuAI` was bound with a DIRECT
+  `addEventListener` at script load, so the bound node was destroyed on the first re-injection —
+  the freshly injected button had no handler. (The game already delegates `#btnTrophies`/`#btnStart`
+  for exactly this reason — p5.js: "the start template is re-injected, listeners below survive it".)
+- **Fix (v6.6):** the 🧠 binds moved to a DOCUMENT-LEVEL click handler
+  (`#btnMenuAI` → watch mode, `#btnAI` → in-game toggle). Delegation survives every re-injection;
+  the in-game corner button lived in the static HUD (unaffected).
+- **Regression test:** `test/menu_trophy_ai.mjs` (added to `npm test`) — fails on the bug, now
+  PASS: fresh-menu click arms AI → TROPHIES → BACK (asserts the node was destroyed/re-injected) →
+  click arms AI; corner toggle still works; pageerrors none. `smoke.mjs` + `menu.test.mjs` green.
+
 ## 16 · Recent commits (orientation)
 
 - `96b9c7d` — GEN 39 rejected (−97); harness records RUN.side; ledger rows 36–39.

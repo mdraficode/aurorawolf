@@ -242,6 +242,13 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   champion and must beat its fit to play). Badge/death-log/load-log `+1` off-by-one removed (page
   numbering = lineage numbering). Verified in-browser: boots gen 50 / external=false; local best −40
   plays over the crown, −90 loses to it. Harness unaffected (`RAFZ.load` still overrides).
+- **CRITICAL FIX v6.6 — Rafzzer menu button after TROPHIES → BACK (user report 2026-09-01):**
+  `showOverlay('start')` re-injects `#tplStart` on every return to the main menu, so the DIRECT
+  `addEventListener` that autopilot.js attached to `#btnMenuAI` was bound to a node that gets
+  destroyed — the re-injected 🧠 button had no handler and did nothing. Fix: the 🧠 binds moved to
+  a document-level click handler (id-based, same pattern the game already uses for
+  `#btnTrophies`/`#btnStart`). Regression test `test/menu_trophy_ai.mjs` (in `npm test`) FAILS on
+  the bug, PASSES on the fix — it proves the node is destroyed and re-injected, then clicks.
 - **Frontier (v6.4 data):** pace is SOLVED (36.9 → 38.3 xp/sim-min; side 6 errand appetite retained)
   and the road is walkable (GEN 52: q0→q1→prep→awaken→boss at 1840 sim-s). The only wall left is THE
   BOSS — beating the Leopard Legend (45 hp · 14 dmg · 12.5 spd · ambush special). Next steps: v6.4b
