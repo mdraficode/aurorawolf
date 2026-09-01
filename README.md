@@ -4,7 +4,7 @@ A 3D open-world wolf simulator in a **single self-contained HTML file** (`index.
 
 ## ▶ How to run
 - Open `index.html` in any modern browser (double-click it), **or**
-- Play online: **https://mdraficode.github.io/aurorawolf-v2/**
+- Play online: **https://mdraficode.github.io/aurorawolf/**
 - URL params: `?seed=12345` (specific world), `?quality=low` (no shadows, faster), `?autostart=1` (skip menu)
 
 ## 🤖 Android APK (archived)

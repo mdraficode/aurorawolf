@@ -15,8 +15,8 @@ backup).
 | Thing | Value |
 |---|---|
 | Game | **REVONTULET — Aurora Wolf** · 3D open-world wolf survival, one self-contained HTML file |
-| Live (GitHub Pages) | **https://mdraficode.github.io/aurorawolf-v2/** |
-| Repo | **github.com/mdraficode/aurorawolf-v2** (public, default branch `main`, Pages serves **/** from `main`) |
+| Live (GitHub Pages) | **https://mdraficode.github.io/aurorawolf/** |
+| Repo | **github.com/mdraficode/aurorawolf** (public, default branch `main`, Pages serves **/** from `main`) — **the ONLY repo; `aurorawolf-v2` RETIRED per user directive (never touch/push it)** |
 | Local workdir | `aurorawolf/` (built `index.html` is committed; `build.py` regenerates it) |
 | GitHub push auth | `~/.ghtoken` (classic PAT, `repo` scope) — **never committed**, used by `publish.sh` and `git push` |
 | APK | Tag `archive/android-apk` in git history + `~/.revontulet.keystore` (never committed). APK only on explicit request |
@@ -82,9 +82,9 @@ aurorawolf/
 ## 4 · Build, run, test, publish
 
 ```bash
-cd aurorawolf-v2
+cd aurorawolf
 python3 build.py                 # rebuild index.html from src/
-# play locally: open index.html, or serve it; live = https://mdraficode.github.io/aurorawolf-v2/
+# play locally: open index.html, or serve it; live = https://mdraficode.github.io/aurorawolf/
 bash publish.sh github "what changed"   # build + push index.html → Pages (LIVE ~1-2 min)
 # NOTE: the repo now also carries the full source tree — after feature work, commit + git push (see §13)
 ```
@@ -187,7 +187,7 @@ cold/storm/hunger/thirst; unknown otherwise.
 
 ```bash
 # ONE GENERATION, run to verdict (must complete inside a single session — see footguns):
-cd aurorawolf-v2
+cd aurorawolf
 node test/rafzzer_gens.mjs status                      # lineage + champion
 bash test/m46_gen.sh 40 900                            # spawn→gate→run for GEN 40 (cap 900 wall-s)
 node test/rafzzer_gens.mjs promote 40 --verdict=reject --note="…"   # trainer's verdict
@@ -247,6 +247,9 @@ sim-s, died to the Legend, REJECTED for slowness) and close a leg/tier.
 | 47 | global | PASS (a1) | DIED(fight) | −152 | 1 | 0 | — | 1790 | died PREP L4 to a Level-6 Brown Bear · 18.9 xp/sim-min · side 0 · REJECTED (child lost the errand appetite) |
 | 48 | global | PASS (a2) | DIED(fight) | −166 | 1 | 0 | — | 1241 | died PREP L3 to a Level-5 Lion · 19.4 xp/sim-min · side 0 · REJECTED (global mutation keeps shredding the survivor-combo) |
 | 49 | trait | PASS (a2) | DIED(fight) | −144 | 1 | 0 | — | 2782 | **REACHED AWAKEN + first v6 Leopard-Legend fight** (died to it) · L7 · 1282xp · 27.7 xp/sim-min · side 0 · REJECTED for slowness (clock −116) |
+| 50 | global | PASS (a2; a1 gate FAIL livingMind) | DIED(fight) | −55 | 1 | 0 | — | 1152 | **SECOND v6 PROMOTION** — died PREP L5 at **36.9 xp/sim-min (best of the era until 52)** · L5 · 708xp · side 2 · **CHAMPION** |
+| 51 | global | PASS (a1) | DIED(fight) | −106 | 1 | 0 | — | 388.8 | died q1 to the Rival Wolf (pack swarm — flee line fired 7× but yaw flip-flopped inside the pack) · 19.0 xp/min · side 0 · REJECTED → v6.4 pack-aware escape |
+| 52 | global | PASS (a1) | DIED(fight) | −87 | 1 | 0 | boss | 1840 | **BREAKTHROUGH** — reached stage BOSS (q0→q1→prep→awaken→boss) and died to the Leopard Legend · L7 · 1175xp · **38.3 xp/sim-min (best yet)** · side 6 · REJECTED (bar −55) → v6.4b THE LEGEND GATE |
 
 Full per-gen record: `test/m46_session_ledger.md` + `test/rafzzer_lineage.json` +
 `test/rafzzer_run_gen{N}.json`. Annotated resume doc: `test/M46_RESUME.md`.
@@ -298,7 +301,7 @@ across sandbox snapshots — reinstall per session (above).
 ## 12 · Fresh-environment bootstrap (new chat / new machine)
 
 ```bash
-git clone https://github.com/mdraficode/aurorawolf-v2.git && cd aurorawolf-v2
+git clone https://github.com/mdraficode/aurorawolf.git && cd aurorawolf
 git config user.name "…" && git config user.email "…"        # .git/config is NOT part of the clone backup
 npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium
 python3 build.py                                             # repo index.html is committed, but rebuild to be safe
@@ -313,7 +316,7 @@ Then simply continue at §8 (next gen = 40).
 ## 13 · GitHub backup situation
 
 - The full repo (source, tests, docs, history, lineage jsons, logs) is **pushed to
-  github.com/mdraficode/aurorawolf-v2 (branch `main`)** — the repo is the backup of the workspace.
+  github.com/mdraficode/aurorawolf (branch `main`)** — the repo is the backup of the workspace.
   (On 2026-09-01 the old API-only history was replaced by the full project history via a one-time
   force push; the live `index.html` content is identical — 1 242 826 bytes.)
 - `index.html` at repo root = the live build; Pages redeploys automatically from `main`.
@@ -321,9 +324,9 @@ Then simply continue at §8 (next gen = 40).
   the live build in lockstep.
 - **Push recipe (workspace resets wipe `git config`, so the remote URL is not stored):**
   ```bash
-  cd aurorawolf-v2 && git add -A && git commit -m "…"
+  cd aurorawolf && git add -A && git commit -m "…"
   GH=$(cat ~/.ghtoken)   # classic PAT, repo scope — never commit it
-  git push "https://x-access-token:${GH}@github.com/mdraficode/aurorawolf-v2.git" main:main
+  git push "https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git" main:main
   ```
   (No forced pushes needed now — history is shared. The first-time history merge was done once.)
 
@@ -370,10 +373,29 @@ Then simply continue at §8 (next gen = 40).
   9–11 dmg used to flee at 34% = dead before the sprint began; wolf runs 18 vs cats 12.8–13, so escape
   is physically winnable — the LINE was the bug).
 - **Crown re-baseline:** GEN 35 fit 59 (wall-inflated) → two honest v6 runs of the same weights (lineage
-  `35r-v6a/b`: −113, −78) → mean **−96**; GEN 46 (fit −74) is the current champion. Old 59 kept in history.
+  `35r-v6a/b`: −113, −78) → mean **−96**; bar ladder this session −96 → **−74 (GEN 46)** → **−55 (GEN 50)**.
+  Current champion: **GEN 50 (fit −55)**. Old 59 kept in history.
 - Session verdicts (v6): 44 −126 · 45 −194 · **46 −74 PROMOTED** · 47 −152 · 48 −166 · 49 −144 (awaken +
-  Legend fight, too slow) · **50 −55 PROMOTED (best pace 36.9 xp/sim-min)**. Crown ladder this session:
-  bar −96 → **−74 → −55**. NEXT: GEN 51.
+  Legend fight, too slow) · **50 −55 PROMOTED (36.9 xp/min)** · 51 −106 (Rival-Wolf pack swarm) ·
+  52 −87 (**stage BOSS, 38.3 xp/min, L7, side 6** — died to the Leopard Legend, near miss).
+- **v6.4 pack-aware escape (GEN 51 autopsy):** hostile rival packs are NOT heavy hunters (bite 4–6 each,
+  below the 9 gate) but a swarm of 3–5 chews a wolf down — GEN 51 fled 7× and still died because the
+  yaw re-aimed at whichever member was NEAREST each tick → zigzag inside the pack. Fix: flee from the
+  pack CENTROID, cache the heading (refresh max every 2 sim-s), HOLD the sprint while anything hostile
+  is within 45 m (6 s rolls, 20 s episode cap), sprint down to stamina 8 (escape is physical: wolf 18
+  vs rivals 12.2–14.4). A strong wolf on a rival deed (L3+, hp>70%) keeps the fight (rivalDeed gate).
+- **v6.4b THE LEGEND GATE (GEN 52 autopsy):** GEN 52 entered stage boss with 0 'boss' bumps — it NEVER
+  entered the fight loop; the Leopard Legend (ambush: flank teleport, ×1.5 bites) ate it while it stood
+  in the 41–62% dead zone (below bossEngage, above fleeAt). Fixes: (a) legend within 45 m and not
+  mid-fight → flee below max(fleeAt, 0.88); (b) once engaged, stay in the fight down to the 42% cut
+  (bot.fight gate, never abandon mid-band); (c) a FRESH legend-fight needs L8+ and 88%+ hp — the Legend
+  chases FOREVER (bossTick is global, no leash) so heal via landmarks (+25) and kills (+8) between
+  attempts; (d) crouch while closing (d 3.6–12 m) — a crouched blind-side bite = 5 dmg × 1.5 ambush =
+  **7.5** vs 3 standing: the 3-dmg bite is the DPS bottleneck against 45 hp. The designed boss-kit the
+  autopilot should next pursue: perks (Deep Bite +1, Wild-Hardened +5 hp — world-event rewards) and the
+  bonded pack (p6 PACK.intercept redirects boss bites to packmates).
+- Session verdicts (v6.4): 51 −106 · 52 −87 (boss stage reached).
+  Crown ladder this session: bar −96 → **−74 → −55**. NEXT: GEN 53.
 
 ## 16 · Recent commits (orientation)
 

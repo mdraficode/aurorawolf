@@ -10361,30 +10361,73 @@ window.PACK = (() => {
       /* ---------- 1. survive-critical: disengage and run ---------- */
       const bossThreat = bossHit.d < 26;
       const young = wolf.level < 3;
+      // v6.4 pack-aware escape: hostile rival packs are NOT heavy hunters (each bite 4-6 dmg) but a
+      // swarm of 3-5 members chews a wolf down in seconds — GEN 51 died to the Rival Wolf at L1 while
+      // the flee line fired 7 times: the yaw aimed at whichever member was NEAREST that tick, so the
+      // wolf zigzagged INSIDE the pack. Flee from the pack CENTROID, cache the heading (refresh at
+      // most every 2 sim-s), and HOLD the sprint until nothing hostile is close.
+      const packThreat = packHit.a && packHit.a.pack && packHit.a.pack.stance === 'attack' ? packHit.a.pack : null;
+      let pCentX = 0, pCentZ = 0, pN = 0;
+      if (packThreat) {
+        for (const r of rivals) {
+          if (r.dead || !r.pack || r.pack.stance !== 'attack') continue;
+          const dd = Math.hypot(r.pos.x - wolf.pos.x, r.pos.z - wolf.pos.z);
+          if (dd < 70) { pCentX += r.pos.x; pCentZ += r.pos.z; pN++; }
+        }
+        if (pN) { pCentX /= pN; pCentZ /= pN; }
+      }
       const heavyHunter = pred.a && pred.a.sp && (pred.a.sp.dmg || 0) >= 9;   // v6.2: ALL wolf-hunters — cats (9-11) were fleeing at 34% hp = dead before the sprint started (GENS 40-45 died to Leopard/Tiger/SnowLeopard doing exactly this); flee starts at ~55% for any hunter
-      const fleeBase = young ? 0.62 : heavyHunter ? 0.55 : 0.34;
+      // v6.4: a strong wolf on a rival deed (level>=3, hp>70% — mirrors the rival-quest gate) still
+      // takes the pack; everyone else treats a hostile pack as hunter-grade (flee from ~58% hp)
+      const rivalDeed = !!QUESTS.active.some(q => q.kind === 'rival') && !young && wolf.hp > wolf.maxHp * 0.7;
+      const fleeBase = young ? 0.62 : pN ? 0.58 : heavyHunter ? 0.55 : 0.34;
       const fleeAt = Math.max(young ? 0.30 : 0.12, Math.min(0.75, fleeBase + (NK.flee - 0.5) * 0.5));
-      if ((frac < fleeAt && (pred.d < (young ? 55 : 45) || bossThreat)) || (frac < 0.48 && bossThreat)) {
-        const src = bossThreat && (!pred.a || bossHit.d < pred.d) ? bossHit.b.pos : pred.a.pos;
+      // v6.4b THE LEGEND GATE — no dead zone: a legend within 45 m and the wolf is NOT mid-fight
+      // with it → flee unless genuinely ready. GEN 52 reached stage 'boss' but stood in the
+      // 41–62% band (below bossEngage, above fleeAt) while the Leopard Legend (ambush: flank
+      // teleport, ×1.5 bites) ate it in ~6 s — it never even entered the fight loop (0 'boss' bumps).
+      const bossNear = bossHit.d < 45;
+      const inBossFight = bot.fight === 'boss';
+      const fleeLine = (bossNear && !inBossFight) ? Math.max(fleeAt, 0.88) : fleeAt;
+      const wantFlee = frac < (rivalDeed ? Math.min(fleeLine, 0.34) : fleeLine) && (pred.d < (young ? 60 : 50) || bossThreat || bossNear);
+      const fleeing = bot.fleeUntil && SIMNOW() < bot.fleeUntil;   // hold the escape until genuinely clear
+      if (wantFlee || fleeing) {
+        const src = bossThreat && (!pred.a || bossHit.d < pred.d) ? bossHit.b.pos : (pN ? { x: pCentX, z: pCentZ } : pred.a.pos);
         const yx = wolf.pos.x - src.x, yz = wolf.pos.z - src.z, m = Math.hypot(yx, yz) || 1;
         let fleeYaw = Math.atan2(yx / m, yz / m);
+        if (!bot.fleeYaw || (SIMNOW() - (bot.fleeYawAt || 0) > 2000 && !bossThreat)) { bot.fleeYaw = fleeYaw; bot.fleeYawAt = SIMNOW(); }
+        fleeYaw = bot.fleeYaw;   // stable heading — no tick-to-tick flip-flop inside a swarm
         // never flee into the sea: rotate toward dry land until the exit is safe
         for (let k = 0; k < 8 && heightAt(wolf.pos.x + Math.sin(fleeYaw) * 12, wolf.pos.z + Math.cos(fleeYaw) * 12) < waterYNow() - 0.4; k++) {
           fleeYaw += (k % 2 ? 1 : -1) * 0.55 * Math.ceil((k + 1) / 2);
         }
         aim(fleeYaw, 0.6);
-        keys.KeyW = true; keys.ShiftLeft = wolf.stamina > 18 && !wolf.exhausted;
+        keys.KeyW = true; keys.ShiftLeft = !wolf.exhausted && wolf.stamina > 8;   // burn the tank — escape or die
         wolf.crouch = false; bot.fight = null; bot.goalText = '🏃 fleeing at ' + (frac * 100).toFixed(0) + '% hp';
-        if (!bot.fleeLog || SIMNOW() - bot.fleeLog > 15000) { bot.fleeLog = SIMNOW(); log('flee', { msg: 'badly hurt — disengaging' }); }
+        // hold: keep running until nothing hostile is near AND hp recovered; a missed exit retries
+        const safeNow = !bossThreat && pred.d > 45 && frac > fleeAt + 0.06;
+        if (safeNow) { bot.fleeUntil = 0; bot.fleeYaw = null; }
+        else {
+          if (!bot.fleeStart) bot.fleeStart = SIMNOW();
+          bot.fleeUntil = Math.min(SIMNOW() + 6000, bot.fleeStart + 20000);   // 20 sim-s cap per episode
+        }
+        if (!bot.fleeLog || SIMNOW() - bot.fleeLog > 15000) { bot.fleeLog = SIMNOW(); log('flee', { msg: 'badly hurt — disengaging', pack: pN || 0, d: Math.round(pred.d) }); }
         applyAim(); return;
       }
+      bot.fleeUntil = 0; bot.fleeYaw = null; bot.fleeStart = 0;
 
       /* ---------- 2. boss fight (the story's boss battles) ---------- */
-      if (bossHit.b && bossHit.d < 150 && frac > NK.bossEngage && wolf.level >= 3) {
+      // v6.4b: (a) once engaged, STAY in the fight down to the 42% cut (no mid-band abandon —
+      // GEN 52 dropped below bossEngage and stood eating bites in the dead zone); (b) a FRESH
+      // legend-fight needs L8+ and 88%+ hp — otherwise the legend-gate flee line held it at bay
+      // while it levels/heals (landmarks +25, kills +8). The 3-dmg-bite wolf can only win the
+      // 45hp Legend with ambush bites (behind ×1.5, +1 crouch = 7.5/bite) and full hp.
+      if (bossHit.b && bossHit.d < 150 && wolf.level >= 3 &&
+          ((bot.fight === 'boss' && frac > 0.42) || (wolf.level >= 8 && frac > 0.88))) {
         RAFZ.bump('boss');
         const b = bossHit.b, d = bossHit.d;
         bot.fight = 'boss';
-        wolf.crouch = false;
+        wolf.crouch = d < 12 && d > 3.6;   // v6.4b: prowl the blind side — a crouched ambush bite lands 5 dmg ×1.5 = 7.5 vs 3 standing
         const bYaw = b.heading || 0;
         // its specials: submerged/burrowed = unhittable and it erupts at 3.4 m → get clear
         if (b.subT > 0 || b.invuln) {

@@ -3,7 +3,7 @@ const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '-
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
-await page.goto('https://mdraficode.github.io/aurorawolf-v2/', { timeout: 60000 });
+await page.goto('https://mdraficode.github.io/aurorawolf/', { timeout: 60000 });
 await page.waitForFunction(() => {
   const b = document.getElementById('btnStart');
   return b && !b.disabled;

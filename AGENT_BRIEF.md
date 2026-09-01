@@ -9,8 +9,9 @@ a fresh agent can act immediately without asking the user anything.
 `README.md` (player-facing). `MASTER.md` and `AGENT_BRIEF.md` must BOTH be updated in the same
 commit whenever project state, law, architecture, or instructions change.
 
-**Snapshot:** 2026-09-01 · original repo `github.com/mdraficode/aurorawolf-v2` · duplicate repo
-`github.com/mdraficode/aurorawolf-v2` (created 2026-09-01 as an exact copy, incl. this file).
+**Snapshot:** 2026-09-01 · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
+duplicate repo `github.com/mdraficode/aurorawolf-v2` (exact copy, created 2026-09-01; **RETIRED by
+user directive — never work in, sync, or push to v2**).
 
 ---
 
@@ -31,10 +32,10 @@ and publishes.
 
 | Fact | Value |
 |---|---|
-| Live game (GitHub Pages) | https://mdraficode.github.io/aurorawolf-v2/ |
-| Original repo | github.com/mdraficode/aurorawolf-v2 (public, branch `main`, Pages = `/` from `main`) |
-| **Duplicate repo (v2)** | **github.com/mdraficode/aurorawolf-v2** (exact copy, same files/history; Pages NOT enabled on purpose) |
-| Git auth | `~/.ghtoken` — classic PAT, `repo` scope. **NEVER commit it.** Push: `git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf-v2.git main:main` (remote URL is NOT persisted in backups — re-add each session) |
+| Live game (GitHub Pages) | https://mdraficode.github.io/aurorawolf/ |
+| Original repo | github.com/mdraficode/aurorawolf (public, branch `main`, Pages = `/` from `main`) |
+| **Duplicate repo (v2)** | github.com/mdraficode/aurorawolf-v2 (exact copy; **RETIRED per user directive 2026-09-01 — never touch or push to it; do NOT sync it**) |
+| Git auth | `~/.ghtoken` — classic PAT, `repo` scope. **NEVER commit it.** Push: `git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git main:main` (remote URL is NOT persisted in backups — re-add each session) |
 | APK | git tag `archive/android-apk` holds the signed APK + WebView wrapper; signing key `~/.revontulet.keystore` (never committed). **APK only on explicit request** |
 | Publish (live-only bump) | `bash publish.sh github "msg"` — builds + pushes index.html via GitHub Contents API (~1–2 min). Prefer full `git push` so source and live build stay in lockstep |
 | Build | `python3 build.py` → index.html from shell.html + style.css + vendor/three.min.js + src/p1..p6 + autopilot.js |
@@ -60,7 +61,10 @@ and publishes.
 - 2026-09-01 (latest): produce a **complete technical summary of the whole chat** (all user
   instructions + all agent-made decisions) readable by any AI agent, then make a **duplicate GitHub
   repository** of aurorawolf containing **every file**, named with **"v2" after the original name**,
-  missing nothing. ✅ this file + `aurorawolf-v2`.
+  missing nothing. ✅ this file + `aurorawolf`. (Built 2026-09-01.)
+- 2026-09-01 (SUPERSEDES the v2 build instruction for all future work): **work ONLY with the original
+  repo `mdraficode/aurorawolf`; NEVER touch, sync, or push to `aurorawolf-v2`** — v2 is retired. All
+  pushes go to `mdraficode/aurorawolf` `main` only.
 
 ### 3.2 M46 training campaign — the core rules (highest priority, standing)
 - **Train a neural bot to speedrun the campaign.** Main success = **upper-tier TIER TROPHIES**;
@@ -193,13 +197,36 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   distance 9/6.5/3); hunter-kite (any dmg ≥ 9 non-eagle predator chasing within 34 m → break clean);
   **flee line 13 → 9** — ALL wolf-hunters disengage at ~55% hp (cats 9–11 dmg were dying while fleeing
   at 34%: wolf runs 18 vs cats 12.8–13 — escape is physical, the LINE was the bug).
+- **v6.4 pack-aware escape (GEN 51 autopsy):** hostile rival packs are NOT heavy hunters (bite 4–6 each,
+  below the 9 gate) but a swarm of 3–5 chews a wolf down: GEN 51 fled 7× and still died — the yaw
+  re-aimed at whichever member was NEAREST each tick, zigzagging INSIDE the pack. Fix: flee from the
+  pack CENTROID, cache the heading (refresh max every 2 sim-s), HOLD the sprint while anything hostile
+  is within 45 m (6 s rolls, 20 s episode cap), sprint down to stamina 8 (wolf 18 vs rivals 12.2–14.4 —
+  escape is physical). A strong wolf on a rival deed (L3+, hp>70%) keeps the fight (rivalDeed gate).
+- **v6.4b THE LEGEND GATE (GEN 52 autopsy):** GEN 52 reached stage BOSS (first gen: q0→q1→prep→awaken→
+  boss; 38.3 xp/sim-min best pace, L7, side 6) and died to the Leopard Legend with 0 'boss' bumps — it
+  never entered the fight loop; the legend ambushed (flank teleport, ×1.5 bites) and the wolf stood in
+  the 41–62% dead zone (below bossEngage, above fleeAt) being eaten. Fixes: (a) legend within 45 m and
+  not mid-fight → flee below max(fleeAt, 0.88); (b) once engaged, stay in the fight down to the 42%
+  cut — never abandon mid-band; (c) a FRESH legend-fight needs L8+ and 88%+ hp (the Legend chases
+  FOREVER — bossTick is global, no leash — so heal via landmarks +25 / kills +8 between attempts);
+  (d) crouch while closing (d 3.6–12 m): crouched blind-side bite = 5 dmg × 1.5 ambush = 7.5 vs 3 —
+  the wolf's 3-dmg bite is the DPS bottleneck vs 45 hp. Designed boss-kit to pursue next: perks
+  (Deep Bite +1 / Wild-Hardened +5 hp, world-event rewards) and the bonded pack (p6 PACK.intercept
+  redirects boss bites to mates).
 - **Crown re-baseline (transparent amendment):** GEN 35's 59 was wall-inflated; two honest v6 runs of
   the same weights (lineage `35r-v6a` −113, `35r-v6b` −78) → mean **−96** = new bar. GEN 46 (fit −74)
   promoted on the 2026-09-01 session: first v6 cap-survivor (2667 sim-s, L6, RUN.side 6) — the
   cat-death disease ended. Gen results (v6): 44 −126 · 45 −194 · 46 −74 **CHAMPION** · 47 −152 ·
-  48 −166 · 49 −144 (REACHED AWAKEN + fought the Leopard Legend, too slow — clock −116).
-- **Frontier (from v6 data):** pace (18–28 xp/sim-min everywhere) + fast-awaken + beating the Legend.
-  The ideal next champion: GEN 46's errand appetite × GEN 49's road-walking × faster clock.
+  48 −166 · 49 −144 (REACHED AWAKEN + fought the Leopard Legend, too slow — clock −116) ·
+  **50 −55 PROMOTED (36.9 xp/min)** · 51 −106 (Rival-Wolf pack swarm → v6.4) · 52 −87 (**stage BOSS**,
+  38.3 xp/min, L7, side 6, died to the Leopard Legend → v6.4b legend gate). Champion: GEN 50 (−55).
+- **Frontier (v6.4 data):** pace is SOLVED (36.9 → 38.3 xp/sim-min; side 6 errand appetite retained)
+  and the road is walkable (GEN 52: q0→q1→prep→awaken→boss at 1840 sim-s). The only wall left is THE
+  BOSS — beating the Leopard Legend (45 hp · 14 dmg · 12.5 spd · ambush special). Next steps: v6.4b
+  legend protocol verification (GEN 53+), then the designed boss-kit (perks via world events, bonded
+  pack damage-intercept) — the 3-dmg bite cannot win DPS races; ambush ×1.5 + crouch +1 = 7.5/bite is
+  the multiplier.
 
 ### 4.6 Repository-hygiene decisions (2026-09-01)
 - `test/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.
@@ -212,6 +239,7 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
 - Workspace deep-clean: local repo was deleted after verification (fresh clone from GitHub matched
   file-for-file); environment keeps only `~/.ghtoken` + `~/.revontulet.keystore` + sudo marker.
 - Duplicate repo `aurorawolf-v2` created 2026-09-01 (this request) — mirror copy incl. all refs.
+  **RETIRED by user directive 2026-09-01 (later same day): no further pushes, syncs, or work on v2.**
 
 ---
 
@@ -255,18 +283,18 @@ scale). Watch xpRate, avgQuestS, tier clock, RUN.side in each run report.
 ## 7 · VERIFICATION RECIPE (any agent, any machine)
 
 ```bash
-git clone https://github.com/mdraficode/aurorawolf-v2.git && cd aurorawolf-v2
+git clone https://github.com/mdraficode/aurorawolf.git && cd aurorawolf
 git config user.name "…" && git config user.email "…"        # git config is never in backups
 npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium
 python3 build.py          # committed index.html is already built; rebuild to be certain
 node test/side.test.mjs && node test/campaign.test.mjs && node test/pack.test.mjs
 node test/rafzzer_gens.mjs status   # champion GEN 35 fit 59, lineage to GEN 39
-# push (needs ~/.ghtoken):  git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf-v2.git main:main
+# push (needs ~/.ghtoken):  git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git main:main
 ```
 
-**Duplicate-repo check:** `aurorawolf-v2` must match `aurorawolf` file-for-file (270+ files incl.
-AGENT_BRIEF.md/MASTER.md), same HEAD (723e0a2 at snapshot), same tag `archive/android-apk`, same
-index.html (1,242,826 bytes). v2 has no Pages, no workflows of its own; it is a static copy.
+**Duplicate-repo check (historical):** at snapshot `aurorawolf-v2` matched `aurorawolf` file-for-file
+(270+ files), same HEAD (723e0a2), same tag `archive/android-apk`, same index.html. v2 has no Pages,
+no workflows of its own — a static mirror. **RETIRED 2026-09-01: never push to or sync v2 again.**
 
 ---
 

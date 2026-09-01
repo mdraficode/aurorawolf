@@ -30,7 +30,7 @@ Everything needed to resume exactly here is in this file + git HEAD `(next commi
 
 ## 3 · NEXT STEPS, IN EXACT ORDER (resume here)
 
-1. `cd /home/user/aurorawolf-v2 && npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium` (env wipe at boundaries).
+1. `cd /home/user/aurorawolf && npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium` (env wipe at boundaries).
 2. **Apply the softening** to `spawn` trait mode (σ 0.10, touch 0.6) — one-line-ish edit in `test/rafzzer_gens.mjs`.
 3. `node test/rafzzer_gens.mjs spawn 33 1 trait` → `gate 33` (up to 3 fresh attempts on the same build; candidates now gentler).
    - IF gate still fails `livingMind` 3×: stop and report — the sense-gateway search space itself may need a rethink (options to weigh with trainer: per-row σ schedule, 1-at-a-time L1-style search, or gate livingMind threshold calibrated on champion's 0.0102–0.025).
