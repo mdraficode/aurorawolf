@@ -1,0 +1,21 @@
+import { pathToFileURL, fileURLToPath } from 'url';
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
+const pg = await b.newPage({ viewport: { width: 800, height: 390 } });
+const errs = []; pg.on('pageerror', e => errs.push(e.message));
+await pg.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=31337&quality=low', { timeout: 90000, waitUntil: 'domcontentloaded' });
+await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
+await pg.waitForTimeout(2000);
+const out = {};
+out.visibleWhenWindowed = await pg.evaluate(() => document.getElementById('fsBtn').classList.contains('show'));
+const r = await pg.evaluate(() => { const x = document.getElementById('fsBtn').getBoundingClientRect(); return { t: x.top, r: x.right, w: x.width }; });
+out.rect = r;
+// real click → fullscreen (headless chromium supports Element.requestFullscreen)
+await pg.click('#fsBtn').catch(() => {});
+await pg.waitForTimeout(800);
+out.afterTap = await pg.evaluate(() => ({ fs: !!document.fullscreenElement, hidden: !document.getElementById('fsBtn').classList.contains('show') }));
+await pg.evaluate(() => document.exitFullscreen().catch(() => {}));
+await pg.waitForTimeout(600);
+out.afterExit = await pg.evaluate(() => ({ fs: !document.fullscreenElement, visibleAgain: document.getElementById('fsBtn').classList.contains('show') }));
+console.log('FS ' + JSON.stringify({ ...out, errs }));
+await b.close();

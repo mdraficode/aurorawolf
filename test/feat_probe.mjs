@@ -1,0 +1,37 @@
+import { pathToFileURL, fileURLToPath } from 'url';
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader'] });
+const pg = await b.newPage({ viewport: { width: 800, height: 420 }, hasTouch: true, isMobile: true });
+const errs = []; pg.on('pageerror', e => errs.push(e.message));
+await pg.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?autostart=1&seed=8080&quality=low', { timeout: 90000, waitUntil: 'domcontentloaded' });
+await pg.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
+await pg.waitForTimeout(3000);
+const R = await pg.evaluate(async () => {
+  const out = { touchMode: document.body.classList.contains('touch') };
+  const zone = document.getElementById('joyZone').getBoundingClientRect();
+  out.zone = { w: +zone.width.toFixed(0), h: +zone.height.toFixed(0), fullHeight: zone.height >= innerHeight - 2 };
+  const zr = document.getElementById('joyZone');
+  const cx = innerWidth * 0.22, cy = innerHeight * 0.42;
+  zr.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 7, clientX: cx, clientY: cy, bubbles: true, cancelable: true }));
+  out.downInMidLeft = { joyLive: document.getElementById('joy').classList.contains('live'), ringInvisible: getComputedStyle(document.getElementById('joy')).background.includes('none') };
+  zr.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: cx + 220, clientY: cy + 40, bubbles: true, cancelable: true }));
+  out.stillHeldAfterFarDrag = document.getElementById('joy').classList.contains('live');
+  zr.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, bubbles: true }));
+  out.released = !document.getElementById('joy').classList.contains('live');
+  audio.init(); audio.resume();
+  audio.setAmbient(1, 0);
+  await new Promise(r => setTimeout(r, 120));
+  out.windGain = +audio.windG.gain.value.toFixed(3);
+  music.update(0.05);
+  out.musicExplore = { state: music.state, perc: +music.layers.perc.gain.value.toFixed(3), pad: +music.layers.pad.gain.value.toFixed(2) };
+  let callOk = true; try { audio.speciesCall('Deer', 0.6); audio.speciesCall('Rabbit', 0.6); audio.birdPeep(0.5); } catch (e) { callOk = e.message; }
+  out.speciesCall = callOk;
+  out.birds = BIRDS.list.length;
+  out.birdStates = BIRDS.list.map(b2 => b2.state).join(',');
+  await new Promise(r => setTimeout(r, 5000));
+  out.birdsAfter = BIRDS.list.length;
+  out.birdStatesAfter = BIRDS.list.map(b2 => b2.state).join(',');
+  return out;
+});
+console.log('FEATURES ' + JSON.stringify({ ...R, errs }));
+await b.close();
