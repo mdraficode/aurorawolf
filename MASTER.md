@@ -15,8 +15,8 @@ backup).
 | Thing | Value |
 |---|---|
 | Game | **REVONTULET — Aurora Wolf** · 3D open-world wolf survival, one self-contained HTML file |
-| Live (GitHub Pages) | **https://mdraficode.github.io/aurorawolf/** |
-| Repo | **github.com/mdraficode/aurorawolf** (public, default branch `main`, Pages serves **/** from `main`) |
+| Live (GitHub Pages) | **https://mdraficode.github.io/aurorawolf-v2/** |
+| Repo | **github.com/mdraficode/aurorawolf-v2** (public, default branch `main`, Pages serves **/** from `main`) |
 | Local workdir | `aurorawolf/` (built `index.html` is committed; `build.py` regenerates it) |
 | GitHub push auth | `~/.ghtoken` (classic PAT, `repo` scope) — **never committed**, used by `publish.sh` and `git push` |
 | APK | Tag `archive/android-apk` in git history + `~/.revontulet.keystore` (never committed). APK only on explicit request |
@@ -82,9 +82,9 @@ aurorawolf/
 ## 4 · Build, run, test, publish
 
 ```bash
-cd aurorawolf
+cd aurorawolf-v2
 python3 build.py                 # rebuild index.html from src/
-# play locally: open index.html, or serve it; live = https://mdraficode.github.io/aurorawolf/
+# play locally: open index.html, or serve it; live = https://mdraficode.github.io/aurorawolf-v2/
 bash publish.sh github "what changed"   # build + push index.html → Pages (LIVE ~1-2 min)
 # NOTE: the repo now also carries the full source tree — after feature work, commit + git push (see §13)
 ```
@@ -187,7 +187,7 @@ cold/storm/hunger/thirst; unknown otherwise.
 
 ```bash
 # ONE GENERATION, run to verdict (must complete inside a single session — see footguns):
-cd aurorawolf
+cd aurorawolf-v2
 node test/rafzzer_gens.mjs status                      # lineage + champion
 bash test/m46_gen.sh 40 900                            # spawn→gate→run for GEN 40 (cap 900 wall-s)
 node test/rafzzer_gens.mjs promote 40 --verdict=reject --note="…"   # trainer's verdict
@@ -298,7 +298,7 @@ across sandbox snapshots — reinstall per session (above).
 ## 12 · Fresh-environment bootstrap (new chat / new machine)
 
 ```bash
-git clone https://github.com/mdraficode/aurorawolf.git && cd aurorawolf
+git clone https://github.com/mdraficode/aurorawolf-v2.git && cd aurorawolf-v2
 git config user.name "…" && git config user.email "…"        # .git/config is NOT part of the clone backup
 npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium
 python3 build.py                                             # repo index.html is committed, but rebuild to be safe
@@ -313,7 +313,7 @@ Then simply continue at §8 (next gen = 40).
 ## 13 · GitHub backup situation
 
 - The full repo (source, tests, docs, history, lineage jsons, logs) is **pushed to
-  github.com/mdraficode/aurorawolf (branch `main`)** — the repo is the backup of the workspace.
+  github.com/mdraficode/aurorawolf-v2 (branch `main`)** — the repo is the backup of the workspace.
   (On 2026-09-01 the old API-only history was replaced by the full project history via a one-time
   force push; the live `index.html` content is identical — 1 242 826 bytes.)
 - `index.html` at repo root = the live build; Pages redeploys automatically from `main`.
@@ -321,9 +321,9 @@ Then simply continue at §8 (next gen = 40).
   the live build in lockstep.
 - **Push recipe (workspace resets wipe `git config`, so the remote URL is not stored):**
   ```bash
-  cd aurorawolf && git add -A && git commit -m "…"
+  cd aurorawolf-v2 && git add -A && git commit -m "…"
   GH=$(cat ~/.ghtoken)   # classic PAT, repo scope — never commit it
-  git push "https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git" main:main
+  git push "https://x-access-token:${GH}@github.com/mdraficode/aurorawolf-v2.git" main:main
   ```
   (No forced pushes needed now — history is shared. The first-time history merge was done once.)
 

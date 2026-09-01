@@ -2,7 +2,7 @@
 # Publish the game. Two modes:
 #
 #   bash publish.sh github "what changed"   → push to GitHub Pages (LIVE LINK UPDATES ~1 min)
-#                                            https://mdraficode.github.io/aurorawolf/
+#                                            https://mdraficode.github.io/aurorawolf-v2/
 #   bash publish.sh archive [alias]         → permanent archive.org snapshot + optional spoo.me alias
 #
 #
@@ -16,7 +16,7 @@ MODE="${1:-github}"
 
 gh_publish() {
   GH=$(cat ~/.ghtoken 2>/dev/null) || { echo "ERROR: ~/.ghtoken missing"; exit 1; }
-  REPO="mdraficode/aurorawolf"
+  REPO="mdraficode/aurorawolf-v2"
   MSG="${2:-Game update $(date -u +%Y-%m-%d)}"
   echo "[1/3] building…"; python3 build.py
   SZ=$(stat -c%s index.html); echo "      index.html = $SZ bytes"
@@ -35,7 +35,7 @@ import json; d=json.load(open('/tmp/ghup.json'))
 c=d.get('content') or {}
 if c.get('size'): print('      pushed commit', d.get('commit',{}).get('sha','')[:7], '| size', c['size'])
 else: print('ERROR:', d.get('message')); raise SystemExit(1)"
-  echo "[3/3] Pages is rebuilding — https://mdraficode.github.io/aurorawolf/ updates within ~1-2 min."
+  echo "[3/3] Pages is rebuilding — https://mdraficode.github.io/aurorawolf-v2/ updates within ~1-2 min."
 }
 
 archive_publish() {

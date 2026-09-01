@@ -6,7 +6,7 @@
 # fallback; then STOP (brief cadence).
 # usage: bash test/m46_step.sh <gen> [runCapSec]
 set -u
-cd /home/user/aurorawolf
+cd /home/user/aurorawolf-v2
 G=${1:?gen}
 CAP=${2:-${RUN_CAP:-900}}      # LAW v4: a tier-1 trophy needs a long, honest road (~2400+ sim-s)
 for MODE in global trait traitglobal; do

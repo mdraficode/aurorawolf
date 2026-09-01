@@ -9,7 +9,7 @@ a fresh agent can act immediately without asking the user anything.
 `README.md` (player-facing). `MASTER.md` and `AGENT_BRIEF.md` must BOTH be updated in the same
 commit whenever project state, law, architecture, or instructions change.
 
-**Snapshot:** 2026-09-01 · original repo `github.com/mdraficode/aurorawolf` · duplicate repo
+**Snapshot:** 2026-09-01 · original repo `github.com/mdraficode/aurorawolf-v2` · duplicate repo
 `github.com/mdraficode/aurorawolf-v2` (created 2026-09-01 as an exact copy, incl. this file).
 
 ---
@@ -31,10 +31,10 @@ and publishes.
 
 | Fact | Value |
 |---|---|
-| Live game (GitHub Pages) | https://mdraficode.github.io/aurorawolf/ |
-| Original repo | github.com/mdraficode/aurorawolf (public, branch `main`, Pages = `/` from `main`) |
+| Live game (GitHub Pages) | https://mdraficode.github.io/aurorawolf-v2/ |
+| Original repo | github.com/mdraficode/aurorawolf-v2 (public, branch `main`, Pages = `/` from `main`) |
 | **Duplicate repo (v2)** | **github.com/mdraficode/aurorawolf-v2** (exact copy, same files/history; Pages NOT enabled on purpose) |
-| Git auth | `~/.ghtoken` — classic PAT, `repo` scope. **NEVER commit it.** Push: `git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git main:main` (remote URL is NOT persisted in backups — re-add each session) |
+| Git auth | `~/.ghtoken` — classic PAT, `repo` scope. **NEVER commit it.** Push: `git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf-v2.git main:main` (remote URL is NOT persisted in backups — re-add each session) |
 | APK | git tag `archive/android-apk` holds the signed APK + WebView wrapper; signing key `~/.revontulet.keystore` (never committed). **APK only on explicit request** |
 | Publish (live-only bump) | `bash publish.sh github "msg"` — builds + pushes index.html via GitHub Contents API (~1–2 min). Prefer full `git push` so source and live build stay in lockstep |
 | Build | `python3 build.py` → index.html from shell.html + style.css + vendor/three.min.js + src/p1..p6 + autopilot.js |
@@ -255,13 +255,13 @@ scale). Watch xpRate, avgQuestS, tier clock, RUN.side in each run report.
 ## 7 · VERIFICATION RECIPE (any agent, any machine)
 
 ```bash
-git clone https://github.com/mdraficode/aurorawolf.git && cd aurorawolf
+git clone https://github.com/mdraficode/aurorawolf-v2.git && cd aurorawolf-v2
 git config user.name "…" && git config user.email "…"        # git config is never in backups
 npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium
 python3 build.py          # committed index.html is already built; rebuild to be certain
 node test/side.test.mjs && node test/campaign.test.mjs && node test/pack.test.mjs
 node test/rafzzer_gens.mjs status   # champion GEN 35 fit 59, lineage to GEN 39
-# push (needs ~/.ghtoken):  git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git main:main
+# push (needs ~/.ghtoken):  git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf-v2.git main:main
 ```
 
 **Duplicate-repo check:** `aurorawolf-v2` must match `aurorawolf` file-for-file (270+ files incl.
