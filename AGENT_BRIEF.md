@@ -9,7 +9,7 @@ a fresh agent can act immediately without asking the user anything.
 `README.md` (player-facing). `MASTER.md` and `AGENT_BRIEF.md` must BOTH be updated in the same
 commit whenever project state, law, architecture, or instructions change.
 
-**Snapshot:** 2026-09-02 (v6.7 boss-kit shipped; infers from 2026-09-01) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
+**Snapshot:** 2026-09-02b (v6.8 — the M47 human-speedrun fixes merged onto the v6.7 boss-kit; see §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
 duplicate repo `github.com/mdraficode/aurorawolf-v2` (exact copy, created 2026-09-01; **RETIRED by
 user directive — never work in, sync, or push to v2**).
 
@@ -41,7 +41,7 @@ and publishes.
 | Build | `python3 build.py` → index.html from shell.html + style.css + vendor/three.min.js + src/p1..p6 + autopilot.js |
 | Tests | Playwright + headless Chromium (SwiftShader). `npm install` + `npx playwright install chromium` + `sudo -n npx playwright install-deps chromium` per session (deps do NOT persist across snapshots) |
 | Current champion | **GEN 50 · fit −55** (v6 basis; old 283/59 scores were wall-inflated) · 336 weights · **TIER 1, 0 trophies — the trophy is the frontier** |
-| Next generation | **GEN 56** (nothing spawned yet; runs on the **v6.7 boss-kit build**, see §4.5d) |
+| Next generation | **GEN 56** (nothing spawned yet; runs on the **v6.8 build** = boss-kit + speedrun fixes, see §4.5d/§4.5e). Trainer order: finish the **human-speedrun session** first — no bot, no brain, reach the Tier-1 trophy and log it in `TRAINING_MANUAL.md`. |
 
 ---
 
@@ -283,6 +283,38 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   the Drive zip and, briefly, a temporary branch commit — history already rewound).
 - **Next:** GEN 56 on the v6.7 build (champion GEN 50 · bar −55) — the kit answers the Leopard Legend;
   then the announced-but-unspecified "major gameplay progress system update" when the trainer specs it.
+
+### 4.5e Session 2026-09-02b (v6.8 — the M47 human-speedrun fixes MERGED onto the boss-kit)
+- **Trainer directive:** reconcile the open PR #1 (M47) onto `main`, then continue the human-speedrun
+  session (no bot, no brain) toward the Tier-1 trophy.
+- **Why a cherry-pick, not a merge:** `main` is a **single orphan commit** (`git rev-list --count main`
+  → 1, `parents=[]`) — the v6.7 boss-kit tree with no history — while PR #1 sits on the OLD long
+  history. `git merge-base main <PR #1 head>` is **EMPTY**, so a merge is impossible and PR #1 has no
+  merge base against main. Cherry-picking `d70296d` + `1fb4b97` applies with **ZERO conflicts** (only
+  `src/p4.js` is touched by both sides). **PR #1 is superseded — close it, do not merge it.**
+- **Version-label collision resolved:** both v6.6 children called themselves v6.7. `main`'s BOSS-KIT
+  keeps **v6.7**; the M47 combat/perk/deed work is relabelled **v6.8** (3 comments in `src/p3.js` +
+  the BUGS.md entry).
+- **`index.html` was REBUILT by `build.py`, never trusted from the auto-merge** (1240 KB, crown GEN 50).
+- **What v6.8 fixes** (all from M47, previously only on the branch): **B8** Legends died with their home
+  chunk and `Wolf.attack()` only scanned per-chunk animal lists — the campaign was **UNBEATABLE, not
+  merely hard**; **B9** echo/clone Legends leaked past `Boss.die()`; **B10** a Legend walked along its
+  own nose (body now pursues on the bearing-to-wolf, only the head is neck-limited); the boss heading
+  used to SNAP onto the wolf (every bite 1 dmg) and the claw had no wind-up (undodgeable 11–21 dps) →
+  constant-rate neck turn 2.2·(1+0.15·phase), ×0.18 through the 0.55 s plant, blow lands where the
+  swing ENDS inside the same ~78° arc the player's bite uses; three dead perks wired up (Spring Steps
+  / Thunder Charge / Shadow Step); deeds keep their waypoint `wp` across chunk unloads; fresh-save name
+  prompt now shows.
+- **New rig:** `test/speedrun/` (`human.mjs` = hands & eyes, `run.mjs` = route router,
+  `probe_fight.mjs` = Legend-fight laboratory, `probe_boss_dps.mjs`) + `test/browserlab/boot.sh`;
+  reports gitignored under `test/speedrun/runs/`. `TRAINING_MANUAL.md` = the coach's book (cadence law,
+  yaw-lag law, 180° law, the campaign on one page, the four routes, the Legend combat grammar, six drills).
+- **Environment:** `ENVIRONMENT.md` records the MEASURED egress allowlist, the Chromium workaround and a
+  file-by-file audit of the Drive zip (`training v2.zip` == commit `855eb4e`, byte-identical; only
+  unique items are the two secrets). `/home/user/setup_env.sh` restored. `shots/forest.jpg` is
+  overwritten by `forest.test.mjs` on every run — restore it or gitignore it.
+- **Next:** the human-speedrun session continues on this build. The Tier-1 trophy is still unclaimed;
+  M47's honest number is **0.94 dps dealt vs 4.86 incoming** (the Leopard reaches 9 hp and the wolf dies).
 
 ### 4.6 Repository-hygiene decisions (2026-09-01)
 - `test/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.

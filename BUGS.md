@@ -206,3 +206,92 @@ Gates: touch PASS · audio ALL PASS · ai 15/15. Live: c6c6dba byte-verified.
 - OPEN gather-quest stall seen again ("Gather 6 mushrooms stuck at 0/6", 4× in one run + 1× ship shakedown): quest ground can lack the target resource; same family as the fixed peak-quest issue. Next: probe gather-goal finder for resource presence before offering.
 - FIXED (harness) rafzzer_gens poll broke on `dead` before the death scorer ran; 1.2 s auto-respawn zeroed telemetry (produced a bogus SURVIVED/-125 report).
 - No new game-side page errors or tick crashes in ~2.5 h of boosted sim across 20 generations.
+
+## M47 / human-speedrun session (2026-09-02) — playing the campaign by hand to the Tier-1 trophy
+Goal of the session: an agent plays the game **as a human speedrunner** (no RAFZZER brain), from a
+fresh save to the first Tier trophy, and fixes everything that makes the run physically impossible
+before the next bot generation. Harness: `test/speedrun/` (human.mjs = hands & eyes, run.mjs = route
+router, probe_fight.mjs = Legend-fight laboratory, `_*.mjs` = isolation probes), browser lab in
+`test/browserlab/boot.sh` (Chromium 149 + SwiftShader), time acceleration via `?speed=&rate=&re=`.
+
+### Game-side defects found and FIXED
+- 🔴 **B8 — a Legend was disposed with its home chunk.** `disposeChunk()` killed the Boss when the
+  64 m chunk it was born in unloaded, so a Legend that chased the wolf across a chunk border died
+  silently mid-fight (and `wolf.attack()` only scanned per-chunk animal lists, so a Legend standing
+  on top of the wolf was invisible to the bite). Both sides fixed: Legends are no longer chunk-owned,
+  and `Wolf.attack()` now scans the global `bosses` list too. Without this the campaign was
+  **unbeatable**, not merely hard.
+- 🔴 **B9 — echo/clone Legends leaked.** `Boss.die()` did not retire the shadow-wolf / Beast-Master
+  echoes, so a slain Legend left live clones hunting the wolf forever.
+- 🔴 **B10 — a Legend WALKED ALONG ITS OWN NOSE.** The body moved along `sin/cos(heading)` while the
+  neck eased at 2.2 rad/s, so a player who won the turn race (orbit 3.1 rad/s) was rewarded with the
+  beast running *away* from him at 12.5 m/s against the wolf's 13.5: an endless chase, every arrival
+  head-on, every bite a FACE bite for 1 damage. **The body now pursues along the bearing-to-wolf;
+  only the head is limited by the neck** — the combat grammar (turn race → blind side) is unchanged.
+- 🟠 **v6.8 the DPS wall / the survival wall** (`Boss.update`; authored in the M47 speedrun session
+  where it was labelled v6.7 — relabelled on merge because **v6.7 is the BOSS-KIT** on `main`):
+  the heading used to SNAP onto the wolf
+  every tick (`facing` ≡ +1.00 → every bite 1 dmg; Bear 112 hp = 84 s of uninterrupted biting) and the
+  claw used to land the instant the cooldown expired, from any angle, with no wind-up (an undodgeable
+  11-21 dps). Now: constant-rate neck turn (2.2·(1+0.15·phase), ×0.18 during the 0.55 s plant) and the
+  blow lands where the swing ENDS, inside the same ~78° arc the player's own bite uses.
+- 🟠 **Dead perks wired up**: Spring Steps (sprint stamina −25 %), Thunder Charge (sprint +12 %),
+  Shadow Step (prowl detection 0.45 → 0.22). All three were granted and described but read nowhere.
+- 🟠 **Explore deeds lost their destination** when the landmark's chunk unloaded: the deed now carries
+  `wp` and both `questGuide()` and the map overlay fall back to it.
+- 🟠 **The name prompt never showed on a fresh save** — p4 injects the start overlay while it parses,
+  before the campaign module exists, so `onMenuRefresh()` never ran and `#nameRow` stayed
+  `display:none` (every trophy recorded "Wolf"). The campaign now refreshes the overlay itself.
+
+### The Legend fight, measured (probe_fight.mjs, tier-1 Leopard, wolf level 12)
+The fight is a turn race with three numbers, all read out of the source rather than guessed:
+`turnRate = 2.2·(1+0.15·phase)` (×0.18 during the plant), strike = `dd ≤ reach·1.35` **and**
+`dot ≥ 0.2` → |gap| ≤ 1.37 rad, and it only walks while `d > 4.0`. The wolf's bite prices the same
+angle: facing < −0.35 (|gap| > 1.93) = BEHIND → (3 + 1 ambush) × 1.5 = **6 hp** (a Legend has no
+`aware` field, so every behind bite counts as an ambush), flank 2, face 1, cone |nose| ≤ 1.37, and
+`atkCd` 0.75 s is spent even on a whiff.
+Laws that were tried and **rejected by measurement** (all reports in `test/speedrun/runs/`, gitignored):
+1. flee-when-hurt — the Legend runs 12.5-16 m/s and the wolf walks 7: fleeing took 367/696 polls at
+   gap p50 **0.00** and received 14 of 19 hits. The 3 hp/s regen needs 6 CLEAN seconds, which only
+   ever happens behind a parked gap. **Never turn your back on a Legend.**
+2. symmetric zigzag radius control (±0.44 every two polls) — the wolf's yaw eases toward the
+   commanded heading at `dt·9` (≈62 % per 0.1 s poll), so a 0.2 s square wave is low-pass filtered
+   into its own mean: commanded 1.12 rad off the bearing, travelled 1.57; nose p50 1.70-2.06 against
+   a 1.37 cone → 5 % of polls could bite, 60 s produced 15 presses.
+3. band-holding the gap with reverse taps — each tap is a 2.26 rad yaw flip; blind side rose to 31 %
+   but the nose spent half its time outside the cone (8 presses in 47 s).
+What **works** (LAW v11/v12 in probe_fight.mjs): one fixed lap direction, a *held* spiral between two
+rings (θ_IN 1.28 bite-capable / θ_OUT 2.30 pays the radius), sprint only to cross the 1.37 arc, and a
+**closed-loop aim lead** that measures the yaw shortfall from the wolf's own last-poll displacement and
+asks for it up front — after it, commanded θ and travelled θ agree to ±0.02 rad.
+STILL OPEN at the time of writing: 14-19 hits per ~50 s (4-5 incoming dmg/sim-s) against 3 hp/s regen
+— the wolf reaches the Legend's last 3-9 hp and then dies. The remaining lever is bite timing: the
+gate reads a yaw that is one poll stale, and 6 of 13 real attacks still whiff.
+
+### The cadence law (the rig defect that cost a session, now built into `probe_fight.mjs`)
+Polling faster than the boost batch starves the page's main thread. Measured: **2454 polls in
+60.7 sim-seconds** = 0.025 sim-s per poll, the sim crawling at **0.87× real**, the eyes returning
+frozen state, and a zigzag averaging itself into pure tangent so the bite cone rejected everything.
+It looks exactly like a broken aim chain and it is not. Fix: **one decision per batch**, with the
+poll interval self-tuned from an EMA of measured sim-dt toward `speed × 0.05` → **dt/poll 0.100 s**
+at `speed=2`. Any report whose cadence line is off is an invalid run — check it before believing a
+single number in it.
+
+### Numbers card — the rest of the Legend law (values the prose above does not spell out)
+| | phase 0 | phase 1 (`hp<50 %`) | phase 2 (`hp<25 %`) |
+|---|---|---|---|
+| neck turn | 2.20 rad/s | 2.53 | 2.86 |
+| neck during the 0.55 s plant (×0.18) | 0.40 | 0.46 | 0.51 |
+| `atkCd` before the plant | 1.25 s | 1.10 | 0.95 |
+| cycle-average neck rate | 1.65 | 1.84 | 2.00 |
+| approach speed (`d > 4.0` only) | 12.5 m/s | 14.25 | 16.0 |
+| `specT` decay (`×(1+0.3·phase)`) | 8 s | 6.2 | 5.1 |
+
+A walking ring at **r ≈ 2.05 m** (θ 1.28 off the bearing) gives ω = 3.25 rad/s — above the neck at
+*every* phase, which is why the sprint is only needed to cross the 1.37 arc (~0.35 s, 10 stamina,
+82 refunded by the walk). Below r ≈ 1.8 the bearing geometry degenerates: measured at r = 0.82 the
+gap readout spun at 7 rad/s and dumped the wolf at the Legend's nose.
+
+**Coach's book:** `TRAINING_MANUAL.md` — the rig and its two laws, the campaign on one page, tier-1
+Legend numbers, what the wolf actually does, the four routes and when each wins, the full
+attempt/lesson table for the fight, and six drills in priority order for the part that is still open.

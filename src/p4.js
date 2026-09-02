@@ -580,7 +580,14 @@ function disposeChunk(chunk) {
   for (const m of chunk.vegMeshes) { if (m.userData.ownGeo) m.userData.ownGeo.dispose(); if (m.dispose) m.dispose(); }
   for (const a of chunk.animals) { if (!a.dead && ECO_CAP[a.name] !== undefined) ECO_POP[a.name]++; a.dispose(); }
   chunk.animals.length = 0;
-  for (const pr of chunk.predators) pr.dispose();
+  /* BUG B8 (found by the speedrun rig, 2026-09-02): a LEGEND used to be disposed here.
+     A Boss registers itself in the chunk it SPAWNED in, and the wolf's bite only scans
+     loaded chunks — so once the player outran that chunk (fleeing to heal, kiting, or
+     just being chased 260 m across the map) disposeChunk() deleted the Legend outright:
+     model gone, bosses[] entry gone, and THE CAMPAIGN SOFTLOCKED because its boss stage
+     waits forever for an onSlain that can now never fire. A Legend is a story actor, not
+     scenery: detach it from the chunk, leave it alive and hunting. */
+  for (const pr of chunk.predators) if (!(pr instanceof Boss)) pr.dispose();
   chunk.predators.length = 0;
   for (const lm of chunk.landmarks) { scene.remove(lm.model); const i = landmarkList.indexOf(lm); if (i >= 0) landmarkList.splice(i, 1); }
   chunk.landmarks.length = 0;
@@ -3068,6 +3075,7 @@ class Boss {
     this.dead = false;
     this.state = 'stalk';
     this.atkCd = 0;
+    this.biteT = 0; this.biteWind = 0.55; this.biteDmg = 0; this.biteKb = 1;   // telegraphed strike (v6.7)
     this.specT = 5 + Math.random() * 3;
     this.subT = 0;          // submerge/burrow timer
     this.invuln = false;
@@ -3119,6 +3127,12 @@ class Boss {
       toast(`✨ ${this.def.name} falls — its gift is yours: ${this.def.abilityName} (${this.def.abilityDesc})`, true);
       if (this.quest) { const i = QUESTS.active.indexOf(this.quest); if (i >= 0) QUESTS.active.splice(i, 1); if (!this.quest._done) { this.quest._done = true; QUESTS.done.push(this.quest); questsDoneByBiome[this.biome] = (questsDoneByBiome[this.biome] || 0) + 1; } questHudDirty = true; }
       if (this.def.onSlain) this.def.onSlain(this);   // CAMPAIGN: story, rewards, next Legend
+      /* BUG B9 (found by the speedrun rig): the shadow-wolf / beast-master echoes this
+         Legend bred were never cleaned up. They outlived it at full damage, hunted the
+         player through the NEXT leg of the campaign, and — because bosses[] stayed
+         non-empty — permanently locked the old-path fast travel ("Not while a legend
+         watches"). A legend's magic dies with the legend. */
+      for (const c of [...bosses]) if (c !== this && c.isClone && !c.dead) { c.dead = true; c.dispose(); }
       const bb = el('bossBar'); if (bb) bb.classList.remove('show');
       music.boss = false;
     }
@@ -3228,20 +3242,79 @@ class Boss {
       }
       return;
     }
-    // approach
-    this.heading = Math.atan2(dx, dz);
-    if (d > this.sp.reach + 0.6) {
-      this.pos.x += Math.sin(this.heading) * sp * dt;
-      this.pos.z += Math.cos(this.heading) * sp * dt;
+    /* ---- approach, and TURN like every other creature in the wild ----
+       SPEEDRUN FIX v6.7 (the DPS wall — this made the tier-1 trophy UNREACHABLE):
+       the heading used to SNAP onto the wolf on every single tick, so `facing` in
+       Wolf.attack() was always +1.00 → every bite on a Legend was a FACE bite for
+       1 damage. The whole advertised combat grammar (behind ×3 · flank ×2 · the
+       blind-side AMBUSH ×1.5 · prowl +1 · Deep Bite +1) was dead content against
+       bosses, so the deep Legends were a pure maths wall: Bear 112 hp = 84 s of
+       uninterrupted biting, Beast Master 190 hp = 142 s, while the Legend lands
+       14–26 damage every 1.25 s. Measured proof: test/speedrun/probe_boss_dps.mjs
+       (boss-facing 1.00 from all 8 bearings, 1 dmg standing / 2 with Deep Bite).
+       Now the heading EASES at a turn rate a sprinting wolf can outrun and a
+       walking wolf cannot (orbit: sprint 13.5/4.4 m ≈ 3.1 rad/s > 2.2 rad/s;
+       walk 7/4.4 ≈ 1.6 rad/s < 2.2), so the blind side is something you EARN —
+       exactly the skill the rest of the game already teaches. */
+    const wantH = Math.atan2(dx, dz);
+    /* SPEEDRUN FIX v6.7b — CONSTANT-RATE turn, not exponential easing. Easing leaves a
+       permanent bearing lag proportional to the target's orbit rate (lag ≈ ω/k), so even a
+       player who merely WALKED the circle stayed outside the strike arc and the Legend
+       could not bite anything: probe 3 measured 0.09 dps in over 200 s. A constant-rate
+       turn is the honest race it should be — a Legend that turns faster than you run
+       catches up and holds your bearing (you eat the swing), one that turns slower never
+       does (it bites air). Walk 7 m/s at 3.9 m = 1.8 rad/s < 2.2 → caught.
+       Sprint 13.5 m/s at 3.9 m = 3.5 rad/s > 2.2 → never caught. */
+    const turnRate = (this.def.flight ? 5 : 2.2) * (1 + this.phase * 0.15) * (this.biteT > 0 ? 0.18 : 1);
+    const dTurn = wrapPI(wantH - this.heading);
+    const stepT = Math.min(Math.abs(dTurn), turnRate * dt);
+    this.heading = wrapPI(this.heading + (dTurn < 0 ? -stepT : stepT));
+    if (this.biteT > 0) {
+      /* SPEEDRUN FIX v6.7 (the survival wall): the Legend's bite used to land the
+         instant its cooldown expired, from any angle, with no wind-up — an
+         undodgeable 11–21 dps. It now plants, telegraphs (growl + dust + rear-back,
+         the same 0.36→0.55 s claw-then-bite every predator and rival wolf uses) and
+         the blow lands where the swing ENDS, inside the same ~78° arc the player's
+         own bite uses. Keep sprinting the circle and the Legend bites air; hesitate,
+         walk, or run out of stamina and you eat it. */
+      this.biteT -= dt;
+      this.model.rotation.x = -0.20 * Math.max(0, this.biteT / this.biteWind);
+      if (this.biteT <= 0) {
+        this.model.rotation.x = 0;
+        const dd = Math.hypot(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
+        const dot = dd ? (Math.sin(this.heading) * (wolf.pos.x - this.pos.x) + Math.cos(this.heading) * (wolf.pos.z - this.pos.z)) / dd : 1;
+        if (dd <= this.sp.reach * 1.35 && dot >= 0.2) {
+          if (!(window.PACK && window.PACK.intercept(this, this.biteDmg, this.def.name, this.def.icon)))
+            wolfTakeDamage(this.biteDmg, this.pos, this.def.name, this.def.icon, this.biteKb);
+        } else {   // a whiff — the player circled out of the arc
+          pool.burst(V3(this.pos.x + Math.sin(this.heading) * 2.3, this.pos.y + 1.2, this.pos.z + Math.cos(this.heading) * 2.3), 7, 0xd8d2c0, 0.9, 1.5, 1.9);
+          audio.thud();
+        }
+      }
+    } else if (d > this.sp.reach + 0.6) {
+      /* BUG B10 (found by the speedrun rig, 2026-09-02): the Legend used to WALK ALONG ITS
+         OWN NOSE. That is honest for the strike arc — the constant-rate neck turn (fix v6.7b)
+         is the whole blind-side grammar — but it is degenerate for locomotion: a player who
+         wins the turn race (orbit 3.1 rad/s vs neck 2.2) puts the nose past 90°, and the
+         beast then runs AWAY from the very player who outmanoeuvred it, at 12.5 m/s against
+         the wolf's 13.5. Measured with test/speedrun/probe_fight.mjs: the reward for owning
+         the blind side was a 1 m/s chase that never ended, every arrival was head-on, so
+         every bite was a FACE bite for 1 damage and the tier-1 trophy stayed out of reach.
+         THE BODY NOW PURSUES THE PREY; ONLY THE HEAD IS LIMITED BY THE NECK. heading still
+         eases at 2.2 rad/s and still decides where the swing lands, so nothing about the
+         combat grammar changes — a Legend simply no longer flees its own blind side. */
+      this.pos.x += (dx / d) * sp * dt;
+      this.pos.z += (dz / d) * sp * dt;
       this.pos.y = heightAt(this.pos.x, this.pos.z);
     } else if (this.atkCd <= 0) {
       this.atkCd = (this.def.atkGap || 1.25) - this.phase * 0.15;
       let kbMul = 1;
       if (this.def.special === 'knockback') { kbMul = 2.6; this.atkCd += 0.3; }   // the Bear Legend throws you
-      const bdmg = this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1);
-      if (!(window.PACK && window.PACK.intercept(this, bdmg, this.def.name, this.def.icon)))
-        wolfTakeDamage(bdmg, this.pos, this.def.name, this.def.icon, this.ambushNext ? Math.max(kbMul, 1.7) : kbMul);
+      this.biteDmg = this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1);
+      this.biteKb = this.ambushNext ? Math.max(kbMul, 1.7) : kbMul;
+      this.biteWind = 0.55; this.biteT = this.biteWind;   // plant + telegraph, then the swing
       this.ambushNext = 0;
+      pool.burst(V3(this.pos.x, this.pos.y + 1.3, this.pos.z), 9, 0xffd9a0, 1.0, 1.7, 2.1);
       audio.growlVar('aggressive');
     }
     this.atkCd -= dt;
@@ -3719,6 +3792,11 @@ window.questGuide = function () {
           const d = dist2(lm.x, lm.z);
           if (!c || d < c.d) c = { x: lm.x, z: lm.z, d, label: q.title, kind: 'explore', lm };
         }
+        /* SPEEDRUN FIX v6.7: landmarkList only holds landmarks whose chunk is
+           streamed, so a deed that named a landmark 500 m out lost its gold line the
+           moment that chunk unloaded — the player was left walking blind on a deed
+           that could not be finished. The deed remembers the place it promised. */
+        if (!c && q.wp) c = { x: q.wp.x, z: q.wp.z, d: dist2(q.wp.x, q.wp.z), label: q.title, kind: 'explore' };
       } else if (q.kind === 'explore' && q.peak) {
         // BUGFIX (rafzzer lineage): the quest crowns at y > 50 — the guide used to point at
         // the highest nearby bump (often 20 m on low terrain) → climb, nothing, re-pick, 5-min
@@ -3807,6 +3885,7 @@ function drawMapOverlays(ctx, S, range, opts) {
       const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
       if (d < bd) { bd = d; tgt = lm; }
     }
+    if (!tgt && q.wp) tgt = { x: q.wp.x, z: q.wp.z };   // SPEEDRUN FIX v6.7: the promised place still draws (chunk unloaded)
     if (!tgt) continue;
     const [qx, qy] = toMap(tgt.x, tgt.z);
     const cx = Math.max(10, Math.min(S - 10, qx)), cy = Math.max(10, Math.min(S - 10, qy));

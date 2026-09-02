@@ -445,6 +445,34 @@ human players get them too**; the brains only had to be taught the doors exist (
   heal/bolt/recap/once-only · bonded-pack charge-intercept with deterministic roll + the
   roll-fails control. Adjacent suites green: smoke, menu_trophy_ai (v6.6), events, pack, campaign.
 
+### 7f · v6.8 — the M47 human-speedrun fixes MERGED onto the boss-kit (2026-09-02b)
+
+- **What happened:** the trainer's human-speedrun session had been sitting unmerged on PR #1
+  (`arena/01a061fd-aurorawolf`) while `main` moved on to the v6.7 boss-kit. The two lines are
+  **unrelated histories** — `main` is a single orphan commit, so `git merge-base` is empty and PR #1
+  could never merge. Reconciled by **cherry-picking `d70296d` + `1fb4b97` onto `main`**: zero
+  conflicts (only `src/p4.js` is touched by both sides), then `python3 build.py` rebuilt
+  `index.html` (1240 KB). **PR #1 is superseded — close it.**
+- **Version labels:** v6.7 = the BOSS-KIT (stays). v6.8 = the M47 speedrun work (relabelled; it had
+  also called itself v6.7 on the branch).
+- **v6.8 content:** B8 (Legends died with their chunk + the bite only scanned per-chunk lists —
+  the campaign was **unbeatable**), B9 (echo/clone Legends leaked past `Boss.die()`), B10 (a Legend
+  walked along its own nose), the boss combat grammar (constant-rate neck turn 2.2·(1+0.15·phase),
+  ×0.18 through the 0.55 s plant, blow lands where the swing ENDS in the player's own ~78° arc —
+  previously the heading snapped on every tick so every bite was 1 dmg, and the claw was undodgeable),
+  three dead perks wired up, deed waypoints surviving chunk unloads, the fresh-save name prompt.
+- **New in the repo:** `test/speedrun/` (human.mjs / run.mjs / probe_fight.mjs / probe_boss_dps.mjs),
+  `test/browserlab/boot.sh`, `TRAINING_MANUAL.md`, `ENVIRONMENT.md`; reports gitignored under
+  `test/speedrun/runs/`.
+- **Environment (Arena sandbox):** see `ENVIRONMENT.md` — the egress is an allowlist (github + npm +
+  PyPI only), so Chromium comes from `@sparticuz/chromium` 149.0.7827.0 + Debian nspr/nss libs, and
+  Drive payloads arrive via the `env-relay` Actions workflow. `bash /home/user/setup_env.sh` rebuilds
+  all of it in ~2 min. The Drive zip `training v2.zip` was audited: **byte-identical to commit
+  `855eb4e` (v6.6)** — its only unique content is `.revontulet.keystore` (restored to `~/`) and
+  `.ghtoken` (left in the zip by trainer decision; never committed — `.gitignore` blocks it).
+- **Standing order:** finish the human-speedrun session (no bot, no brain) to the Tier-1 trophy and
+  record it in `TRAINING_MANUAL.md` **before** resuming GEN 56.
+
 ### 7d · CRITICAL BUGFIX — Rafzzer button died after TROPHIES → BACK (2026-09-01, user report)
 
 - **Symptom:** opening 🏆 TROPHIES from the main menu and returning (BACK) made the 🧠 Rafzzer

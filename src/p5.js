@@ -153,6 +153,7 @@ window.CAMP = (() => {
   const qExplore = () => {
     const lm = pickLandmark();
     if (lm) return { id: uid(), camp: true, stage: 'q0', kind: 'explore', lmType: lm.type, need: 1, have: 0, icon: icon('explore'),
+      wp: { x: lm.x, z: lm.z },   // SPEEDRUN FIX v6.7: landmarks live and die with their chunk — the deed keeps the place it promised
       title: 'Discover the ' + (lm.label || lm.type), biome: lm.biome || curBiomeKey,
       desc: 'Seek out an unfound place on the map — the land keeps secrets.',
       rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP' };
@@ -180,6 +181,7 @@ window.CAMP = (() => {
     const need = 2 + (S.tier - 1);
     if (!lm) return qCollect(lmTypes.length ? 'mushroom' : 'herb', 3 + (S.tier - 1), 'q1');
     return { id: uid(), camp: true, stage: 'q1', kind: 'explore', lmType: lm.type, need, have: 0, icon: icon('scout'),
+      wp: { x: lm.x, z: lm.z },   // SPEEDRUN FIX v6.7: the track deed keeps the first landmark it named
       title: 'Track: find ' + need + ' landmarks', biome: lm.biome || curBiomeKey,
       desc: 'Read the land like a tracker — ' + need + ' undiscovered places.',
       rw: { xp: 130 * Σ() }, rwText: Math.round(130 * Σ()) + ' XP' };
@@ -294,6 +296,7 @@ window.CAMP = (() => {
     try { lm = (landmarkList || []).find(l => !l.found && l.type && (!(t > 1) || l.biome === curBiomeKey || Math.random() < 0.6)) || (landmarkList || []).find(l => !l.found); } catch (e) { }
     if (!lm) return null;
     return { id: uid(), camp: true, side: true, stage: 'prep', kind: 'explore', lmType: lm.type, need: 1, have: 0, icon: '🧭',
+      wp: { x: lm.x, z: lm.z },   // SPEEDRUN FIX v6.7: an errand must not lose its destination either
       title: 'Side: Trail of Firsts — find a ' + (lm.label || lm.type), biome: lm.biome || curBiomeKey,
       timed: true, deadline: tSec + 180 + 40 * t,
       desc: 'A discovery run: map an unfound place of the ' + (lm.type || 'land') + '. The map pays, the map remembers.',
@@ -629,3 +632,13 @@ window.CAMP = (() => {
   };
 })();
 if (window.CAMP && window.CAMP.init) window.CAMP.init();
+/* SPEEDRUN FIX v6.7 — the name prompt never showed on a FRESH save. p4 injects the
+   start overlay while it parses (initBoot → showOverlay('start')), which happens
+   BEFORE this module exists, so onMenuRefresh() never ran on the first menu and
+   #nameRow stayed at its inline display:none — a new player could not name the wolf
+   (every trophy recorded "Wolf") until they happened to revisit the menu. Refresh
+   the overlay now that the campaign exists. Proven by test/speedrun/_menu_probe.mjs (fresh save: #nameRow visible, #plName2 focusable). */
+try {
+  const ov = document.getElementById('overlay');
+  if (ov && ov.dataset.mode === 'start' && !ov.classList.contains('hidden') && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();
+} catch (e) { }

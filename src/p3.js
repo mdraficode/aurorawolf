@@ -524,7 +524,11 @@ class Wolf {
     if (this.sprintLock && this.exhausted && this.stamina > 1) this.exhausted = false;   // a locked sprint is reborn at the first breath of stamina
     let sprint = input.sprint && moving && !this.exhausted && this.stamina > 0 && !this.swimming;
     if (sprint) {
-      this.stamina -= 15 * dt;
+      /* Spring Steps (the Ancient Stag's / Eagle Legend's gift) — sprint stamina
+         drains 25 % slower. SPEEDRUN FIX v6.8: the gift was granted and described
+         in the toast but wired to NOTHING, so the stamina economy a Legend fight
+         needs never arrived. */
+      this.stamina -= 15 * dt * (this.perks.springSteps ? 0.75 : 1);
       if (this.stamina <= 0) { this.stamina = 0; this.exhausted = true; sprint = false; }
     } else if (!this.swimming) {
       // no regen while swimming — the swim block drains it instead
@@ -581,7 +585,11 @@ class Wolf {
 
     let target = 0;
     if (moving) {
-      target = this.swimming ? 4.2 : (sprint ? 13.5 : 7);
+      /* Thunder Charge (the Thunder Bison's / Lion Legend's gift) — sprint 12 %
+         faster. SPEEDRUN FIX v6.8: was a dead perk (name + description only); it is
+         the difference between 3.1 and 3.4 rad/s of orbit on a Legend's flank, i.e.
+         between "keeps the blind side" and "loses it to the turn rate". */
+      target = this.swimming ? 4.2 : (sprint ? 13.5 * (this.perks.thunderCharge ? 1.12 : 1) : 7);
       target *= clamp(0.55 + 0.45 * Math.min(1, mag), 0.55, 1); // joystick deflection scales speed
     }
     if (moving && this.grounded) {
@@ -776,18 +784,27 @@ class Wolf {
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     let best = null, bestD = 99;
     const fightable = rivals.filter(r => !(r.pack && r.pack.stance === 'bonded'));   // never bite your own pack
+    /* BUG B8 companion (speedrun rig, 2026-09-02): a Legend is a campaign actor that can
+       outlive the chunk it was born in (see disposeChunk), and it hunts across chunk
+       borders while its home chunk unloads behind it — so Legends are scanned from the
+       global list too. Without this the wolf could stand on top of a Legend and every
+       bite would silently find nothing: an unbeatable campaign. */
+    const legends = typeof bosses !== 'undefined' ? bosses : [];
+    const offer = a => {
+      if (!a || a.dead) return;
+      const dx = a.pos.x - this.pos.x, dz = a.pos.z - this.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 3.6 + a.sp.scale * 0.7 || Math.abs(a.pos.y - this.pos.y) > 3.5) return;
+      const dot = (dx * fx + dz * fz) / (d || 1);
+      if (dot < 0.2) return;       // ~78° bite cone in front
+      if (d < bestD) { bestD = d; best = a; }
+    };
     for (const ch of chunks.values()) {
-      const targets = ch.animals.concat(ch.predators).concat(fightable);
-      for (const a of targets) {
-        if (a.dead) continue;
-        const dx = a.pos.x - this.pos.x, dz = a.pos.z - this.pos.z;
-        const d = Math.hypot(dx, dz);
-        if (d > 3.6 + a.sp.scale * 0.7 || Math.abs(a.pos.y - this.pos.y) > 3.5) continue;
-        const dot = (dx * fx + dz * fz) / (d || 1);
-        if (dot < 0.2) continue;   // ~78° bite cone in front
-        if (d < bestD) { bestD = d; best = a; }
-      }
+      for (const a of ch.animals) offer(a);
+      for (const a of ch.predators) offer(a);
+      for (const a of fightable) offer(a);
     }
+    for (const a of legends) offer(a);
     pool.burst(V3(this.pos.x + fx * 1.5, this.pos.y + 0.9, this.pos.z + fz * 1.5), 0, 0xfff2c8, 0.9, 1.6, 3.2);   // (dust removed — the strike shows in the body now)
     if (best) {
       // where does the bite land? behind · flank · face
@@ -1401,7 +1418,7 @@ const AnimalDetection = {
     const d = a.pos.distanceTo(wolf.pos);
     let range = a.sp.detect * a.stats.detectMul;
     range *= wolf.speed > 6 ? 1.3 : wolf.speed > 3 ? 0.85 : 0.55;   // wolf speed = noise
-    if (wolf.crouch) range *= 0.45;   // low and quiet
+    if (wolf.crouch) range *= wolf.perks.shadowStep ? 0.22 : 0.45;   // low and quiet — Shadow Step (the Shadow Wolf's / Leopard Legend's gift) makes prowling nearly invisible. SPEEDRUN FIX v6.8: the perk was granted but never read anywhere.
     range *= ecoNight() ? (a.sp.nocturnal ? 1.15 : 0.8) : (a.sp.nocturnal ? 0.8 : 1);
     if (weather.rain > 0.3 || weather.snow > 0.3) range *= 0.82;    // heavy weather masks
     if (wolf.swimming) range *= 0.7;
