@@ -1,0 +1,88 @@
+name: auto-integrate
+# ============================================================================
+# ONE REPO, ONE BRANCH. The Arena sandbox can only push to its own session
+# branch (arena/<id>-aurorawolf); it is never allowed to touch main directly.
+# This workflow is the single door into main:
+#
+#   push to arena/**  ->  verify build + key suites  ->  merge into main
+#                       ->  delete the session branch
+#
+# Net effect for the trainer: the repo only ever has `main`. The session branch
+# exists for the few minutes an update is in flight and then removes itself.
+# Merging to main is what publishes — Pages builds from main (see LINKS.md).
+#
+# If the gate fails, main is NOT touched and the branch is left in place on
+# purpose: a lingering branch means "this update did not ship".
+# ============================================================================
+on:
+  push:
+    branches: ['arena/**']
+
+permissions:
+  contents: write
+
+# one integration at a time, so two pushes can't race for main
+concurrency:
+  group: auto-integrate-main
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install deps (the runner HAS internet, so real Chromium works here)
+        run: |
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Gate 1 — index.html must be reproducible from src/
+        run: |
+          python3 build.py
+          if ! git diff --exit-code --quiet index.html; then
+            echo "::error::index.html is STALE — src/ changed without a rebuild. Run 'python3 build.py' and commit."
+            git diff --stat index.html
+            exit 1
+          fi
+          echo "build reproducible ✓"
+
+      - name: Gate 2 — key suites (boot, crown button, boss-kit, campaign, pack)
+        run: |
+          set -e
+          for t in smoke.mjs menu_trophy_ai.mjs bosskit.test.mjs campaign.test.mjs pack.test.mjs; do
+            printf '%-24s ' "$t"
+            node "test/$t" >/dev/null && echo PASS || { echo FAIL; exit 1; }
+          done
+
+      - name: Merge into main
+        run: |
+          set -e
+          BR="${GITHUB_REF#refs/heads/}"
+          git config user.name  'arena-integrator[bot]'
+          git config user.email 'arena-integrator[bot]@users.noreply.github.com'
+          git fetch origin main
+          git checkout -B main origin/main
+          # --no-ff: the sandbox may restore a session branch that sits BEHIND main
+          # (main advanced on a previous integration), so never assume fast-forward.
+          # Two -m flags (not an embedded blank line) so this stays valid YAML.
+          BODY="$(git log -1 --format='%s%n%n%b' "$GITHUB_SHA")"
+          if git merge --no-ff "$GITHUB_SHA" -m "Integrate $BR into main" -m "$BODY"; then
+            git push origin main
+            echo "merged $(git rev-parse --short HEAD) into main"
+          else
+            echo "::error::merge into main conflicted — resolve by hand, main untouched"
+            exit 1
+          fi
+
+      - name: Delete the session branch (keep the repo to a single branch)
+        run: |
+          BR="${GITHUB_REF#refs/heads/}"
+          git push origin --delete "$BR"
+          echo "deleted $BR — the repo is back to main only"
