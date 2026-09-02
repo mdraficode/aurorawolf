@@ -1085,6 +1085,33 @@
         if (!bot.questLock || bot.questLock.id !== q.id) { bot.questLock = { id: q.id, until: SIMNOW() + 60000 }; log('quest-lock', { title: q.title, msg: 'taking up the deed: ' + q.title }); }
         else if (SIMNOW() > bot.questLock.until - 15000) bot.questLock.until = SIMNOW() + 60000;   // still working it — hold
       }
+      // v6.7 boss-kit pilgrimage: before the trial, claim the sky's gifts — the fallen star
+      // (Deep Bite +1 bite) and the white stag (Wild-Hardened +5 hp). SHORT detours only,
+      // subordinate to every emergency branch above (flee/rest/drink ran first) and to the
+      // deed locks; only while no legend stands on the field. The boss road still leads.
+      if (!bot.goalOverride && !targetAnimal && !targetPk && (mode === 'wander' || mode === 'travel') && frac > 0.6 && !(typeof bosses !== 'undefined' && bosses.length)) {
+        if (!wolf.perks.strongJaw && typeof meteorSite !== 'undefined' && meteorSite && meteorSite.lm && !meteorSite.lm.found) {
+          const ms = meteorSite.lm, dms = Math.hypot(ms.x - wolf.pos.x, ms.z - wolf.pos.z);
+          if (dms < 380 && (mode === 'wander' || dms + 60 < bestD)) {
+            bestD = dms + 60; q = null; goal = { x: ms.x, z: ms.z }; mode = 'travel';
+            bot.goalText = '☄️ star-gift → Deep Bite';
+            if (SIMNOW() - (bot.starLogT || 0) > 20000) { bot.starLogT = SIMNOW(); log('perk-trek', { msg: 'the fallen star calls — claiming Deep Bite', d: +dms.toFixed(0) }); }
+          }
+        }
+        if (!goal && !wolf.perks.wildHardened && typeof WORLD_EVENTS !== 'undefined' && WORLD_EVENTS.name === 'whiteStag') {
+          let stag = null, sd = 240;
+          for (const [, ch2] of chunks) for (const a of ch2.animals) {
+            if (a.dead || !a.luminous) continue;
+            const d2s = Math.hypot(a.pos.x - wolf.pos.x, a.pos.z - wolf.pos.z);
+            if (d2s < sd) { sd = d2s; stag = a; }
+          }
+          if (stag) {   // tracked live — old magic moves; approach to 12 m and be blessed
+            q = null; goal = { x: stag.pos.x, z: stag.pos.z }; mode = 'travel';
+            bot.goalText = '🦌 the white stag → Wild-Hardened';
+            if (SIMNOW() - (bot.stagLogT || 0) > 20000) { bot.stagLogT = SIMNOW(); log('perk-trek', { msg: 'old magic walks — approach for Wild-Hardened', d: +sd.toFixed(0) }); }
+          }
+        }
+      }
       // boss pilgrimage: a legend is awake & unslain and I'm strong enough → walk its land
       if (!bot.goalOverride && !targetAnimal && !targetPk && (mode === 'wander' || mode === 'travel') && frac > 0.75 && wolf.level >= 3) {
         for (const k in BOSSES) {

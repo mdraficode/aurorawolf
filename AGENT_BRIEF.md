@@ -9,7 +9,7 @@ a fresh agent can act immediately without asking the user anything.
 `README.md` (player-facing). `MASTER.md` and `AGENT_BRIEF.md` must BOTH be updated in the same
 commit whenever project state, law, architecture, or instructions change.
 
-**Snapshot:** 2026-09-01 · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
+**Snapshot:** 2026-09-02 (v6.7 boss-kit shipped; infers from 2026-09-01) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
 duplicate repo `github.com/mdraficode/aurorawolf-v2` (exact copy, created 2026-09-01; **RETIRED by
 user directive — never work in, sync, or push to v2**).
 
@@ -40,8 +40,8 @@ and publishes.
 | Publish (live-only bump) | `bash publish.sh github "msg"` — builds + pushes index.html via GitHub Contents API (~1–2 min). Prefer full `git push` so source and live build stay in lockstep |
 | Build | `python3 build.py` → index.html from shell.html + style.css + vendor/three.min.js + src/p1..p6 + autopilot.js |
 | Tests | Playwright + headless Chromium (SwiftShader). `npm install` + `npx playwright install chromium` + `sudo -n npx playwright install-deps chromium` per session (deps do NOT persist across snapshots) |
-| Current champion | **GEN 35 · fit 59** · L7 · 1200 xp · 126.6 xp/min · died to Level-8 Leopard · scars `{fight:1}` · **TIER 1, 0 trophies** |
-| Next generation | **GEN 40** (nothing spawned yet) |
+| Current champion | **GEN 50 · fit −55** (v6 basis; old 283/59 scores were wall-inflated) · 336 weights · **TIER 1, 0 trophies — the trophy is the frontier** |
+| Next generation | **GEN 56** (nothing spawned yet; runs on the **v6.7 boss-kit build**, see §4.5d) |
 
 ---
 
@@ -255,6 +255,34 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   legend protocol verification (GEN 53+), then the designed boss-kit (perks via world events, bonded
   pack damage-intercept) — the 3-dmg bite cannot win DPS races; ambush ×1.5 + crouch +1 = 7.5/bite is
   the multiplier.
+
+### 4.5d Session 2026-09-02 (v6.7 THE BOSS-KIT — the wall-breaker GEN 52's autopsy designed)
+- **Decision: build the documented boss-kit as game code first (trainer-chosen over resuming at GEN 56).**
+  The two perks (Deep Bite / Wild-Hardened) existed only on the CLASSIC quest board — unreachable under
+  the campaign — so the **mystic world events now grant them** (the docs' exact design: "perks as
+  world-event rewards").
+- **☄️ Deep Bite:** discover a meteor (`meteor` landmark, 19 m ring) → `perks.strongJaw`, once per run.
+  Max crouch-ambush bite vs a Legend becomes 6 base ×1.5 = **9** (was 7.5; plain front chip 1→2).
+- **🦌 Wild-Hardened:** within 12 m of a live white stag → `perks.wildHardened` + `hpBonus +5` → +5 max HP,
+  once ever, recalc-safe through death. The stag bolts after blessing.
+- **🐺 Pack intercept — full coverage:** boss **charge/pounce**, **submerge emergence** and **eagle dive**
+  now consult `PACK.intercept` (melee bite already did); terms unchanged (mate ≤3.6 m, 45%, toast).
+- **Autopilot:** boss-kit **perk pilgrimage** — in wander/travel, no live boss, hp>60%: unclaimed star
+  <380 m or live stag <240 m becomes the goal (`perk-trek` logs, throttled 20 s). Emergencies and deed
+  locks still outrank it; the howl policy / legend gate / v6.4d rest-drink discipline are UNTOUCHED.
+- **No changes to:** LAW v4 (perks are means, not score terms), NI=26 architecture, mutation schedule,
+  gate checks, champion (GEN 50, −55). Deliberately no new senses — the policy layer reads the world
+  directly (same as pilgrimage); brain surgery without a felt need is how GEN 40–48 died of churn.
+- **Tests:** `test/bosskit.test.mjs` added to `npm test` (A: star grant/guard/recap ✓ B: stag values
+  +5/+5/heal/bolt/once ✓ C: charge-intercept + roll-fail control ✓) — plus smoke, menu_trophy_ai,
+  events, pack, campaign all green on the v6.7 build.
+- **Env note (Arena sandbox):** only github.com is reachable; Playwright's CDN is blocked, so the browser
+  comes from `@sparticuz/chromium` (npm) symlinked into the ms-playwright registry —
+  `/home/user/setup_env.sh` re-does the whole env in ~2 min. Drive zips arrive via a one-shot Actions
+  relay on the session branch. **Trainer action pending: rotate the `~/.ghtoken` PAT** (it rode inside
+  the Drive zip and, briefly, a temporary branch commit — history already rewound).
+- **Next:** GEN 56 on the v6.7 build (champion GEN 50 · bar −55) — the kit answers the Leopard Legend;
+  then the announced-but-unspecified "major gameplay progress system update" when the trainer specs it.
 
 ### 4.6 Repository-hygiene decisions (2026-09-01)
 - `test/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.

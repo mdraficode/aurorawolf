@@ -337,8 +337,10 @@ Then simply continue at §8 (next gen = 40).
 
 ## 14 · Future direction & open threads
 
-1. **Survive the Legend fight** (GEN 36 reached it, died in ~18 s) → **close tier 1** → first tier
-   trophy (worth 1200 under LAW v4 — instantly dwarfs current fits).
+1. **Survive the Legend fight** (GEN 52 reached stage BOSS, died to the Leopard Legend) → **close
+   tier 1** → first tier trophy (worth 1200 under LAW v4 — instantly dwarfs current fits).
+   **The boss-kit is SHIPPED (v6.7, §7e):** Deep Bite + Wild-Hardened via the mystic events, full
+   boss-hit pack intercept, bot perk pilgrimage — GEN 56+ runs carry it.
 2. **Prove/exploit the side-channel:** does side-errand awareness raise xp/min and RUN.side for
    GEN 40+? (Sense 24 is zero-padded-untrained — the trait rows 180..259 give it evolution room.)
 3. **Speed + efficiency at higher tiers;** watch xpRate, qMin, avgQuestS, tier clock.
@@ -413,6 +415,35 @@ Then simply continue at §8 (next gen = 40).
 - **Verified:** real-page boot = gen 50, external=false (genuine shipped boot); local-best cases:
   fit −40 → local gen plays; fit −90 → champion GEN 50 plays. Harness runs unaffected
   (`RAFZ.load` injection overrides the seed); per-gen gates now exercise the champion brain.
+
+### 7e · v6.7 THE BOSS-KIT SHIPPED (2026-09-02) — the designed answer to the Legend wall
+
+GEN 52's autopsy called for it: the 3-dmg bite cannot win the DPS race against a 45-hp Legend —
+the kit multiplies the wolf before the fight. All three parts are **game code (neutral coding),
+human players get them too**; the brains only had to be taught the doors exist (perk pilgrimage).
+
+- **☄️ Deep Bite — the fallen star's gift.** Discovering a meteor site (the `meteor` landmark,
+  inside its 19 m discovery ring) grants `perks.strongJaw` — **+1 permanent bite damage**, once
+  per run. (This perk existed since the classic board's rival deeds — the CAMPAIGN board never
+  carried it, so the mystic event now does. Max ambush bite: 3+1 jaw +1 ambush +1 crouch = 6,
+  ×1.5 ambush = **9** vs the old 3-hit whittling.)
+- **🦌 Wild-Hardened — the stag's blessing.** Come within 12 m of the white stag (`whiteStag`
+  event) while it's alive: `perks.wildHardened` + `hpBonus +5` → **+5 permanent max HP**, once
+  ever, survives death (hpBonus is recalc-safe like every perk). It bolts after blessing you.
+- **🐺 Full pack intercept.** `PACK.intercept` already covered the boss melee bite; it now also
+  guards the three unguarded paths — **charge/pounce** (bison/lion), **submerge emergence**
+  (croc) and the **eagle dive**. Same terms: bonded mate within 3.6 m, 45% roll, the mate eats
+  the blow (`m.hurt`), toast + thud.
+- **Bot perk pilgrimage (autopilot):** in wander/travel with no legend on the field and hp>60%,
+  an unclaimed star-gift within 380 m or a live white stag within 240 m becomes the goal
+  (`☄️ star-gift → Deep Bite` / `🦌 the white stag → Wild-Hardened`, `perk-trek` log events,
+  20 s log throttle). Subordinate to all emergency branches and deed locks; expires on its own
+  (perk granted / site spent / stag gone). Howl policy, legend gate and LAW v4 **unchanged** —
+  perks are means, not scored ends.
+- **Tests:** `test/bosskit.test.mjs` (in `npm test`) proves all three: Deep Bite grant + recap +
+  +1 bite delta + once-only guard (two sites, one blessing) · Wild-Hardened perk/hpBonus/maxHp/
+  heal/bolt/recap/once-only · bonded-pack charge-intercept with deterministic roll + the
+  roll-fails control. Adjacent suites green: smoke, menu_trophy_ai (v6.6), events, pack, campaign.
 
 ### 7d · CRITICAL BUGFIX — Rafzzer button died after TROPHIES → BACK (2026-09-01, user report)
 
