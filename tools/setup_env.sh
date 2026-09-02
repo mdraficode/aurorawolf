@@ -89,4 +89,4 @@ node --input-type=module -e "
   console.log('      LAUNCH OK (' + await p.textContent('#x') + ', chromium ' + b.version() + ')');
   await b.close();"
 
-echo "READY — npm test / node test/rafzzer_gens.mjs status"
+echo "READY — npm test / node training/rafzzer_gens.mjs status"

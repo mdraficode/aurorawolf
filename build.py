@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the single-file game: index.html = shell + css + three.min.js + game parts.
 
-M46 v6.5: the built game bakes the LINEAGE CROWN — test/rafzzer_champion.json is injected as
+M46 v6.5: the built game bakes the LINEAGE CROWN — training/rafzzer_champion.json is injected as
 RAFZZER_SEED (+ RAFZZER_CHAMP_GEN/CHAMP_FIT), so the 🧠 Rafzzer button plays the current champion.
 src/autopilot.js keeps the wild seed 20070 as the dev fallback; nothing in src is overwritten.
 """
@@ -20,10 +20,10 @@ game = '\n'.join((src / f'p{i}.js').read_text() for i in (1, 2, 3, 4, 5, 6)) + '
 
 
 def bake_crown(blob):
-    """Inject the lineage champion (test/rafzzer_champion.json) as the shipped seed."""
-    champ_file = root / 'test' / 'rafzzer_champion.json'
+    """Inject the lineage champion (training/rafzzer_champion.json) as the shipped seed."""
+    champ_file = root / 'training' / 'rafzzer_champion.json'
     if not champ_file.exists():
-        print('build: no test/rafzzer_champion.json — keeping the wild seed (dev build)', file=sys.stderr)
+        print('build: no training/rafzzer_champion.json — keeping the wild seed (dev build)', file=sys.stderr)
         return blob
     try:
         c = json.loads(champ_file.read_text())
@@ -37,7 +37,7 @@ def bake_crown(blob):
         return blob
     seed_js = ('window.RAFZZER_SEED = ' + json.dumps([round(float(x), 6) for x in w]) +
                ';   // 🧠 M46 v6.5 baked crown: GEN ' + str(gen) + ' (fit ' + str(round(fit, 1)) +
-               ') — injected by build.py from test/rafzzer_champion.json\n' +
+               ') — injected by build.py from training/rafzzer_champion.json\n' +
                'window.RAFZZER_CHAMP_GEN = ' + str(gen) + '; window.RAFZZER_CHAMP_FIT = ' + repr(round(fit, 6)) + ';')
     new_blob, n = re.subn(r'window\.RAFZZER_SEED = \[[^\]]*\];', lambda m: seed_js, blob, count=1)
     if n != 1:

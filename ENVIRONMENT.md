@@ -62,7 +62,7 @@ Re-fetched 2026-09-02T20:14:44Z and audited file-by-file:
 | Entry | Verdict |
 |---|---|
 | `aurorawolf/` — 304 files, HEAD `855eb4e` (v6.6), **clean** working tree | **byte-identical to git**: all 301 tracked files match by sha256; `index.html` = `432d1405…`. Nothing lost. |
-| `shots/12_menu2.png`, `shots/13_play2.png`, `test/rafzzer_candidate.json` | gitignored regenerables |
+| `shots/12_menu2.png`, `shots/13_play2.png`, `training/rafzzer_candidate.json` | gitignored regenerables |
 | `.revontulet.keystore` (2575 B) | **unique** → restored to `~/.revontulet.keystore` (chmod 600) |
 | `.ghtoken` (40 B, sha256 `41c3035…`) | **unique — LIVE SECRET.** Not committed: the repo's own `.gitignore` (`.ghtoken`) blocks it. Still: rotate this PAT. |
 | `.pki/nssdb/*`, `.sudo_as_admin_successful` | browser/sudo cruft, ignored |

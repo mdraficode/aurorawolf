@@ -1,6 +1,6 @@
 # 🐞 Bug-Hunt Mission Report — Aurora Wolf
 > ✅ **RESOLVED — all actionable findings fixed, gated, and published.** Details in the Resolution Log at the bottom.
-> Replay any session live: serve the workspace and open `watch.html?autopilot=1` (autopilot build, bot plays on-screen with an event feed).
+> Replay any session live: serve the workspace and open `index.html?autopilot=1` (bot plays on-screen with an event feed). The stale `watch.html` snapshot was removed 2026-09-02 — it predated the crown bake; `index.html` is the only build.
 _Played autonomously from a fresh start, 3 sessions (~35 min of gameplay) + targeted verification battery. Seeds: 4242, 90210, 1313, 5150. Zero page errors across all play — the crash-proof loop held up._
 
 ## Legend

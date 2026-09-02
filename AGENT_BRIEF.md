@@ -99,7 +99,7 @@ and publishes.
   `pack.test.mjs` + many older suites. Collision suite has a pre-existing load flake (proven
   pre-existing — do not chase unless asked).
 - Per-generation artifacts (gate/run JSON + logs, ledger rows) committed at end of a generation;
-  cadence driver `bash test/m46_gen.sh <g> <cap>`.
+  cadence driver `bash training/m46_gen.sh <g> <cap>`.
 - Update MASTER.md + AGENT_BRIEF.md in the same commit that changes law/architecture/state.
 
 ---
@@ -129,7 +129,7 @@ pen = {fight:120, water:200, neglect:90, unknown:60} · (1 + 0.6·(tier−1));  
   · 25 gate urgency = level-up deed have/need**.
 - **Decision: architecture extension via ZERO-PAD, not reseed.** The GEN-35 champion (316 weights)
   was zero-padded to 336 (rows 24–25 = 0) so its behavior is preserved and rows evolve fresh;
-  `test/rafzzer_gens.mjs` auto-migrates a shorter champion on spawn. Old 276-weight brain archived
+  `training/rafzzer_gens.mjs` auto-migrates a shorter champion on spawn. Old 276-weight brain archived
   (`rafzzer_champion_lawv3_archive.json`).
 
 ### 4.3 Bot policy numbers (the cortex's behavior layer)
@@ -236,7 +236,7 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   continues until hp > max(restAt, 82%) AND stamina > 45; a drink trip only starts at hp > 55%.
   The flee log payload (`pack n @ dm → water/land`) is now the standard autopsy channel.
 - **v6.5 shipped crown bake (user decision: champion-first):** the shipped 🧠 button now boots the
-  lineage crown — `build.py` injects `test/rafzzer_champion.json` weights into `RAFZZER_SEED` +
+  lineage crown — `build.py` injects `training/rafzzer_champion.json` weights into `RAFZZER_SEED` +
   `RAFZZER_CHAMP_GEN/FIT` (src keeps the wild seed as dev fallback). Boot order: baked crown wins
   unless a browser's own `rafzzer_best` OUTSCORED the champion (local self-evolution starts from the
   champion and must beat its fit to play). Badge/death-log/load-log `+1` off-by-one removed (page
@@ -316,8 +316,29 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
 - **Next:** the human-speedrun session continues on this build. The Tier-1 trophy is still unclaimed;
   M47's honest number is **0.94 dps dealt vs 4.86 incoming** (the Leopard reaches 9 hp and the wolf dies).
 
+### 4.5f Session 2026-09-02c (repository consolidation — trainer directive: one place, no branches)
+- **Trainer directive:** merge everything into `main`, keep the repo clean, put training work in a
+  dedicated folder, and delete duplicate/redundant files.
+- **`training/` is now the ONLY home of RAFZZER work** (moved out of `test/`): the harness
+  (`rafzzer_gens.mjs` — its `const DIR = 'training'` is the single path switch), `rafzzer_ship.mjs`,
+  `rafzzer_train.sh`, `rafzzer_verdict.py`, `m46_gen.sh`, `m46_step.sh`, `m46_session_ledger.md`,
+  the champion/lineage/gate/run JSONs, `logs/` and `history/`. `build.py` now reads
+  **`training/rafzzer_champion.json`** — the crown bake still ships, it is just isolated.
+  `.gitignore` tracks `training/rafzzer_candidate.json`. Commands: `node training/rafzzer_gens.mjs
+  status`, `bash training/m46_gen.sh <g> <cap>`.
+- **`test/` is now tests only** — 109 → 38 entries. Removed **71 one-off probe/diagnostic scripts**
+  (`arrow_*`, `badge_*`, `btn_*`, `inv_*`, `tab_diag*`, `icon_*`, `orbit_*`, `*_probe`, `*_diag`…)
+  whose findings are already written up in BUGS.md/PLAYLOG.md. Every suite `npm test` runs is intact
+  (verified: no referenced file missing).
+- **Deleted as redundant:** `watch.html` (1.05 MB stale pre-crown-bake build — `index.html` is the only
+  build) and the four superseded handoffs `NEXT_DEV.md`, `M46_RESUME.md`, `M46_MISSION_BRIEF.md`,
+  `MISSION2.md` — all four still named **GEN 9 · fit 283** as champion (three crown moves stale) and
+  would have misdirected a fresh agent. Everything remains recoverable from git history.
+- **Bootstrap moved into the repo** (`tools/setup_env.sh` + `tools/chromium-libs/`): the turn boundary
+  wipes everything outside `/home/user/aurorawolf`, so the env recipe cannot live in `$HOME`.
+
 ### 4.6 Repository-hygiene decisions (2026-09-01)
-- `test/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.
+- `training/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.
 - `shots/*.png` regenerable → gitignored; `shots/README.md` + `forest.jpg` tracked.
 - **All 101 test files made repo-relative** (`pathToFileURL(fileURLToPath(import.meta.url) +
   '/../../index.html')`) — no `/home/user/index.html` hardcoding; suites pass from a fresh clone.
@@ -333,14 +354,14 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
 
 ## 5 · NEURAL TRAINING — HOW IT WORKS (for the next agent)
 
-1. `node test/rafzzer_gens.mjs status` — lineage + champion.
-2. `bash test/m46_gen.sh <g> <cap>` — spawn→gate→run with auto-cadence (exit 3 = stop).
-3. `node test/rafzzer_gens.mjs promote <g> --verdict=reject|promote --note="…"` — trainer verdict;
-   `promote` rewrites `test/rafzzer_champion.json` only if gate PASSED **and** fitness > champion.
+1. `node training/rafzzer_gens.mjs status` — lineage + champion.
+2. `bash training/m46_gen.sh <g> <cap>` — spawn→gate→run with auto-cadence (exit 3 = stop).
+3. `node training/rafzzer_gens.mjs promote <g> --verdict=reject|promote --note="…"` — trainer verdict;
+   `promote` rewrites `training/rafzzer_champion.json` only if gate PASSED **and** fitness > champion.
 4. Read the run report: fitness, tier/trophies/topTier/topTime/clock, xpMin, qMin, avgQuestS,
    maxLevel, cause, `side` (RUN.side), warns/errs, beats, scars, knobs.
 5. Judge with the LAW (trophies ≫ road ≫ efficiency; deaths pay tier-scaled penalty; side errands
-   +25 capped 3). Update `test/m46_session_ledger.md` + MASTER.md §9 + AGENT_BRIEF §3/§6.
+   +25 capped 3). Update `training/m46_session_ledger.md` + MASTER.md §9 + AGENT_BRIEF §3/§6.
 6. Commit everything (collect-at-end) + push + (if game build changed) `publish.sh github`.
 
 **Footguns:** background jobs don't survive turn boundaries (a generation must be run and awaited in
@@ -376,7 +397,7 @@ git config user.name "…" && git config user.email "…"        # git config is
 npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium
 python3 build.py          # committed index.html is already built; rebuild to be certain
 node test/side.test.mjs && node test/campaign.test.mjs && node test/pack.test.mjs
-node test/rafzzer_gens.mjs status   # champion GEN 35 fit 59, lineage to GEN 39
+node training/rafzzer_gens.mjs status   # champion GEN 35 fit 59, lineage to GEN 39
 # push (needs ~/.ghtoken):  git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git main:main
 ```
 

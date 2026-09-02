@@ -5,15 +5,15 @@ import { pathToFileURL, fileURLToPath } from 'url';
 // learnings forward without an explicit `promote --verdict=promote` — a decision
 // made by the trainer after reading the reports, never by the machine alone.
 //
-//   node test/rafzzer_gens.mjs status
-//   node test/rafzzer_gens.mjs spawn 1          # mutate champion → candidate
-//   node test/rafzzer_gens.mjs gate 1           # shakedown on probe seed (110 s)
-//   node test/rafzzer_gens.mjs run 1 480        # full generation on lineage seed
-//   node test/rafzzer_gens.mjs promote 1 --verdict=promote --note="..."
+//   node training/rafzzer_gens.mjs status
+//   node training/rafzzer_gens.mjs spawn 1          # mutate champion → candidate
+//   node training/rafzzer_gens.mjs gate 1           # shakedown on probe seed (110 s)
+//   node training/rafzzer_gens.mjs run 1 480        # full generation on lineage seed
+//   node training/rafzzer_gens.mjs promote 1 --verdict=promote --note="..."
 import { chromium } from 'playwright';
 import fs from 'fs';
 
-const DIR = 'test';
+const DIR = 'training';
 const CHAMP = `${DIR}/rafzzer_champion.json`, CAND = `${DIR}/rafzzer_candidate.json`, LINE = `${DIR}/rafzzer_lineage.json`, TRAITCHAMP = `${DIR}/rafzzer_traitchamp.json`;
 const read = f => JSON.parse(fs.readFileSync(f, 'utf8'));
 const write = (f, o) => fs.writeFileSync(f, JSON.stringify(o));
