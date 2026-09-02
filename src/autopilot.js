@@ -6,9 +6,9 @@
    yield ground, how patiently to stalk, how freely to sprint. Weights are born from the
    baked champion RAFZZER_SEED and evolve ONLY through gated generations: every death is
    scored, and a mutant may carry its learnings forward solely if it passed the human
-   verification gate (test/rafzzer_gens.mjs). Deaths also write SCARS — lineage memory
+   verification gate (training/rafzzer_gens.mjs). Deaths also write SCARS — lineage memory
    that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1.
-   M46 v6.5 (crown bake): build.py injects the lineage champion (test/rafzzer_champion.json)
+   M46 v6.5 (crown bake): build.py injects the lineage champion (training/rafzzer_champion.json)
    into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT, so the shipped 🧠 button plays the current crown
    (GEN 50, fit −55 at the time of writing); a browser's own rafzzer_best may only play if it
    outscored the champion. src/autopilot.js keeps the wild mind as the dev fallback. */
@@ -90,7 +90,7 @@
     const S = { gen: 0, weights: null, scars: { fight: 0, neglect: 0, water: 0 }, hist: {}, outs: [], xs: null, last: null, lastXp: null, xpEMA: 0, goalD: 99, wasSwim: false, external: false, ticks: 0 };
     const NOLEARN = /[?&]nolearn=1/.test(location.search) || !!window.RAFZZER_NO_STORE;   // harness builds: node owns the lineage
     // M46 v6.5: the shipped game boots the BAKED lineage crown — build.py injects the champion
-    // (test/rafzzer_champion.json) into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT. A browser's own
+    // (training/rafzzer_champion.json) into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT. A browser's own
     // rafzzer_best may only play if it BEAT the champion's fitness: local evolution starts FROM
     // the champion and must outscore it to take the field. Without a baked crown (dev/src or a
     // stale build) the old order stands — local best first, wild seed as the fallback.

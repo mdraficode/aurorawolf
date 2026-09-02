@@ -1918,7 +1918,11 @@ class Wolf {
     if (this.sprintLock && this.exhausted && this.stamina > 1) this.exhausted = false;   // a locked sprint is reborn at the first breath of stamina
     let sprint = input.sprint && moving && !this.exhausted && this.stamina > 0 && !this.swimming;
     if (sprint) {
-      this.stamina -= 15 * dt;
+      /* Spring Steps (the Ancient Stag's / Eagle Legend's gift) — sprint stamina
+         drains 25 % slower. SPEEDRUN FIX v6.8: the gift was granted and described
+         in the toast but wired to NOTHING, so the stamina economy a Legend fight
+         needs never arrived. */
+      this.stamina -= 15 * dt * (this.perks.springSteps ? 0.75 : 1);
       if (this.stamina <= 0) { this.stamina = 0; this.exhausted = true; sprint = false; }
     } else if (!this.swimming) {
       // no regen while swimming — the swim block drains it instead
@@ -1975,7 +1979,11 @@ class Wolf {
 
     let target = 0;
     if (moving) {
-      target = this.swimming ? 4.2 : (sprint ? 13.5 : 7);
+      /* Thunder Charge (the Thunder Bison's / Lion Legend's gift) — sprint 12 %
+         faster. SPEEDRUN FIX v6.8: was a dead perk (name + description only); it is
+         the difference between 3.1 and 3.4 rad/s of orbit on a Legend's flank, i.e.
+         between "keeps the blind side" and "loses it to the turn rate". */
+      target = this.swimming ? 4.2 : (sprint ? 13.5 * (this.perks.thunderCharge ? 1.12 : 1) : 7);
       target *= clamp(0.55 + 0.45 * Math.min(1, mag), 0.55, 1); // joystick deflection scales speed
     }
     if (moving && this.grounded) {
@@ -2170,18 +2178,27 @@ class Wolf {
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
     let best = null, bestD = 99;
     const fightable = rivals.filter(r => !(r.pack && r.pack.stance === 'bonded'));   // never bite your own pack
+    /* BUG B8 companion (speedrun rig, 2026-09-02): a Legend is a campaign actor that can
+       outlive the chunk it was born in (see disposeChunk), and it hunts across chunk
+       borders while its home chunk unloads behind it — so Legends are scanned from the
+       global list too. Without this the wolf could stand on top of a Legend and every
+       bite would silently find nothing: an unbeatable campaign. */
+    const legends = typeof bosses !== 'undefined' ? bosses : [];
+    const offer = a => {
+      if (!a || a.dead) return;
+      const dx = a.pos.x - this.pos.x, dz = a.pos.z - this.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 3.6 + a.sp.scale * 0.7 || Math.abs(a.pos.y - this.pos.y) > 3.5) return;
+      const dot = (dx * fx + dz * fz) / (d || 1);
+      if (dot < 0.2) return;       // ~78° bite cone in front
+      if (d < bestD) { bestD = d; best = a; }
+    };
     for (const ch of chunks.values()) {
-      const targets = ch.animals.concat(ch.predators).concat(fightable);
-      for (const a of targets) {
-        if (a.dead) continue;
-        const dx = a.pos.x - this.pos.x, dz = a.pos.z - this.pos.z;
-        const d = Math.hypot(dx, dz);
-        if (d > 3.6 + a.sp.scale * 0.7 || Math.abs(a.pos.y - this.pos.y) > 3.5) continue;
-        const dot = (dx * fx + dz * fz) / (d || 1);
-        if (dot < 0.2) continue;   // ~78° bite cone in front
-        if (d < bestD) { bestD = d; best = a; }
-      }
+      for (const a of ch.animals) offer(a);
+      for (const a of ch.predators) offer(a);
+      for (const a of fightable) offer(a);
     }
+    for (const a of legends) offer(a);
     pool.burst(V3(this.pos.x + fx * 1.5, this.pos.y + 0.9, this.pos.z + fz * 1.5), 0, 0xfff2c8, 0.9, 1.6, 3.2);   // (dust removed — the strike shows in the body now)
     if (best) {
       // where does the bite land? behind · flank · face
@@ -2795,7 +2812,7 @@ const AnimalDetection = {
     const d = a.pos.distanceTo(wolf.pos);
     let range = a.sp.detect * a.stats.detectMul;
     range *= wolf.speed > 6 ? 1.3 : wolf.speed > 3 ? 0.85 : 0.55;   // wolf speed = noise
-    if (wolf.crouch) range *= 0.45;   // low and quiet
+    if (wolf.crouch) range *= wolf.perks.shadowStep ? 0.22 : 0.45;   // low and quiet — Shadow Step (the Shadow Wolf's / Leopard Legend's gift) makes prowling nearly invisible. SPEEDRUN FIX v6.8: the perk was granted but never read anywhere.
     range *= ecoNight() ? (a.sp.nocturnal ? 1.15 : 0.8) : (a.sp.nocturnal ? 0.8 : 1);
     if (weather.rain > 0.3 || weather.snow > 0.3) range *= 0.82;    // heavy weather masks
     if (wolf.swimming) range *= 0.7;
@@ -4323,7 +4340,14 @@ function disposeChunk(chunk) {
   for (const m of chunk.vegMeshes) { if (m.userData.ownGeo) m.userData.ownGeo.dispose(); if (m.dispose) m.dispose(); }
   for (const a of chunk.animals) { if (!a.dead && ECO_CAP[a.name] !== undefined) ECO_POP[a.name]++; a.dispose(); }
   chunk.animals.length = 0;
-  for (const pr of chunk.predators) pr.dispose();
+  /* BUG B8 (found by the speedrun rig, 2026-09-02): a LEGEND used to be disposed here.
+     A Boss registers itself in the chunk it SPAWNED in, and the wolf's bite only scans
+     loaded chunks — so once the player outran that chunk (fleeing to heal, kiting, or
+     just being chased 260 m across the map) disposeChunk() deleted the Legend outright:
+     model gone, bosses[] entry gone, and THE CAMPAIGN SOFTLOCKED because its boss stage
+     waits forever for an onSlain that can now never fire. A Legend is a story actor, not
+     scenery: detach it from the chunk, leave it alive and hunting. */
+  for (const pr of chunk.predators) if (!(pr instanceof Boss)) pr.dispose();
   chunk.predators.length = 0;
   for (const lm of chunk.landmarks) { scene.remove(lm.model); const i = landmarkList.indexOf(lm); if (i >= 0) landmarkList.splice(i, 1); }
   chunk.landmarks.length = 0;
@@ -6811,6 +6835,7 @@ class Boss {
     this.dead = false;
     this.state = 'stalk';
     this.atkCd = 0;
+    this.biteT = 0; this.biteWind = 0.55; this.biteDmg = 0; this.biteKb = 1;   // telegraphed strike (v6.7)
     this.specT = 5 + Math.random() * 3;
     this.subT = 0;          // submerge/burrow timer
     this.invuln = false;
@@ -6862,6 +6887,12 @@ class Boss {
       toast(`✨ ${this.def.name} falls — its gift is yours: ${this.def.abilityName} (${this.def.abilityDesc})`, true);
       if (this.quest) { const i = QUESTS.active.indexOf(this.quest); if (i >= 0) QUESTS.active.splice(i, 1); if (!this.quest._done) { this.quest._done = true; QUESTS.done.push(this.quest); questsDoneByBiome[this.biome] = (questsDoneByBiome[this.biome] || 0) + 1; } questHudDirty = true; }
       if (this.def.onSlain) this.def.onSlain(this);   // CAMPAIGN: story, rewards, next Legend
+      /* BUG B9 (found by the speedrun rig): the shadow-wolf / beast-master echoes this
+         Legend bred were never cleaned up. They outlived it at full damage, hunted the
+         player through the NEXT leg of the campaign, and — because bosses[] stayed
+         non-empty — permanently locked the old-path fast travel ("Not while a legend
+         watches"). A legend's magic dies with the legend. */
+      for (const c of [...bosses]) if (c !== this && c.isClone && !c.dead) { c.dead = true; c.dispose(); }
       const bb = el('bossBar'); if (bb) bb.classList.remove('show');
       music.boss = false;
     }
@@ -6971,20 +7002,79 @@ class Boss {
       }
       return;
     }
-    // approach
-    this.heading = Math.atan2(dx, dz);
-    if (d > this.sp.reach + 0.6) {
-      this.pos.x += Math.sin(this.heading) * sp * dt;
-      this.pos.z += Math.cos(this.heading) * sp * dt;
+    /* ---- approach, and TURN like every other creature in the wild ----
+       SPEEDRUN FIX v6.7 (the DPS wall — this made the tier-1 trophy UNREACHABLE):
+       the heading used to SNAP onto the wolf on every single tick, so `facing` in
+       Wolf.attack() was always +1.00 → every bite on a Legend was a FACE bite for
+       1 damage. The whole advertised combat grammar (behind ×3 · flank ×2 · the
+       blind-side AMBUSH ×1.5 · prowl +1 · Deep Bite +1) was dead content against
+       bosses, so the deep Legends were a pure maths wall: Bear 112 hp = 84 s of
+       uninterrupted biting, Beast Master 190 hp = 142 s, while the Legend lands
+       14–26 damage every 1.25 s. Measured proof: test/speedrun/probe_boss_dps.mjs
+       (boss-facing 1.00 from all 8 bearings, 1 dmg standing / 2 with Deep Bite).
+       Now the heading EASES at a turn rate a sprinting wolf can outrun and a
+       walking wolf cannot (orbit: sprint 13.5/4.4 m ≈ 3.1 rad/s > 2.2 rad/s;
+       walk 7/4.4 ≈ 1.6 rad/s < 2.2), so the blind side is something you EARN —
+       exactly the skill the rest of the game already teaches. */
+    const wantH = Math.atan2(dx, dz);
+    /* SPEEDRUN FIX v6.7b — CONSTANT-RATE turn, not exponential easing. Easing leaves a
+       permanent bearing lag proportional to the target's orbit rate (lag ≈ ω/k), so even a
+       player who merely WALKED the circle stayed outside the strike arc and the Legend
+       could not bite anything: probe 3 measured 0.09 dps in over 200 s. A constant-rate
+       turn is the honest race it should be — a Legend that turns faster than you run
+       catches up and holds your bearing (you eat the swing), one that turns slower never
+       does (it bites air). Walk 7 m/s at 3.9 m = 1.8 rad/s < 2.2 → caught.
+       Sprint 13.5 m/s at 3.9 m = 3.5 rad/s > 2.2 → never caught. */
+    const turnRate = (this.def.flight ? 5 : 2.2) * (1 + this.phase * 0.15) * (this.biteT > 0 ? 0.18 : 1);
+    const dTurn = wrapPI(wantH - this.heading);
+    const stepT = Math.min(Math.abs(dTurn), turnRate * dt);
+    this.heading = wrapPI(this.heading + (dTurn < 0 ? -stepT : stepT));
+    if (this.biteT > 0) {
+      /* SPEEDRUN FIX v6.7 (the survival wall): the Legend's bite used to land the
+         instant its cooldown expired, from any angle, with no wind-up — an
+         undodgeable 11–21 dps. It now plants, telegraphs (growl + dust + rear-back,
+         the same 0.36→0.55 s claw-then-bite every predator and rival wolf uses) and
+         the blow lands where the swing ENDS, inside the same ~78° arc the player's
+         own bite uses. Keep sprinting the circle and the Legend bites air; hesitate,
+         walk, or run out of stamina and you eat it. */
+      this.biteT -= dt;
+      this.model.rotation.x = -0.20 * Math.max(0, this.biteT / this.biteWind);
+      if (this.biteT <= 0) {
+        this.model.rotation.x = 0;
+        const dd = Math.hypot(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
+        const dot = dd ? (Math.sin(this.heading) * (wolf.pos.x - this.pos.x) + Math.cos(this.heading) * (wolf.pos.z - this.pos.z)) / dd : 1;
+        if (dd <= this.sp.reach * 1.35 && dot >= 0.2) {
+          if (!(window.PACK && window.PACK.intercept(this, this.biteDmg, this.def.name, this.def.icon)))
+            wolfTakeDamage(this.biteDmg, this.pos, this.def.name, this.def.icon, this.biteKb);
+        } else {   // a whiff — the player circled out of the arc
+          pool.burst(V3(this.pos.x + Math.sin(this.heading) * 2.3, this.pos.y + 1.2, this.pos.z + Math.cos(this.heading) * 2.3), 7, 0xd8d2c0, 0.9, 1.5, 1.9);
+          audio.thud();
+        }
+      }
+    } else if (d > this.sp.reach + 0.6) {
+      /* BUG B10 (found by the speedrun rig, 2026-09-02): the Legend used to WALK ALONG ITS
+         OWN NOSE. That is honest for the strike arc — the constant-rate neck turn (fix v6.7b)
+         is the whole blind-side grammar — but it is degenerate for locomotion: a player who
+         wins the turn race (orbit 3.1 rad/s vs neck 2.2) puts the nose past 90°, and the
+         beast then runs AWAY from the very player who outmanoeuvred it, at 12.5 m/s against
+         the wolf's 13.5. Measured with test/speedrun/probe_fight.mjs: the reward for owning
+         the blind side was a 1 m/s chase that never ended, every arrival was head-on, so
+         every bite was a FACE bite for 1 damage and the tier-1 trophy stayed out of reach.
+         THE BODY NOW PURSUES THE PREY; ONLY THE HEAD IS LIMITED BY THE NECK. heading still
+         eases at 2.2 rad/s and still decides where the swing lands, so nothing about the
+         combat grammar changes — a Legend simply no longer flees its own blind side. */
+      this.pos.x += (dx / d) * sp * dt;
+      this.pos.z += (dz / d) * sp * dt;
       this.pos.y = heightAt(this.pos.x, this.pos.z);
     } else if (this.atkCd <= 0) {
       this.atkCd = (this.def.atkGap || 1.25) - this.phase * 0.15;
       let kbMul = 1;
       if (this.def.special === 'knockback') { kbMul = 2.6; this.atkCd += 0.3; }   // the Bear Legend throws you
-      const bdmg = this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1);
-      if (!(window.PACK && window.PACK.intercept(this, bdmg, this.def.name, this.def.icon)))
-        wolfTakeDamage(bdmg, this.pos, this.def.name, this.def.icon, this.ambushNext ? Math.max(kbMul, 1.7) : kbMul);
+      this.biteDmg = this.def.dmg * (this.def.special === 'knockback' ? 1.1 : 1) * (this.ambushNext ? 1.5 : 1);
+      this.biteKb = this.ambushNext ? Math.max(kbMul, 1.7) : kbMul;
+      this.biteWind = 0.55; this.biteT = this.biteWind;   // plant + telegraph, then the swing
       this.ambushNext = 0;
+      pool.burst(V3(this.pos.x, this.pos.y + 1.3, this.pos.z), 9, 0xffd9a0, 1.0, 1.7, 2.1);
       audio.growlVar('aggressive');
     }
     this.atkCd -= dt;
@@ -7462,6 +7552,11 @@ window.questGuide = function () {
           const d = dist2(lm.x, lm.z);
           if (!c || d < c.d) c = { x: lm.x, z: lm.z, d, label: q.title, kind: 'explore', lm };
         }
+        /* SPEEDRUN FIX v6.7: landmarkList only holds landmarks whose chunk is
+           streamed, so a deed that named a landmark 500 m out lost its gold line the
+           moment that chunk unloaded — the player was left walking blind on a deed
+           that could not be finished. The deed remembers the place it promised. */
+        if (!c && q.wp) c = { x: q.wp.x, z: q.wp.z, d: dist2(q.wp.x, q.wp.z), label: q.title, kind: 'explore' };
       } else if (q.kind === 'explore' && q.peak) {
         // BUGFIX (rafzzer lineage): the quest crowns at y > 50 — the guide used to point at
         // the highest nearby bump (often 20 m on low terrain) → climb, nothing, re-pick, 5-min
@@ -7550,6 +7645,7 @@ function drawMapOverlays(ctx, S, range, opts) {
       const d = Math.hypot(lm.x - wolf.pos.x, lm.z - wolf.pos.z);
       if (d < bd) { bd = d; tgt = lm; }
     }
+    if (!tgt && q.wp) tgt = { x: q.wp.x, z: q.wp.z };   // SPEEDRUN FIX v6.7: the promised place still draws (chunk unloaded)
     if (!tgt) continue;
     const [qx, qy] = toMap(tgt.x, tgt.z);
     const cx = Math.max(10, Math.min(S - 10, qx)), cy = Math.max(10, Math.min(S - 10, qy));
@@ -8939,6 +9035,7 @@ window.CAMP = (() => {
   const qExplore = () => {
     const lm = pickLandmark();
     if (lm) return { id: uid(), camp: true, stage: 'q0', kind: 'explore', lmType: lm.type, need: 1, have: 0, icon: icon('explore'),
+      wp: { x: lm.x, z: lm.z },   // SPEEDRUN FIX v6.7: landmarks live and die with their chunk — the deed keeps the place it promised
       title: 'Discover the ' + (lm.label || lm.type), biome: lm.biome || curBiomeKey,
       desc: 'Seek out an unfound place on the map — the land keeps secrets.',
       rw: { xp: 80 * Σ() }, rwText: Math.round(80 * Σ()) + ' XP' };
@@ -8966,6 +9063,7 @@ window.CAMP = (() => {
     const need = 2 + (S.tier - 1);
     if (!lm) return qCollect(lmTypes.length ? 'mushroom' : 'herb', 3 + (S.tier - 1), 'q1');
     return { id: uid(), camp: true, stage: 'q1', kind: 'explore', lmType: lm.type, need, have: 0, icon: icon('scout'),
+      wp: { x: lm.x, z: lm.z },   // SPEEDRUN FIX v6.7: the track deed keeps the first landmark it named
       title: 'Track: find ' + need + ' landmarks', biome: lm.biome || curBiomeKey,
       desc: 'Read the land like a tracker — ' + need + ' undiscovered places.',
       rw: { xp: 130 * Σ() }, rwText: Math.round(130 * Σ()) + ' XP' };
@@ -9080,6 +9178,7 @@ window.CAMP = (() => {
     try { lm = (landmarkList || []).find(l => !l.found && l.type && (!(t > 1) || l.biome === curBiomeKey || Math.random() < 0.6)) || (landmarkList || []).find(l => !l.found); } catch (e) { }
     if (!lm) return null;
     return { id: uid(), camp: true, side: true, stage: 'prep', kind: 'explore', lmType: lm.type, need: 1, have: 0, icon: '🧭',
+      wp: { x: lm.x, z: lm.z },   // SPEEDRUN FIX v6.7: an errand must not lose its destination either
       title: 'Side: Trail of Firsts — find a ' + (lm.label || lm.type), biome: lm.biome || curBiomeKey,
       timed: true, deadline: tSec + 180 + 40 * t,
       desc: 'A discovery run: map an unfound place of the ' + (lm.type || 'land') + '. The map pays, the map remembers.',
@@ -9415,6 +9514,16 @@ window.CAMP = (() => {
   };
 })();
 if (window.CAMP && window.CAMP.init) window.CAMP.init();
+/* SPEEDRUN FIX v6.7 — the name prompt never showed on a FRESH save. p4 injects the
+   start overlay while it parses (initBoot → showOverlay('start')), which happens
+   BEFORE this module exists, so onMenuRefresh() never ran on the first menu and
+   #nameRow stayed at its inline display:none — a new player could not name the wolf
+   (every trophy recorded "Wolf") until they happened to revisit the menu. Refresh
+   the overlay now that the campaign exists. Proven by test/speedrun/_menu_probe.mjs (fresh save: #nameRow visible, #plName2 focusable). */
+try {
+  const ov = document.getElementById('overlay');
+  if (ov && ov.dataset.mode === 'start' && !ov.classList.contains('hidden') && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();
+} catch (e) { }
 
 /* ============================================================
    🐺 THE PACK — howl to bond, hunt together, lose the fallen
@@ -9722,15 +9831,15 @@ window.PACK = (() => {
    yield ground, how patiently to stalk, how freely to sprint. Weights are born from the
    baked champion RAFZZER_SEED and evolve ONLY through gated generations: every death is
    scored, and a mutant may carry its learnings forward solely if it passed the human
-   verification gate (test/rafzzer_gens.mjs). Deaths also write SCARS — lineage memory
+   verification gate (training/rafzzer_gens.mjs). Deaths also write SCARS — lineage memory
    that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1.
-   M46 v6.5 (crown bake): build.py injects the lineage champion (test/rafzzer_champion.json)
+   M46 v6.5 (crown bake): build.py injects the lineage champion (training/rafzzer_champion.json)
    into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT, so the shipped 🧠 button plays the current crown
    (GEN 50, fit −55 at the time of writing); a browser's own rafzzer_best may only play if it
    outscored the champion. src/autopilot.js keeps the wild mind as the dev fallback. */
 (function () {
   const URL_ON = /[?&]autopilot=1/.test(location.search);
-  window.RAFZZER_SEED = [0.660841, -0.430561, 0.470237, 0.63688, 0.179798, 0.533734, 0.111133, -0.163033, -0.414739, 0.124654, 0.334701, 0.159182, 1.206161, -0.322496, -0.151972, 0.194705, -0.814295, -0.258688, 0.131941, -0.026079, 0.01599, -0.368942, 0.836401, 0.544318, -0.014873, -0.198196, 0.208281, -0.132431, 0.131918, 0.658764, 0.041433, 0.057358, -0.496417, 0.002633, 0.43572, 0.244721, 0.021778, -0.345902, 0.292809, -0.016802, 0.020083, -0.243716, 0.899487, -0.191155, 0.176795, 0.339922, -0.000984, 0.290173, 0.2138, -0.260079, -0.116461, -0.5601, -0.304249, 0.009082, 0.148945, 0.716662, 0.084437, 0.081523, -0.276357, -0.812202, 0.419773, -0.778662, -0.072584, -0.154958, 0.626078, -0.537294, -0.431348, -0.052333, -0.264265, 0.240277, 0.295884, -0.062056, -0.008432, 0.543189, 0.228413, 0.383805, 0.105784, -0.11295, 0.159679, 0.261623, 0.488657, 0.227705, -0.567462, 0.090886, -0.383402, 0.256386, 0.530722, -0.15671, 0.120632, 0.080994, -0.039133, -0.660071, -0.348263, -0.563186, -0.599966, 0.623735, -0.271424, -0.202959, 0.31302, -0.402732, 0.457045, -0.662447, -0.615394, 0.578339, -0.057707, -0.803475, 0.273701, -0.284988, 0.145812, -0.045708, -0.456322, 0.214249, 0.167353, 0.129021, 0.02598, 0.436078, -0.12353, 0.030822, 0.514321, 0.181281, 0.350381, -0.908911, 0.124959, 0.175526, -0.391549, 0.1761, -0.371805, 0.212742, -0.270289, -0.062093, 0.634877, 0.302003, -0.165879, -0.461978, -0.396491, 0.347864, -0.376549, 0.024459, 0.250091, 0.142894, 0.384873, 0.097261, -0.34639, 0.444093, 0.00193, -0.111255, 0.410321, -0.25811, -0.065658, 0.492763, -0.474523, -0.306296, 0.022087, 0.207318, 0.417324, 0.168754, 0.200801, -0.354168, -0.069709, -0.174448, 0.18556, 0.291611, 0.339112, 0.412369, 0.05773, 0.522577, 0.189879, 0.711627, 0.144874, 0.331019, -0.828634, -0.528439, 0.799727, -0.200716, -0.031291, 0.199853, 0.155303, 0.217973, -0.415893, 0.151496, 0.184692, -0.310048, 0.167066, -0.1636, 0.251918, 0.172696, -0.346224, 0.020764, 0.310169, -0.269676, -0.130523, -0.03524, 0.267335, -0.015322, -0.148681, 0.361487, -0.233048, -0.22129, -0.204566, 0.663281, -0.331058, 0.379271, -0.358687, -0.672483, -0.058907, 0.206203, -0.011384, 0.536315, 0.002236, -0.066431, 0.059183, -0.388919, -0.15436, 0.143658, 0.158045, 1.049429, 0.514019, 0.587627, 0.304322, 0.162219, -0.386355, -0.090681, 0.430875, 0.19728, 0.023486, 0.092563, -0.641111, 0.06988, -0.086781, 0.735299, 0.71319, 0.229309, -0.569018, -0.184684, 0.120707, -0.033906, 0.330637, 0.433666, 0.292419, 0.157117, 0.0, 0.0, 0.0, -0.028937, 0.0, -0.02112, -0.02299, 0.0, 0.0, 0.0, 0.0, -0.082697, -0.066222, 0.0, 0.0, 0.0, 0.0, -0.072136, 0.0, 0.0, 0.0, -0.200098, 0.0, 0.127871, -0.100087, 0.061404, 0.0, -0.029175, 0.021515, 0.094487, -0.683838, 0.054204, 0.228556, 0.634188, -0.896252, -0.410855, -0.615134, -0.408798, -0.873353, -0.395407, -0.392559, -0.252724, -0.397507, -0.454858, 0.502233, -0.896682, -0.302524, 0.036779, 0.600712, -0.139051, -0.334937, -0.480396, 0.171137, 0.14593, 0.628856, -0.626556, -0.429514, 0.868961, -0.251789, 0.664863, 0.670853, 0.193187, 0.146813, 0.613075, 0.223686, 0.573343, -0.566894, 0.260784, -0.355465, -0.218495, 1.030018, 0.347097, 0.205032, 0.46196, 0.008297, 0.018643, 0.766179, -1.237327, -0.208372, -0.278817, -0.487677, -0.363586, -0.430091, 0.381994, -0.915827, -0.589511, 0.050147, 0.290291, 0.783649, 0.526112, 0.041804, 0.750322, 0.665757, -0.533332, -0.631208, 0.261624];   // 🧠 M46 v6.5 baked crown: GEN 50 (fit -55.0) — injected by build.py from test/rafzzer_champion.json
+  window.RAFZZER_SEED = [0.660841, -0.430561, 0.470237, 0.63688, 0.179798, 0.533734, 0.111133, -0.163033, -0.414739, 0.124654, 0.334701, 0.159182, 1.206161, -0.322496, -0.151972, 0.194705, -0.814295, -0.258688, 0.131941, -0.026079, 0.01599, -0.368942, 0.836401, 0.544318, -0.014873, -0.198196, 0.208281, -0.132431, 0.131918, 0.658764, 0.041433, 0.057358, -0.496417, 0.002633, 0.43572, 0.244721, 0.021778, -0.345902, 0.292809, -0.016802, 0.020083, -0.243716, 0.899487, -0.191155, 0.176795, 0.339922, -0.000984, 0.290173, 0.2138, -0.260079, -0.116461, -0.5601, -0.304249, 0.009082, 0.148945, 0.716662, 0.084437, 0.081523, -0.276357, -0.812202, 0.419773, -0.778662, -0.072584, -0.154958, 0.626078, -0.537294, -0.431348, -0.052333, -0.264265, 0.240277, 0.295884, -0.062056, -0.008432, 0.543189, 0.228413, 0.383805, 0.105784, -0.11295, 0.159679, 0.261623, 0.488657, 0.227705, -0.567462, 0.090886, -0.383402, 0.256386, 0.530722, -0.15671, 0.120632, 0.080994, -0.039133, -0.660071, -0.348263, -0.563186, -0.599966, 0.623735, -0.271424, -0.202959, 0.31302, -0.402732, 0.457045, -0.662447, -0.615394, 0.578339, -0.057707, -0.803475, 0.273701, -0.284988, 0.145812, -0.045708, -0.456322, 0.214249, 0.167353, 0.129021, 0.02598, 0.436078, -0.12353, 0.030822, 0.514321, 0.181281, 0.350381, -0.908911, 0.124959, 0.175526, -0.391549, 0.1761, -0.371805, 0.212742, -0.270289, -0.062093, 0.634877, 0.302003, -0.165879, -0.461978, -0.396491, 0.347864, -0.376549, 0.024459, 0.250091, 0.142894, 0.384873, 0.097261, -0.34639, 0.444093, 0.00193, -0.111255, 0.410321, -0.25811, -0.065658, 0.492763, -0.474523, -0.306296, 0.022087, 0.207318, 0.417324, 0.168754, 0.200801, -0.354168, -0.069709, -0.174448, 0.18556, 0.291611, 0.339112, 0.412369, 0.05773, 0.522577, 0.189879, 0.711627, 0.144874, 0.331019, -0.828634, -0.528439, 0.799727, -0.200716, -0.031291, 0.199853, 0.155303, 0.217973, -0.415893, 0.151496, 0.184692, -0.310048, 0.167066, -0.1636, 0.251918, 0.172696, -0.346224, 0.020764, 0.310169, -0.269676, -0.130523, -0.03524, 0.267335, -0.015322, -0.148681, 0.361487, -0.233048, -0.22129, -0.204566, 0.663281, -0.331058, 0.379271, -0.358687, -0.672483, -0.058907, 0.206203, -0.011384, 0.536315, 0.002236, -0.066431, 0.059183, -0.388919, -0.15436, 0.143658, 0.158045, 1.049429, 0.514019, 0.587627, 0.304322, 0.162219, -0.386355, -0.090681, 0.430875, 0.19728, 0.023486, 0.092563, -0.641111, 0.06988, -0.086781, 0.735299, 0.71319, 0.229309, -0.569018, -0.184684, 0.120707, -0.033906, 0.330637, 0.433666, 0.292419, 0.157117, 0.0, 0.0, 0.0, -0.028937, 0.0, -0.02112, -0.02299, 0.0, 0.0, 0.0, 0.0, -0.082697, -0.066222, 0.0, 0.0, 0.0, 0.0, -0.072136, 0.0, 0.0, 0.0, -0.200098, 0.0, 0.127871, -0.100087, 0.061404, 0.0, -0.029175, 0.021515, 0.094487, -0.683838, 0.054204, 0.228556, 0.634188, -0.896252, -0.410855, -0.615134, -0.408798, -0.873353, -0.395407, -0.392559, -0.252724, -0.397507, -0.454858, 0.502233, -0.896682, -0.302524, 0.036779, 0.600712, -0.139051, -0.334937, -0.480396, 0.171137, 0.14593, 0.628856, -0.626556, -0.429514, 0.868961, -0.251789, 0.664863, 0.670853, 0.193187, 0.146813, 0.613075, 0.223686, 0.573343, -0.566894, 0.260784, -0.355465, -0.218495, 1.030018, 0.347097, 0.205032, 0.46196, 0.008297, 0.018643, 0.766179, -1.237327, -0.208372, -0.278817, -0.487677, -0.363586, -0.430091, 0.381994, -0.915827, -0.589511, 0.050147, 0.290291, 0.783649, 0.526112, 0.041804, 0.750322, 0.665757, -0.533332, -0.631208, 0.261624];   // 🧠 M46 v6.5 baked crown: GEN 50 (fit -55.0) — injected by build.py from training/rafzzer_champion.json
 window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v4 mind: seed 20070, 26 senses (336 weights) — trophy lineage; rows 24-25 = side-channel + gate urgency (zero-padded from the 316 brain)   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
 
   /* ---------------- sim boost (?speed=N&rate=R, special builds only) ----------------
@@ -9807,7 +9916,7 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
     const S = { gen: 0, weights: null, scars: { fight: 0, neglect: 0, water: 0 }, hist: {}, outs: [], xs: null, last: null, lastXp: null, xpEMA: 0, goalD: 99, wasSwim: false, external: false, ticks: 0 };
     const NOLEARN = /[?&]nolearn=1/.test(location.search) || !!window.RAFZZER_NO_STORE;   // harness builds: node owns the lineage
     // M46 v6.5: the shipped game boots the BAKED lineage crown — build.py injects the champion
-    // (test/rafzzer_champion.json) into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT. A browser's own
+    // (training/rafzzer_champion.json) into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT. A browser's own
     // rafzzer_best may only play if it BEAT the champion's fitness: local evolution starts FROM
     // the champion and must outscore it to take the field. Without a baked crown (dev/src or a
     // stale build) the old order stands — local best first, wild seed as the fallback.
