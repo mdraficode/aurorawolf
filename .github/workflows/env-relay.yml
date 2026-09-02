@@ -15,6 +15,10 @@ permissions:
   contents: write
 jobs:
   relay:
+    # Guard: adding/editing THIS file is what triggers the run, so an ordinary push that
+    # merely touches it would silently re-litter the branch with env_drop/. Require the
+    # commit message to say [relay] — otherwise the job skips.
+    if: contains(github.event.head_commit.message, '[relay]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
