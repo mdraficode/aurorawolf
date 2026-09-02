@@ -842,6 +842,7 @@ function updateSense(dt) {
         if (lm.tier !== 'common') { wolf.hp = Math.min(wolf.maxHp, wolf.hp + 25); wolf.stamina = wolf.maxStam; audio.chime(); }   // the wild rewards curiosity
         music.fanfare();
       } else toast(`📍 ${lm.label}`);
+      if (lm.type === 'meteor') grantPerkDeepBite();   // v6.7 BOSS-KIT: the fallen star blesses its finder — Deep Bite (+1 bite, permanent). Fires on every unblessed site discovered (first or not).
     }
   }
   updateSenseFX();
@@ -1282,6 +1283,11 @@ const EVENTS = {
           ev.seen = true;
           toast('🦌 A white stag! Old magic walks these woods — follow it.', true);
           audio.chime();
+        }
+        // v6.7 BOSS-KIT: the stag blesses the wolf it lets come close (12 m) — Wild-Hardened, once ever.
+        if (!wolf.perks.wildHardened && st.pos.distanceTo(wolf.pos) < 12) {
+          grantPerkWildHardened();
+          st.startFlee(wolf.pos);   // the blessing given, old magic is gone like a breath
         }
       },
       finish() { const st = ev.stag; if (st && !st.dead) st.dispose(); }
@@ -2942,6 +2948,35 @@ function bigMapTravel(e) {
   }
 }
 /* ============================================================
+   BOSS-KIT BLESSINGS (v6.7) — the mystic world events arm the wolf for
+   the Legend fight. The CLASSIC deeds used to be the only road to these
+   perks — the campaign board doesn't carry them, so the wild itself gives:
+   · ☄️  Deep Bite (perks.strongJaw): +1 permanent bite damage — claim the fallen star.
+   · 🦌  Wild-Hardened (perks.wildHardened): +5 permanent max HP — be SEEN by the white stag (come within 12 m).
+   Both are once-ever per run, survive death (hpBonus is recalc-safe), and ride the
+   standard channels: toast + chime + fanfare + RUN.perks (the recap's achievement line).
+   ============================================================ */
+function grantPerkDeepBite() {
+  if (typeof wolf === 'undefined' || wolf.perks.strongJaw) return false;
+  wolf.perks.strongJaw = true;
+  if (window.RUN) RUN.perks.push('☄️ Deep Bite — star-metal in the fangs');
+  toast('☄️ Star-metal sings in your jaws — DEEP BITE: +1 bite damage (permanent)', true);
+  audio.chime(); music.fanfare();
+  return true;
+}
+function grantPerkWildHardened() {
+  if (typeof wolf === 'undefined' || wolf.perks.wildHardened) return false;
+  wolf.perks.wildHardened = true;
+  wolf.hpBonus = (wolf.hpBonus || 0) + 5;
+  recalcWolfLevel();                                     // maxHp = 100 + 8·level + hpBonus — survives death like every perk
+  wolf.hp = Math.min(wolf.maxHp, wolf.hp + 5);
+  if (window.RUN) RUN.perks.push('🦌 Wild-Hardened — the stag’s blessing');
+  toast('🦌 The white stag meets your eyes — WILD-HARDENED: +5 max HP (permanent)', true);
+  audio.chime(); music.fanfare();
+  return true;
+}
+
+/* ============================================================
    LEGENDS — one beast per wild land, woken by your deeds
    ============================================================ */
 const BOSSES = {
@@ -3115,7 +3150,9 @@ class Boss {
         this.pos.y = heightAt(this.pos.x, this.pos.z);
         pool.burst(this.pos, 26, this.def.special === 'burrow' ? 0xc2a266 : 0x5a8a6a, 2, 3.4, 3);
         audio.thud();
-        if (Math.hypot(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z) < 3.2) wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon);
+        if (Math.hypot(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z) < 3.2)   // v6.7: the pack shields the emergence bite too
+          if (!(window.PACK && window.PACK.intercept(this, this.def.dmg, this.def.name, this.def.icon)))
+            wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon);
       }
       this.model.position.copy(this.pos);
       return;
@@ -3127,7 +3164,11 @@ class Boss {
       this.pos.z += Math.cos(this.chargeDir) * 19 * dt;
       this.pos.y = heightAt(this.pos.x, this.pos.z);
       pool.burst(this.pos, 3, 0xc2a273, 1.4, 2.2, 1.8);
-      if (Math.hypot(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z) < 2.6 && !this.chargeHit) { this.chargeHit = true; wolfTakeDamage(this.def.dmg + 6, this.pos, this.def.name, this.def.icon); }
+      if (Math.hypot(wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z) < 2.6 && !this.chargeHit) {   // v6.7: a mate can throw itself under the charge
+        this.chargeHit = true;
+        if (!(window.PACK && window.PACK.intercept(this, this.def.dmg + 6, this.def.name, this.def.icon)))
+          wolfTakeDamage(this.def.dmg + 6, this.pos, this.def.name, this.def.icon);
+      }
       if (this.chargeT <= 0) { this.charging = false; this.atkCd = 1.6; }
       this.model.position.copy(this.pos); this.model.rotation.y = this.chargeDir;
       return;
@@ -3148,7 +3189,11 @@ class Boss {
       if (this.diveT > 0) {
         if (onGround) {
           const dw = Math.hypot(dx, dz) || 1;
-          if (dw < 3.1 && !this.diveHit) { this.diveHit = true; wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon); }
+          if (dw < 3.1 && !this.diveHit) {   // v6.7: the pack answers the sky too
+            this.diveHit = true;
+            if (!(window.PACK && window.PACK.intercept(this, this.def.dmg, this.def.name, this.def.icon)))
+              wolfTakeDamage(this.def.dmg, this.pos, this.def.name, this.def.icon);
+          }
           this.divePass += dt;
           this.pos.x += (dx / dw) * this.def.speed * 0.9 * dt;
           this.pos.z += (dz / dw) * this.def.speed * 0.9 * dt;
