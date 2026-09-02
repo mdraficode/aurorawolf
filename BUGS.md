@@ -265,3 +265,31 @@ asks for it up front — after it, commanded θ and travelled θ agree to ±0.02
 STILL OPEN at the time of writing: 14-19 hits per ~50 s (4-5 incoming dmg/sim-s) against 3 hp/s regen
 — the wolf reaches the Legend's last 3-9 hp and then dies. The remaining lever is bite timing: the
 gate reads a yaw that is one poll stale, and 6 of 13 real attacks still whiff.
+
+### The cadence law (the rig defect that cost a session, now built into `probe_fight.mjs`)
+Polling faster than the boost batch starves the page's main thread. Measured: **2454 polls in
+60.7 sim-seconds** = 0.025 sim-s per poll, the sim crawling at **0.87× real**, the eyes returning
+frozen state, and a zigzag averaging itself into pure tangent so the bite cone rejected everything.
+It looks exactly like a broken aim chain and it is not. Fix: **one decision per batch**, with the
+poll interval self-tuned from an EMA of measured sim-dt toward `speed × 0.05` → **dt/poll 0.100 s**
+at `speed=2`. Any report whose cadence line is off is an invalid run — check it before believing a
+single number in it.
+
+### Numbers card — the rest of the Legend law (values the prose above does not spell out)
+| | phase 0 | phase 1 (`hp<50 %`) | phase 2 (`hp<25 %`) |
+|---|---|---|---|
+| neck turn | 2.20 rad/s | 2.53 | 2.86 |
+| neck during the 0.55 s plant (×0.18) | 0.40 | 0.46 | 0.51 |
+| `atkCd` before the plant | 1.25 s | 1.10 | 0.95 |
+| cycle-average neck rate | 1.65 | 1.84 | 2.00 |
+| approach speed (`d > 4.0` only) | 12.5 m/s | 14.25 | 16.0 |
+| `specT` decay (`×(1+0.3·phase)`) | 8 s | 6.2 | 5.1 |
+
+A walking ring at **r ≈ 2.05 m** (θ 1.28 off the bearing) gives ω = 3.25 rad/s — above the neck at
+*every* phase, which is why the sprint is only needed to cross the 1.37 arc (~0.35 s, 10 stamina,
+82 refunded by the walk). Below r ≈ 1.8 the bearing geometry degenerates: measured at r = 0.82 the
+gap readout spun at 7 rad/s and dumped the wolf at the Legend's nose.
+
+**Coach's book:** `TRAINING_MANUAL.md` — the rig and its two laws, the campaign on one page, tier-1
+Legend numbers, what the wolf actually does, the four routes and when each wins, the full
+attempt/lesson table for the fight, and six drills in priority order for the part that is still open.
