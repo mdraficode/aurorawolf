@@ -10,3 +10,4 @@ training/rafzzer_candidate.json
 
 # probe run reports & their screenshots (regenerable by test/speedrun/*.mjs)
 test/speedrun/runs/
+uploads/

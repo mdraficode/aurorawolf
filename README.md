@@ -41,7 +41,8 @@ index.html              ← THE game (self-contained deliverable, built)
 build.py                ← assembles index.html from src/ + vendor/
 src/                    ← source: p1 math/terrain · p2 render/veg · p3 wolf+animals+predators · p4 world/HUD/input · shell.html · style.css
 vendor/three.min.js     ← three.js r134 (inlined at build)
-publish.sh              ← publish: `github "msg"` = live update (~1 min) · `archive [alias]` = permanent snapshot
+tools/ship.sh           ← canonical publish: `bash tools/ship.sh "msg"` = build + push to main → live ~1 min
+publish.sh              ← archive only: `archive [alias]` = permanent archive.org snapshot (github mode delegates to ship.sh)
 test/                   ← 22-suite gate incl. quest.test.mjs (quests · spirit · bosses · XP · fast travel), cam.test.mjs (free-look camera) and freeze.test.mjs (crash-proof loop) + on-demand: github (live), snapshots.mjs + analyze.py (regenerate shots)
 shots/                  ← current-build screenshots (cave crystals · night aurora · waterfall · forest)
 LINKS.md                ← all public links + tokens how-to
