@@ -296,38 +296,73 @@ gap readout spun at 7 rad/s and dumped the wolf at the Legend's nose.
 Legend numbers, what the wolf actually does, the four routes and when each wins, the full
 attempt/lesson table for the fight, and six drills in priority order for the part that is still open.
 
-## Session 2026-09-03 — the router's Legend fight was front-facing + F-spam (drill-1 fix)
+---
 
-**Symptom (live, `run.mjs --probe --route=iron`):** the rig worked end-to-end (menu → quests →
-deeds → ritual → spawned the Leopard Legend 5×, re-awakening after each death, **0 page errors**),
-but the router never landed a **behind** bite. Over 5 fights: `behind: 0` across the board; the few
-bites that landed were **face (1 dmg)**; and `fled: 3577` in a single 37 s fight. It fought from the
-front with a wide sprint ring and flee-spammed.
+# 🐞 Session 2026-09-03 — the human-speedrun playability pass (real-input run, M47 follow-up)
 
-**Root cause — three compounding errors in `run.mjs` `fightLoop` (the old ring):**
-1. **Fleeding on a health line.** `if (wolf.hp < fleeHp && boss.d < 30) → aim toB+π, sprint away`.
-   A Legend runs 12.5–16 m/s and the wolf walks 7 — turning your back hands it your spine at exactly
-   the range its claw lands (confirmed in the probe: flee ran 67 % of polls, |gap| p50 0.00, 14 of 19
-   hits). The "regen" it chased (3 hp/s after 6 clean s) never started because it was always mid-flee.
-2. **A front-facing bite gate.** `r ≤ biteR+0.35 && |nose| < 1.42` with no `facingMe` constraint → it
-   pressed on flanks/faces (2 dmg / 1 dmg) and, worse, pressed when the boss faced it (|gap| < 1.37 →
-   the claw lands). The one place worth standing (|gap| > 1.93, behind + ambush = 6 dmg) was never held.
-3. **No cooldown gate.** `attack()` in `src/p3.js` reads `if (this.atkCd > 0) return false` — the
-   0.75 s swing is spent *even on a whiff*. So the old loop's "swings" were mostly F-presses the game
-   silently swallowed (the probe measured ~1/3 real attacks).
+Entries below were found while playing the game with the sanctioned real-input rig
+(`test/speedrun/human.mjs` + `run.mjs`). Class: **RIG** = `test/speedrun/*` bugs (the rig's
+own, fixed here, uncommitted); **GAME-CONF** = game-side issues confirmed against `src/`
+(design-consistent, some already fixed in the shipped build), **OPEN** = no patch without a
+human/trainer verdict.
 
-**Fix (drill 1, ported from the probe):** blind-side ring at r ≈ 2.05 (walk alone beats the neck at
-every phase), one fixed lap direction, sprint **only** to cross the 1.37 claw arc or recover a blown
-radius, and a bite gate that is **behind-only (`facingMe < −0.35` → 6-dmg ambush), body-aligned
-(`|nose| ≤ 1.25`) and cooldown-aware (`≥ 0.75 s`)**. Flee removed as the reflex (only a last-resort
-line stays). `fightlab --lvl=` added to `run.mjs` to validate the fight in isolation at over-level.
+## RIG-side (fixed, uncommitted)
 
-**Proof:** `run.mjs --fightlab --lvl=18` → **Leopard Legend SLAIN in 31.7 sim-s, `behindPct 100`, every
-bite 6 dmg, wolf at 185 hp, `fled 0`.** The tier-1 Leopard is now winnable by the router. Companion
-probe findings: at L12 the fight is `0.61–0.99 dps vs 3.0–4.26 incoming` (NET LOSING, boss reaches 1–2
-hp); **at L18 it is NET SURVIVABLE** (incoming 2.22 vs 3+ regen, hp 244, stamina floor 149) — the iron
-(over-level) route is the line that takes the trophy.
+- **R-1 · Top-up AND bug** — `hp < maxHp·0.92 && stam < 60` let the wolf enter the boss
+  at 56.76/140 hp (40%) with full stamina (`runs/iron7777_v20.log`, boss-start #1).
+  FIXED: OR + `healWait < 40` timebox.
+- **R-2 · Grind-pick ritual bug** — the iron grind accepted the ritual itself (cheapest
+  board item — `runs/iron_v2.log`). FIXED: stray ritual set-aside + `pickDeed` filters
+  `kind !== 'ritual'`; the grind next hunts the wild (kills pay 6–12 xp) and logs every
+  branch — a silent spin can never hide again.
+- **R-3 · TDZ** — `FIGHT_LVL = +arg('fightlvl', isIron ? …)` ran before `isIron` was
+  declared. FIXED (flag moved below the const). Same class as the GEN 53 order bug.
+- **R-4 · Doomed flee (2,700-poll)** — the in-fight flee had no stamina floor: an
+  exhausted wolf sprint-flees at +1 m/s vs a 12.5 m/s pursuer for minutes
+  (`iron_ring.log`: `fled 2701`/`3102`/`2740`), running into arena predators on the way.
+  FIXED: flee only while `stam ≥ 15`; below that stand and die — the death retry is the
+  game's intended full-tank re-entry (`onDeath` despawns the boss, stage → 'awaken').
+- **R-5 · Dead-code top-up** — the pre-trial rest sat AFTER the `d < 3.2` channel check:
+  the sprint travel stops at the altar and channels before a single rest poll runs.
+  Every boss-start measured stam 5–16. FIXED: top-up (stam < 80 || hp < 90%) + arena
+  hygiene now run BEFORE the channel (the ritual marker now logs `stam:99, hp:140`).
+- **R-6 · The old fight gaits landed nothing** — baseline + v20: **8 boss attempts,
+  0 bites, 0 swings** (flee loops 2649–4000). Root: the sprint ring never closed (r
+  pinned 4.2–4.9; an exhausted walk-close loses 12.5 vs 7 m/s) and the dip's `struck`
+  window was one poll wide. Working grammars: the band walk-ring (probe: 45 hp in
+  39–56 s, net −37..−48 of 196 at L12) and the park (probe v25: 0.22 hits/s, kill 52 s,
+  net −18, stam floor 113 — the only measured winner).
+- **R-7 · Probe verdict strawman** — "incoming − regen → NET LOSING" ignores the hp
+  budget; by the real test `kill_time × (incoming − regen) < wolfHp` several "losing"
+  grammars actually win at L12.
 
-**Files:** `test/speedrun/run.mjs` (fightLoop blind-side ring + drill-1 bite gate + `--lvl`), \
-`test/speedrun/probe_fight.mjs` (drill-1 cooldown-aware behind-only gate). No `src/` change — this is
-the router/rig, not the shipped game. `python3 build.py` unaffected (index.html unchanged).
+## GAME-side confirmations
+
+- **G-C1 · The DPS wall** — a Legend's heading used to snap to the wolf (every bite a
+  face bite for 1); FIXED in src (v6.7 constant-rate neck 2.2·(1+0.15·phase), the blind
+  side is earned). Confirmed live: behind bites land 6 hp.
+- **G-C2 · The survival wall** — the Legend's bite used to land instantly; FIXED in src
+  (v6.7 telegraphed plant, strike at plant END inside ±1.37 of its nose, reach·1.35).
+- **G-C3 · B10** — a Legend walked along its own nose (1 m/s unfinishable chase); FIXED
+  in src (body pursues, only the head is neck-limited).
+- **G-C4 · Spring Steps wired to nothing** — FIXED in src (v6.8, −25% sprint drain).
+- **G-C5 · Arena multi-threat** — wild Level 5–7 Lions/Bears share the tier-1 arena and
+  hit from 4.8–5.1 m (outside the boss's 4.59 reach the fight loop watched); 3 of 4
+  baseline deaths were to the wild "Level 6/5 Lion", not the boss. RIG mitigation: arena
+  hygiene (walk away from predators d < 30 at hp > 60%) + park inside the boss's 4.0 m
+  still-zone. Manual law: **clear the arena before the altar.**
+- **G-C6 · No-leash pursuit (OPEN)** — the boss's body pursues at 12.5 m/s with no
+  radius. An exhausted wolf has no recovery outside the park; the only exits are the
+  park, the death retry, or losing. Design-consistent ("face it, or fall") — left OPEN
+  pending a human/trainer verdict; the manual teaches the park + the arrival law.
+
+## OPEN
+
+- **O-1 · Park robustness/variance** — same v25 code rolled 0.22 hits/s (net −18, the
+  win) and 0.44 hits/s (net −125, a loss) on different runs; the park's tail-zone gates
+  slip through the ±1.37 window at some phases. Next task: the park engagement fix in
+  `run.mjs` (gate hysteresis, arrive cut, `b.turn` exposure — see
+  `test/speedrun/HANDOFF_2026-09-03.md`).
+- **O-2 · The L8+/88% protocol vs the measured fight** — the game's own guidance needs
+  L8+; the park fights win from L5 (net −41 of 140). The L18 gate was a ~7,000-xp
+  over-grind (hunt soak 0.6–1.2 xp/sim-s = 30+ min for 3 levels) — reverted to natural 5.

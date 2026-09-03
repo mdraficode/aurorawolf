@@ -34,10 +34,12 @@ const RE = +arg('re', 10);                // render every 10th batch (headless s
 const PROBE = flag('probe');
 const PWALL = +arg('pwall', 420);          // probe mode: wall seconds before it gives up
 const TAG = arg('tag', ROUTE + '-' + SEED);
+const FIGHT_TAC = arg('fighttac', 'park');   // park = probe_fight v25 PARK grammar (52 s kill, net -18 hp at L12); ring = band walk-ring; v20 = dip
 
 /* ------------------------------------------------- the router's knowledge --- */
 const WOLF_WALK = 7, WOLF_SPRINT = 13.5;
 const isRush = ROUTE === 'rush', isIron = ROUTE === 'iron', isPack = ROUTE === 'pack', isHunt = ROUTE === 'hunt';
+const FIGHT_LVL = +arg('fightlvl', isIron ? 5 : 0);   // iron: the walk-ring grammar is winnable from the natural awaken level (L5: net ~1.4/s over a 45 s kill = 61 of 140 hp); the L8+ protocol was for the old dagger-bite play
 
 /* my estimate of what a deed costs, in sim-seconds — a human reads the board and
    the land together: "two rabbits here" is cheap, "survive a day" is four minutes. */
@@ -124,13 +126,13 @@ const mark = (type, data, force) => {
   return e;
 };
 let lastSim = 0, lastLeg = -1, lastStage = '', deedT0 = 0, simT0 = null;
-let fight = null, deedFails = 0, lastDeedR = '';
+let fight = null, deedFails = 0, lastDeedR = '', healWait = 0;
 
 /* --fightlab: skip the campaign and drop a Legend on the router's head immediately
    (debugging the fight in isolation — a scored run never uses this) */
 if (flag('fightlab')) {
-  const labLeg = +arg('labLeg', 0), labTier = +arg('labTier', 1), labLvl = +arg('lvl', 0);
-  const lab = await page.evaluate(({ labLeg, labTier, labLvl }) => {
+  const labLeg = +arg('labLeg', 0), labTier = +arg('labTier', 1);
+  const lab = await page.evaluate(({ labLeg, labTier }) => {
     const S = window.CAMP.state();
     S.leg = labLeg; S.tier = labTier; S.stage = 'boss';
     const def = window.CAMP.legendDef();
@@ -142,15 +144,10 @@ if (flag('fightlab')) {
           ch[arr].splice(i, 1); try { a.dispose(); } catch (e) { }
         }
     }
-    /* over-level the wolf (--lvl) so the fight can be validated in isolation at the
-       condition that flips it winnable — mirror of probe_fight.mjs's LVL harness. */
-    let g = 0;
-    while (wolf.level < labLvl && g++ < 80) addXp(wolf.xpNext - wolf.xp + 1);
-    wolf.hp = wolf.maxHp; wolf.stamina = wolf.maxStam; wolf.deadT = 0; wolf.exhausted = false;
     const x = wolf.pos.x + 14, z = wolf.pos.z;
     bosses.push(new Boss(def.camp === 'beast' ? 'enchanted' : 'forest', x, z, false, def));
-    return { boss: def.name, hp: def.hp, dmg: def.dmg, scale: def.scale, speed: def.speed, lvl: wolf.level };
-  }, { labLeg, labTier, labLvl });
+    return { boss: def.name, hp: def.hp, dmg: def.dmg, scale: def.scale, speed: def.speed };
+  }, { labLeg, labTier });
   mark('fightlab', lab, true);
   console.log('   🧪 fightlab: ' + JSON.stringify(lab));
 }
@@ -181,7 +178,6 @@ const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
 let fightMarkT = -99;
 async function fightLoop(e0) {
   let travel = 1.6, lastDist = null, lastCam = null, side = (fight && fight.side) || 1;
-  let lastBiteClock = null;                    // DRILL 1: only bite when the 0.75 s swing is ready
   let guard = 0;
   for (;;) {
     if (++guard > 4000) return 'guard';
@@ -197,7 +193,8 @@ async function fightLoop(e0) {
       fight = { name: b0 ? b0.n : '?', t0: f.t, sim0: f.clock, hp0: f.w.hp, bites: 0, swings: 0, hits: 0, dmgTaken: 0,
         behind: 0, face: 0, flank: 0, fled: 0, windEscapes: 0, spent: 0, side, leg: f.camp.leg, tier: f.camp.tier,
         rSum: 0, rN: 0, fmSum: 0, bossHp0: b0 ? b0.hp : 0 };
-      mark('boss-start', { boss: fight.name, hp: b0 && b0.mhp, dmg: b0 && b0.dmg, spd: b0 && b0.spd, flight: b0 && b0.flight, wolfHp: f.w.hp, wolfLvl: f.w.lvl, travel: +travel.toFixed(2) }, true);
+      fight.dip = 0; fight.struck = false; fight.prevWind = 0; fight.radOut = false; fight.holdN = 0; fight.lastCut = -9;
+      mark('boss-start', { boss: fight.name, hp: b0 && b0.mhp, dmg: b0 && b0.dmg, spd: b0 && b0.spd, flight: b0 && b0.flight, wolfHp: f.w.hp, wolfLvl: f.w.lvl, travel: +travel.toFixed(2), tac: FIGHT_TAC }, true);
       fightMarkT = f.clock;
     }
     const F = fight;
@@ -222,12 +219,17 @@ async function fightLoop(e0) {
     const toB = bearingTo(f.w.x, f.w.z, b.x, b.z);
     const r = b.d;
 
-    /* --- health line: if the fight is genuinely lost, sprint clear and let regen work.
-        The drilled rule is NO FLEE during the ring (a Legend runs 12.5-16 m/s; the wolf
-        walks 7, so turning your back hands it your spine at the exact range the claw lands
-        — measured in the probe: flee ran 67% of polls, ag p50 0.00, 14 of 19 hits). Fleeing
-        is therefore only a LAST resort when already below ~1/4 HP; otherwise the parked
-        blind-side gap is the armour. */
+    /* --- health line: a human breaks off, sprints clear, and lets the 3 hp/s regen work --- */
+    const fleeHp = Math.max(30, f.w.maxHp * (isIron ? 0.36 : 0.32));
+    if (f.w.hp < fleeHp && b.d < 30 && f.w.stam >= 15) {
+      F.fled++; F.mode = 'flee';
+      await H.aimFast(toB + Math.PI, f.cam);
+      await H.move({ f: true, sprint: f.w.stam > 8 });
+      if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
+      F.hp0 = f.w.hp;
+      continue;
+    }
+    if (F.mode === 'flee') { F.mode = 'ring'; F.hp0 = f.w.hp; }
 
     /* --- the Legend's own moves: submerge (surfaces on top of me), charge, the lion's ring --- */
     if (b.sub > 0) {
@@ -252,71 +254,149 @@ async function fightLoop(e0) {
       continue;
     }
 
-    /* --- THE BLIND-SIDE RING (DRILL 1 — the probe-validated geometry) ---
-       The old ring flew a wide (3.9-4.1 m) sprint and bit on any nose < 1.42 — which is
-       why it fought from the FRONT (every bite a face/1-dmg) and fled 3,577× in 37 s.
-       The probe proved the winning shape (LAW v11 + drill 1): a TIGHT walk ring at r≈2.05
-       where the walk alone out-turns the neck at every phase, one FIXED lap direction, and
-       BEHIND-ONLY bites that respect the 0.75 s swing cooldown.
-
-       Geometry (src/p4.js 3223-3266 + src/p3.js 779-822): a Legend turns 2.2·(1+0.15·phase)
-       rad/s and ×0.18 while its 0.55 s plant winds up; its claw lands only inside |gap| ≤ 1.37
-       at the END of the plant. The wolf bite cone is |nose| ≤ 1.37, and a behind bite
-       (facing < -0.35) on a Legend is always an AMBUSH → (3+1)×1.5 = 6 dmg (a flank is 2,
-       a face 1). So the one place worth standing is |gap| > 1.93: its swing whiffs AND my
-       bite triples. θ is the travel angle off the bearing-to-Legend.
-         θ_IN   = 1.28 walk → ω 3.27, nose 1.28 → BITES (but only when behind)
-         θ_OUT  = 2.30 walk → pays the radius back (no bite)
-         θ_RUN  = 1.45 sprint → the arc transit
-         θ_SHUT = 0.50 sprint → closing from beyond its 4.0 m plant line
-       Radius band [1.85, 2.45] keeps it planted; net ω > neck at every phase, so sprint is
-       NOT needed except to cross the claw arc (ag < DANGER) or recover a blown radius.      */
-    const gassed = f.w.exh || f.w.stam < 8;
-    const R_LO = 1.85, R_HI = 2.45, DANGER = 1.42;   // band + its 78° arc plus one poll margin
-    const TH_IN = 1.28, TH_OUT = 2.30, TH_RUN = 1.45, TH_SHUT = 0.50;
-    const r0 = 2.05;
-    if (gassed) F.spent++;
-    /* radius — a HELD spiral between two rings (the yaw needs ~0.3 s to settle, so a
-       command is only worth giving if it is worth keeping — no bang-bang zigzag). */
-    let radOut = false;
-    if (r <= R_LO) radOut = true; else if (r >= R_HI) radOut = false;
-    let sprint = false, thWant;
-    if (r > 3.95) {
-      F.mode = 'close';
-      thWant = TH_SHUT; sprint = f.w.stam > 8 && !f.w.exh; radOut = false;
-    } else {
-      F.mode = b.wind > 0 ? 'wind' : 'ring';
-      if (b.wind > 0) F.windEscapes++;
+    /* --- THE RING: the walk-ring grammar (probe_fight BASE law — the measured winner at
+       L12: 45 hp dies in 39-56 s with -37..-48 hp of a 196 hp wolf; the dip/lap grammars
+       v19-v24 all LOST to incoming 5.5-6.5). Walk the [1.85, 2.45] band (ω = 7·cos(0.3)/2.05
+       ≈ 3.3 rad/s beats the 2.2 neck at every phase); sprint only to cross its arc or
+       recover width; press ONLY deep-behind (fm < -0.35 → (3+1 ambush)×1.5 = 6 hp) on the
+       2nd poll of a held cut (the yaw is settled) with the cone fresh (nose ≤ 1.15,
+       atkCd ≤ 0.1) and the Legend off its plant (wind ≤ 0.30). */
+    if (FIGHT_TAC === 'ring') {
       const ag = Math.abs(b.gap);
-      /* sprint ONLY to cross its claw arc, or recover a blown-out radius — ~6% duty, ~10
-         stamina a lap, refunded fourfold. A full sprint ring is what fled the stamina to 6. */
-      sprint = (ag < DANGER || r > 3.30) && f.w.stam > 12 && !f.w.exh;
-      thWant = sprint ? (ag < DANGER ? TH_RUN : TH_IN) : (radOut ? TH_OUT : TH_IN);
-      if (r - r0 > 0.75) { thWant = TH_SHUT; sprint = f.w.stam > 8 && !f.w.exh; }   // badly wide
+      const R_LO = 1.85, R_HI = 2.45, R0 = 2.05;
+      let cut = 0, sprint = false, mode = 'ring';
+      if (b.wind > 0 && ag < 1.42) { cut = Math.PI / 2 - 1.45; sprint = f.w.stam > 12 && !f.w.exh; mode = 'wind'; }
+      else if (r > 3.95) { cut = Math.PI / 2 - 0.50; sprint = f.w.stam > 8 && !f.w.exh; mode = 'close'; }
+      else {
+        if (r <= R_LO) fight.radOut = true; else if (r >= R_HI) fight.radOut = false;
+        const wide = r - R0 > 0.75;
+        if (wide) { cut = Math.PI / 2 - 0.50; sprint = f.w.stam > 8 && !f.w.exh; }          // badly wide: drive back
+        else {
+          sprint = (ag < 1.42 || r > 3.30) && f.w.stam > 12 && !f.w.exh;
+          const th = sprint ? (ag < 1.42 ? 1.45 : 1.28) : (fight.radOut ? 2.30 : 1.28);
+          cut = Math.PI / 2 - th;
+        }
+        mode = sprint ? 'ring' : 'ring';
+      }
+      const thNow = Math.PI / 2 - cut;
+      fight.holdN = (thNow === fight.lastCut) ? fight.holdN + 1 : 1;
+      fight.lastCut = thNow;
+      const moveDir = toB + side * thNow;
+      await H.aimFast(moveDir, f.cam);
+      await H.move({ f: true, sprint });
+      const nose = Math.abs(wrapPI(toB - f.w.yaw));
+      if (!b.inv && fight.holdN <= 2 && r <= b.biteR && nose <= 1.15 && b.facingMe < -0.35 && b.wind <= 0.30 && f.w.atkCd <= 0.1) {
+        F.swings++;
+        if (await H.bite(f.t)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
+      }
+      if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
+      F.hp0 = f.w.hp;
+      if (b.facingMe > 0.85 && r < 4.6 && b.wind <= 0) side = -side;   // lapped onto its good side: reverse
+      F.side = side; F.mode = mode;
+      continue;
     }
-    const thCmd = thWant;                                  // (aim lead — see below)
-    const moveDir = toB + side * thCmd;
+    /* --- THE PARK (probe_fight v25 — the only measured WINNER): walk-orbit at the freeze
+       radius r_park = 7 / neck (2.77-3.35 m) with the gap parked at dead-behind — the
+       strike whiffs every plant (dot -1) and walking regens 11/s, so the park is BOTH the
+       recovery and the bite platform (fm < -0.35 -> (3+1 ambush)x1.5 = 6 hp, one press per
+       held cut). Arrival: sprint while the tail is far, walk the last stretch, and if the
+       wolf enters broken (stam < 15 outside the park) it stands and dies — the death
+       respawn is the game's intended full-tank retry. */
+    if (FIGHT_TAC === 'park') {
+      const ag = Math.abs(b.gap);
+      const rPark = Math.min(3.35, Math.max(2.55, 7 / (b.turn || 2.53)));
+      const inTail = b.facingMe < -1.5 || (b.facingMe < -0.9 && f.w.stam <= 14);
+      const lowStam = f.w.stam <= 14 || f.w.exh;
+      let cut, sprint = false, mode = 'ring';
+      if (b.wind > 0 && ag < 1.42) { cut = Math.PI / 2 - 1.45; sprint = f.w.stam > 12 && !f.w.exh; mode = 'wind'; }
+      else if (r > 3.95) { cut = Math.PI / 2 - 0.50; sprint = f.w.stam >= 25 && !f.w.exh; mode = 'close'; }   // the SHUT-IN: drive past its face (26 m/s closing), its 180° turn hands me the blind side
+      else if (inTail && !lowStam) { cut = Math.PI / 2 - (r > rPark + 0.30 ? 1.40 : r < rPark - 0.30 ? 1.75 : 1.57); mode = 'park'; }
+      else if (b.facingMe < -1.2) { cut = Math.PI / 2 - 1.57; mode = 'park'; }        // last stretch: walk, no overshoot
+      else { sprint = !lowStam; cut = Math.PI / 2 - (sprint ? 1.50 : 1.57); mode = 'ring'; }
+      const thNow = Math.PI / 2 - cut;
+      fight.holdN = (thNow === fight.lastCut) ? fight.holdN + 1 : 1;
+      fight.lastCut = thNow;
+      const moveDir = toB + side * thNow;
+      await H.aimFast(moveDir, f.cam);
+      await H.move({ f: true, sprint });
+      const nose = Math.abs(wrapPI(toB - f.w.yaw));
+      if (!b.inv && fight.holdN <= 2 && r <= b.biteR && nose <= 1.15 && b.facingMe < -0.35 && b.wind <= 0.30 && f.w.atkCd <= 0.1) {
+        F.swings++;
+        if (await H.bite(f.t)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
+      }
+      if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
+      F.hp0 = f.w.hp;
+      if (b.facingMe > 0.85 && r < 4.6 && b.wind <= 0) side = -side;
+      F.side = side; F.mode = mode;
+      continue;
+    }
+    /* --- THE RING: v20 dip grammar (measured in probe_fight v15-v20) or the sprint ring --- */
+    if (FIGHT_TAC === 'v20') {
+      const ag = Math.abs(b.gap);
+      /* the strike only lands at the wind 0.55->0 instant; the 1.25 s cooldown after it is a
+         free bite window (the next plant's strike is 1.8 s away) — bite there, orbit through
+         the plant (neck 0.4, gap re-forms), and never close from the front. */
+      if (fight.prevWind > 0.02 && b.wind <= 0.02) fight.struck = true;
+      else if (b.wind > 0.02 || fight.dip > 0) fight.struck = false;
+      fight.prevWind = b.wind;
+      let cut = 0, sprint = false;
+      const R_LO = 1.85, R_HI = 2.45;
+      if (b.wind > 0 && ag < 1.42) { cut = Math.PI / 2 - 1.45; sprint = f.w.stam > 12 && !f.w.exh; fight.dip = 0; F.mode = 'wind'; }
+      else if (r > 3.95) { cut = Math.PI / 2 - 0.50; sprint = f.w.stam > 8 && !f.w.exh; fight.dip = 0; F.mode = 'close'; }
+      else if (fight.dip > 0) {
+        if (fight.dip === 1) { fight.dip = 0; cut = (r < 2.30) ? Math.PI / 2 - 2.30 : Math.PI / 2 - 1.28; }
+        else { cut = (fight.dip === 4 || fight.dip === 3) ? Math.PI / 2 - 0.55 : Math.PI / 2 - 2.60; fight.dip--; }
+        F.mode = 'ring';
+      }
+      else if (fight.struck && b.facingMe < -0.35 && f.w.atkCd <= 0.1) { fight.dip = 4; cut = Math.PI / 2 - 0.55; F.mode = 'dip'; }
+      else {
+        if (r <= R_LO) fight.radOut = true; else if (r >= R_HI) fight.radOut = false;
+        sprint = (ag < 1.42 || r > 3.30) && f.w.stam > 12 && !f.w.exh;
+        const th = sprint ? (ag < 1.42 ? 1.45 : 1.28) : (fight.radOut ? 2.30 : 1.28);
+        cut = Math.PI / 2 - th;
+        F.mode = 'ring';
+      }
+      const moveDir = toB + side * (Math.PI / 2 - cut);
+      await H.aimFast(moveDir, f.cam);
+      await H.move({ f: true, sprint });
+      const nose = Math.abs(wrapPI(toB - f.w.yaw));
+      /* the dip gate: press on the second in-poll of the dip (nose ~0.7) — read 1.03 whiffed,
+         0.81 landed, so 1.05 is the ceiling; behind it (ambush x1.5), not during its plant. */
+      if (!b.inv && fight.dip === 3 && r <= b.biteR && nose <= 1.15 && b.facingMe < -0.35 && b.wind <= 0.30 && f.w.atkCd <= 0.1) {
+        F.swings++;
+        if (await H.bite(f.t)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
+      }
+      if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
+      F.hp0 = f.w.hp;
+      continue;   // no side swaps in v20: a fixed lap never reverses (manual law v8)
+    }
+    /* --- THE RING: sprint it while the legs last, tighten it when they don't --- */
+    const gassed = f.w.exh || f.w.stam < 8;
+    const ringR = gassed ? 2.9 : (b.wind > 0 ? 4.1 : 3.9);   // spent → hug it: ω = v/r must beat 2.2 rad/s
+    if (gassed) F.spent++;
+    const err = r - ringR;
+    /* the zigzag: correct the radius, but never fly flatter than ~15° off the tangent —
+       a flat tangent puts the Legend at 90° to my nose and my own bite cone rejects it. */
+    let cut = clampN(err * (0.5 + 0.25 / Math.max(0.6, travel)), -0.46, 0.46);
+    const MIN = 0.27;
+    if (cut > -MIN && cut < MIN) cut = cut >= 0 ? MIN : -MIN;
+    if (b.wind > 0) { F.windEscapes++; cut = clampN(cut, -0.12, 0.12); }   // a swing is coming: flatten out and leave its arc
+    const moveDir = toB + side * (Math.PI / 2 - cut);
     await H.aimFast(moveDir, lastCam === null ? f.cam : f.cam);
     lastCam = null;
-    await H.move({ f: true, sprint: sprint && !f.w.swim });
-    /* BEHIND-ONLY, COOLDOWN-AWARE, BODY-ALIGNED bite (DRILL 1). src/p3.js attack() self-gates
-       on its 0.75 s swing (atkCd is spent even on a whiff), so F-spamming inside that window
-       is pure waste — the old gate did exactly that and only ~1/3 of presses were real. Only
-       press when a Legend's tail is offered (facingMe < -0.35 → the 6-dmg ambush), the nose
-       has the body-alignment margin (≤ 1.25, worth ~0.3 rad of lag), and the swing is ready. */
+    await H.move({ f: true, sprint: !gassed && !f.w.swim });
+    /* swing whenever the game's own cone will accept it (my nose is stale by one poll) */
     const nose = Math.abs(wrapPI(toB - f.w.yaw));
-    if (!b.inv && r <= b.biteR && nose < 1.25 && b.facingMe < -0.35 &&
-        (lastBiteClock === null || f.clock - lastBiteClock >= 0.75)) {
+    if (!b.inv && r <= b.biteR + 0.35 && nose < 1.42) {
       F.swings++;
       if (await H.bite(f.t)) {
         F.bites++;
         if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++;
-        lastBiteClock = f.clock;
       }
     }
     if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
     F.hp0 = f.w.hp;
-    /* a Legend that has lapped me onto its good side: swap the lap direction once */
+    /* a Legend that has lapped me onto its good side: swap the way round */
     if (b.facingMe > 0.85 && r < 4.6 && b.wind <= 0) side = -side;
     F.side = side;
   }
@@ -413,6 +493,27 @@ try {
 
     /* ---- AWAKEN: walk to the altar and channel it (E) ---- */
     if (e.camp.stage === 'awaken') {
+      /* IRON LEVEL GATE (v20 route lesson): at L5-8 the fight is mathematically lost — 140 hp
+         vs 14-dmg claws, ~8 behind-bites needed at 0.75 s each while taking 15-20 hits (probe
+         + two iron runs: 0 damage dealt, 5 deaths). Grind the board instead: any NON-ritual
+         main deed (xp gates first), side errands when a gate is open, until FIGHT_LVL. */
+      if (isIron && e.w.lvl < FIGHT_LVL) {
+        /* IRON GRIND v3 — the board at 'awaken' only carries the ritual until it is accepted,
+           so: park the ritual (it is the gate, not a deed), then side errands (the xp channel),
+           then plain wild hunts (kills pay xp: 6-12 each), and log every branch so a silent
+           spin can never hide again. */
+        if (!e.q.active.some(q => q.kind === 'ritual')) {
+          const rq = e.q.avail.find(q => q.kind === 'ritual');
+          if (rq) { const ok = await H.accept(rq.id); mark('iron-grind-park-ritual', { ok, clock: e.clock }); await sleep(150); continue; }
+        }
+        const sideQ = pickSide(e.q.avail, e);
+        if (sideQ) { const ok = await H.accept(sideQ.id); if (ok) { const r = await doDeed(sideQ, e); mark('iron-grind-side', { id: sideQ.id, title: sideQ.title, r: r || '', have: sideQ.have, need: sideQ.need, lvl: e.w.lvl, clock: e.clock }); } else mark('iron-grind-side-fail', { id: sideQ.id, clock: e.clock }); continue; }
+        /* board dry: hunt the wild — any prey, kills pay xp */
+        const h = await H.huntOne(undefined, { tmo: 45 });
+        mark('iron-grind-hunt', { ok: h.ok, why: h.why || '', lvl: e.w.lvl, xp: e.w.xpTotal, clock: e.clock });
+        if (!h.ok && h.why !== 'timeout') await sleep(900);
+        continue;
+      }
       const rq = e.q.active.find(q => q.kind === 'ritual') || e.q.avail.find(q => q.kind === 'ritual');
       if (!rq) { const any = e.q.avail[0]; if (any) { await H.accept(any.id); mark('accept', { id: any.id, title: any.title, kind: any.kind, clock: e.clock }); } await sleep(200); continue; }
       if (!e.q.active.some(q => q.kind === 'ritual')) {
@@ -422,12 +523,29 @@ try {
       }
       const altar = rq.wp || e.camp.altar;
       if (!altar) { await sleep(300); continue; }
-      const d = Math.hypot(altar.x - e.w.x, altar.z - e.w.z);
-      if (d < 3.2) { await H.move({}); await H.aim(bearingTo(e.w.x, e.w.z, altar.x, altar.z)); await H.tap('KeyE'); mark('ritual', { d: +d.toFixed(1), clock: e.clock }); await sleep(600); continue; }
-      /* a human tops up before the trial: full stamina, and hp if there is time */
-      if ((isIron || isPack) && e.w.hp < e.w.maxHp * 0.9 && e.w.stam < 60) {
-        await H.move({}); await sleep(700); continue;
+      /* TOP-UP FIRST — a human does not channel a trial tired. The travel sprints the last
+         stretch (the wolf arrived at every boss-start at stam 8-16 — this block used to sit
+         AFTER the d<3.2 channel, i.e. dead code on the actual path). Standing rest beside a
+         predator is suicide, so rest only clear of one (walk away if it is within 26 m). */
+      if ((isIron || isPack) && (e.w.hp < e.w.maxHp * 0.90 || e.w.stam < 80) && healWait < 40) {
+        healWait++;
+        const pr = (e.animals || []).filter(a => a.kind === 'predator' || a.danger).sort((a2, b2) => a2.d - b2.d)[0];
+        if (pr && pr.d < 26) await H.aim(bearingTo(e.w.x, e.w.z, pr.x, pr.z) + Math.PI);
+        await H.move(pr && pr.d < 26 ? { f: true, sprint: e.w.stam > 30 } : {});
+        await sleep(700); continue;
       }
+      healWait = 0;
+      /* arena hygiene: a wild predator sharing the altar gets the fight lost before it starts
+         (seed 7777: 8 of 13 hits came from a lion OUTSIDE the Legend's 4.59 m reach). Walk
+         away until the area is clean — Legends are unleashed, but mobs are not. */
+      const nearPred = e.preds.find(pp => !pp.isBoss && pp.d < 30);
+      if (nearPred && e.w.hp > e.w.maxHp * 0.6) {
+        const away = bearingTo(nearPred.x, nearPred.z, e.w.x, e.w.z);
+        await H.aim(away); await H.move({ f: true, sprint: false }); await sleep(H.poll * 3);
+        continue;
+      }
+      const d = Math.hypot(altar.x - e.w.x, altar.z - e.w.z);
+      if (d < 3.2) { await H.move({}); await H.aim(bearingTo(e.w.x, e.w.z, altar.x, altar.z)); await H.tap('KeyE'); mark('ritual', { d: +d.toFixed(1), stam: e.w.stam, hp: e.w.hp, clock: e.clock }); await sleep(600); continue; }
       if (isPack && e.w.lvl >= 4 && e.w.hp > e.w.maxHp * 0.75 && !e.pack) { await H.tap('KeyH'); mark('howl', { clock: e.clock }); await sleep(400); }
       await H.travelTo(altar.x, altar.z, { stop: 2.6, tmo: 260, why: 'altar' });
       continue;

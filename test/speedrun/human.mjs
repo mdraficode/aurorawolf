@@ -452,6 +452,12 @@ export async function boot(opt = {}) {
     await page.click('#btnStart');
   }
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play' && window.CAMP && window.CAMP.state().stage, null, { timeout: 180000 });
+  /* WARM-UP GATE (2026-09-03): the first renderer.render() on SwiftShader compiles all shaders
+     and can stall the batch loop for 10-60 s of wall time while __boost.ticks sits frozen —
+     a rig that starts measuring inside that window reports "0 moving polls" / a dead motor
+     (measured: 40 polls, spd 0 every row; the sim was merely mid-compile). Nothing read
+     before the batch loop has provably produced ticks is real. */
+  try { await page.waitForFunction(() => window.__boost && window.__boost.ticks > 60, null, { timeout: 180000 }); } catch (e) { }
   await page.waitForTimeout(1500);
   return { browser, page, errors, warns, url, menuNamePrompt: nameVisible, human: new Human(page, opt) };
 }

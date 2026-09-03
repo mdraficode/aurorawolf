@@ -139,8 +139,16 @@ Four lines a human can take (`test/speedrun/run.mjs`). Run each, rank by the **G
 **Current verdict (honest):** the routes are not rankable yet, because the tier-1 Leopard is
 not reliably killable — every route ends in the same fight, and the fight is the open problem
 (§5). Until it is closed, **iron** is the only line that finishes at all: the extra levels are
-the difference between "dies at 40 s with the Legend on 9 hp" and a win. Rank them the day
-the ring parks.
+the difference between "dies at 40 s with the Legend on 9 hp" and a win. **Current verdict (2026-09-03, measured):** the fight is CLOSED at L12 with either grammar —
+**PARK > band ring > dip grammars (v19-v24, all lose to 5.5-6.5 incoming) > the old sprint ring
+(0 damage in 8 real attempts).** The band ring kills 45 hp in 39-56 s at a net -37..-48 of 196;
+the park kills in 52 s at a net -18 with incoming 3.34 and the stamina regenerating (floor 113).
+At iron L5 the same maths is -41 of 140. The remaining risk is not the ring — it is ARRIVAL:
+every real boss-start measured stam 5-16 (the sprint travel drains the tank, and the old top-up
+sat AFTER the channel check — dead code on the travel path). Top up before the channel, walk the
+last stretch, and the line is: die once, retry on a full tank. Iron at its natural L5 beats the
+L8+ / 88% protocol — that was written for the old dagger-bite play; the park needs no over-grind
+(an L18 gate is a ~7,000-xp hunt soak = 30+ minutes for nothing).
 
 ### 4.1 Terrain rules that decide a fight before it starts
 
@@ -188,6 +196,7 @@ the travel angle off the bearing-to-Legend (θ = π/2 is pure tangent, θ = 0 is
 |---|---|---|
 | walk, θ = 1.28 | **3.25** | beats 2.20 / 2.53 / 2.86 — all three phases |
 | sprint, θ = 1.45 | **6.5** | clears the 1.37 arc in ~0.3 s |
+| **walk, r = 7/neck (2.77-3.18)** | **= the neck** | **the FREEZE: park the gap at dead-behind (fm ≈ −π) → every strike whiffs (dot −1) and walking regens 11/s. The park is the recovery AND the bite platform (v25: 0.22 hits/s, floor 113, kill 52 s)** |
 
 Cycle-average neck rate (what a full 1.8 s cycle really costs): **1.65 / 1.84 / 2.00** for
 phases 0/1/2. A walking ring at r ≈ 2.05 beats that everywhere. Stamina for the arc transit
@@ -208,22 +217,36 @@ is one ~0.35 s burst per lap: 10 spent, 82 refunded.
 | v8 (band-hold with reverse taps) | blind side 31 %, 8 presses in 47 s | a reversal is a 2.26 rad yaw flip: nose 1.6–2.1 against a 1.40 cone. **Never reverse** |
 | v9 (fixed lap, no reversals) | blind side 61 %, gap mean 1.58, but 6 presses in 60 s | the inward cuts were being filtered away — found the yaw-lag law |
 | v10/v11 (held spiral + closed-loop aim lead) | θ commanded vs travelled agrees to **±0.02**, 0.94 dps, Leopard ≈ 48 s | the aim works now; the **bite gate** and the **incoming** do not |
+| v18 (balanced peck) | 2/2 landed, 12 dmg, 0.15 dps — survivable, too slow | the 4-cut cycle cadence cannot close a 45 hp boss |
+| v19/v20 (dip) | 1-2 presses/run, incoming 3.6-5.5 | dip-in-plant and dip-in-window each plateau at 2 presses |
+| v21 (sprint-leg dip) | **4/5 landed, all behind** — the accuracy breakthrough | the sprint orbit wins the turn race (3.5 > 2.2) — but 5 presses/55 s |
+| v22/v23 (sprint orbit / phase grammar) | blind 12-49 %, incoming 3.8-6.8 | sprint-first laws drain the tank; the walk laws were what the real fight needed |
+| v24 (park, static 7/2.2) | 2/9 landed, blind 23 % | static park radius + arrival overshoot; also silently ran the BASE ring (dispatch bug — see v25 note) |
+| **v25 (park v2: r_park = 7/b.turn, walk the last stretch)** | **8 hits (0.22/s — lowest any tac), 0.87 dps, kill 52 s, net −18 of 196, stam floor 113** | **THE WINNER: freeze the gap, regen while orbiting, dip from the park** |
+| **the REAL fight (run.mjs, 8 attempts)** | **0 bites, 0 swings; every start at stam 5-16; r pinned 4.2-4.9** | the rig's gauntlet, not the fight: sprint travel drains the tank, the old top-up was dead code after the channel check, the doomed flee ran 2,700 polls. Fix the ARRIVAL first |
 
 ### 5.4 Where the run stands (the honest number)
 
-Best measured fight, tier-1 Leopard, level 12, `speed=2`:
+**The fight won every debate on 2026-09-03. Two grammars both close the tier-1 Leopard at
+level 12** (probe, `speed=2, ringr=2.05, wall=120`):
 
 ```
-0.94 dps dealt      → the 45 hp Leopard falls in ~48 s
-4.86 dps incoming   → the wolf (196 hp + 3/s regen, which never starts) dies first
-52 % of polls on the blind side · 8 of 13 real attacks landed · stamina floor 110
+BAND ring   : 10/14-20 presses, 40-44 dmg, kill 39-56 s, incoming 3.85-3.95
+              net -37..-48 of 196 hp — wins every time, but it BLEEDS
+PARK (v25)  : 8/18 presses, 32 dmg, kill 52 s, incoming 3.34, hits 0.22/s
+              net -18 of 196, stamina floor 113 — the ring REGENERATES
 ```
 
-The defence is now the only problem. 14–17 hits per fight, **every one of them taken while
-sprinting through the arc** with `|gap|` between 0.1 and 1.3, and 13 of 14 during the plant —
-i.e. the escape starts too late to be clear of the cone when the swing lands. The offence is
-limited by the gate: only 13 of 36 presses were real attacks (the rest fell inside the 0.75 s
-cooldown), and 6 of those 13 landed.
+**The probe's "incoming − regen → NET LOSING" is a strawman** — it ignores the hp budget. The
+real test is `kill_time × (incoming − regen) < wolfHp`; by it v10/v18/v21/v25 all win at L12.
+
+**The real run's failure was never the ring — it was the ARRIVAL.** Every boss-start in the
+real game measured stam 5-16 with the wolf pinned at r 4.2-4.9 (an exhausted walk-close loses
+12.5 vs 7 m/s, and the boss's body pursues at 12.5 forever — no leash anywhere: the only exits
+are the park, the death retry, or losing). Fix: (1) top up BEFORE the channel (the old code
+rested after it — dead code on the travel path); (2) the top-up rests clear of predators and
+counts clean time; (3) never flee below stam 15 — stand, die, retry on the respawn's full tank
+(the game's intended loop: `onDeath` despawns the boss and returns `S.stage = 'awaken'`).
 
 ### 5.5 Drills — in this order
 
@@ -255,6 +278,27 @@ cooldown), and 6 of those 13 landed.
    r0 = 2.05 (or one sprint assist) keeps the margin. Phase 2 is only the last quarter of its
    health, so the stamina bill is short — but it is also the quarter where you are poorest.
 
+7. **THE PARK (the 2026-09-03 winner, drill before anything else).** A walk orbit at
+   `r = 7 / neck` turns at exactly the neck rate — the gap FREEZES. Park it at dead-behind
+   (fm ≈ −π): every strike whiffs (dot = −1, the arc test is ±1.37 of the nose), every
+   walking poll regenerates 11/s, and the same parked gap is the bite platform — dip ~1 m
+   in (θ ≈ 0.9, two polls), press with `fm < −0.35` (6 hp ambush), pay the radius back
+   (θ ≈ 2.2). Arrival: sprint only while the tail is far (fm > −1.2); walk the last
+   stretch — a 5.5 rad/s lap overshoots the 2.4 rad tail window. r_park shifts with the
+   phase (`7 / b.turn`, 2.77–3.18 m) — the game's own turn rate is the answer key.
+8. **THE ARRIVAL LAW — never channel a trial tired.** Every real boss-start measured
+   stam 5–16: the route sprints the whole approach, the old top-up sat after the
+   `d < 3.2` channel check (dead code on the actual path), and the arena's wilds ate the
+   rest. A human top-up = 40+ clean poll-loops at `stam < 80` BEFORE the channel, walking
+   clear of any predator inside 26 m. Below stam 15 there is no recovery outside the park
+   (the boss pursues at 12.5 m/s forever — no leash); the game's intended retry is to
+   stand, die, and respawn on the full tank — the boss despawns and the stage returns to
+   'awaken'. A 2,700-poll doomed flee is not a strategy.
+9. **"NET LOSING" is a strawman.** The probe verdict compares incoming − regen without the
+   hp budget; the real test is `kill_time × (incoming − regen) < wolfHp`. By it the band
+   ring (−37..−48) and the park (−18) both win at L12, and the L5 iron fight wins at −41
+   of 140. Rank grammars by that test, never by the headline.
+
 ### 5.6 The Eagle and the Beast Master (before you get there)
 
 - **Eagle**: airborne, `invuln = !onGround`, neck **5 rad/s** — no ring on earth out-turns
@@ -266,31 +310,7 @@ cooldown), and 6 of those 13 landed.
 
 ---
 
-## 5.7 Session 2026-09-03 — the tier-1 Leopard is now LOSABLE (drill 1 landed)
-
-The trainer's directive this session was to *finish the human-speedrun to the Tier-1 trophy*.
-The rig was re-provisioned (`bash test/browserlab/boot.sh` → Chromium 149), the aim/motor probe
-passed (`|camErr| 0 · |yawErr| 0.136 · |goErr| 0.085 rad` over 39 polls — the 180° law is honest),
-and the fight was re-measured. Two live probes (drill-1 gate, L12) put the Leopard at **2 hp and
-1 hp** but the wolf died first (0.61–0.99 dps vs 3.0–4.26 incoming) — the manual's "defence is the
-only problem" verdict, now measured directly.
-
-**The single change that closed it:** the gate was pressing on *flanks* (facingMe < −0.10 = 2 dmg)
-and *spamming `KeyF` inside the 0.75 s swing* — `src/p3.js attack()` reads `if (this.atkCd > 0)
-return false`, so the old `run.mjs` fightLoop's 23 "presses" were ~1/3 real attacks. Drill 1 makes
-the swing **behind-only (facingMe < −0.35 → the 6-dmg ambush), body-aligned (|nose| ≤ 1.25), and
-cooldown-aware (≥ 0.75 s)**. Probe at L12: **8/10 landed, 8 behind / 0 flank / 0 face** (was 8/23
-mixed). Then the over-level truth: **at L18 the fight flips NET SURVIVABLE** (incoming 2.22 dps vs
-3+ regen, hp 244, stamina floor 149, boss to 1 hp while the wolf sits at 178).
-
-**Ported into the router** (`test/speedrun/run.mjs` `fightLoop`): the blind-side ring (tight r≈2.05,
-one fixed lap, sprint only to cross the claw arc) + drill-1 behind-only cooldown-aware bite. The old
-router fought from the front (0 behind bites, all face/1 dmg) and fled 3,577× in 37 s. Post-fix
-`fightlab --lvl=18`: **Leopard Legend SLAIN in 31.7 sim-s, behindPct 100, every bite 6 dmg, wolf at
-185 hp.** The tier-1 Legend is now winnable by the router — the iron (over-level) route is the line
-that takes the trophy. `--lvl` was added to `run.mjs --fightlab` for isolated validation.
-
-
+## 6. Session protocol
 
 1. `bash test/browserlab/boot.sh`, then `_aim_fast_probe.mjs` — if the aim/motor probe fails,
    nothing else you measure today is real.
@@ -314,6 +334,12 @@ chunk → campaign softlock), the B8 companion (bites could not see a Legend at 
 Legend's clones outlived it and locked fast travel), B10 (the Legend fled its own blind side),
 the two dead perks (Spring Steps, Thunder Charge), the unnameable fresh save, and the deeds
 that lost their destination. All are fixed in `src/` and baked into `index.html`.
+
+**2026-09-03 session (this one):** RIG-side, all in `test/speedrun` (uncommitted): the
+top-up AND-bug, the grind-pick ritual bug, the TDZ, the doomed 2,700-poll flee, the dead-code
+top-up after the channel check, and the arrival-at-stam-5 problem; GAME-side confirmations:
+no-leash pursuit and the arena multi-threat. Full ledger with measurements: `BUGS.md` (§
+"RIG-side" + "OPEN"). The old grammars v11–v24 died honest; the park (v25) is the law now.
 
 **Do not re-suspect:** `bearingTo` (correct, verified twice), the input chain (exonerated),
 knockback (1.1–2.9 m, not the primary problem), `H.move()` crouch (unsupported — prowl is
