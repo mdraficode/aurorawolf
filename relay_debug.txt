@@ -1,4 +1,19 @@
 [relay] playwright (WeTransfer) https://we.tl/t-HbRSfqO8z5ZWb2we
 [relay]   landing page 200 → https://wetransfer.com/downloads/58f36847b4d035be37c50a404d4f70c320260903125716/c32688?t_exp=1788699436&t_lsid=46f8c546-6bbb-4f18-bdcf-27f5192847f2&t_network=link&t_rid=YXV0aDB8UGFzdGV8NTAyOTQ3OTQ=&t_s=download_link&t_ts=1788440236
-[relay]   page shape {"url":"https://wetransfer.com/downloads/58f36847b4d035be37c50a404d4f70c320260903125716/c32688?t_exp=1788699436&t_lsid=46f8c546-6bbb-4f18-bdcf-27f5192847f2&t_network=link&t_rid=YXV0aDB8UGFzdGV8NTAyOTQ3OTQ=&t_s=download_link&t_ts=1788440236","anchors":["Send","Request","NewShowcase","Sign","Albums","Terms of Service","Pricing","Pricing","Log in","Sign up","Privacy Policy","Do Not Sell or Share My Personal Informa"],"download":0,"buttons":["3","I agree","Features","Use cases","Resources","Features
-[relay]   no Download control found; page = https://wetransfer.com/downloads/58f36847b4d035be37c50a404d4f70c320260903125716/c32688?t_exp=1788699436&t_lsid=46f8c546-6bbb-4f18-bdcf-27f5192847f2&t_network=link&t_rid=YXV0aDB8UGFzdGV8NTAyOTQ3OTQ=&t_s=download_link&t_ts=1788440236
+[relay]   dismissing consent via button:has-text("I agree")
+[relay]   page shape {"url":"https://wetransfer.com/downloads/58f36847b4d035be37c50a404d4f70c320260903125716/c32688?t_exp=1788699436&t_lsid=46f8c546-6bbb-4f18-bdcf-27f5192847f2&t_network=link&t_rid=YXV0aDB8UGFzdGV8NTAyOTQ3OTQ=&t_s=download_link&t_ts=1788440236","anchors":["Send","Request","NewShowcase","Sign","Albums","Report this transfer","Pricing","Pricing","Log in","Sign up","Go Ultimate","Privacy Policy"],"download":1,"buttons":["3","Open","Open","Download","Features","Use cases","Resources","Features","Use cas
+[relay]   clicking a[href*="download_link"] (1 match)
+[relay] download error: page.waitForEvent: Timeout 120000ms exceeded while waiting for event "download"
+=========================== logs ===========================
+waiting for event "download"
+============================================================
+page.waitForEvent: Timeout 120000ms exceeded while waiting for event "download"
+=========================== logs ===========================
+waiting for event "download"
+============================================================
+    at viaPlaywright (/home/runner/work/aurorawolf/aurorawolf/.github/env-relay-download.mjs:148:32)
+    at async file:///home/runner/work/aurorawolf/aurorawolf/.github/env-relay-download.mjs:172:26
+RESULT: FAILED — page.waitForEvent: Timeout 120000ms exceeded while waiting for event "download"
+=========================== logs ===========================
+waiting for event "download"
+============================================================
