@@ -135,13 +135,18 @@ async function viaPlaywright() {
   });
   dbg('[relay]   page shape ' + JSON.stringify(found).slice(0, 500));
 
+  // Highest confidence FIRST. The blanket [href*="/download"] / download_link anchors
+  // match WeTransfer's footer "Report this transfer" / share links — clicking those
+  // never triggers a file download. So exact Download buttons come first, the broad
+  // href matches last. (Measured: the prior order hit a[href*="download_link"] = the
+  // footer link, and waitForEvent timed out.)
   const selectors = [
-    'a.download', 'button.download', 'a[data-download]', '[data-download]',
-    'a[href*="/downloads/"]', '[href*="/download"]', 'a[href*="download_link"]',
-    '[data-testid="download"]', '[data-testid*="download"]',
+    'button[data-testid="download"]', '[data-testid="download"]',
     'button:has-text("Download")', 'a:has-text("Download")',
     'button:has-text("download")', 'a:has-text("download")',
-    'button[aria-label*="ownload"]', 'a[aria-label*="ownload"]'
+    'button.download', 'a.download', 'a[data-download]', '[data-download]',
+    '[data-testid*="download"]', 'button[aria-label*="ownload"]', 'a[aria-label*="ownload"]',
+    'a[href*="/downloads/"]', '[href*="/download"]', 'a[href*="download_link"]'
   ];
 
   // Wire the download event BEFORE clicking so nothing is missed.
