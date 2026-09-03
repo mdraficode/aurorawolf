@@ -69,14 +69,16 @@ jobs:
       - name: Download and stage the payload (+ MANIFEST.tsv / NESTED_REPO_STATE.txt)
         id: relay
         run: |
-          # Tee the downloader's stdout so a failure is reproducible, and ALWAYS
-          # exit 0 here so the commit step can persist relay_debug.txt for the agent
-          # to read by pulling later. The workflow's overall success signal is the
-          # presence of MANIFEST.tsv (committed by the next step), not this exit code.
+          # Tee the downloader's stdout into relay_debug.txt so a failure/fetch is
+          # reproducible. ALWAYS exit 0 here so the commit step can persist the debug
+          # log; whether the fetch OK'd is recorded in the commit itself (MANIFEST.tsv
+          # presence + sha256). The step's ID lets the commit step read the outcome.
           set +e
           node .github/env-relay-download.mjs | tee /tmp/relay_stdout.txt
           cp /tmp/relay_stdout.txt relay_debug.txt
-          grep -q '^\[relay\] saved' /tmp/relay_stdout.txt && echo "RELAY_OK" || echo "RELAY_FAIL"
+          touch relay_status.txt
+          grep -q '^\[relay\] saved' /tmp/relay_stdout.txt && echo "OK" > relay_status.txt || echo "FAILED" > relay_status.txt
+          echo "relay_status=$(cat relay_status.txt)"
           exit 0
 
       - name: Commit receipt + debug log back to the session branch
@@ -84,12 +86,12 @@ jobs:
           git config user.name "arena-agent"
           git config user.email "297053741+arena-agent@users.noreply.github.com"
           # The payload (28 MB binary) stays in gitignored drive_drop/ for local use;
-          # only the audit trail + debug log are committed. Always commit so the agent
-          # can pull the failure reason even when the fetch failed.
-          git add MANIFEST.tsv NESTED_REPO_STATE.txt relay_debug.txt
+          # only the audit trail + debug log are committed. On a failed download the
+          # MANIFEST/NESTED_REPO files may not exist, so add only whatever is present.
+          git add -A MANIFEST.tsv NESTED_REPO_STATE.txt relay_debug.txt relay_status.txt 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "nothing new to commit"
           else
-            git commit -m "env-relay: record payload receipt from ${{ github.ref }}"
+            git commit -m "env-relay: record payload receipt from ${{ github.ref }} (status $(cat relay_status.txt 2>/dev/null || echo 'unknown'))"
             git push origin HEAD:${{ github.ref_name }}
           fi
