@@ -546,7 +546,6 @@ body.touch #questTracker { display: none; }
     <div class="menu-side">
       <button class="btn ghost" id="btnTrophies" title="Trophy records & personal bests">🏆 TROPHIES</button>
       <button class="btn ghost" id="btnRecord" title="Your highest run record">🏆 HIGHEST RECORD</button>
-      <button class="btn ghost ai" id="btnMenuAI" title="The wolf plays itself — you watch">🧠 Watch Rafzzer the AI Play</button>
     </div>
   </div>
 
@@ -568,15 +567,6 @@ body.touch #questTracker { display: none; }
   🐻 Beware <b>territorial predators</b> — bear, tiger, snow leopard. Heed the red warning and the threat arrow; fight back or flee!<br>
   ✨ Rare <b>magic mushrooms</b> grant 10 seconds of flight. Hold jump to climb, look down to dive.<br>
   <span style="opacity:.75">If the world stays dark, your viewer may block WebGL — download the file and open it in a browser.</span></div>
-</template>
-
-<template id="tplPause">
-  <div id="pStats"></div>
-  <div class="btnrow">
-    <button class="btn" id="btnResume">RESUME</button>
-    <button class="btn ghost" id="btnNew">NEW GAME</button>
-  </div>
-  <div class="ov-tip">Tip: press <b>T</b> to watch the day–night cycle and auroras at ×8 speed.</div>
 </template>
 
 <script>
@@ -8224,24 +8214,23 @@ function updateHUD(dt) {
 
 function showOverlay(mode) {
   ui.overlay.classList.remove('hidden');
-  ui.overlay.dataset.mode = mode;
-  if (mode === 'start') {
+  // The PAUSE menu reuses the FIRST-LOAD home menu markup, so it must present with the same
+  // layout as 'start' (centered choices + side record). The overlay's data-mode is layout-only;
+  // the real pause/play state lives in `state`.
+  ui.overlay.dataset.mode = (mode === 'pause') ? 'start' : mode;
+  // The FIRST-LOAD page and the PAUSE menu are the SAME home menu: two main choices with
+  // drop-downs + the side record. Pausing never swaps in a different 2-button screen.
+  if (mode === 'start' || mode === 'pause') {
     ui.ovTitle.textContent = 'REVONTULET';
     ui.ovBody.innerHTML = document.getElementById('tplStart').innerHTML;
-    if (window.updateRunRecap) window.updateRunRecap();   // the chronicle greets you on the start page
-    if (window.CAMP && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();   // CAMPAIGN: name prompt + trophies wiring
-    if (state === 'menu') menuReady();   // returning from TROPHIES / pause menu — the start button must be live again (fix: stuck "SUMMONING THE WILD…")
-  } else if (mode === 'pause') {
-    ui.ovTitle.textContent = 'PAUSED';
-    ui.ovBody.innerHTML = document.getElementById('tplPause').innerHTML;
-    el('pStats').innerHTML =
-      `Days survived: <b>${dayCount}</b> · Distance: <b>${(wolf.distance / 1000).toFixed(2)} km</b><br>` +
-      `Gathered: <b>${stats.gathered}</b> · Caught: <b>${stats.caught}</b> · Predators slain <b>${stats.slain || 0}</b><br>` +
-      `Pelts <b>${inv.pelt}</b> · Bones <b>${inv.bone}</b><br>` +
-      `Biomes found: <b>${stats.biomes.size}/6</b><br>` +
-      `World seed: <b>${SEED}</b>`;
-    el('btnResume').onclick = () => setState('play');
-    el('btnNew').onclick = newGame;
+    if (mode === 'pause') {
+      // persist the live run so "Resume Last Game" continues exactly where the wolf is
+      if (window.CAMP && window.CAMP.save) window.CAMP.save();
+    } else {
+      if (window.updateRunRecap) window.updateRunRecap();   // the chronicle greets you on the start page
+    }
+    if (window.CAMP && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();   // re-arm the name prompt (fresh save) + trophies wiring on every return/pause
+    if (mode === 'pause' || state === 'menu') menuReady();   // re-arm resume state on return/pause (fix: stuck "SUMMONING THE WILD…")
   }
   wireStartMenu();   // re-arm the home menu: the two main choices + their drop-downs + the side record
 }
@@ -11609,17 +11598,12 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
   };
   window.AI_PLAY = setAI;              // public API: AI_PLAY(true) / AI_PLAY(false)
   window.AI_ON = () => aiOn;
-  // M46 v6.6 (bugfix — user report 2026-09-01): DELEGATION, not direct binding. The start overlay
-  // (tplStart) is re-injected on every return to it (TROPHIES → BACK, and pause → start), so a
-  // direct addEventListener on #btnMenuAI was attached to a node that gets DESTROYED — the fresh
-  // #btnMenuAI had no handler and the Rafzzer button silently died after a trophy round-trip.
-  // Document-level clicks survive every re-injection; the game already uses this pattern for
-  // #btnTrophies/#btnStart (p5.js: "the start template is re-injected, listeners below survive it").
+  // The menu's watch entry now lives in the NEW GAME / RESUME drop-downs (handled by the game's own
+  // newGameAI()/resumeAI(), wired in p4's wireStartMenu) — there is no separate side #btnMenuAI.
   // The in-game corner #btnAI lives in the static HUD (never re-injected) and toggles the same way.
   document.addEventListener('click', e => {
     const id = e.target && e.target.id;
-    if (id === 'btnMenuAI') setAI(true);   // the menu's front door — watch mode
-    else if (id === 'btnAI') setAI(!aiOn); // the in-game 🤖 toggle
+    if (id === 'btnAI') setAI(!aiOn); // the in-game 🤖 toggle
   });
   if (URL_ON) setAI(true);
   // the corner 🤖 belongs to the game screen — at the menu, the menu entry is the front door

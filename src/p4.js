@@ -4412,24 +4412,23 @@ function updateHUD(dt) {
 
 function showOverlay(mode) {
   ui.overlay.classList.remove('hidden');
-  ui.overlay.dataset.mode = mode;
-  if (mode === 'start') {
+  // The PAUSE menu reuses the FIRST-LOAD home menu markup, so it must present with the same
+  // layout as 'start' (centered choices + side record). The overlay's data-mode is layout-only;
+  // the real pause/play state lives in `state`.
+  ui.overlay.dataset.mode = (mode === 'pause') ? 'start' : mode;
+  // The FIRST-LOAD page and the PAUSE menu are the SAME home menu: two main choices with
+  // drop-downs + the side record. Pausing never swaps in a different 2-button screen.
+  if (mode === 'start' || mode === 'pause') {
     ui.ovTitle.textContent = 'REVONTULET';
     ui.ovBody.innerHTML = document.getElementById('tplStart').innerHTML;
-    if (window.updateRunRecap) window.updateRunRecap();   // the chronicle greets you on the start page
-    if (window.CAMP && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();   // CAMPAIGN: name prompt + trophies wiring
-    if (state === 'menu') menuReady();   // returning from TROPHIES / pause menu — the start button must be live again (fix: stuck "SUMMONING THE WILD…")
-  } else if (mode === 'pause') {
-    ui.ovTitle.textContent = 'PAUSED';
-    ui.ovBody.innerHTML = document.getElementById('tplPause').innerHTML;
-    el('pStats').innerHTML =
-      `Days survived: <b>${dayCount}</b> · Distance: <b>${(wolf.distance / 1000).toFixed(2)} km</b><br>` +
-      `Gathered: <b>${stats.gathered}</b> · Caught: <b>${stats.caught}</b> · Predators slain <b>${stats.slain || 0}</b><br>` +
-      `Pelts <b>${inv.pelt}</b> · Bones <b>${inv.bone}</b><br>` +
-      `Biomes found: <b>${stats.biomes.size}/6</b><br>` +
-      `World seed: <b>${SEED}</b>`;
-    el('btnResume').onclick = () => setState('play');
-    el('btnNew').onclick = newGame;
+    if (mode === 'pause') {
+      // persist the live run so "Resume Last Game" continues exactly where the wolf is
+      if (window.CAMP && window.CAMP.save) window.CAMP.save();
+    } else {
+      if (window.updateRunRecap) window.updateRunRecap();   // the chronicle greets you on the start page
+    }
+    if (window.CAMP && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();   // re-arm the name prompt (fresh save) + trophies wiring on every return/pause
+    if (mode === 'pause' || state === 'menu') menuReady();   // re-arm resume state on return/pause (fix: stuck "SUMMONING THE WILD…")
   }
   wireStartMenu();   // re-arm the home menu: the two main choices + their drop-downs + the side record
 }

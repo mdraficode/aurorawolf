@@ -1514,17 +1514,12 @@
   };
   window.AI_PLAY = setAI;              // public API: AI_PLAY(true) / AI_PLAY(false)
   window.AI_ON = () => aiOn;
-  // M46 v6.6 (bugfix — user report 2026-09-01): DELEGATION, not direct binding. The start overlay
-  // (tplStart) is re-injected on every return to it (TROPHIES → BACK, and pause → start), so a
-  // direct addEventListener on #btnMenuAI was attached to a node that gets DESTROYED — the fresh
-  // #btnMenuAI had no handler and the Rafzzer button silently died after a trophy round-trip.
-  // Document-level clicks survive every re-injection; the game already uses this pattern for
-  // #btnTrophies/#btnStart (p5.js: "the start template is re-injected, listeners below survive it").
+  // The menu's watch entry now lives in the NEW GAME / RESUME drop-downs (handled by the game's own
+  // newGameAI()/resumeAI(), wired in p4's wireStartMenu) — there is no separate side #btnMenuAI.
   // The in-game corner #btnAI lives in the static HUD (never re-injected) and toggles the same way.
   document.addEventListener('click', e => {
     const id = e.target && e.target.id;
-    if (id === 'btnMenuAI') setAI(true);   // the menu's front door — watch mode
-    else if (id === 'btnAI') setAI(!aiOn); // the in-game 🤖 toggle
+    if (id === 'btnAI') setAI(!aiOn); // the in-game 🤖 toggle
   });
   if (URL_ON) setAI(true);
   // the corner 🤖 belongs to the game screen — at the menu, the menu entry is the front door

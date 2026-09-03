@@ -87,14 +87,17 @@ ck('?autopilot=1 auto-enables (watch builds)', urlOn);
 ck('zero page errors (both sessions)', errs.length === 0 && errs2.length === 0, errs[0] || errs2[0] || 'clean');
 await page2.close(); await new Promise(r => setTimeout(r, 300));
 
-// 13 · menu front door: "🤖 Watch the AI play" starts the game with AI on
+// 13 · menu front door: NEW GAME drop-down's "🤖 Watch The Rafzzer the AI Play" starts the game with AI on
 const page3 = await browser.newPage({ viewport: { width: 640, height: 360 } });
 const errs3 = []; page3.on('pageerror', e => errs3.push(e.message));
 await page3.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?seed=5150&quality=low&speed=8&rate=3&re=3', { timeout: 90000, waitUntil: 'domcontentloaded' });
 await page3.waitForFunction(() => typeof state !== 'undefined' && state === 'menu', null, { timeout: 90000 });
 await page3.waitForTimeout(1500);
-await page3.click('#btnMenuAI');
-await page3.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
+await page3.click('#btnNewGame');          // 🧭 NEW GAME ▾ — the primary is the drop-down trigger
+await page3.waitForTimeout(150);
+await page3.click('#ddNewAI', { noWaitAfter: true });   // 🤖 Watch The Rafzzer the AI Play — navigates to ?autopilot=1
+await page3.waitForURL(/autopilot=1/, { timeout: 60000 });
+await page3.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
 let menuFlow = false, menuWhy = '';
 try {
   await page3.waitForFunction(() => document.body.classList.contains('aiOn') && (window.BOTLOG || []).length > 2 && wolf.distance > 3, null, { timeout: 30000, polling: 1000 });

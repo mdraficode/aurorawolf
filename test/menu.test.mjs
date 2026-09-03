@@ -18,12 +18,14 @@ try {
   // the redesigned home menu: two main options (each triggers a drop-down) + the side record
   R = await pg.evaluate(() => ({
     newGame: !!el('btnNewGame'), start: !!el('btnStart'), record: !!el('btnRecord'),
-    trophies: !!el('btnTrophies'), ai: !!el('btnMenuAI'),
+    trophies: !!el('btnTrophies'),
+    // the redundant side "Watch the AI Play" button was removed — it lives in the NEW GAME drop-down now
+    aiSideGone: !el('btnMenuAI'), oldPauseGone: !el('btnResume'),
     ddNew: !!el('ddNewGame') && !!el('ddNewStart') && !!el('ddNewAI'),
     ddResume: !!el('ddResume') && !!el('ddResumePlay') && !!el('ddResumeAI'),
     resumeDisabled: el('ddResumePlay') && el('ddResumePlay').disabled
   }));
-  ck('redesigned menu present (2 cards + side buttons)', R.newGame && R.start && R.record && R.trophies && R.ai, JSON.stringify(R));
+  ck('redesigned menu present (2 cards + side buttons)', R.newGame && R.start && R.record && R.trophies && R.aiSideGone, JSON.stringify(R));
   ck('each card has its two drop-down options', R.ddNew && R.ddResume, JSON.stringify(R));
   ck('resume options greyed when there is nothing to resume', R.resumeDisabled === true, String(R.resumeDisabled));
   // NEW GAME button itself opens its drop-down (no separate caret; no direct action)

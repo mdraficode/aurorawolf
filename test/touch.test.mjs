@@ -71,8 +71,11 @@ R.sprintHold = sprintHold;
 
 await page.locator('#tPause').dispatchEvent('pointerdown');
 await page.waitForTimeout(300);
-R.paused = await page.evaluate(() => state);
-await page.locator('#btnResume').click({ force: true }).catch(() => {});
+R.paused = await page.evaluate(() => ({ state, fullMenu: !!document.getElementById('btnNewGame') }));
+// the pause menu is the full home menu — resume via the drop-down trigger -> "Resume Last Game"
+await page.locator('#btnStart').click({ force: true });
+await page.waitForTimeout(150);
+await page.locator('#ddResumePlay').click({ force: true });
 await page.waitForTimeout(250);
 R.resumed = await page.evaluate(() => state);
 

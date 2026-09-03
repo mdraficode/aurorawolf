@@ -19,9 +19,10 @@ await page.screenshot({ path: 'shots/12_menu2.png', timeout: 90000 });
 // start the game via the NEW GAME drop-down's "Start Game" — a fresh seed, reload + autostart
 await page.click('#btnNewGame');
 await page.waitForTimeout(150);
-await page.click('#ddNewStart');
+await page.click('#ddNewStart', { noWaitAfter: true });   // navigates to ?seed=<new>&autostart=1
+await page.waitForURL(/autostart=1/, { timeout: 60000 });
 // the fresh world boots then auto-enters play; wait for it rather than a fixed sleep
-await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
+await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
 R.stateAfterClick = await page.evaluate(() => state);
 R.overlayHidden = await page.evaluate(() => document.getElementById('overlay').classList.contains('hidden'));
 R.hudVisible = await page.evaluate(() => !document.getElementById('hud').classList.contains('hidden'));

@@ -25,10 +25,14 @@ await page.waitForTimeout(700);
 R.afterRotate = await page.evaluate(() => ({
   rotateGateShown: getComputedStyle(document.getElementById('rotate')).display === 'flex',
   state,
-  btnResumeThere: !!document.getElementById('btnResume')
+  // the pause menu is now the full first-load home menu, not a 2-button RESUME/NEW GAME screen
+  fullMenuShown: !!document.getElementById('btnNewGame') && !!document.getElementById('ddNewGame'),
+  oldResumeBtnGone: !document.getElementById('btnResume')
 }));
-const r1 = await page.locator('#btnResume').boundingBox();
-if (r1) await page.mouse.click(r1.x + r1.width / 2, r1.y + r1.height / 2);
+// resume via the drop-down trigger -> "Resume Last Game"
+await page.locator('#btnStart').click({ force: true });
+await page.waitForTimeout(150);
+await page.locator('#ddResumePlay').click({ force: true });
 await page.waitForTimeout(500);
 R.resumedAfterRotate = await page.evaluate(() => state === 'play');
 
