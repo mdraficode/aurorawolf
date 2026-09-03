@@ -67,15 +67,26 @@ jobs:
           FN: ${{ github.event.inputs.filename }}
 
       - name: Download and stage the payload (+ MANIFEST.tsv / NESTED_REPO_STATE.txt)
-        run: node .github/env-relay-download.mjs
+        id: relay
+        run: |
+          # Tee the downloader's stdout so a failure is reproducible, and ALWAYS
+          # exit 0 here so the commit step can persist relay_debug.txt for the agent
+          # to read by pulling later. The workflow's overall success signal is the
+          # presence of MANIFEST.tsv (committed by the next step), not this exit code.
+          set +e
+          node .github/env-relay-download.mjs | tee /tmp/relay_stdout.txt
+          cp /tmp/relay_stdout.txt relay_debug.txt
+          grep -q '^\[relay\] saved' /tmp/relay_stdout.txt && echo "RELAY_OK" || echo "RELAY_FAIL"
+          exit 0
 
-      - name: Commit the audit trail back to the session branch
+      - name: Commit receipt + debug log back to the session branch
         run: |
           git config user.name "arena-agent"
           git config user.email "297053741+arena-agent@users.noreply.github.com"
           # The payload (28 MB binary) stays in gitignored drive_drop/ for local use;
-          # only the audit trail is committed. The next env-relay run re-fetches it.
-          git add MANIFEST.tsv NESTED_REPO_STATE.txt
+          # only the audit trail + debug log are committed. Always commit so the agent
+          # can pull the failure reason even when the fetch failed.
+          git add MANIFEST.tsv NESTED_REPO_STATE.txt relay_debug.txt
           if git diff --cached --quiet; then
             echo "nothing new to commit"
           else
