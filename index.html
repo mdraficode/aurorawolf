@@ -8894,7 +8894,7 @@ window.CAMP = (() => {
   let alt = null;               // altar visual {mesh, glowT, x, z}
   let autosaveT = 0, hudT = 0, prepNeedCache = 2;
 
-  /* ---------- the hierarchy (data-driven, see CAMPAIGN_DESIGN.md) ---------- */
+  /* ---------- the hierarchy (data-driven, see docs/CAMPAIGN_DESIGN.md) ---------- */
   const LEGENDS = [
     { key: 'Leopard',    sp: 'leopard', biome: 'forest',    icon: '🐆', glow: 0xd8a44a, special: 'ambush',    ability: 'shadowStep',    abilityName: 'Shadow Step',    abilityDesc: 'prowling is nearly invisible',      stats: { hp: 45,  dmg: 14, speed: 12.5, scale: 2.6 }, territory: 'the dense pine forest', story: 'The first Legend has fallen. But its roar has awakened something deeper in the wilderness.' },
     { key: 'Tiger',      sp: 'tiger',   biome: 'grove',     icon: '🐯', glow: 0xc26a1e, special: 'fury',      ability: 'secondWind',    abilityName: 'Second Wind',    abilityDesc: 'health regenerates 50% faster',        stats: { hp: 62,  dmg: 16, speed: 12.6, scale: 3.0 }, territory: 'deep wooded dells',    story: 'The forest grows silent. Something stronger is watching.' },
@@ -9519,7 +9519,7 @@ if (window.CAMP && window.CAMP.init) window.CAMP.init();
    BEFORE this module exists, so onMenuRefresh() never ran on the first menu and
    #nameRow stayed at its inline display:none — a new player could not name the wolf
    (every trophy recorded "Wolf") until they happened to revisit the menu. Refresh
-   the overlay now that the campaign exists. Proven by test/speedrun/_menu_probe.mjs (fresh save: #nameRow visible, #plName2 focusable). */
+   the overlay now that the campaign exists. Proven on a fresh save: #nameRow visible, #plName2 focusable. */
 try {
   const ov = document.getElementById('overlay');
   if (ov && ov.dataset.mode === 'start' && !ov.classList.contains('hidden') && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();

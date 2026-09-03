@@ -41,12 +41,11 @@ blocked Microsoft CDN. Instead:
 
 Version mismatch (149 supplied vs 151 expected) is harmless — Playwright only checks the path exists.
 
-**(b) Drive payloads.** A one-shot GitHub Actions relay (`.github/workflows/env-relay.yml`):
-GitHub runners have full internet, so the workflow downloads the zip there and commits the
-result to the session branch. It self-triggers on a change to its own file (the dispatch API is
-not available to the sandbox's app token). The nested git repo collapses to a *gitlink*, so the
-workflow also writes `MANIFEST.tsv` (path/size/sha256) + `NESTED_REPO_STATE.txt` to make the
-payload auditable.
+**(b) Drive/WeTransfer payloads** were fetched by a one-shot GitHub Actions relay
+(`.github/workflows/env-relay.yml`, since removed). GitHub runners have full internet, so the
+workflow downloaded the zip there and committed it to the session branch so the sandbox could
+`git pull` it (the Actions-artifact blob host is blocked here). That recovery is complete — the
+reconciled repo is the source of truth and the relay machinery was retired with it.
 
 ## 3 · One command to rebuild all of it
 

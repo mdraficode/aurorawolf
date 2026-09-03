@@ -8,7 +8,7 @@
 # turn boundaries (verified 2026-09-02: /home/user/setup_env.sh, /home/user/env_libs,
 # ~/.revontulet.keystore, /tmp/chromium and /usr/local/lib all vanished between turns).
 #
-# WHY IT EXISTS — the sandbox egress is an ALLOWLIST (measured, see ENVIRONMENT.md):
+# WHY IT EXISTS — the sandbox egress is an ALLOWLIST (measured, see docs/ENVIRONMENT.md):
 #   reachable : github.com · api.github.com · codeload.github.com ·
 #               registry.npmjs.org · pypi.org · files.pythonhosted.org
 #   BLOCKED   : drive.google.com · *.googleapis.com · deb.debian.org ·
@@ -21,7 +21,7 @@
 # THE WORKAROUND
 #   1. Chromium comes from npm's @sparticuz/chromium (149.0.7827.0) -> /tmp/chromium.
 #   2. Its nspr/nss shared libs come from env_libs/ (Debian bookworm .deb extracts,
-#      fetched once by the env-relay workflow and kept in git) -> /usr/local/lib.
+#      shipped in git under tools/chromium-libs/) -> /usr/local/lib.
 #   3. Symlink /tmp/chromium into the four paths Playwright probes.
 # ============================================================================
 set -euo pipefail
@@ -60,7 +60,7 @@ if [ -d "$LIBSRC" ]; then
   echo "      $(ls "$LIBSRC"/*.so | wc -l) libs installed"
   ldd "$CHROME" 2>/dev/null | grep -q "not found" && { echo "      ERROR: unresolved libs remain"; ldd "$CHROME" | grep "not found"; exit 1; }
 else
-  echo "      ERROR: $LIBSRC missing — run the env-relay workflow to refetch them"
+  echo "      ERROR: $LIBSRC missing — restore tools/chromium-libs from git"
   exit 1
 fi
 

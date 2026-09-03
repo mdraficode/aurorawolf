@@ -20,8 +20,8 @@ rig fixes + docs in this commit). Previous header: 2026-09-01 (post GEN 39).
 | Local workdir | `aurorawolf/` (built `index.html` is committed; `build.py` regenerates it) |
 | GitHub push auth | `~/.ghtoken` (classic PAT, `repo` scope) — **never committed**, used by `publish.sh` and `git push` |
 | APK | Tag `archive/android-apk` in git history + `~/.revontulet.keystore` (never committed). APK only on explicit request |
-| Player doc | `README.md`; design docs: `CAMPAIGN_DESIGN.md`, `TRAINING_MANUAL.md`, `BUGS.md`, `PLAYLOG.md`, `LINKS.md`, `RAFZZER.md`, `ENVIRONMENT.md` |
-| Agent docs | `AGENT_BRIEF.md` (full session context) + `MASTER.md` (this file) — read both first. The stale handoffs `NEXT_DEV.md` / `M46_RESUME.md` / `M46_MISSION_BRIEF.md` / `MISSION2.md` were deleted 2026-09-02 (they named GEN 9 · fit 283 as champion). |
+| Player doc | `README.md` (repo root); all docs live in `docs/`: `CAMPAIGN_DESIGN.md`, `TRAINING_MANUAL.md`, `BUGS.md`, `PLAYLOG.md`, `LINKS.md`, `RAFZZER.md`, `ENVIRONMENT.md` |
+| Agent docs | `docs/AGENT_BRIEF.md` (full session context) + `docs/MASTER.md` (this file) — read both first. The stale handoffs `NEXT_DEV.md` / `M46_RESUME.md` / `M46_MISSION_BRIEF.md` / `MISSION2.md` were deleted 2026-09-02 (they named GEN 9 · fit 283 as champion). |
 
 ---
 
@@ -59,6 +59,8 @@ aurorawolf/
 │   │                     trophies, CAMP object (state/clock/side/…), CAMPDBG test helpers, save
 │   ├── p6.js           ← 🐺 THE PACK: howl → bond, pack hunts with you, rivals/pack attacks
 │   └── autopilot.js    ← 🤖 AI PLAY (watch mode) + 🧠 RAFZZER v1.0 neural brain + bot policy + LAW v4 fitness
+├── docs/                   ← knowledge docs: AGENT_BRIEF, MASTER, BUGS, PLAYLOG, TRAINING_MANUAL,
+│                              CAMPAIGN_DESIGN, ENVIRONMENT, LINKS, RAFZZER, RESTORE (README stays at root)
 ├── test/                   ← TESTS ONLY (27 suites in `npm test`, + 8 standalone suites)
 │   ├── *.test.mjs / *.check.mjs ← the suites (side, campaign, pack, bosskit, world, collision, …)
 │   ├── smoke.mjs, menu_trophy_ai.mjs ← in `npm test` despite the plain names
@@ -482,14 +484,14 @@ human players get them too**; the brains only had to be taught the doors exist (
   previously the heading snapped on every tick so every bite was 1 dmg, and the claw was undodgeable),
   three dead perks wired up, deed waypoints surviving chunk unloads, the fresh-save name prompt.
 - **New in the repo:** `test/speedrun/` (human.mjs / run.mjs / probe_fight.mjs / probe_boss_dps.mjs),
-  `test/browserlab/boot.sh`, `TRAINING_MANUAL.md`, `ENVIRONMENT.md`; reports gitignored under
-  `test/speedrun/runs/`.
-- **Environment (Arena sandbox):** see `ENVIRONMENT.md` — the egress is an allowlist (github + npm +
-  PyPI only), so Chromium comes from `@sparticuz/chromium` 149.0.7827.0 + Debian nspr/nss libs, and
-  Drive payloads arrive via the `env-relay` Actions workflow. `bash /home/user/setup_env.sh` rebuilds
-  all of it in ~2 min. The Drive zip `training v2.zip` was audited: **byte-identical to commit
-  `855eb4e` (v6.6)** — its only unique content is `.revontulet.keystore` (restored to `~/`) and
-  `.ghtoken` (left in the zip by trainer decision; never committed — `.gitignore` blocks it).
+  `test/browserlab/boot.sh`, `docs/TRAINING_MANUAL.md`, `docs/ENVIRONMENT.md`; reports gitignored
+  under `test/speedrun/runs/`.
+- **Environment (Arena sandbox):** see `docs/ENVIRONMENT.md` — the egress is an allowlist (github +
+  npm + PyPI only), so Chromium comes from `@sparticuz/chromium` 149.0.7827.0 + Debian nspr/nss libs
+  (shipped in `tools/chromium-libs/`). `bash tools/setup_env.sh` rebuilds all of it in ~2 min. The one
+  Drive/WeTransfer backup (`AW-V1.zip`) was fetched via the now-retired `env-relay` Actions workflow,
+  audited (sha256 `b7d67bcd…`, byte-identical to the reconciled repo — its only unique content was
+  `.revontulet.keystore` / `.ghtoken`, never committed), and the relay machinery was deleted with it.
 - **Standing order:** finish the human-speedrun session (no bot, no brain) to the Tier-1 trophy and
   record it in `TRAINING_MANUAL.md` **before** resuming GEN 56.
 

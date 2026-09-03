@@ -43,9 +43,9 @@ src/                    ← source: p1 math/terrain · p2 render/veg · p3 wolf+
 vendor/three.min.js     ← three.js r134 (inlined at build)
 tools/ship.sh           ← canonical publish: `bash tools/ship.sh "msg"` = build + push to main → live ~1 min
 publish.sh              ← archive only: `archive [alias]` = permanent archive.org snapshot (github mode delegates to ship.sh)
-test/                   ← 22-suite gate incl. quest.test.mjs (quests · spirit · bosses · XP · fast travel), cam.test.mjs (free-look camera) and freeze.test.mjs (crash-proof loop) + on-demand: github (live), snapshots.mjs + analyze.py (regenerate shots)
+test/                   ← 24-suite gate (all gates + probes; see test/README.md for the CLI)
 shots/                  ← current-build screenshots (cave crystals · night aurora · waterfall · forest)
-LINKS.md                ← all public links + tokens how-to
+docs/                   ← knowledge docs: README(here) is player-facing; AGENT_BRIEF, MASTER, BUGS, PLAYLOG, TRAINING_MANUAL, CAMPAIGN_DESIGN, ENVIRONMENT, LINKS, RAFZZER, RESTORE
 ~/.ghtoken              ← GitHub access (keep! revocable at github.com/settings/tokens)
 ```
 Build · test · publish: `npm run build` · `npm test` · `npm run publish`

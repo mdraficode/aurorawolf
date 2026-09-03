@@ -12,9 +12,5 @@ training/rafzzer_candidate.json
 test/speedrun/runs/
 uploads/
 
-# env-relay: the payload zip is committed to relay/ (tracked) so the sandbox can
-# fetch it over git — blob.core.windows.net (the Actions-artifact host) is blocked.
-# The relay's own fresh logs and any stray archives stay untracked.
-relay_debug.txt
-relay_status.txt
-relay/*.part
+# big downloaded backups (relay/ was retired once its payload was reconciled into
+# the repo; the env-relay workflow + helper files were removed with it)
