@@ -1,6 +1,6 @@
-payload=drive_drop/AW-V1.zip
+payload=relay/AW-V1.zip
 bytes=29758004
 sha256=b7d67bcd5ca2306e0b0429ab026593cd227dd97019cbc8ae14f2cc8d046690e3
 nested_repo=archive; extract to inspect (a nested .git collapses to a gitlink on commit)
 source=https://we.tl/t-HbRSfqO8z5ZWb2we
-relayed_at=2026-09-03T13:24:55.337Z
+relayed_at=2026-09-03T13:27:34.490Z
