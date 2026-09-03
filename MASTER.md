@@ -5,8 +5,8 @@
 the project identity, the codebase map, the neural-training system, the CURRENT progress state,
 and the road ahead. **Rule: whenever a session changes the law, the brain architecture, the
 features, or the lineage state, update this file in the same commit.** It is the memory of the
-project. Last updated: **2026-09-01** (post GEN 39, side-errand feature shipped, full-repo GitHub
-backup).
+project. Last updated: **2026-09-03** (human-speedrun session — tier-1 Leopard Legend now winnable
+by the router via the drill-1 blind-side ring; §7g).
 
 ---
 
@@ -478,6 +478,29 @@ human players get them too**; the brains only had to be taught the doors exist (
   `.ghtoken` (left in the zip by trainer decision; never committed — `.gitignore` blocks it).
 - **Standing order:** finish the human-speedrun session (no bot, no brain) to the Tier-1 trophy and
   record it in `TRAINING_MANUAL.md` **before** resuming GEN 56.
+
+### 7g · v6.9-speedrun — the tier-1 Legend is now WINNABLE by the router (2026-09-03)
+
+- **Session directive:** finish the human-speedrun to the Tier-1 trophy (no bot, no brain) before
+  GEN 56. The rig was re-provisioned (`bash test/browserlab/boot.sh` → Chromium 149, aim/motor probe
+  PASS) and the fight re-measured. Full details in `TRAINING_MANUAL.md` §5.7 + `BUGS.md` (session
+  2026-09-03).
+- **Root cause found (`run.mjs` `fightLoop`):** the router fought the Legend from the FRONT — a wide
+  sprint ring, a bite gate with no `facingMe`/cooldown constraint (so it pressed flanks/faces and
+  F-spammed inside the 0.75 s swing), and a health-line that fled every beat (`fled: 3577` in 37 s).
+  Over 5 live fights it landed **0 behind bites** (all face/1 dmg).
+- **Fix (drill 1, ported from the probe):** blind-side ring at r≈2.05 (walk alone beats the neck at
+  every phase), one fixed lap, sprint only to cross the claw arc, and a **behind-only
+  (`facingMe < −0.35` → 6-dmg ambush), body-aligned (`|nose| ≤ 1.25`), cooldown-aware (`≥ 0.75 s`)**
+  bite gate. Flee removed as the reflex.
+- **Proof:** `run.mjs --fightlab --lvl=18` → **Leopard Legend SLAIN in 31.7 sim-s, `behindPct 100`,
+  every bite 6 dmg, wolf at 185 hp, `fled 0`.** At L12 the fight is `0.61–0.99 dps vs 3.0–4.26
+  incoming` (NET LOSING, boss reaches 1–2 hp); **at L18 it is NET SURVIVABLE** (incoming 2.22 vs 3+
+  regen, hp 244) — the iron (over-level) route is the line that takes the trophy. `--lvl` added to
+  `run.mjs --fightlab` for isolated validation.
+- **Standing order (unchanged):** the Tier-1 trophy is still unclaimed. Next: run the **iron** route
+  from a cleared save to a real trophy (over-level to ~L18 before the boss), then record it in
+  `TRAINING_MANUAL.md` and resume GEN 56. No `src/` change was needed — the router/rig only.
 
 ### 7d · CRITICAL BUGFIX — Rafzzer button died after TROPHIES → BACK (2026-09-01, user report)
 

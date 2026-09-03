@@ -11,3 +11,7 @@ training/rafzzer_candidate.json
 # probe run reports & their screenshots (regenerable by test/speedrun/*.mjs)
 test/speedrun/runs/
 uploads/
+
+# env-relay payload (the 28 MB Drive/WeTransfer archive) is a big binary — keep it
+# out of git; the audit trail (MANIFEST.tsv + NESTED_REPO_STATE.txt) IS committed.
+drive_drop/

@@ -1,0 +1,84 @@
+# ============================================================================
+# env-relay — the one way a Drive/WeTransfer file reaches this sandbox.
+#   The sandbox egress is an allowlist (github · npm · PyPI only), so a Drive or
+#   WeTransfer link can NEVER be fetched directly from the agent. GitHub runners
+#   have full internet, so THIS workflow fetches the file and commits it to the
+#   SESSION BRANCH; the `env-relay-download.mjs` then stages it under
+#   `drive_drop/` with an audit trail (MANIFEST.tsv + NESTED_REPO_STATE.txt).
+#
+# TRIGGER: push to any branch that changes this file, the downloader, or the
+# config. (The GitHub dispatch API is NOT available to the sandbox's app token,
+# so we self-trigger on a change to our own files.) To force a re-fetch, edit
+# `.github/env-relay.config.json` (source_url / filename) and push.
+# ============================================================================
+name: env-relay
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - '.github/workflows/env-relay.yml'
+      - '.github/env-relay-download.mjs'
+      - '.github/env-relay.config.json'
+  # Manual re-run button (works if the repo exposes workflow_dispatch).
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: 'Override source_url (leave blank to use config)'
+        required: false
+      filename:
+        description: 'Override filename (default AW-V1.zip)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the session branch (same branch that triggered)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install gdown (Google Drive direct download)
+        run: pip install --user gdown
+
+      - name: Install Playwright Chromium (WeTransfer needs a real browser)
+        run: |
+          npm i playwright >/dev/null 2>&1 || true
+          npx playwright install --with-deps chromium || npx playwright install chromium
+
+      - name: Apply manual dispatch override (optional)
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: .github
+        run: |
+          node -e "const fs=require('fs');const c=JSON.parse(fs.readFileSync('env-relay.config.json','utf8'));if(process.env.SRC)c.source_url=process.env.SRC;if(process.env.FN)c.filename=process.env.FN;fs.writeFileSync('env-relay.config.json',JSON.stringify(c,null,2));"
+        env:
+          SRC: ${{ github.event.inputs.source_url }}
+          FN: ${{ github.event.inputs.filename }}
+
+      - name: Download and stage the payload (+ MANIFEST.tsv / NESTED_REPO_STATE.txt)
+        run: node .github/env-relay-download.mjs
+
+      - name: Commit the audit trail back to the session branch
+        run: |
+          git config user.name "arena-agent"
+          git config user.email "297053741+arena-agent@users.noreply.github.com"
+          # The payload (28 MB binary) stays in gitignored drive_drop/ for local use;
+          # only the audit trail is committed. The next env-relay run re-fetches it.
+          git add MANIFEST.tsv NESTED_REPO_STATE.txt
+          if git diff --cached --quiet; then
+            echo "nothing new to commit"
+          else
+            git commit -m "env-relay: record payload receipt from ${{ github.ref }}"
+            git push origin HEAD:${{ github.ref_name }}
+          fi

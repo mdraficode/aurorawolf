@@ -129,8 +129,8 @@ let fight = null, deedFails = 0, lastDeedR = '';
 /* --fightlab: skip the campaign and drop a Legend on the router's head immediately
    (debugging the fight in isolation — a scored run never uses this) */
 if (flag('fightlab')) {
-  const labLeg = +arg('labLeg', 0), labTier = +arg('labTier', 1);
-  const lab = await page.evaluate(({ labLeg, labTier }) => {
+  const labLeg = +arg('labLeg', 0), labTier = +arg('labTier', 1), labLvl = +arg('lvl', 0);
+  const lab = await page.evaluate(({ labLeg, labTier, labLvl }) => {
     const S = window.CAMP.state();
     S.leg = labLeg; S.tier = labTier; S.stage = 'boss';
     const def = window.CAMP.legendDef();
@@ -142,10 +142,15 @@ if (flag('fightlab')) {
           ch[arr].splice(i, 1); try { a.dispose(); } catch (e) { }
         }
     }
+    /* over-level the wolf (--lvl) so the fight can be validated in isolation at the
+       condition that flips it winnable — mirror of probe_fight.mjs's LVL harness. */
+    let g = 0;
+    while (wolf.level < labLvl && g++ < 80) addXp(wolf.xpNext - wolf.xp + 1);
+    wolf.hp = wolf.maxHp; wolf.stamina = wolf.maxStam; wolf.deadT = 0; wolf.exhausted = false;
     const x = wolf.pos.x + 14, z = wolf.pos.z;
     bosses.push(new Boss(def.camp === 'beast' ? 'enchanted' : 'forest', x, z, false, def));
-    return { boss: def.name, hp: def.hp, dmg: def.dmg, scale: def.scale, speed: def.speed };
-  }, { labLeg, labTier });
+    return { boss: def.name, hp: def.hp, dmg: def.dmg, scale: def.scale, speed: def.speed, lvl: wolf.level };
+  }, { labLeg, labTier, labLvl });
   mark('fightlab', lab, true);
   console.log('   🧪 fightlab: ' + JSON.stringify(lab));
 }
@@ -176,6 +181,7 @@ const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
 let fightMarkT = -99;
 async function fightLoop(e0) {
   let travel = 1.6, lastDist = null, lastCam = null, side = (fight && fight.side) || 1;
+  let lastBiteClock = null;                    // DRILL 1: only bite when the 0.75 s swing is ready
   let guard = 0;
   for (;;) {
     if (++guard > 4000) return 'guard';
@@ -216,17 +222,12 @@ async function fightLoop(e0) {
     const toB = bearingTo(f.w.x, f.w.z, b.x, b.z);
     const r = b.d;
 
-    /* --- health line: a human breaks off, sprints clear, and lets the 3 hp/s regen work --- */
-    const fleeHp = Math.max(30, f.w.maxHp * (isIron ? 0.36 : 0.32));
-    if (f.w.hp < fleeHp && b.d < 30) {
-      F.fled++; F.mode = 'flee';
-      await H.aimFast(toB + Math.PI, f.cam);
-      await H.move({ f: true, sprint: f.w.stam > 8 });
-      if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
-      F.hp0 = f.w.hp;
-      continue;
-    }
-    if (F.mode === 'flee') { F.mode = 'ring'; F.hp0 = f.w.hp; }
+    /* --- health line: if the fight is genuinely lost, sprint clear and let regen work.
+        The drilled rule is NO FLEE during the ring (a Legend runs 12.5-16 m/s; the wolf
+        walks 7, so turning your back hands it your spine at the exact range the claw lands
+        — measured in the probe: flee ran 67% of polls, ag p50 0.00, 14 of 19 hits). Fleeing
+        is therefore only a LAST resort when already below ~1/4 HP; otherwise the parked
+        blind-side gap is the armour. */
 
     /* --- the Legend's own moves: submerge (surfaces on top of me), charge, the lion's ring --- */
     if (b.sub > 0) {
@@ -251,33 +252,71 @@ async function fightLoop(e0) {
       continue;
     }
 
-    /* --- THE RING: sprint it while the legs last, tighten it when they don't --- */
+    /* --- THE BLIND-SIDE RING (DRILL 1 — the probe-validated geometry) ---
+       The old ring flew a wide (3.9-4.1 m) sprint and bit on any nose < 1.42 — which is
+       why it fought from the FRONT (every bite a face/1-dmg) and fled 3,577× in 37 s.
+       The probe proved the winning shape (LAW v11 + drill 1): a TIGHT walk ring at r≈2.05
+       where the walk alone out-turns the neck at every phase, one FIXED lap direction, and
+       BEHIND-ONLY bites that respect the 0.75 s swing cooldown.
+
+       Geometry (src/p4.js 3223-3266 + src/p3.js 779-822): a Legend turns 2.2·(1+0.15·phase)
+       rad/s and ×0.18 while its 0.55 s plant winds up; its claw lands only inside |gap| ≤ 1.37
+       at the END of the plant. The wolf bite cone is |nose| ≤ 1.37, and a behind bite
+       (facing < -0.35) on a Legend is always an AMBUSH → (3+1)×1.5 = 6 dmg (a flank is 2,
+       a face 1). So the one place worth standing is |gap| > 1.93: its swing whiffs AND my
+       bite triples. θ is the travel angle off the bearing-to-Legend.
+         θ_IN   = 1.28 walk → ω 3.27, nose 1.28 → BITES (but only when behind)
+         θ_OUT  = 2.30 walk → pays the radius back (no bite)
+         θ_RUN  = 1.45 sprint → the arc transit
+         θ_SHUT = 0.50 sprint → closing from beyond its 4.0 m plant line
+       Radius band [1.85, 2.45] keeps it planted; net ω > neck at every phase, so sprint is
+       NOT needed except to cross the claw arc (ag < DANGER) or recover a blown radius.      */
     const gassed = f.w.exh || f.w.stam < 8;
-    const ringR = gassed ? 2.9 : (b.wind > 0 ? 4.1 : 3.9);   // spent → hug it: ω = v/r must beat 2.2 rad/s
+    const R_LO = 1.85, R_HI = 2.45, DANGER = 1.42;   // band + its 78° arc plus one poll margin
+    const TH_IN = 1.28, TH_OUT = 2.30, TH_RUN = 1.45, TH_SHUT = 0.50;
+    const r0 = 2.05;
     if (gassed) F.spent++;
-    const err = r - ringR;
-    /* the zigzag: correct the radius, but never fly flatter than ~15° off the tangent —
-       a flat tangent puts the Legend at 90° to my nose and my own bite cone rejects it. */
-    let cut = clampN(err * (0.5 + 0.25 / Math.max(0.6, travel)), -0.46, 0.46);
-    const MIN = 0.27;
-    if (cut > -MIN && cut < MIN) cut = cut >= 0 ? MIN : -MIN;
-    if (b.wind > 0) { F.windEscapes++; cut = clampN(cut, -0.12, 0.12); }   // a swing is coming: flatten out and leave its arc
-    const moveDir = toB + side * (Math.PI / 2 - cut);
+    /* radius — a HELD spiral between two rings (the yaw needs ~0.3 s to settle, so a
+       command is only worth giving if it is worth keeping — no bang-bang zigzag). */
+    let radOut = false;
+    if (r <= R_LO) radOut = true; else if (r >= R_HI) radOut = false;
+    let sprint = false, thWant;
+    if (r > 3.95) {
+      F.mode = 'close';
+      thWant = TH_SHUT; sprint = f.w.stam > 8 && !f.w.exh; radOut = false;
+    } else {
+      F.mode = b.wind > 0 ? 'wind' : 'ring';
+      if (b.wind > 0) F.windEscapes++;
+      const ag = Math.abs(b.gap);
+      /* sprint ONLY to cross its claw arc, or recover a blown-out radius — ~6% duty, ~10
+         stamina a lap, refunded fourfold. A full sprint ring is what fled the stamina to 6. */
+      sprint = (ag < DANGER || r > 3.30) && f.w.stam > 12 && !f.w.exh;
+      thWant = sprint ? (ag < DANGER ? TH_RUN : TH_IN) : (radOut ? TH_OUT : TH_IN);
+      if (r - r0 > 0.75) { thWant = TH_SHUT; sprint = f.w.stam > 8 && !f.w.exh; }   // badly wide
+    }
+    const thCmd = thWant;                                  // (aim lead — see below)
+    const moveDir = toB + side * thCmd;
     await H.aimFast(moveDir, lastCam === null ? f.cam : f.cam);
     lastCam = null;
-    await H.move({ f: true, sprint: !gassed && !f.w.swim });
-    /* swing whenever the game's own cone will accept it (my nose is stale by one poll) */
+    await H.move({ f: true, sprint: sprint && !f.w.swim });
+    /* BEHIND-ONLY, COOLDOWN-AWARE, BODY-ALIGNED bite (DRILL 1). src/p3.js attack() self-gates
+       on its 0.75 s swing (atkCd is spent even on a whiff), so F-spamming inside that window
+       is pure waste — the old gate did exactly that and only ~1/3 of presses were real. Only
+       press when a Legend's tail is offered (facingMe < -0.35 → the 6-dmg ambush), the nose
+       has the body-alignment margin (≤ 1.25, worth ~0.3 rad of lag), and the swing is ready. */
     const nose = Math.abs(wrapPI(toB - f.w.yaw));
-    if (!b.inv && r <= b.biteR + 0.35 && nose < 1.42) {
+    if (!b.inv && r <= b.biteR && nose < 1.25 && b.facingMe < -0.35 &&
+        (lastBiteClock === null || f.clock - lastBiteClock >= 0.75)) {
       F.swings++;
       if (await H.bite(f.t)) {
         F.bites++;
         if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++;
+        lastBiteClock = f.clock;
       }
     }
     if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
     F.hp0 = f.w.hp;
-    /* a Legend that has lapped me onto its good side: swap the way round */
+    /* a Legend that has lapped me onto its good side: swap the lap direction once */
     if (b.facingMe > 0.85 && r < 4.6 && b.wind <= 0) side = -side;
     F.side = side;
   }

@@ -266,7 +266,31 @@ cooldown), and 6 of those 13 landed.
 
 ---
 
-## 6. Session protocol
+## 5.7 Session 2026-09-03 — the tier-1 Leopard is now LOSABLE (drill 1 landed)
+
+The trainer's directive this session was to *finish the human-speedrun to the Tier-1 trophy*.
+The rig was re-provisioned (`bash test/browserlab/boot.sh` → Chromium 149), the aim/motor probe
+passed (`|camErr| 0 · |yawErr| 0.136 · |goErr| 0.085 rad` over 39 polls — the 180° law is honest),
+and the fight was re-measured. Two live probes (drill-1 gate, L12) put the Leopard at **2 hp and
+1 hp** but the wolf died first (0.61–0.99 dps vs 3.0–4.26 incoming) — the manual's "defence is the
+only problem" verdict, now measured directly.
+
+**The single change that closed it:** the gate was pressing on *flanks* (facingMe < −0.10 = 2 dmg)
+and *spamming `KeyF` inside the 0.75 s swing* — `src/p3.js attack()` reads `if (this.atkCd > 0)
+return false`, so the old `run.mjs` fightLoop's 23 "presses" were ~1/3 real attacks. Drill 1 makes
+the swing **behind-only (facingMe < −0.35 → the 6-dmg ambush), body-aligned (|nose| ≤ 1.25), and
+cooldown-aware (≥ 0.75 s)**. Probe at L12: **8/10 landed, 8 behind / 0 flank / 0 face** (was 8/23
+mixed). Then the over-level truth: **at L18 the fight flips NET SURVIVABLE** (incoming 2.22 dps vs
+3+ regen, hp 244, stamina floor 149, boss to 1 hp while the wolf sits at 178).
+
+**Ported into the router** (`test/speedrun/run.mjs` `fightLoop`): the blind-side ring (tight r≈2.05,
+one fixed lap, sprint only to cross the claw arc) + drill-1 behind-only cooldown-aware bite. The old
+router fought from the front (0 behind bites, all face/1 dmg) and fled 3,577× in 37 s. Post-fix
+`fightlab --lvl=18`: **Leopard Legend SLAIN in 31.7 sim-s, behindPct 100, every bite 6 dmg, wolf at
+185 hp.** The tier-1 Legend is now winnable by the router — the iron (over-level) route is the line
+that takes the trophy. `--lvl` was added to `run.mjs --fightlab` for isolated validation.
+
+
 
 1. `bash test/browserlab/boot.sh`, then `_aim_fast_probe.mjs` — if the aim/motor probe fails,
    nothing else you measure today is real.

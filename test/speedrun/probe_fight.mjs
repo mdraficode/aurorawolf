@@ -158,6 +158,10 @@ let simB0 = null, behindLands = 0, faceLands = 0, flankLands = 0;
 let closePolls = 0, ringPolls = 0, windPolls = 0, sprintPolls = 0, fleePolls = 0;
 let stamMin = 999, rMean = 0, gapMean = 0, blindPolls = 0, spdMean = 0;
 let fleeing = false, fleeT0 = 0, prev = null, radOut = false, aimErr = 0;
+/* DRILL 1 gate — the attack cooldown. wolf.attack() self-gates on its 0.75 s swing and
+   spends the cooldown even on a whiff, so an F-spam inside the window is pure waste (the
+   old gate pressed every qualifying poll → 'only 13 of 36 presses were real attacks'). */
+let lastPress = -99;
 {
   const t0 = W();
   while (W() - t0 < WALL * 1000 && guard++ < 9000) {
@@ -274,14 +278,23 @@ let fleeing = false, fleeT0 = 0, prev = null, radOut = false, aimErr = 0;
     await H.move({ f: true, sprint });
     const nose = Math.abs(wrapPI(toB - f.w.yaw));
     let pressed = 0;
-    /* BEHIND-ONLY BITES. Measured in src/p3.js attack(): facing < −0.35 is `behind`
-       → (3 + 1 ambush) × 1.5 = 6 hp, while a flank bite is worth 2 and a face bite 1 —
-       and a Legend has no `aware` field, so every behind bite counts as an AMBUSH.
-       The Legend's own swing lands only while |gap| ≤ 1.37, so waiting for the blind
-       side costs nothing in defence: the same parked gap that makes the bite worth 6 is
-       the gap that makes its claw whiff. Swings that would only score 2 are not spent. */
-    if (r <= b.biteR && nose < 1.30 && b.facingMe < -0.10 && !b.inv) {
-      await page.keyboard.press('KeyF'); bPresses++; pressed = 1;
+    /* BEHIND-ONLY, COOLDOWN-AWARE, BODY-ALIGNED BITES (DRILL 1). Measured in src/p3.js
+       attack(): facing < −0.35 is `behind` → (3 + 1 ambush) × 1.5 = 6 hp, while a flank bite
+       is 2 and a face bite 1 — and a Legend has no `aware` field, so every behind bite is an
+       AMBUSH. The Legend's own swing lands only while |gap| ≤ 1.37, so waiting for the blind
+       side costs nothing in defence: the same parked gap that makes the bite worth 6 is the
+       gap that makes its claw whiff. Swings that would only score 2 are not spent.
+       THREE things the old gate got wrong and DRILL 1 fixes:
+         1. NO COOLDOWN GATE  → wolf.attack() swallowed presses inside its 0.75 s swing.
+            Now we never press until the swing is genuinely ready (f.clock - lastPress ≥ 0.75).
+         2. FLANK/WHIFF GATE   → old accepted nose < 1.30 and facingMe < −0.10 (flank = 2 dmg,
+            and 1.30 nose vs the ~0.91 cone = lag-whiff). Now nose < 1.05 (body alignment,
+            worth ~0.3 rad of lag credit) AND facingMe < −0.35 (true behind = 6 dmg ambush).
+         3. PRESS COUNT was the metric; the real one is 6 hp per 0.75 s swing.
+       Result: fewer, heavier, actually-landed swings — a shorter fight = less incoming. */
+    if (r <= b.biteR && nose < 1.25 && b.facingMe < -0.35 && !b.inv &&
+        (f.clock - lastPress) >= 0.75) {
+      await page.keyboard.press('KeyF'); bPresses++; pressed = 1; lastPress = f.clock;
     }
     prev = { clock: f.clock, bhp: b.hp, whp: f.w.hp, fm: b.facingMe,
              wx: f.w.x, wz: f.w.z, toB, cutCmd: cut, travOk: dtSim > 0.02 };

@@ -41,7 +41,7 @@ and publishes.
 | Build | `python3 build.py` → index.html from shell.html + style.css + vendor/three.min.js + src/p1..p6 + autopilot.js |
 | Tests | Playwright + headless Chromium (SwiftShader). `npm install` + `npx playwright install chromium` + `sudo -n npx playwright install-deps chromium` per session (deps do NOT persist across snapshots) |
 | Current champion | **GEN 50 · fit −55** (v6 basis; old 283/59 scores were wall-inflated) · 336 weights · **TIER 1, 0 trophies — the trophy is the frontier** |
-| Next generation | **GEN 56** (nothing spawned yet; runs on the **v6.8 build** = boss-kit + speedrun fixes, see §4.5d/§4.5e). Trainer order: finish the **human-speedrun session** first — no bot, no brain, reach the Tier-1 trophy and log it in `TRAINING_MANUAL.md`. |
+| Next generation | **GEN 56** (nothing spawned yet; runs on the **v6.8 build** = boss-kit + speedrun fixes). Trainer order: finish the **human-speedrun session** first — no bot, no brain, reach the Tier-1 trophy and log it in `TRAINING_MANUAL.md`. **Session 2026-09-03 progress (§4.5g):** the tier-1 Leopard Legend is now **winnable by the router** (drill-1 blind-side ring, behind-only + cooldown-aware bites; `fightlab --lvl=18` → SLAIN in 31.7 s, behindPct 100). Remaining: run the **iron** route from a cleared save to a real trophy. |
 
 ---
 
@@ -336,6 +336,30 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   would have misdirected a fresh agent. Everything remains recoverable from git history.
 - **Bootstrap moved into the repo** (`tools/setup_env.sh` + `tools/chromium-libs/`): the turn boundary
   wipes everything outside `/home/user/aurorawolf`, so the env recipe cannot live in `$HOME`.
+
+### 4.5g Session 2026-09-03 (human-speedrun — the tier-1 Legend is now winnable by the router)
+- **Directive:** finish the human-speedrun (no bot, no brain) to the Tier-1 trophy before GEN 56.
+- **Re-provisioned the rig:** `bash test/browserlab/boot.sh` → Chromium 149.0.7827.0; aim/motor probe
+  PASS (`|camErr| 0 · |yawErr| 0.136 · |goErr| 0.085 rad` over 39 polls — 180° law honest). No `src/`
+  change was needed; the fix is in the router/rig.
+- **Root cause (`test/speedrun/run.mjs` `fightLoop`):** the router fought the Legend from the FRONT.
+  A wide sprint ring, a bite gate with no `facingMe`/cooldown constraint, and a health-line that fled
+  every beat. Over 5 live fights vs the tier-1 Leopard it landed **0 behind bites** (all face/1 dmg)
+  and **fled 3,577× in one 37 s fight.** Measured probe numbers at L12: **0.61–0.99 dps dealt vs
+  3.0–4.26 incoming** — NET LOSING, boss reaches 1–2 hp before the wolf dies.
+- **Fix (drill 1, ported from the probe):** blind-side ring at r≈2.05 (a walk alone beats the neck at
+  every phase — ω 3.25 vs 2.20/2.53/2.86), one fixed lap, sprint only to cross the 1.37 claw arc, and
+  a **behind-only (`facingMe < −0.35` → 6-dmg ambush), body-aligned (`|nose| ≤ 1.25`), cooldown-aware
+  (`≥ 0.75 s`)** bite gate. Flee removed as the reflex (only a last-resort line stays).
+- **Over-level is the unlock:** probe at **L18 → NET SURVIVABLE** (incoming 2.22 dps vs 3+ regen, hp
+  244, stamina floor 149, boss to 1 hp while the wolf sits at 178). Levels buy `dmgMul 0.982^L`, HP
+  `100+8L` and stamina — the iron (over-level) route is the line that finishes.
+- **Proof (router):** `run.mjs --fightlab --lvl=18` → **Leopard Legend SLAIN in 31.7 sim-s,
+  `behindPct 100`, every bite 6 dmg, wolf at 185 hp, `fled 0`.** `--lvl` added to `run.mjs
+  --fightlab` for isolated validation. Full write-up: `TRAINING_MANUAL.md` §5.7, `BUGS.md` (session
+  2026-09-03), `MASTER.md` §7g.
+- **Next (standing order):** run the **iron** route from a cleared save to a real Tier-1 trophy
+  (over-level to ~L18 before the boss), record it in `TRAINING_MANUAL.md`, then resume GEN 56.
 
 ### 4.6 Repository-hygiene decisions (2026-09-01)
 - `training/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.

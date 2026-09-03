@@ -295,3 +295,39 @@ gap readout spun at 7 rad/s and dumped the wolf at the Legend's nose.
 **Coach's book:** `TRAINING_MANUAL.md` — the rig and its two laws, the campaign on one page, tier-1
 Legend numbers, what the wolf actually does, the four routes and when each wins, the full
 attempt/lesson table for the fight, and six drills in priority order for the part that is still open.
+
+## Session 2026-09-03 — the router's Legend fight was front-facing + F-spam (drill-1 fix)
+
+**Symptom (live, `run.mjs --probe --route=iron`):** the rig worked end-to-end (menu → quests →
+deeds → ritual → spawned the Leopard Legend 5×, re-awakening after each death, **0 page errors**),
+but the router never landed a **behind** bite. Over 5 fights: `behind: 0` across the board; the few
+bites that landed were **face (1 dmg)**; and `fled: 3577` in a single 37 s fight. It fought from the
+front with a wide sprint ring and flee-spammed.
+
+**Root cause — three compounding errors in `run.mjs` `fightLoop` (the old ring):**
+1. **Fleeding on a health line.** `if (wolf.hp < fleeHp && boss.d < 30) → aim toB+π, sprint away`.
+   A Legend runs 12.5–16 m/s and the wolf walks 7 — turning your back hands it your spine at exactly
+   the range its claw lands (confirmed in the probe: flee ran 67 % of polls, |gap| p50 0.00, 14 of 19
+   hits). The "regen" it chased (3 hp/s after 6 clean s) never started because it was always mid-flee.
+2. **A front-facing bite gate.** `r ≤ biteR+0.35 && |nose| < 1.42` with no `facingMe` constraint → it
+   pressed on flanks/faces (2 dmg / 1 dmg) and, worse, pressed when the boss faced it (|gap| < 1.37 →
+   the claw lands). The one place worth standing (|gap| > 1.93, behind + ambush = 6 dmg) was never held.
+3. **No cooldown gate.** `attack()` in `src/p3.js` reads `if (this.atkCd > 0) return false` — the
+   0.75 s swing is spent *even on a whiff*. So the old loop's "swings" were mostly F-presses the game
+   silently swallowed (the probe measured ~1/3 real attacks).
+
+**Fix (drill 1, ported from the probe):** blind-side ring at r ≈ 2.05 (walk alone beats the neck at
+every phase), one fixed lap direction, sprint **only** to cross the 1.37 claw arc or recover a blown
+radius, and a bite gate that is **behind-only (`facingMe < −0.35` → 6-dmg ambush), body-aligned
+(`|nose| ≤ 1.25`) and cooldown-aware (`≥ 0.75 s`)**. Flee removed as the reflex (only a last-resort
+line stays). `fightlab --lvl=` added to `run.mjs` to validate the fight in isolation at over-level.
+
+**Proof:** `run.mjs --fightlab --lvl=18` → **Leopard Legend SLAIN in 31.7 sim-s, `behindPct 100`, every
+bite 6 dmg, wolf at 185 hp, `fled 0`.** The tier-1 Leopard is now winnable by the router. Companion
+probe findings: at L12 the fight is `0.61–0.99 dps vs 3.0–4.26 incoming` (NET LOSING, boss reaches 1–2
+hp); **at L18 it is NET SURVIVABLE** (incoming 2.22 vs 3+ regen, hp 244, stamina floor 149) — the iron
+(over-level) route is the line that takes the trophy.
+
+**Files:** `test/speedrun/run.mjs` (fightLoop blind-side ring + drill-1 bite gate + `--lvl`), \
+`test/speedrun/probe_fight.mjs` (drill-1 cooldown-aware behind-only gate). No `src/` change — this is
+the router/rig, not the shipped game. `python3 build.py` unaffected (index.html unchanged).
