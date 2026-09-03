@@ -39,6 +39,18 @@ fs.mkdirSync(path.dirname(DEST), { recursive: true });
 const isDrive = /drive\.google|drive\.usercontent\.google|docs\.google/.test(URL_);
 const isWeTransfer = /we\.tl|wetransfer\.com/.test(URL_);
 
+// Belt-and-suspenders: always write a debug log to the repo root so the agent can
+// pull the reason even when the workflow's tee/cp and the GitHub log blob are
+// unreachable. Every branch appends to it; the workflow commits it.
+const DEBUG = path.join(ROOT, 'relay_debug.txt');
+const STATUS = path.join(ROOT, 'relay_status.txt');
+fs.writeFileSync(DEBUG, `env-relay ${new Date().toISOString()}\nsource=${URL_}\nhost=${isDrive ? 'drive' : isWeTransfer ? 'wetransfer' : 'direct'}\n`);
+function dbg(msg) { fs.appendFileSync(DEBUG, String(msg) + '\n'); console.log(msg); }
+function finish(ok, msg) {
+  dbg(`RESULT: ${ok ? 'OK' : 'FAILED'} — ${msg}`);
+  fs.writeFileSync(STATUS, ok ? 'OK\n' : 'FAILED\n');
+}
+
 function sha256(buf) { return crypto.createHash('sha256').update(buf).digest('hex'); }
 
 function manifestLine(p, bytes) {
@@ -54,19 +66,19 @@ function run(cmd, args) {
 }
 
 async function viaCurl() {
-  console.log(`[relay] curl ${URL_}`);
+  dbg(`[relay] curl ${URL_}`);
   await run('curl', ['-fsSL', '--retry', '3', URL_, '-o', DEST]);
 }
 
 async function viaGdown() {
-  console.log(`[relay] gdown ${URL_}`);
+  dbg(`[relay] gdown ${URL_}`);
   // gdown handles the Google `confirm` token for large files.
   try {
     await run('gdown', ['-O', DEST, URL_]);
   } catch (e) {
     if (e.message && e.message.includes('ENOENT')) {
       // gdown not on PATH — fall back to curl with the Google `confirm` flow.
-      console.warn('[relay] gdown absent — falling back to curl (confirm token)');
+      dbg('[relay] gdown absent — falling back to curl (confirm token)');
       await run('curl', ['-fsSL', '--retry', '3',
         'https://drive.google.com/uc?export=download&confirm=t&id=' +
         (URL_.match(/[?&]id=([^&]+)/) || [])[1] || URL_, '-o', DEST]);
@@ -75,7 +87,7 @@ async function viaGdown() {
 }
 
 async function viaPlaywright() {
-  console.log(`[relay] playwright (WeTransfer) ${URL_}`);
+  dbg(`[relay] playwright (WeTransfer) ${URL_}`);
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   const page = await browser.newPage({ acceptDownloads: true });
@@ -85,7 +97,7 @@ async function viaPlaywright() {
   // redirect to the real page, (2) let it render, (3) click the download control,
   // (4) save the emitted download. Log each stage so a failure is attributable.
   const resp = await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  console.log(`[relay]   landing page ${resp ? resp.status() : '?'} → ${page.url()}`);
+  dbg(`[relay]   landing page ${resp ? resp.status() : '?'} → ${page.url()}`);
   await page.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => console.log('[relay]   networkidle timeout (continuing)'));
 
   // Broad, resilient selector set + a helper that reads the DOM once and reports
@@ -100,7 +112,7 @@ async function viaPlaywright() {
       hasLink: q('a[href]')
     };
   });
-  console.log('[relay]   page shape ' + JSON.stringify(found).slice(0, 500));
+  dbg('[relay]   page shape ' + JSON.stringify(found).slice(0, 500));
 
   const selectors = [
     'a.download', 'button.download', 'a[data-download]', '[data-download]',
@@ -115,21 +127,21 @@ async function viaPlaywright() {
   for (const sel of selectors) {
     const count = await page.locator(sel).count();
     if (count > 0) {
-      console.log(`[relay]   clicking ${sel} (${count} match)`);
+      dbg(`[relay]   clicking ${sel} (${count} match)`);
       try { await page.locator(sel).first().click({ timeout: 20000 }); clicked = true; break; }
-      catch (e) { console.log(`[relay]   click on ${sel} failed: ${e.message.split('\n')[0]}`); }
+      catch (e) { dbg(`[relay]   click on ${sel} failed: ${e.message.split('\n')[0]}`); }
     }
   }
   if (!clicked) {
-    console.error('[relay]   no Download control found; page = ' + found.url);
+    dbg('[relay]   no Download control found; page = ' + found.url);
     await browser.close();
     throw new Error('WeTransfer page has no download control');
   }
   const dl = await downloadPromise;
-  console.log(`[relay]   download triggered: suggested ${dl.suggestedFilename()}`);
+  dbg(`[relay]   download triggered: suggested ${dl.suggestedFilename()}`);
   await dl.saveAs(DEST);
   await browser.close();
-  console.log('[relay]   saved via browser');
+  dbg('[relay]   saved via browser');
 }
 
 try {
@@ -137,15 +149,15 @@ try {
   else if (isWeTransfer) await viaPlaywright();
   else await viaCurl();
 } catch (e) {
-  // The workflow tees all stdout into relay_debug.txt, so the failure reason is
-  // committed for the agent to read by pulling after the run.
-  console.error('[relay] download error:', e.message);
-  if (e.stack) console.error(e.stack);
+  dbg('[relay] download error: ' + e.message);
+  if (e.stack) dbg(e.stack);
+  finish(false, e.message);
   process.exit(1);
 }
 
 const bytes = fs.statSync(DEST).size;
 const digest = sha256(fs.readFileSync(DEST));
+finish(true, `${bytes} bytes`);
 
 // MANIFEST.tsv — path / bytes / sha256
 fs.writeFileSync(path.join(ROOT, 'MANIFEST.tsv'),

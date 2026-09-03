@@ -85,13 +85,13 @@ jobs:
         run: |
           git config user.name "arena-agent"
           git config user.email "297053741+arena-agent@users.noreply.github.com"
-          # The payload (28 MB binary) stays in gitignored drive_drop/ for local use;
-          # only the audit trail + debug log are committed. On a failed download the
-          # MANIFEST/NESTED_REPO files may not exist, so add only whatever is present.
-          git add -A MANIFEST.tsv NESTED_REPO_STATE.txt relay_debug.txt relay_status.txt 2>/dev/null || true
+          # git add -A never aborts on missing files, so it commits whatever the
+          # downloader actually produced. drive_drop/ is gitignored, so the 28 MB
+          # payload stays off the branch; only the probe/log/status files commit.
+          git add -A
           if git diff --cached --quiet; then
             echo "nothing new to commit"
           else
-            git commit -m "env-relay: record payload receipt from ${{ github.ref }} (status $(cat relay_status.txt 2>/dev/null || echo 'unknown'))"
+            git commit -m "env-relay: record payload receipt from ${{ github.ref }} (status: $(cat relay_status.txt 2>/dev/null || echo unknown))"
             git push origin HEAD:${{ github.ref_name }}
           fi
