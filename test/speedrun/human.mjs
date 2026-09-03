@@ -449,7 +449,9 @@ export async function boot(opt = {}) {
        prompt only appeared after revisiting the menu. We try it, and note if hidden. */
     nameVisible = await page.evaluate(() => { const i = document.getElementById('plName2'); return !!(i && i.getBoundingClientRect().width > 0); });
     if (nameVisible && opt.name) { await page.fill('#plName2', opt.name).catch(() => { }); }
-    await page.click('#btnStart');
+    await page.click('#btnNewGame');
+    await page.waitForTimeout(150);
+    await page.click('#ddNewStart');
   }
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play' && window.CAMP && window.CAMP.state().stage, null, { timeout: 180000 });
   /* WARM-UP GATE (2026-09-03): the first renderer.render() on SwiftShader compiles all shaders

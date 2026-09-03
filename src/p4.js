@@ -4436,14 +4436,12 @@ function showOverlay(mode) {
 
 /* ---- the home menu (tplStart) is re-injected on every return, so re-wire it each time ---- */
 function wireStartMenu() {
-  const b = el('btnStart');            // the "Resume Last Game" card's primary
-  if (b) b.onclick = startOrResume;
-  const ng = el('btnNewGame');         // the "New Game" card's primary
-  if (ng) ng.onclick = () => newGame();
-  const cn = el('caretNewGame');
-  if (cn) cn.onclick = e => { e.stopPropagation(); toggleDrop('ddNewGame'); };
-  const cr = el('caretResume');
-  if (cr) cr.onclick = e => { e.stopPropagation(); toggleDrop('ddResume'); };
+  // Each card's PRIMARY button is itself the drop-down trigger — it has no action of its
+  // own; clicking it only opens/closes that card's two choices below it.
+  const ng = el('btnNewGame');         // "New Game" -> caret drops: Start Game / Watch The Rafzzer the AI Play
+  if (ng) ng.onclick = e => { e.stopPropagation(); toggleDrop('ddNewGame'); };
+  const b = el('btnStart');            // "Resume Game" -> caret drops: Resume Last Game / Resume Rafzzer the AI Play
+  if (b) b.onclick = e => { e.stopPropagation(); toggleDrop('ddResume'); };
   const dn = el('ddNewStart');
   if (dn) dn.onclick = () => newGame();
   const dnai = el('ddNewAI');
@@ -4486,6 +4484,7 @@ function newGame() {
     const u = new URL(location.href);
     u.searchParams.set('seed', String(s));
     u.searchParams.delete('autopilot');   // "Start Game" is a human run — no AI watch loop
+    u.searchParams.set('autostart', '1'); // land directly in the freshly-seeded world and play
     location.href = u.toString();
   } catch (e) { location.reload(); }
 }
@@ -4528,14 +4527,20 @@ function hideOverlay() { ui.overlay.classList.add('hidden'); }
    on every return, not only during the one-time boot transition. */
 function menuReady() {
   const can = window.CAMP && window.CAMP.canResume && window.CAMP.canResume();   // only a played session has a place to resume to
-  const b = el('btnStart');   // the "Resume Last Game" card's primary — always armed; its meaning depends on a real saved session
-  if (b) {
-    b.disabled = false;
-    b.textContent = can ? '▶ RESUME LAST GAME' : '▶ ENTER THE WILD';
-  }
-  // resuming needs a real saved session — grey the drop-down choices if there is nothing to return to
+  // the primary buttons are pure drop-down triggers now: always enabled, never re-labelled
+  const b = el('btnStart');   // the "Resume Game" button — always armed; it only opens its drop-down
+  if (b) { b.disabled = false; b.textContent = '▶ RESUME GAME ▾'; }
+  const ng = el('btnNewGame');
+  if (ng) { ng.disabled = false; ng.textContent = '🧭 NEW GAME ▾'; }
+  // resuming needs a real saved session — grey "Resume Last Game" if there is nothing to return to;
+  // "Resume Rafzzer the AI Play" still works (it falls back to a fresh watch when there is no save)
   const dr = el('ddResume');
-  if (dr) for (const it of dr.querySelectorAll('.menu-item')) it.disabled = !can;
+  if (dr) {
+    const play = dr.querySelector('#ddResumePlay');
+    if (play) play.disabled = !can;
+    const ai = dr.querySelector('#ddResumeAI');
+    if (ai) ai.disabled = false;
+  }
   // the New Game card is always live; its own drop-down choices are never disabled (Start / Watch AI both create a fresh world)
   if (window.updateRunRecap) window.updateRunRecap();
   const bl = el('bootLine');

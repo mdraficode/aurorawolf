@@ -470,10 +470,11 @@
     return best || narrow;   // prefer dry routes — ford only when the land itself lies across the water
   };
 
-  // press START like a human
+  // the home "Resume Game" button is now a drop-down trigger (no action of its own), so
+  // the autopilot enters the wild through the resume/start path directly.
   const startIv = setInterval(() => {
     const b = document.getElementById('btnStart');
-    if (b && !b.disabled) { clearInterval(startIv); b.click(); log('boot', { msg: 'entered the wild' }); }
+    if (b && !b.disabled) { clearInterval(startIv); startOrResume(); log('boot', { msg: 'entered the wild' }); }
   }, 400);
 
   const warnOnce = (key, type, data) => { const k = key + '|' + (data ? data.key : ''); if (bot.warned[k]) return; bot.warned[k] = 1; log(type, data); };

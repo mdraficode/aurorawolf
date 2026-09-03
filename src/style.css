@@ -333,10 +333,9 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 .start-flex { position: static; display: flex; justify-content: center; align-items: flex-start; gap: 30px; width: 100%; margin: 4px auto 12px; }
 .menu-center { display: flex; flex-direction: column; gap: 16px; justify-content: center; align-items: stretch; }
 .menu-card { position: relative; }
-.menu-head { display: flex; gap: 8px; justify-content: center; align-items: stretch; }
-.menu-primary { min-width: 300px; padding: 14px 34px; white-space: nowrap; font-size: 16px; }
-.menu-caret { pointer-events: auto; cursor: pointer; border: 1px solid rgba(126, 240, 192, 0.55); color: #d9fbe9; background: linear-gradient(180deg, rgba(38, 84, 74, 0.6), rgba(18, 42, 44, 0.6)); font-size: 15px; padding: 0 14px; border-radius: 12px; }
-.menu-caret:hover { background: linear-gradient(180deg, rgba(56, 118, 102, 0.75), rgba(26, 58, 60, 0.75)); }
+/* the primary is the card's ONLY control — the whole button toggles the drop-down below it */
+.menu-primary { width: 100%; min-width: 300px; padding: 14px 20px; white-space: nowrap; font-size: 16px; text-align: center; }
+.menu-primary:hover:not(:disabled) { background: linear-gradient(180deg, rgba(56, 118, 102, 0.75), rgba(26, 58, 60, 0.75)); box-shadow: 0 0 26px rgba(126, 240, 192, 0.3); }
 .menu-drop { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: 100%; min-width: 300px; background: rgba(10, 20, 32, 0.97); border: 1px solid rgba(126, 240, 192, 0.4); border-radius: 12px; padding: 6px; z-index: 6; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55); }
 .menu-item { display: block; width: 100%; pointer-events: auto; cursor: pointer; text-align: center; border: none; background: transparent; color: #d9fbe9; font-family: inherit; font-size: 14px; letter-spacing: .12em; padding: 11px 10px; border-radius: 8px; }
 .menu-item:hover:not(:disabled) { background: rgba(56, 118, 102, 0.5); }
@@ -356,7 +355,6 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   .menu-side { position: static; right: auto; top: auto; transform: none; min-width: 0; max-width: none; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px; }
   .menu-side .btn { width: auto; }
   .menu-primary { min-width: 0; width: min(100%, 340px); font-size: 15px; padding: 13px 26px; }
-  .menu-caret { font-size: 13px; padding: 0 10px; }
   .menu-drop { min-width: 0; }
 }
 #pStats { font-size: 14.5px; line-height: 2; color: #cfe0ee; margin-bottom: 24px; }

@@ -66,9 +66,11 @@ R.menuLandscape = await dpage.evaluate(() => {
   };
 });
 await dpage.screenshot({ path: 'shots/20_menu_landscape.png' });
-// enterLandscape on desktop must NOT force fullscreen
-await dpage.click('#btnStart');
-await dpage.waitForTimeout(400);
+// enterLandscape on desktop must NOT force fullscreen; Start Game reloads a fresh world + autostarts
+await dpage.click('#btnNewGame');
+await dpage.waitForTimeout(150);
+await dpage.click('#ddNewStart');
+await dpage.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
 R.desktopWindowed = await dpage.evaluate(() => !document.fullscreenElement);
 R.desktopPlaying = await dpage.evaluate(() => state === 'play');
 

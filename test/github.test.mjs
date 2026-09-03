@@ -8,7 +8,9 @@ await page.waitForFunction(() => {
   const b = document.getElementById('btnStart');
   return b && !b.disabled;
 }, null, { timeout: 60000 });
-await page.click('#btnStart');
+await page.click('#btnNewGame');
+await page.waitForTimeout(150);
+await page.click('#ddNewStart');
 await page.waitForTimeout(1200);
 const R = await page.evaluate(() => ({
   title: document.title.slice(0, 40),

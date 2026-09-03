@@ -445,8 +445,29 @@ combined centering + scroll clipped the menu out of view.
   screen** (`position: absolute; right: 2.5vw; top: 50%`) on wide layouts; on ≤760px it stacks under
   the choices as a centred row.
 
+## Follow-up (same session) — the two main buttons are now pure drop-down triggers
+
+**Requested:** the "New Game" button itself should open a drop-down (it no longer performs a start of
+its own); the two choices — **▶ Start Game** then **🤖 Watch The Rafzzer the AI Play** — appear one
+below another on the single New Game button. The "Resume Game" button does the same, dropping
+**▶ Resume Last Game** and **🤖 Resume Rafzzer the AI Play**.
+
+**Change:**
+- `src/shell.html`: removed the split `btn + caret` head; each card is now **one** `menu-primary`
+  button (`🧭 NEW GAME ▾` / `▶ RESUME GAME ▾`) that is the trigger, with the two choices below it in
+  `ddNewGame` / `ddResume`.
+- `src/p4.js`: `wireStartMenu()` binds the primary buttons to `toggleDrop('ddNewGame'/'ddResume')`
+  (no direct `newGame()`/`startOrResume()` action). `menuReady()` keeps them labelled as triggers,
+  greys only `ddResumePlay` when there's nothing to resume (a fresh boot), and leaves
+  `ddResumeAI` live (it falls back to a fresh watch).
+- `src/autopilot.js`: the AI watch no longer "clicks" `#btnStart` (now a toggle) — it enters the wild
+  via `startOrResume()` directly.
+- Tests updated to the new interaction (`test/menu.test.mjs`, `test/smoke.mjs`, `test/github.test.mjs`,
+  `test/landscape.test.mjs`, `test/speedrun/human.mjs`): start the game through the NEW GAME
+  drop-down's **▶ Start Game** (`#ddNewStart`).
+
 ## Files
 `src/shell.html` (new `tplStart`) · `src/style.css` (`.start-flex`/`.menu-*` + start-page centring) ·
 `src/p4.js` (`wireStartMenu`, `startOrResume`, `resumeAI`, `newGameAI`, `showRecord`, `menuReady`) ·
-`src/p5.js` (`save`/`load`/`restoreBody`/`restoreWolf`/`resume`/`canResume`) ·
+`src/p5.js` (`save`/`load`/`restoreBody`/`restoreWolf`/`resume`/`canResume`) · `src/autopilot.js` ·
 `test/menu.test.mjs` (redesigned-menu assertions) · `test/landscape.test.mjs` (start-page layout probes).

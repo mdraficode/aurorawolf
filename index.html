@@ -340,10 +340,9 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 .start-flex { position: static; display: flex; justify-content: center; align-items: flex-start; gap: 30px; width: 100%; margin: 4px auto 12px; }
 .menu-center { display: flex; flex-direction: column; gap: 16px; justify-content: center; align-items: stretch; }
 .menu-card { position: relative; }
-.menu-head { display: flex; gap: 8px; justify-content: center; align-items: stretch; }
-.menu-primary { min-width: 300px; padding: 14px 34px; white-space: nowrap; font-size: 16px; }
-.menu-caret { pointer-events: auto; cursor: pointer; border: 1px solid rgba(126, 240, 192, 0.55); color: #d9fbe9; background: linear-gradient(180deg, rgba(38, 84, 74, 0.6), rgba(18, 42, 44, 0.6)); font-size: 15px; padding: 0 14px; border-radius: 12px; }
-.menu-caret:hover { background: linear-gradient(180deg, rgba(56, 118, 102, 0.75), rgba(26, 58, 60, 0.75)); }
+/* the primary is the card's ONLY control — the whole button toggles the drop-down below it */
+.menu-primary { width: 100%; min-width: 300px; padding: 14px 20px; white-space: nowrap; font-size: 16px; text-align: center; }
+.menu-primary:hover:not(:disabled) { background: linear-gradient(180deg, rgba(56, 118, 102, 0.75), rgba(26, 58, 60, 0.75)); box-shadow: 0 0 26px rgba(126, 240, 192, 0.3); }
 .menu-drop { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: 100%; min-width: 300px; background: rgba(10, 20, 32, 0.97); border: 1px solid rgba(126, 240, 192, 0.4); border-radius: 12px; padding: 6px; z-index: 6; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55); }
 .menu-item { display: block; width: 100%; pointer-events: auto; cursor: pointer; text-align: center; border: none; background: transparent; color: #d9fbe9; font-family: inherit; font-size: 14px; letter-spacing: .12em; padding: 11px 10px; border-radius: 8px; }
 .menu-item:hover:not(:disabled) { background: rgba(56, 118, 102, 0.5); }
@@ -363,7 +362,6 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
   .menu-side { position: static; right: auto; top: auto; transform: none; min-width: 0; max-width: none; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px; }
   .menu-side .btn { width: auto; }
   .menu-primary { min-width: 0; width: min(100%, 340px); font-size: 15px; padding: 13px 26px; }
-  .menu-caret { font-size: 13px; padding: 0 10px; }
   .menu-drop { min-width: 0; }
 }
 #pStats { font-size: 14.5px; line-height: 2; color: #cfe0ee; margin-bottom: 24px; }
@@ -531,20 +529,14 @@ body.touch #questTracker { display: none; }
   <div class="start-flex">
     <div class="menu-center">
       <div class="menu-card">
-        <div class="menu-head">
-          <button class="btn menu-primary" id="btnNewGame" title="Start a whole new world — level 0, a random safe place, a fresh seed (your record stays)">🧭 NEW GAME</button>
-          <button class="menu-caret" id="caretNewGame" title="More New Game options">▾</button>
-        </div>
+        <button class="btn menu-primary" id="btnNewGame" title="Start a whole new world">🧭 NEW GAME ▾</button>
         <div class="menu-drop" id="ddNewGame" style="display:none">
           <button class="menu-item" id="ddNewStart">▶ Start Game</button>
-          <button class="menu-item" id="ddNewAI">🤖 Watch Rafzzer the AI Play</button>
+          <button class="menu-item" id="ddNewAI">🤖 Watch The Rafzzer the AI Play</button>
         </div>
       </div>
       <div class="menu-card">
-        <div class="menu-head">
-          <button class="btn menu-primary" id="btnStart" disabled title="Continue from exactly where you left off — same place, same level, same state">SUMMONING THE WILD…</button>
-          <button class="menu-caret" id="caretResume" title="More Resume options">▾</button>
-        </div>
+        <button class="btn menu-primary" id="btnStart" title="Continue from exactly where you left off — same place, same level, same state">▶ RESUME GAME ▾</button>
         <div class="menu-drop" id="ddResume" style="display:none">
           <button class="menu-item" id="ddResumePlay">▶ Resume Last Game</button>
           <button class="menu-item" id="ddResumeAI">🤖 Resume Rafzzer the AI Play</button>
@@ -8256,14 +8248,12 @@ function showOverlay(mode) {
 
 /* ---- the home menu (tplStart) is re-injected on every return, so re-wire it each time ---- */
 function wireStartMenu() {
-  const b = el('btnStart');            // the "Resume Last Game" card's primary
-  if (b) b.onclick = startOrResume;
-  const ng = el('btnNewGame');         // the "New Game" card's primary
-  if (ng) ng.onclick = () => newGame();
-  const cn = el('caretNewGame');
-  if (cn) cn.onclick = e => { e.stopPropagation(); toggleDrop('ddNewGame'); };
-  const cr = el('caretResume');
-  if (cr) cr.onclick = e => { e.stopPropagation(); toggleDrop('ddResume'); };
+  // Each card's PRIMARY button is itself the drop-down trigger — it has no action of its
+  // own; clicking it only opens/closes that card's two choices below it.
+  const ng = el('btnNewGame');         // "New Game" -> caret drops: Start Game / Watch The Rafzzer the AI Play
+  if (ng) ng.onclick = e => { e.stopPropagation(); toggleDrop('ddNewGame'); };
+  const b = el('btnStart');            // "Resume Game" -> caret drops: Resume Last Game / Resume Rafzzer the AI Play
+  if (b) b.onclick = e => { e.stopPropagation(); toggleDrop('ddResume'); };
   const dn = el('ddNewStart');
   if (dn) dn.onclick = () => newGame();
   const dnai = el('ddNewAI');
@@ -8306,6 +8296,7 @@ function newGame() {
     const u = new URL(location.href);
     u.searchParams.set('seed', String(s));
     u.searchParams.delete('autopilot');   // "Start Game" is a human run — no AI watch loop
+    u.searchParams.set('autostart', '1'); // land directly in the freshly-seeded world and play
     location.href = u.toString();
   } catch (e) { location.reload(); }
 }
@@ -8348,14 +8339,20 @@ function hideOverlay() { ui.overlay.classList.add('hidden'); }
    on every return, not only during the one-time boot transition. */
 function menuReady() {
   const can = window.CAMP && window.CAMP.canResume && window.CAMP.canResume();   // only a played session has a place to resume to
-  const b = el('btnStart');   // the "Resume Last Game" card's primary — always armed; its meaning depends on a real saved session
-  if (b) {
-    b.disabled = false;
-    b.textContent = can ? '▶ RESUME LAST GAME' : '▶ ENTER THE WILD';
-  }
-  // resuming needs a real saved session — grey the drop-down choices if there is nothing to return to
+  // the primary buttons are pure drop-down triggers now: always enabled, never re-labelled
+  const b = el('btnStart');   // the "Resume Game" button — always armed; it only opens its drop-down
+  if (b) { b.disabled = false; b.textContent = '▶ RESUME GAME ▾'; }
+  const ng = el('btnNewGame');
+  if (ng) { ng.disabled = false; ng.textContent = '🧭 NEW GAME ▾'; }
+  // resuming needs a real saved session — grey "Resume Last Game" if there is nothing to return to;
+  // "Resume Rafzzer the AI Play" still works (it falls back to a fresh watch when there is no save)
   const dr = el('ddResume');
-  if (dr) for (const it of dr.querySelectorAll('.menu-item')) it.disabled = !can;
+  if (dr) {
+    const play = dr.querySelector('#ddResumePlay');
+    if (play) play.disabled = !can;
+    const ai = dr.querySelector('#ddResumeAI');
+    if (ai) ai.disabled = false;
+  }
   // the New Game card is always live; its own drop-down choices are never disabled (Start / Watch AI both create a fresh world)
   if (window.updateRunRecap) window.updateRunRecap();
   const bl = el('bootLine');
@@ -10568,10 +10565,11 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
     return best || narrow;   // prefer dry routes — ford only when the land itself lies across the water
   };
 
-  // press START like a human
+  // the home "Resume Game" button is now a drop-down trigger (no action of its own), so
+  // the autopilot enters the wild through the resume/start path directly.
   const startIv = setInterval(() => {
     const b = document.getElementById('btnStart');
-    if (b && !b.disabled) { clearInterval(startIv); b.click(); log('boot', { msg: 'entered the wild' }); }
+    if (b && !b.disabled) { clearInterval(startIv); startOrResume(); log('boot', { msg: 'entered the wild' }); }
   }, 400);
 
   const warnOnce = (key, type, data) => { const k = key + '|' + (data ? data.key : ''); if (bot.warned[k]) return; bot.warned[k] = 1; log(type, data); };
