@@ -8351,31 +8351,48 @@ function menuReady() {
 let state = 'boot';
 function setState(s) {
   state = s;
-  if (s === 'play') { hideOverlay(); ui.hud.classList.remove('hidden'); if (window.CAMP && window.CAMP.onResume) window.CAMP.onResume(); }
+  if (s === 'play') {
+    hideOverlay(); ui.hud.classList.remove('hidden');
+    if (window.CAMP && window.CAMP.onResume) window.CAMP.onResume();
+    enterFullscreen();   // every pause→resume re-enters fullscreen (came from a key/click gesture)
+  }
   else {
     if (typeof toggleQuestLog === 'function') toggleQuestLog(false);
     if (s === 'pause') { showOverlay('pause'); inputClear(); if (window.CAMP && window.CAMP.onPause) window.CAMP.onPause(); }
   }
 }
-function enterLandscape() {
+/* ---- ALWAYS START IN FULLSCREEN (every game / resume) ----
+   Every entry into play — human start, human pause→resume, AI start, AI pause→resume — must take
+   the whole screen. `enterFullscreen()` requests browser fullscreen (works on desktop *and* touch;
+   the old code bailed on desktop via a `body.touch` guard) and, on touch devices, also locks
+   landscape. Fullscreen needs a user gesture, so when a request is made outside one (a fresh start
+   that navigates to a new page) it is rejected and `fsPending` stays set — the very next tap/key
+   then completes the swap. */
+let fsPending = false;
+function enterFullscreen() {
   try {
-    if (!document.body.classList.contains('touch')) return;
     const root = document.documentElement;
-    const doLock = () => {
-      try {
-        if (screen.orientation && screen.orientation.lock)
-          screen.orientation.lock('landscape').catch(() => { });
-      } catch (e) { }
-    };
-    if (root.requestFullscreen && !document.fullscreenElement) {
-      const pr = root.requestFullscreen();
-      if (pr && pr.then) pr.then(doLock).catch(() => { });
-    } else doLock();
+    const cur = document.fullscreenElement || document.webkitFullscreenElement;
+    if ((root.requestFullscreen || root.webkitRequestFullscreen) && !cur) {
+      const pr = root.requestFullscreen ? root.requestFullscreen() : root.webkitRequestFullscreen();
+      if (pr && pr.then) { pr.then(() => { fsPending = false; }).catch(() => { fsPending = true; }); }  // no gesture yet — the first tap/key retries
+      else fsPending = false;
+    } else {
+      fsPending = false;   // already fullscreen (or no API) — nothing pending
+    }
+  } catch (e) { }
+  // orientation lock matters only on touch/landscape devices (desktop is already wide)
+  try {
+    if (document.body.classList.contains('touch') && screen.orientation && screen.orientation.lock)
+      screen.orientation.lock('landscape').catch(() => { });
   } catch (e) { }
 }
+/* if a start attempt couldn't fullscreen (no gesture yet), the first interaction completes it */
+addEventListener('pointerdown', () => { if (fsPending) enterFullscreen(); });
+addEventListener('keydown', () => { if (fsPending) enterFullscreen(); });
 function startGame() {
   audio.init(); audio.resume();
-  enterLandscape();
+  enterFullscreen();
   setState('play');
   toast('🐺 Roam free — the wild is endless', true);
 }
@@ -8880,6 +8897,10 @@ function tick() {
       if (AUTOSTART) {
         state = 'play';
         ui.hud.classList.remove('hidden');
+        // a fresh start reached play via navigation (?autostart=1), which clears the click gesture,
+        // so the browser refuses an immediate fullscreen. Arm the one-shot below: the FIRST tap or
+        // key the player makes completes the fullscreen swap (browsers never allow it on load).
+        fsPending = true;
       } else {
         state = 'menu';
         menuReady();

@@ -50,6 +50,15 @@ await ctx.close();
 // ---- desktop landscape MENU: row layout (title left / controls right) ----
 const dpage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 dpage.on('pageerror', e => errs.push('D: ' + e.message));
+// spy requestFullscreen so we can assert the game ASKS for fullscreen on desktop start
+await dpage.addInitScript(() => {
+  window.__fsCalls = 0;
+  const bump = (orig, that, args) => { window.__fsCalls++; return orig.apply(that, args); };
+  for (const proto of [Element.prototype, Document.prototype]) {
+    if (proto.requestFullscreen) { const o = proto.requestFullscreen; proto.requestFullscreen = function (...a) { return bump(o, this, a); }; }
+    if (proto.webkitRequestFullscreen) { const o = proto.webkitRequestFullscreen; proto.webkitRequestFullscreen = function (...a) { return bump(o, this, a); }; }
+  }
+});
 await dpage.goto(pathToFileURL(fileURLToPath(import.meta.url) + '/../../index.html').href + '?seed=42&quality=low');
 await dpage.waitForFunction(() => { const b = document.getElementById('btnStart'); return b && !b.disabled; }, null, { timeout: 40000 });
 await dpage.waitForTimeout(400);
@@ -70,12 +79,15 @@ R.menuLandscape = await dpage.evaluate(() => {
   };
 });
 await dpage.screenshot({ path: 'shots/20_menu_landscape.png' });
-// enterLandscape on desktop must NOT force fullscreen; Start Game reloads a fresh world + autostarts
+// Start Game reloads a fresh world + autostarts; a fresh start arrives by navigation (gesture cleared),
+// so it arms fullscreen and completes it on the player's first interaction. Verify the REQUEST is made.
 await dpage.click('#btnNewGame');
 await dpage.waitForTimeout(150);
 await dpage.click('#ddNewStart');
 await dpage.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 60000 });
-R.desktopWindowed = await dpage.evaluate(() => !document.fullscreenElement);
+await dpage.keyboard.press('KeyW');   // the first input completes the armed fullscreen swap
+await dpage.waitForTimeout(300);
+R.desktopFSRequested = await dpage.evaluate(() => (window.__fsCalls || 0) >= 1);
 R.desktopPlaying = await dpage.evaluate(() => state === 'play');
 
 R.errors = errs;
