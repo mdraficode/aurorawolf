@@ -221,6 +221,18 @@ try {
   ck('save survives reload (tier 2, trophy kept)', R.tier === 2 && R.trophies === 1 && R.key === '2|1', JSON.stringify(R));
   ck('board rebuilt for the resumed tier', R.avail >= 3 && R.avail <= 4 && R.stage === 'q0', JSON.stringify(R));
   ck('career XP pool restored from checkpoint (reload ≠ reset)', R.career === 987 && R.lvl === 3, `career ${R.career} lvl ${R.lvl}`);
+
+  /* ---- 12. NEW GAME: a whole new world seed + a fresh wolf, record kept ---- */
+  R = await pg.evaluate(() => {
+    const seed0 = window.SEED;
+    const s = window.CAMP.newGame();               // resets the campaign + returns a fresh seed
+    const S = window.CAMP.state();
+    return { seed0, s, tier: S.tier, leg: S.leg, stage: S.stage, trophies: S.trophies.length, lvl: wolf.level, hasSave: window.CAMP.hasSave() };
+  });
+  ck('NEW GAME rolls a different world seed', R.s !== R.seed0, `${R.seed0} -> ${R.s}`);
+  ck('NEW GAME resets to a fresh wolf (tier 1 · q0 · base level 0)', R.tier === 1 && R.leg === 0 && R.stage === 'q0' && R.lvl === 0, JSON.stringify(R));
+  ck('NEW GAME preserves the record (trophies kept)', R.trophies >= 1, JSON.stringify(R));
+  ck('NEW GAME leaves a resume-able save', R.hasSave === true, String(R.hasSave));
 } catch (e) {
   failed.push('crash: ' + String(e.message).slice(0, 200));
 } finally {

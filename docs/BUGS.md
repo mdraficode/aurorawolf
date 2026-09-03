@@ -366,3 +366,41 @@ human/trainer verdict.
 - **O-2 · The L8+/88% protocol vs the measured fight** — the game's own guidance needs
   L8+; the park fights win from L5 (net −41 of 140). The L18 gate was a ~7,000-xp
   over-grind (hunt soak 0.6–1.2 xp/sim-s = 30+ min for 3 levels) — reverted to natural 5.
+
+# 🐞 Session 2026-09-03 — "NEW GAME" resumed the old world & level
+
+**Reported:** starting a new game did not roll a new seed — it resumed the previous game from
+the saved level (e.g. level 3). The world seed also stayed the same.
+
+## Root cause
+Two independent pieces of state were conflated with "new game":
+- The **world seed** is a one-shot `const SEED` in `src/p1.js`, read from `?seed=` (or random)
+  at page load. The home **START** button (`startGame()`, p4) merely did `setState('play')` —
+  it never changed the seed or touched the save. Only the *pause* NEW WORLD button changed the
+  seed, and it didn't touch the campaign either.
+- The **campaign save** (`revontulet_campaign_v1`, p5) persisted the character (tier/level/career)
+  and `load()` re-applied `S.career` on every boot, so the wolf came back at the saved level.
+
+Net effect: "start" always resumed the saved world + saved level. The pause NEW WORLD changed
+terrain but kept the level.
+
+## Fix (this session)
+- **NEW GAME** is now a first-class home-menu action (`🧭 NEW GAME` button + the pause button
+  relabelled from "NEW WORLD" to "NEW GAME"). It rolls a fresh `?seed=`, resets the campaign to
+  a brand-new wolf (level 0 · tier 1 · q0 board), then reloads with the new seed so the world
+  actually regenerates. The all-time **record survives**: `revontulet_bestRun` / `revontulet_lastRun`
+  (the ⭐ LAST RUN / 🏆 RECORD recap) are never touched, and the campaign's trophy/best records
+  carry over.
+- **CONTINUE** is now explicit: when a save exists the home button reads **▶ CONTINUE** and resumes
+  the saved world at the saved level (reload ≠ reset, as before).
+- The seed is now recorded in the campaign save (`S.seed`) so Continue reproduces the same world.
+- `window.SEED` is exposed (p1) so the seed and the new-game path are testable.
+
+Files: `src/p1.js` · `src/p4.js` · `src/p5.js` · `src/shell.html` ·
+`test/campaign.test.mjs` (NEW GAME regression block).
+
+## Verified
+13-point probe (fresh first-load · Continue resume · NEW GAME): new seed, fresh wolf (level 0),
+tier 1, trophies preserved, high-score record kept — 13/13 pass, zero page errors.
+`campaign.test.mjs` (incl. the new NEW GAME block) CAMPAIGN TEST PASS; `smoke.mjs` PASS;
+`menu_trophy_ai.mjs` PASS.

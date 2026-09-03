@@ -249,7 +249,9 @@ ledger + coaching are `BUGS.md` §2026-09-03, `TRAINING_MANUAL.md` §4-§5, hand
 `test/speedrun/HANDOFF_2026-09-03.md`. **Trophy status: not yet minted** — the park has
 run-to-run variance (0.22 vs 0.44 hits/s on identical code; phase rolls) and its tail-zone
 gates still slip in the real integration; that is the one open item. Bot gate unchanged:
-LAW v4, no promote without a trainer verdict.
+LAW v4, no promote without a trainer verdict. (Same session: the home screen gained an explicit
+**🧭 NEW GAME** — fresh `?seed=` + fresh wolf, level 0 — while **▶ CONTINUE** resumes the saved
+world and level, and the ⭐ high-score recap + 🏆 trophies are preserved; see `BUGS.md`.)
 
 | gen | mode | gate | outcome | fit | tier | notes |
 |---|---|---|---|---|---|---|

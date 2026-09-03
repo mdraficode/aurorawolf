@@ -4396,16 +4396,27 @@ function showOverlay(mode) {
       `Biomes found: <b>${stats.biomes.size}/6</b><br>` +
       `World seed: <b>${SEED}</b>`;
     el('btnResume').onclick = () => setState('play');
-    el('btnNew').onclick = () => {
-      try {
-        const u = new URL(location.href);
-        u.searchParams.set('seed', String((Math.random() * 1e9) | 0));
-        location.href = u.toString();
-      } catch (e) { location.reload(); }
-    };
+    el('btnNew').onclick = newGame;
   }
   const b = el('btnStart');
   if (b) b.onclick = startGame;
+  const ng = el('btnNewGame');         // home page NEW GAME (fresh world + fresh wolf, record kept)
+  if (ng) ng.onclick = newGame;
+}
+
+/* NEW GAME — a whole new world + a fresh wolf, while the all-time record stands.
+   Rolls a new random seed, resets the campaign (level 1, tier 1), then reloads the page
+   with ?seed=<new> so the world actually regenerates. The high-score recap
+   (revontulet_bestRun / revontulet_lastRun) is separate and never cleared. */
+function newGame() {
+  let s;
+  if (window.CAMP && window.CAMP.newGame) s = window.CAMP.newGame();
+  else s = ((Math.random() * 1e9) | 0) >>> 0;
+  try {
+    const u = new URL(location.href);
+    u.searchParams.set('seed', String(s));
+    location.href = u.toString();
+  } catch (e) { location.reload(); }
 }
 function hideOverlay() { ui.overlay.classList.add('hidden'); }
 
@@ -4414,7 +4425,11 @@ function hideOverlay() { ui.overlay.classList.add('hidden'); }
    on every return, not only during the one-time boot transition. */
 function menuReady() {
   const b = el('btnStart');
-  if (b) { b.disabled = false; b.textContent = 'ENTER THE WILD'; }
+  if (b) {
+    b.disabled = false;
+    const hasSave = window.CAMP && window.CAMP.hasSave && window.CAMP.hasSave();
+    b.textContent = hasSave ? '▶ CONTINUE' : 'ENTER THE WILD';
+  }
   if (window.updateRunRecap) window.updateRunRecap();
   const bl = el('bootLine');
   if (bl) bl.textContent = 'The wilderness awaits…';

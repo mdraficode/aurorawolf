@@ -33,7 +33,7 @@ window.CAMP = (() => {
 
   const fresh = () => ({
     v: 1, name: '', tier: 1, leg: 0, stage: 'q0', prepDone: 0,
-    runT0: 0, pausedAcc: 0, pausedAt: null,
+    runT0: 0, pausedAcc: 0, pausedAt: null, seed: (typeof SEED !== 'undefined' ? SEED : 0),
     trophies: [], best: {}, terr: null, altar: null, seen: {}, created: Date.now()
   });
   const save = () => {   // the checkpoint: campaign + the ONE career XP pool (level, bar, lifetime)
@@ -45,6 +45,9 @@ window.CAMP = (() => {
   const load = () => {
     try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s && s.v === 1) { delete s.xp; S = s; } } catch (e) { }
     if (!S) S = fresh();
+    // a save made before the seed was recorded inherits the live world seed so a reload
+    // reproduces the same world (continue); a NEW GAME overwrites this with a fresh seed.
+    if (!S.seed) S.seed = (typeof SEED !== 'undefined' ? SEED : 0);
     if (S.career && typeof wolf !== 'undefined') {   // the unified pool resumes from the checkpoint — reload is not a reset
       wolf.xpTotal = S.career.xp | 0; wolf.level = S.career.lvl | 0; wolf.xp = S.career.bar | 0;
       wolf.xpNext = S.career.next || xpNeed(wolf.level); recalcWolfLevel();
@@ -596,6 +599,27 @@ window.CAMP = (() => {
     if (typeof audio !== 'undefined' && audio.uiClick) audio.uiClick();
   };
 
+  /* ---------- New Game / Continue ---------- */
+  const hasSave = () => { try { return !!localStorage.getItem(LS); } catch (e) { return false; } };
+  // continue reproduces the SAME world the save was made in (seed recorded at save time).
+  const continueSeed = () => (S && S.seed != null ? S.seed : (typeof SEED !== 'undefined' ? SEED : 0));
+  // NEW GAME: a fresh random seed + a brand-new wolf (level 1, tier 1, q0 board) — but the
+  // all-time RECORD survives: trophies + best-tier times and the player's name carry over, and
+  // the run/trophy record (revontulet_bestRun in p4) is never touched. The caller navigates to
+  // the returned ?seed= so the world actually changes.
+  const newGame = () => {
+    const seed = ((Math.random() * 1e9) | 0) >>> 0;
+    const keep = { trophies: (S && S.trophies) || [], best: (S && S.best) || {}, name: (S && S.name) || '' };
+    S = fresh(); S.seed = seed; S.trophies = keep.trophies; S.best = keep.best; S.name = keep.name;
+    try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { }
+    if (typeof wolf !== 'undefined') {   // drop the resumed career — fresh wolf = the game's base (level 0, 'Young Pup')
+      wolf.xpTotal = 0; wolf.level = 0; wolf.xp = 0; wolf.xpNext = xpNeed(0);
+      if (typeof recalcWolfLevel === 'function') recalcWolfLevel();
+    }
+    refill();
+    return seed;
+  };
+
   /* ---------- public face ---------- */
   window.CAMPDBG = {
     state: () => JSON.parse(JSON.stringify(S)),
@@ -628,7 +652,8 @@ window.CAMP = (() => {
     on: () => true,
     init: () => { load(); },
     refill, tick, hud, mapMarks, onEvent, onQuestComplete, onAccept, onAbandon, onDeath,
-    onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh, clock: elapsed, simClock, side: sideInfo
+    onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh, clock: elapsed, simClock, side: sideInfo,
+    hasSave, newGame, continueSeed
   };
 })();
 if (window.CAMP && window.CAMP.init) window.CAMP.init();

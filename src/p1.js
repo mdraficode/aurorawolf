@@ -76,6 +76,7 @@ function ridged(n, x, y, oct) {
 /* ---------------- world seed & noise fields ---------------- */
 const QPARAMS = (() => { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(''); } })();
 const SEED = (parseInt(QPARAMS.get('seed'), 10) || ((Math.random() * 1e9) | 0)) >>> 0;
+window.SEED = SEED;   // expose the live world seed (tests read it; New Game swaps it via ?seed=)
 const AUTOSTART = QPARAMS.get('autostart') === '1';
 const QUALITY = QPARAMS.get('quality') || 'high';
 
