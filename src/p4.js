@@ -2645,6 +2645,39 @@ window.updateRunRecap = function () {   // the start page's chronicle of the las
     `<div class="rr-line">✨ ${last.xp} XP earned · 🩸 ${last.kills} prey (${last.predators} predators) · 📜 ${last.quests} quests</div>` +
     `<div class="rr-line">🧭 ${last.landmarks} landmarks · 👑 ${last.bosses} legends${last.perks && last.perks.length ? ' · achievements: ' + last.perks.join(', ') : ''}</div>`;
 };
+window.showRecord = function () {   // the home page's "🏆 HIGHEST RECORD" — the best single run + the best tier trophy
+  ui.overlay.classList.remove('hidden');
+  ui.overlay.dataset.mode = 'record';
+  ui.ovTitle.textContent = '🏆 HIGHEST RECORD';
+  let best = null;
+  try { best = JSON.parse(localStorage.getItem('revontulet_bestRun') || 'null'); } catch (e) { }
+  let h = '<div style="font:12px monospace;color:#9fb4c4;margin:6px 0 14px">━━━━━━━━━━━━━━━━━━━━━━</div>';
+  h += '<div style="font:13px monospace;color:#ffe9b0">🐾 BEST RUN</div>';
+  if (best) {
+    const mm = Math.floor((best.dur || 0) / 60), ss = Math.floor((best.dur || 0) % 60);
+    h += `<div style="margin:6px 0;font:16px monospace;color:#fff">Level <b>${best.maxLevel}</b></div>` +
+      `<div style="font:13px monospace;color:#cfe3d0;margin-left:20px">✨ ${best.xp} XP · 🩸 ${best.kills} prey (${best.predators} predators) · 📜 ${best.quests} quests<br>` +
+      `🧭 ${best.landmarks} landmarks · 👑 ${best.bosses} legends · ⏱ ${mm}m ${ss}s<br>` +
+      `${best.cause ? '💀 fell to ' + best.cause : ''}</div>`;
+  } else h += '<div style="margin:6px 0;font:13px monospace;color:#5c6f7c">No run recorded yet — the wild is waiting.</div>';
+  h += '<div style="font:12px monospace;color:#9fb4c4;margin:14px 0 8px">━━━━━━━━━━━━━━━━━━━━━━</div>';
+  h += '<div style="font:13px monospace;color:#ffe9b0">🏆 BEST TIER TROPHY</div>';
+  const C = (window.CAMP && window.CAMP.state) ? window.CAMP.state() : null;
+  if (C) {
+    const tiers = Object.keys(C.best || {}).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+    const top = tiers.length ? tiers[tiers.length - 1] : 0;
+    const rec = top ? C.best[top] : null;
+    if (rec) {
+      const t = (window.CAMP && window.CAMP.fmt) ? window.CAMP.fmt(rec.t) : rec.t;
+      h += `<div style="margin:6px 0;font:20px monospace;color:#fff">🏆 TIER ${top} · ${t}</div>` +
+        `<div style="font:12px monospace;color:#9fb4c4">${rec.date} · ${rec.name}</div>`;
+    } else h += '<div style="margin:6px 0;font:13px monospace;color:#5c6f7c">No trophy yet — hunt the Legends.</div>';
+  }
+  h += '<div style="margin-top:18px"><button class="btn" id="btnRecordBack">BACK</button></div>';
+  ui.ovBody.innerHTML = h;
+  el('btnRecordBack').onclick = () => showOverlay('start');
+  if (typeof audio !== 'undefined' && audio.uiClick) audio.uiClick();
+};
 function addXp(n) {
   wolf.xp += n;
   wolf.xpTotal = (wolf.xpTotal || 0) + Math.max(0, n);   // ONE unified XP pool — career XP, monotonic (death resets level progress only)
@@ -4398,11 +4431,48 @@ function showOverlay(mode) {
     el('btnResume').onclick = () => setState('play');
     el('btnNew').onclick = newGame;
   }
-  const b = el('btnStart');
-  if (b) b.onclick = startGame;
-  const ng = el('btnNewGame');         // home page NEW GAME (fresh world + fresh wolf, record kept)
-  if (ng) ng.onclick = newGame;
+  wireStartMenu();   // re-arm the home menu: the two main choices + their drop-downs + the side record
 }
+
+/* ---- the home menu (tplStart) is re-injected on every return, so re-wire it each time ---- */
+function wireStartMenu() {
+  const b = el('btnStart');            // the "Resume Last Game" card's primary
+  if (b) b.onclick = startOrResume;
+  const ng = el('btnNewGame');         // the "New Game" card's primary
+  if (ng) ng.onclick = () => newGame();
+  const cn = el('caretNewGame');
+  if (cn) cn.onclick = e => { e.stopPropagation(); toggleDrop('ddNewGame'); };
+  const cr = el('caretResume');
+  if (cr) cr.onclick = e => { e.stopPropagation(); toggleDrop('ddResume'); };
+  const dn = el('ddNewStart');
+  if (dn) dn.onclick = () => newGame();
+  const dnai = el('ddNewAI');
+  if (dnai) dnai.onclick = () => newGameAI();
+  const drp = el('ddResumePlay');
+  if (drp) drp.onclick = () => startOrResume();
+  const drai = el('ddResumeAI');
+  if (drai) drai.onclick = () => resumeAI();
+  const rec = el('btnRecord');         // the side "Highest Record" button
+  if (rec) rec.onclick = () => { if (typeof window.showRecord === 'function') window.showRecord(); };
+}
+function toggleDrop(id) {
+  const d = el(id);
+  if (!d) return;
+  const open = d.style.display !== 'none';
+  for (const o of ['ddNewGame', 'ddResume']) { const e = el(o); if (e && e !== d) e.style.display = 'none'; }
+  d.style.display = open ? 'none' : 'block';
+  if (typeof audio !== 'undefined' && audio.uiClick) audio.uiClick();
+}
+/* clicking anywhere outside a card closes any open drop-down (the drop is re-built on each return) */
+document.addEventListener('click', e => {
+  const card = e.target && e.target.closest ? e.target.closest('.menu-card') : null;
+  for (const id of ['ddNewGame', 'ddResume']) {
+    const d = document.getElementById(id);
+    if (!d || d.style.display === 'none') continue;
+    if (card && card.contains(d)) continue;   // inside this card — the caret toggles it
+    d.style.display = 'none';
+  }
+});
 
 /* NEW GAME — a whole new world + a fresh wolf, while the all-time record stands.
    Rolls a new random seed, resets the campaign (the game's base level 0, tier 1), then reloads
@@ -4415,8 +4485,41 @@ function newGame() {
   try {
     const u = new URL(location.href);
     u.searchParams.set('seed', String(s));
+    u.searchParams.delete('autopilot');   // "Start Game" is a human run — no AI watch loop
     location.href = u.toString();
   } catch (e) { location.reload(); }
+}
+/* NEW GAME + WATCH RAFZZER — the same fresh world, but the wolf plays itself (watch mode).
+   Navigating with ?autopilot=1 reuses the shipped watch loop and preserves the other params. */
+function newGameAI() {
+  let s;
+  if (window.CAMP && window.CAMP.newGame) s = window.CAMP.newGame();
+  else s = ((Math.random() * 1e9) | 0) >>> 0;
+  try {
+    const u = new URL(location.href);
+    u.searchParams.set('seed', String(s));
+    u.searchParams.set('autopilot', '1');
+    location.href = u.toString();
+  } catch (e) { location.reload(); }
+}
+/* The "Resume Last Game" primary: land exactly where the wolf fell, then play.
+   With no playable saved session it is simply entering the wild ("ENTER THE WILD"). */
+function startOrResume() {
+  const can = window.CAMP && window.CAMP.canResume && window.CAMP.canResume();
+  if (can && window.CAMP.resume) window.CAMP.resume();   // teleport onto the saved body only if an exact session exists
+  startGame();
+}
+/* "Resume Rafzzer the AI Play": resume the exact state, then hand the wolf to the brain. */
+function resumeAI() {
+  const can = window.CAMP && window.CAMP.canResume && window.CAMP.canResume();
+  if (can && window.CAMP.resume) {
+    window.CAMP.resume();
+    startGame();
+    const b = el('btnStart'); if (b) b.disabled = true;   // the brain is already in — stop the START auto-press from double-starting
+    if (window.AI_PLAY) window.AI_PLAY(true);
+    return;
+  }
+  newGameAI();   // nothing to resume — start a fresh watch
 }
 function hideOverlay() { ui.overlay.classList.add('hidden'); }
 
@@ -4424,12 +4527,16 @@ function hideOverlay() { ui.overlay.classList.add('hidden'); }
    re-injected every time we return to it (TROPHIES → BACK), so the button must be re-armed
    on every return, not only during the one-time boot transition. */
 function menuReady() {
-  const b = el('btnStart');
+  const can = window.CAMP && window.CAMP.canResume && window.CAMP.canResume();   // only a played session has a place to resume to
+  const b = el('btnStart');   // the "Resume Last Game" card's primary — always armed; its meaning depends on a real saved session
   if (b) {
     b.disabled = false;
-    const hasSave = window.CAMP && window.CAMP.hasSave && window.CAMP.hasSave();
-    b.textContent = hasSave ? '▶ CONTINUE' : 'ENTER THE WILD';
+    b.textContent = can ? '▶ RESUME LAST GAME' : '▶ ENTER THE WILD';
   }
+  // resuming needs a real saved session — grey the drop-down choices if there is nothing to return to
+  const dr = el('ddResume');
+  if (dr) for (const it of dr.querySelectorAll('.menu-item')) it.disabled = !can;
+  // the New Game card is always live; its own drop-down choices are never disabled (Start / Watch AI both create a fresh world)
   if (window.updateRunRecap) window.updateRunRecap();
   const bl = el('bootLine');
   if (bl) bl.textContent = 'The wilderness awaits…';

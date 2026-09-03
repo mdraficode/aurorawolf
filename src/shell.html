@@ -110,6 +110,37 @@
 
 <template id="tplStart">
   <div id="nameRow" style="display:none;margin:4px 0 10px;font:13px monospace;color:#cfe3d0">🐺 Name the wolf: <input id="plName2" maxlength="14" placeholder="Your name" style="width:150px;padding:4px 8px;font-size:13px;border:1px solid #2c3a46;background:#0d141c;color:#dfeee6;border-radius:6px"></div>
+
+  <div class="start-flex">
+    <div class="menu-center">
+      <div class="menu-card">
+        <div class="menu-head">
+          <button class="btn menu-primary" id="btnNewGame" title="Start a whole new world — level 0, a random safe place, a fresh seed (your record stays)">🧭 NEW GAME</button>
+          <button class="menu-caret" id="caretNewGame" title="More New Game options">▾</button>
+        </div>
+        <div class="menu-drop" id="ddNewGame" style="display:none">
+          <button class="menu-item" id="ddNewStart">▶ Start Game</button>
+          <button class="menu-item" id="ddNewAI">🤖 Watch Rafzzer the AI Play</button>
+        </div>
+      </div>
+      <div class="menu-card">
+        <div class="menu-head">
+          <button class="btn menu-primary" id="btnStart" disabled title="Continue from exactly where you left off — same place, same level, same state">SUMMONING THE WILD…</button>
+          <button class="menu-caret" id="caretResume" title="More Resume options">▾</button>
+        </div>
+        <div class="menu-drop" id="ddResume" style="display:none">
+          <button class="menu-item" id="ddResumePlay">▶ Resume Last Game</button>
+          <button class="menu-item" id="ddResumeAI">🤖 Resume Rafzzer the AI Play</button>
+        </div>
+      </div>
+    </div>
+    <div class="menu-side">
+      <button class="btn ghost" id="btnTrophies" title="Trophy records & personal bests">🏆 TROPHIES</button>
+      <button class="btn ghost" id="btnRecord" title="Your highest run record">🏆 HIGHEST RECORD</button>
+      <button class="btn ghost ai" id="btnMenuAI" title="The wolf plays itself — you watch">🧠 Watch Rafzzer the AI Play</button>
+    </div>
+  </div>
+
   <div class="ctrl-grid">
     <span><b>WASD / arrows</b> — run through the wilds</span>
     <span><b>Shift</b> — sprint (stamina)</span>
@@ -123,10 +154,6 @@
   <div class="progress"><i id="bootBar"></i></div>
   <div id="bootLine">Growing the forest…</div>
   <div id="runRecap" style="display:none"></div>
-  <div style="margin-top:26px"><button class="btn" id="btnStart" disabled>SUMMONING THE WILD…</button></div>
-  <div style="margin-top:12px"><button class="btn ai" id="btnMenuAI" style="font-size:15px;padding:8px 22px" title="The wolf plays itself — you watch">🧠 Watch Rafzzer play</button></div>
-  <div style="margin-top:10px"><button class="btn ghost" id="btnTrophies" style="font-size:15px;padding:8px 22px" title="Trophy records & personal bests">🏆 TROPHIES</button></div>
-  <div style="margin-top:10px"><button class="btn ghost" id="btnNewGame" style="font-size:15px;padding:8px 22px" title="Start over — a fresh world & a fresh wolf (your record stays)">🧭 NEW GAME</button></div>
   <div class="ov-tip">Every world is unique — endless terrain, weather and auroras.<br>
   Hunt with <b>F</b>: small prey falls in one bite, elk take four — bigger prey, bigger bounty.<br>
   🐻 Beware <b>territorial predators</b> — bear, tiger, snow leopard. Heed the red warning and the threat arrow; fight back or flee!<br>

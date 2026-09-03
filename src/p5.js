@@ -36,11 +36,72 @@ window.CAMP = (() => {
     runT0: 0, pausedAcc: 0, pausedAt: null, seed: (typeof SEED !== 'undefined' ? SEED : 0),
     trophies: [], best: {}, terr: null, altar: null, seen: {}, created: Date.now()
   });
-  const save = () => {   // the checkpoint: campaign + the ONE career XP pool (level, bar, lifetime)
+  const save = () => {   // the checkpoint: campaign + the ONE career XP pool (level, bar, lifetime) + exact wolf state
     try {
-      if (typeof wolf !== 'undefined') S.career = { xp: wolf.xpTotal | 0, lvl: wolf.level, bar: wolf.xp | 0, next: wolf.xpNext };
+      if (typeof wolf !== 'undefined') {
+        S.career = { xp: wolf.xpTotal | 0, lvl: wolf.level, bar: wolf.xp | 0, next: wolf.xpNext };
+        // EXACT-RESUME (2026-09-03): a "Resume Last Game" must land where the wolf fell —
+        // same place, same body, same level. The body state rides the checkpoint too.
+        S.wolf = {
+          x: +wolf.pos.x.toFixed(2), y: +wolf.pos.y.toFixed(2), z: +wolf.pos.z.toFixed(2),
+          yaw: +wolf.yaw.toFixed(4),
+          hp: +wolf.hp.toFixed(1), maxHp: wolf.maxHp, hpBonus: wolf.hpBonus || 0,
+          stam: +wolf.stamina.toFixed(1), maxStam: wolf.maxStam || 100,
+          dist: +wolf.distance.toFixed(1),
+          perks: Object.assign({}, wolf.perks), title: wolf.title,
+          flyT: +(wolf.flyT || 0).toFixed(1), exhausted: !!wolf.exhausted
+        };
+      }
       localStorage.setItem(LS, JSON.stringify(S));
     } catch (e) { }
+  };
+  const restoreBody = () => {   // lay the saved body stats back onto the live wolf (level, hp, stamina, perks, title) — NOT the position
+    try {
+      if (!S.wolf || typeof wolf === 'undefined') return false;
+      const w = S.wolf;
+      if (Number.isFinite(w.yaw)) wolf.yaw = w.yaw;
+      if (Number.isFinite(w.hp)) wolf.hp = w.hp;
+      if (Number.isFinite(w.maxHp)) wolf.maxHp = w.maxHp;
+      if (Number.isFinite(w.hpBonus)) wolf.hpBonus = w.hpBonus;
+      if (Number.isFinite(w.stam)) wolf.stamina = w.stam;
+      if (Number.isFinite(w.maxStam)) wolf.maxStam = w.maxStam;
+      if (Number.isFinite(w.dist)) wolf.distance = w.dist;
+      if (w.perks) wolf.perks = Object.assign(wolf.perks || {}, w.perks);
+      if (w.title) wolf.title = w.title;
+      if (Number.isFinite(w.flyT)) wolf.flyT = w.flyT;
+      wolf.exhausted = !!w.exhausted;
+      if (typeof recalcWolfLevel === 'function') recalcWolfLevel();   // maxHp/maxStam flow from level + hpBonus
+      return true;
+    } catch (e) { return false; }
+  };
+  const restoreWolf = () => {   // lay the saved body back onto the live wolf, INCLUDING its exact place; true if a position was restored
+    try {
+      const okBody = restoreBody();
+      if (!okBody) return false;
+      const w = S.wolf;
+      // only a body stored in THIS world may be placed back — a save from another seed must
+      // never drop the wolf into a foreign landscape (it would be underwater / inside a hill).
+      const sameWorld = (S.seed == null || S.seed === (typeof SEED !== 'undefined' ? SEED : 0));
+      if (sameWorld && Number.isFinite(w.x) && Number.isFinite(w.z)) {
+        wolf.pos.x = w.x; wolf.pos.z = w.z;
+        if (Number.isFinite(w.y)) wolf.pos.y = w.y;
+        if (wolf.model && wolf.model.position) wolf.model.position.copy(wolf.pos);
+        return true;
+      }
+      return false;
+    } catch (e) { return false; }
+  };
+  // the live "Resume Last Game" action: restore the body AND re-center the world on it.
+  const resume = () => {
+    const ok = restoreWolf();
+    try {
+      if (ok) {
+        if (typeof camYaw !== 'undefined') camYaw = wolf.yaw + Math.PI;
+        if (typeof camTarget !== 'undefined') { camTarget.copy(wolf.pos); camTarget.y += 1.5; }
+        if (typeof maintainT !== 'undefined') maintainT = 0;   // the world streams in around the restored place immediately
+      }
+    } catch (e) { }
+    return ok;
   };
   const load = () => {
     try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s && s.v === 1) { delete s.xp; S = s; } } catch (e) { }
@@ -52,6 +113,7 @@ window.CAMP = (() => {
       wolf.xpTotal = S.career.xp | 0; wolf.level = S.career.lvl | 0; wolf.xp = S.career.bar | 0;
       wolf.xpNext = S.career.next || xpNeed(wolf.level); recalcWolfLevel();
     }
+    restoreBody();   // the exact body stats (level, hp, stamina, perks, title) ride back too — the PLACE is applied on the Resume action
   };
   load();
   if (typeof TITLES === 'undefined' || !S.name) { /* name handled in menu */ }
@@ -601,6 +663,9 @@ window.CAMP = (() => {
 
   /* ---------- New Game / Continue ---------- */
   const hasSave = () => { try { return !!localStorage.getItem(LS); } catch (e) { return false; } };
+  // "Resume Last Game" is only possible once a played session has actually recorded a body position
+  // (a fresh NEW GAME save has a seed but no place to leave off from).
+  const canResume = () => { try { return !!(S && S.wolf && Number.isFinite(S.wolf.x) && Number.isFinite(S.wolf.z)); } catch (e) { return false; } };
   // continue reproduces the SAME world the save was made in (seed recorded at save time).
   const continueSeed = () => (S && S.seed != null ? S.seed : (typeof SEED !== 'undefined' ? SEED : 0));
   // NEW GAME: a fresh random seed + a brand-new wolf (the game's base level 0 'Young Pup',
@@ -653,7 +718,7 @@ window.CAMP = (() => {
     init: () => { load(); },
     refill, tick, hud, mapMarks, onEvent, onQuestComplete, onAccept, onAbandon, onDeath,
     onPause, onResume, nearAltar, ritualReady, useAltar, showTrophies, legendName, legendDef, state: () => S, save, fmt, onMenuRefresh, clock: elapsed, simClock, side: sideInfo,
-    hasSave, newGame, continueSeed
+    hasSave, canResume, newGame, continueSeed, resume, restoreWolf
   };
 })();
 if (window.CAMP && window.CAMP.init) window.CAMP.init();

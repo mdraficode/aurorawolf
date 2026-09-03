@@ -404,3 +404,29 @@ Files: `src/p1.js` · `src/p4.js` · `src/p5.js` · `src/shell.html` ·
 tier 1, trophies preserved, high-score record kept — 13/13 pass, zero page errors.
 `campaign.test.mjs` (incl. the new NEW GAME block) CAMPAIGN TEST PASS; `smoke.mjs` PASS;
 `menu_trophy_ai.mjs` PASS.
+
+# 🎛 Session 2026-09-03 — home menu redesign: two main options + drop-downs + exact resume
+
+**Requested:** the game's home page now has **two main center options**, each with a drop-down,
+plus a side record. A resume must land **exactly** where the wolf fell (same place, level, state).
+
+## What changed
+- **Center (2 cards, split buttons):**
+  - **🧭 NEW GAME** — main press = fresh start; `▾` opens **▶ Start Game** and **🤖 Watch Rafzzer the AI Play**.
+  - **▶ RESUME LAST GAME** — main press = resume; `▾` opens **▶ Resume Last Game** and **🤖 Resume Rafzzer the AI Play**.
+- **Side:** **🏆 TROPHIES** (existing) and **🏆 HIGHEST RECORD** (`showRecord()` → best single run + best tier time).
+- **New Game** (`newGame()`): rolls a fresh `?seed=`, resets the wolf to level 0 · tier 1 · q0, then
+  reloads with the new seed (never touches `revontulet_bestRun`/`_lastRun` or the trophy record).
+  `newGame()` also clears the `autopilot` param (a human run); `newGameAI()` sets it (a fresh watch).
+- **Resume** (`CAMP.resume()`): the checkpoint now saves the **exact wolf body** (`S.wolf`:
+  `x/y/z`, `yaw`, `hp`, `stamina`, `perks`, `title`, `maxHp/hpBonus`, `distance`, `flyT`,
+  `exhausted`). On the Resume action the body is placed back and the camera/world re-centred
+  (`maintainT=0`). `sameWorld` guards prevent ever teleporting into a save from another seed.
+- `canResume()` (p5) is true only once a played session recorded a body position, so a fresh
+  NEW GAME save (seed but no place) greys the Resume choices.
+
+## Files
+`src/shell.html` (new `tplStart`) · `src/style.css` (`.start-flex`/`.menu-*`) ·
+`src/p4.js` (`wireStartMenu`, `startOrResume`, `resumeAI`, `newGameAI`, `showRecord`, `menuReady`) ·
+`src/p5.js` (`save`/`load`/`restoreBody`/`restoreWolf`/`resume`/`canResume`) ·
+`test/menu.test.mjs` (redesigned-menu assertions).
