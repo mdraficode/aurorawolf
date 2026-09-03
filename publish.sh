@@ -1,42 +1,18 @@
 #!/usr/bin/env bash
-# Publish the game. Two modes:
+# Publish the game — main-only repo (2026-09-03+)
 #
-#   bash publish.sh github "what changed"   → push to GitHub Pages (LIVE LINK UPDATES ~1 min)
-#                                            https://mdraficode.github.io/aurorawolf/
-#   bash publish.sh archive [alias]         → permanent archive.org snapshot + optional spoo.me alias
+#   bash tools/ship.sh "what changed"     → canonical: build + push directly to main → Pages live ~1 min
+#                                          https://mdraficode.github.io/aurorawolf/
+#   bash publish.sh archive [alias]       → permanent archive.org snapshot + optional spoo.me alias
 #
+# GitHub mode in this file is DEPRECATED and now delegates to tools/ship.sh
+# to avoid duplicate logic. Use ship.sh directly.
 #
 # NOTE (user preference): do NOT rebuild the Android APK on game updates
-# unless explicitly asked — only update the live web link (github mode).
-#
-# GitHub mode needs ~/.ghtoken (classic PAT with repo,workflow scopes — stored, chmod 600).
+# unless explicitly asked — only update the live web link.
 set -euo pipefail
 cd "$(dirname "$0")"
 MODE="${1:-github}"
-
-gh_publish() {
-  GH=$(cat ~/.ghtoken 2>/dev/null) || { echo "ERROR: ~/.ghtoken missing"; exit 1; }
-  REPO="mdraficode/aurorawolf"
-  MSG="${2:-Game update $(date -u +%Y-%m-%d)}"
-  echo "[1/3] building…"; python3 build.py
-  SZ=$(stat -c%s index.html); echo "      index.html = $SZ bytes"
-  echo "[2/3] pushing to github.com/$REPO …"
-  SHA=$(curl -s -m 60 -H "Authorization: Bearer $GH" "https://api.github.com/repos/$REPO/contents/index.html" | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha',''))")
-  python3 -c "
-import base64, json
-b = open('index.html','rb').read()
-d = {'message': '''$MSG''', 'content': base64.b64encode(b).decode()}
-if '$SHA': d['sha'] = '$SHA'
-print(json.dumps(d))" > /tmp/ghput.json
-  curl -s -m 300 -X PUT -H "Authorization: Bearer $GH" -H "Accept: application/vnd.github+json" \
-    "https://api.github.com/repos/$REPO/contents/index.html" -d @/tmp/ghput.json -o /tmp/ghup.json
-  python3 -c "
-import json; d=json.load(open('/tmp/ghup.json'))
-c=d.get('content') or {}
-if c.get('size'): print('      pushed commit', d.get('commit',{}).get('sha','')[:7], '| size', c['size'])
-else: print('ERROR:', d.get('message')); raise SystemExit(1)"
-  echo "[3/3] Pages is rebuilding — https://mdraficode.github.io/aurorawolf/ updates within ~1-2 min."
-}
 
 archive_publish() {
   ALIAS="${2:-}"
@@ -66,7 +42,11 @@ archive_publish() {
 }
 
 case "$MODE" in
-  github) gh_publish "$@" ;;
+  github)
+    echo "DEPRECATED: publish.sh github → delegates to tools/ship.sh (main-only, no branches)"
+    echo "Use: bash tools/ship.sh \"${2:-Game update}\""
+    exec bash tools/ship.sh "${2:-Game update $(date -u +%Y-%m-%d)}"
+    ;;
   archive) archive_publish "$@" ;;
-  *) echo "usage: bash publish.sh github \"msg\"  |  bash publish.sh archive [alias]"; exit 1 ;;
+  *) echo "usage: bash tools/ship.sh \"msg\"  (live)  |  bash publish.sh archive [alias]  (permanent)"; exit 1 ;;
 esac
