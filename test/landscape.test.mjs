@@ -52,7 +52,18 @@ await dpage.waitForTimeout(400);
 R.menuLandscape = await dpage.evaluate(() => {
   const L = document.getElementById('ovLeft').getBoundingClientRect();
   const B = document.getElementById('ovBody').getBoundingClientRect();
-  return { sideBySide: L.right <= B.left + 2, titleLeft: L.left < B.left, titleX: L.left | 0, bodyX: B.left | 0 };
+  const C = document.querySelector('#ovBody .menu-center');
+  const c = C ? C.getBoundingClientRect() : null;
+  const rB = document.getElementById('btnRecord');
+  const r = rB ? rB.getBoundingClientRect() : null;
+  const vpCenter = innerWidth / 2;
+  return {
+    stacked: L.bottom <= B.top + 12,                                  // title sits ABOVE the menu — the start page is a centred column (not the old left/right split)
+    menuCentered: !!c && Math.abs((c.left + c.width / 2) - vpCenter) < 80,  // the two main choices sit near the horizontal page centre
+    recordOnRight: !!r && r.left > vpCenter + 100,                    // the side record (Highest Record) docks to the right of the screen
+    recordVisible: !!r && r.width > 40,
+    titleX: L.left | 0, bodyX: B.left | 0
+  };
 });
 await dpage.screenshot({ path: 'shots/20_menu_landscape.png' });
 // enterLandscape on desktop must NOT force fullscreen

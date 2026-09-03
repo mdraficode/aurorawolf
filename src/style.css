@@ -329,9 +329,9 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 .btn.ghost { border-color: rgba(160, 210, 255, 0.3); color: #cfe0ee; letter-spacing: .14em; font-size: 13.5px; padding: 11px 26px; }
 .btnrow { display: flex; gap: 14px; justify-content: center; }
 
-/* ---- home menu: the two main choices CENTERED, each with a drop-down; the record docked RIGHT ---- */
-.start-flex { display: grid; grid-template-columns: 1fr auto; align-items: start; justify-items: center; gap: 30px; width: 100%; max-width: 680px; margin: 4px auto 12px; }
-.menu-center { justify-self: center; display: flex; flex-direction: column; gap: 16px; justify-content: center; }
+/* ---- home menu: the two main choices are centered on the page; the record/side controls dock to the RIGHT ---- */
+.start-flex { position: static; display: flex; justify-content: center; align-items: flex-start; gap: 30px; width: 100%; margin: 4px auto 12px; }
+.menu-center { display: flex; flex-direction: column; gap: 16px; justify-content: center; align-items: stretch; }
 .menu-card { position: relative; }
 .menu-head { display: flex; gap: 8px; justify-content: center; align-items: stretch; }
 .menu-primary { min-width: 300px; padding: 14px 34px; white-space: nowrap; font-size: 16px; }
@@ -341,17 +341,23 @@ body:not(.aiOn) #botPanel, body:not(.aiOn) #botBadge { display: none !important;
 .menu-item { display: block; width: 100%; pointer-events: auto; cursor: pointer; text-align: center; border: none; background: transparent; color: #d9fbe9; font-family: inherit; font-size: 14px; letter-spacing: .12em; padding: 11px 10px; border-radius: 8px; }
 .menu-item:hover:not(:disabled) { background: rgba(56, 118, 102, 0.5); }
 .menu-item:disabled { opacity: .4; cursor: not-allowed; }
-.menu-side { justify-self: end; display: flex; flex-direction: column; gap: 10px; justify-content: center; align-items: stretch; min-width: 210px; }
+/* the record controls float at the right edge of the screen, vertically centered — an anchored overlay */
+.menu-side { position: absolute; right: 2.5vw; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; justify-content: center; align-items: stretch; min-width: 210px; max-width: 250px; }
 .menu-side .btn { width: 100%; }
-/* narrow / phone: stack — the record row slides under the centered choices and the choices go full-width */
-@media (max-width: 620px) {
-  .start-flex { grid-template-columns: 1fr; gap: 18px; }
-  .menu-center { justify-self: center; }
+/* the START page is a centered column (even in landscape) that scrolls instead of clipping the menu:
+   auto margins on the block's first/last pages let the group center when it fits, and fall back to
+   top-aligned scroll (never a clipped, unreachable menu) when a short screen overflows. */
+#overlay[data-mode="start"] { flex-direction: column; justify-content: flex-start; align-items: center; gap: 10px; overflow-y: auto; }
+#overlay[data-mode="start"] #ovLeft { margin-top: auto; margin-bottom: 0; align-items: center; text-align: center; }
+#overlay[data-mode="start"] #ovBody { margin-top: 0; margin-bottom: auto; width: min(680px, 92vw); }
+/* narrow / phone: the record controls slide under the centered choices, and the choices go full-width */
+@media (max-width: 760px) {
+  .start-flex { flex-direction: column; align-items: center; gap: 18px; }
+  .menu-side { position: static; right: auto; top: auto; transform: none; min-width: 0; max-width: none; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .menu-side .btn { width: auto; }
   .menu-primary { min-width: 0; width: min(100%, 340px); font-size: 15px; padding: 13px 26px; }
   .menu-caret { font-size: 13px; padding: 0 10px; }
   .menu-drop { min-width: 0; }
-  .menu-side { justify-self: center; min-width: 0; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px; }
-  .menu-side .btn { width: auto; }
 }
 #pStats { font-size: 14.5px; line-height: 2; color: #cfe0ee; margin-bottom: 24px; }
 #pStats b { color: #9df0c8; }

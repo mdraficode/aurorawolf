@@ -425,8 +425,28 @@ plus a side record. A resume must land **exactly** where the wolf fell (same pla
 - `canResume()` (p5) is true only once a played session recorded a body position, so a fresh
   NEW GAME save (seed but no place) greys the Resume choices.
 
+## Follow-up (same session) — home menu positioning fix
+
+**Reported:** on the start page the menu was not visible / not centred; the two main choices and the
+record were mis-placed.
+
+**Root cause:** the redesigned `#overlay` had `justify-content: safe center; overflow-y: auto`. On
+landscape/desktop the content (menu cards sit at the top of `#ovBody`) overflows the viewport and the
+combined centering + scroll clipped the menu out of view.
+
+**Fix (`src/style.css`):**
+- Reverted `#overlay` to the original centring (no `safe center`/`overflow-y`), restoring visibility.
+- The start page (`#overlay[data-mode="start"]`) is now a **centred column** even in landscape (title
+  above, menu below): `flex-direction: column`, and auto margins (`#ovLeft { margin-top:auto }` /
+  `#ovBody { margin-bottom:auto }`) keep it centred when there's room and fall back to top-aligned,
+  scrollable content on a short screen — a menu is never clipped out of reach.
+- `.menu-center` (the two main choices, each with a drop-down) is centred on the page.
+- `.menu-side` (🏆 TROPHIES · 🏆 HIGHEST RECORD · 🧠 Watch Rafzzer) is **docked to the right of the
+  screen** (`position: absolute; right: 2.5vw; top: 50%`) on wide layouts; on ≤760px it stacks under
+  the choices as a centred row.
+
 ## Files
-`src/shell.html` (new `tplStart`) · `src/style.css` (`.start-flex`/`.menu-*`) ·
+`src/shell.html` (new `tplStart`) · `src/style.css` (`.start-flex`/`.menu-*` + start-page centring) ·
 `src/p4.js` (`wireStartMenu`, `startOrResume`, `resumeAI`, `newGameAI`, `showRecord`, `menuReady`) ·
 `src/p5.js` (`save`/`load`/`restoreBody`/`restoreWolf`/`resume`/`canResume`) ·
-`test/menu.test.mjs` (redesigned-menu assertions).
+`test/menu.test.mjs` (redesigned-menu assertions) · `test/landscape.test.mjs` (start-page layout probes).
