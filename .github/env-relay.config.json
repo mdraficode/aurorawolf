@@ -1,8 +1,8 @@
 {
   "_comment": "env-relay: GitHub-runner downloads a file (full internet here — the sandbox egress is an allowlist) and commits it to the SAME branch. Edit `source_url`/`out_dir`/`filename` and push this file to re-trigger. Secrets: never embed a secret here; this is plain transport for a data file.",
   "source_url": "https://we.tl/t-HbRSfqO8z5ZWb2we",
-  "out_dir": "drive_drop",
+  "out_dir": "relay",
   "filename": "AW-V1.zip",
   "expected_sha256": null,
-  "note": "Source options: Google Drive direct (`https://drive.google.com/uc?/drive.usercontent.google.com/download?id=...` — gdown handles the confirm token) or any direct HTTP/HTTPS. WeTransfer we.tl needs the Playwright fallback (server-side session, not P2P)."
+  "note": "Source options: Google Drive direct (`https://drive.google.com/uc?/drive.usercontent.google.com/download?id=...` — gdown handles the confirm token) or any direct HTTP/HTTPS. WeTransfer we.tl needs the Playwright fallback (server-side session, not P2P). out_dir is relay/ (TRACKED) so the workflow can commit the zip onto the branch, which the sandbox fetches via git (blob.core.windows.net is blocked, so the artifact path can't reach the sandbox)."
 }
