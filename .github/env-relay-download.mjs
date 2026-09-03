@@ -86,90 +86,94 @@ async function viaGdown() {
   }
 }
 
+const ACCEPT_SELS = [
+  'button:has-text("I agree")', 'button:has-text("I accept")', 'button:has-text("Accept all")',
+  'button:has-text("Accept All")', 'button:has-text("Accept")', 'button:has-text("Agree")',
+  'button:has-text("OK")', 'button:has-text("Yes")', 'button:has-text("Allow all")',
+  'button:has-text("Accept cookies")', 'button:has-text("Got it")',
+  '[data-testid*="accept"]', 'button#onetrust-accept-btn-handler'
+];
+const DL_SELS = [
+  'button[data-testid="download"]', '[data-testid="download"]',
+  'button:has-text("Download")', 'a:has-text("Download")',
+  'button:has-text("download")', 'a:has-text("download")',
+  'button.download', 'a.download', 'a[data-download]', '[data-download]',
+  '[data-testid*="download"]', 'button[aria-label*="ownload"]', 'a[aria-label*="ownload"]',
+  'a[href*="/downloads/"]', '[href*="/download"]', 'a[href*="download_link"]'
+];
+
 async function viaPlaywright() {
   dbg(`[relay] playwright (WeTransfer) ${URL_}`);
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   const page = await browser.newPage({ acceptDownloads: true });
 
-  // WeTransfer is a JS app: the we.tl short link redirects to a download page that
-  // exchanges an XSRF token and only then exposes the file. So we (1) follow the
-  // redirect to the real page, (2) let it render, (3) click the download control,
-  // (4) save the emitted download. Log each stage so a failure is attributable.
-  const resp = await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 120000 });
-  dbg(`[relay]   landing page ${resp ? resp.status() : '?'} → ${page.url()}`);
-  await page.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => dbg('[relay]   networkidle timeout (continuing)'));
+  // WeTransfer is a JS app whose "I agree" consent banner renders ASYNCHRONOUSLY —
+  // an immediate count()/click() races it and misses the gate entirely (measured:
+  // the same URL succeeded once then failed when the banner appeared too late). So
+  // we wait for "the gate OR the control" with a real waitForSelector, dismiss the
+  // gate if present, wait for the control, then RETRY the whole page a few times.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const resp = await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      dbg(`[relay]   attempt ${attempt}: landing ${resp ? resp.status() : '?'} → ${page.url()}`);
+      await page.waitForLoadState('networkidle', { timeout: 45000 }).catch(() => dbg('[relay]   networkidle timeout (continuing)'));
 
-  // WeTransfer shows a cookie-consent gate ("I agree") before the file list. Dismiss
-  // it first — otherwise the Download control never appears. Try a broad set of
-  // accept/dismiss buttons, tolerant of a missing gate.
-  const acceptSels = [
-    'button:has-text("I agree")', 'button:has-text("Accept")', 'button:has-text("Accept all")',
-    'button:has-text("Accept All")', 'button:has-text("Agree")', 'button:has-text("OK")',
-    'button:has-text("Yes")', '[data-testid*="accept"]', 'button#onetrust-accept-btn-handler'
-  ];
-  for (const sel of acceptSels) {
-    const n = await page.locator(sel).count().catch(() => 0);
-    if (n > 0) {
-      dbg(`[relay]   dismissing consent via ${sel}`);
-      await page.locator(sel).first().click({ timeout: 10000 }).catch(() => {});
-      await page.waitForTimeout(1500);
-      break;
+      // Wait for the consent gate OR a download control to hydrate (whichever first).
+      await Promise.race([
+        page.waitForSelector(ACCEPT_SELS.join(','), { timeout: 15000 }),
+        page.waitForSelector(DL_SELS.join(','), { timeout: 15000 })
+      ]).catch(() => {});
+
+      // Dismiss the consent gate if present.
+      for (const sel of ACCEPT_SELS) {
+        const vis = await page.locator(sel).count().catch(() => 0);
+        if (vis > 0) {
+          dbg(`[relay]   attempt ${attempt}: dismissing consent via ${sel}`);
+          await page.locator(sel).first().click({ timeout: 10000 }).catch(() => {});
+          await page.waitForTimeout(1500);
+          break;
+        }
+      }
+      // Give the SPA a beat to hydrate the file list, then scan for a control.
+      await page.waitForTimeout(2500);
+
+      const found = await page.evaluate(() => {
+        const q = s => document.querySelectorAll(s).length;
+        return {
+          url: location.href,
+          download: q('a.download, [data-download], a[href*="download"]'),
+          buttons: Array.from(document.querySelectorAll('button')).map(b => (b.textContent || '').trim().slice(0, 30)).filter(Boolean).slice(0, 12)
+        };
+      });
+      dbg(`[relay]   attempt ${attempt}: page shape ` + JSON.stringify(found).slice(0, 400));
+
+      // Click the first real Download control (exact buttons first).
+      let clicked = false, control = null;
+      for (const sel of DL_SELS) {
+        const count = await page.locator(sel).count();
+        if (count > 0) { control = sel; break; }
+      }
+      if (!control) { dbg(`[relay]   attempt ${attempt}: no Download control yet`); continue; }
+
+      // Wire the download event BEFORE clicking so nothing is missed.
+      const downloadPromise = page.waitForEvent('download', { timeout: 60000 });
+      dbg(`[relay]   attempt ${attempt}: clicking ${control}`);
+      await page.locator(control).first().click({ timeout: 20000 });
+      const dl = await downloadPromise;   // throws on timeout → retry loop
+      dbg(`[relay]   download triggered: suggested ${dl.suggestedFilename()}`);
+      await dl.saveAs(DEST);
+      await browser.close();
+      dbg('[relay]   saved via browser');
+      return;
+    } catch (e) {
+      dbg(`[relay]   attempt ${attempt} failed: ${e.message.split('\n')[0]}`);
+      if (attempt === 3) { await browser.close(); throw e; }
+      await page.waitForTimeout(3000);
     }
   }
-  // Give the SPA a beat to hydrate the file list after consent.
-  await page.waitForTimeout(2500);
-  await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
-
-  // Broad, resilient selector set + a helper that reads the DOM once and reports
-  // what it found (so the run log is diagnostic when the page differs).
-  const found = await page.evaluate(() => {
-    const q = s => document.querySelectorAll(s).length;
-    return {
-      url: location.href,
-      anchors: Array.from(document.querySelectorAll('a')).map(a => (a.textContent || '').trim().slice(0, 40)).filter(Boolean).slice(0, 12),
-      download: q('a.download, [data-download], a[href*="download"]'),
-      buttons: Array.from(document.querySelectorAll('button')).map(b => (b.textContent || '').trim().slice(0, 30)).filter(Boolean).slice(0, 12),
-      hasLink: q('a[href]')
-    };
-  });
-  dbg('[relay]   page shape ' + JSON.stringify(found).slice(0, 500));
-
-  // Highest confidence FIRST. The blanket [href*="/download"] / download_link anchors
-  // match WeTransfer's footer "Report this transfer" / share links — clicking those
-  // never triggers a file download. So exact Download buttons come first, the broad
-  // href matches last. (Measured: the prior order hit a[href*="download_link"] = the
-  // footer link, and waitForEvent timed out.)
-  const selectors = [
-    'button[data-testid="download"]', '[data-testid="download"]',
-    'button:has-text("Download")', 'a:has-text("Download")',
-    'button:has-text("download")', 'a:has-text("download")',
-    'button.download', 'a.download', 'a[data-download]', '[data-download]',
-    '[data-testid*="download"]', 'button[aria-label*="ownload"]', 'a[aria-label*="ownload"]',
-    'a[href*="/downloads/"]', '[href*="/download"]', 'a[href*="download_link"]'
-  ];
-
-  // Wire the download event BEFORE clicking so nothing is missed.
-  const downloadPromise = page.waitForEvent('download', { timeout: 120000 });
-  let clicked = false;
-  for (const sel of selectors) {
-    const count = await page.locator(sel).count();
-    if (count > 0) {
-      dbg(`[relay]   clicking ${sel} (${count} match)`);
-      try { await page.locator(sel).first().click({ timeout: 20000 }); clicked = true; break; }
-      catch (e) { dbg(`[relay]   click on ${sel} failed: ${e.message.split('\n')[0]}`); }
-    }
-  }
-  if (!clicked) {
-    dbg('[relay]   no Download control found; page = ' + found.url);
-    await browser.close();
-    throw new Error('WeTransfer page has no download control');
-  }
-  const dl = await downloadPromise;
-  dbg(`[relay]   download triggered: suggested ${dl.suggestedFilename()}`);
-  await dl.saveAs(DEST);
   await browser.close();
-  dbg('[relay]   saved via browser');
+  throw new Error('WeTransfer download failed after retries');
 }
 
 try {
