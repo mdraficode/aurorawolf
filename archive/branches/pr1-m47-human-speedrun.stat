@@ -1,0 +1,269 @@
+ .github/workflows/auto-integrate.yml               |   88 -
+ .github/workflows/drive-fetch.yml                  |   59 -
+ .gitignore                                         |    2 +-
+ AGENT_BRIEF.md                                     |  107 +-
+ BUGS.md                                            |    6 +-
+ ENVIRONMENT.md                                     |  101 -
+ M46_MISSION_BRIEF.md                               |   57 +
+ M46_RESUME.md                                      |   51 +
+ MASTER.md                                          |  123 +-
+ MISSION2.md                                        |   41 +
+ NEXT_DEV.md                                        |   62 +
+ README.md                                          |    1 -
+ build.py                                           |   10 +-
+ index.html                                         |   92 +-
+ package.json                                       |    2 +-
+ src/autopilot.js                                   |   33 +-
+ src/p3.js                                          |    6 +-
+ src/p4.js                                          |   51 +-
+ test/M46_RESUME.md                                 |   37 +
+ test/ab_probe.mjs                                  |   17 +
+ test/ab_smooth.mjs                                 |   28 +
+ test/act_orbit.mjs                                 |   29 +
+ test/analyze.py                                    |   32 +
+ test/arrow_billboard.mjs                           |   44 +
+ test/arrow_contrast.mjs                            |   57 +
+ test/arrow_dark.mjs                                |   38 +
+ test/arrow_err.mjs                                 |   14 +
+ test/arrow_err2.mjs                                |   19 +
+ test/arrow_ground.mjs                              |   53 +
+ test/arrow_ground2.mjs                             |   60 +
+ test/arrow_line.mjs                                |   56 +
+ test/arrow_lock.mjs                                |   51 +
+ test/arrow_lock2.mjs                               |   23 +
+ test/arrow_probe.mjs                               |   21 +
+ test/badge_diag.mjs                                |   17 +
+ test/badge_probe.mjs                               |   29 +
+ test/birds_probe.mjs                               |   18 +
+ test/board_diag.mjs                                |   14 +
+ test/board_probe.mjs                               |   31 +
+ test/bosskit.test.mjs                              |  120 -
+ test/bot_seq.mjs                                   |   45 +
+ test/btn_diag.mjs                                  |   15 +
+ test/btn_row.mjs                                   |   19 +
+ test/btn_row2.mjs                                  |   20 +
+ test/cam_touch_probe.mjs                           |   54 +
+ test/camp_probe.mjs                                |   49 +
+ test/click_diag.mjs                                |   18 +
+ test/click_diag2.mjs                               |   12 +
+ test/corner_probe.mjs                              |   20 +
+ test/deadzone_deep.mjs                             |   29 +
+ test/drive_check.py                                |   81 +
+ test/fade_diag.mjs                                 |   27 +
+ test/fade_diag2.mjs                                |   20 +
+ test/feat_probe.mjs                                |   37 +
+ test/fs_overlap.mjs                                |   23 +
+ test/fs_probe.mjs                                  |   21 +
+ test/fs_reloc.mjs                                  |   48 +
+ .../history/leftover_candidate_after_M45.json      |    0
+ .../history/orig_rafzzer_candidate.json            |    0
+ .../history/orig_rafzzer_champion.json             |    0
+ .../history/orig_rafzzer_gate_gen9.json            |    0
+ .../history/orig_rafzzer_run_gen9.json             |    0
+ .../phase0_replay/replay_gate_gen9_pass.json       |    0
+ .../phase0_replay/replay_run_gen9_died109.json     |    0
+ .../phase0_replay/replay_run_gen9_r131_cap.json    |    0
+ .../replay_run_gen9_r1_died-1_rivalwolf.json       |    0
+ .../phase0_replay/replay_run_gen9_r238_cap.json    |    0
+ test/icon_gap.mjs                                  |   21 +
+ test/icon_match.mjs                                |   13 +
+ test/icon_match2.mjs                               |   25 +
+ test/icon_probe.mjs                                |   21 +
+ test/inv_toggle.mjs                                |   25 +
+ test/inv_touch.mjs                                 |   33 +
+ test/inv_touch2.mjs                                |   24 +
+ test/inv_trace.mjs                                 |   17 +
+ test/inv_trace2.mjs                                |   23 +
+ test/ks_iso.mjs                                    |   34 +
+ test/layout_probe.mjs                              |   19 +
+ {training/logs => test}/log_gate_gen44.log         |    0
+ {training/logs => test}/log_gate_gen45.log         |    0
+ {training/logs => test}/log_gate_gen46.log         |    0
+ {training/logs => test}/log_gate_gen47.log         |    0
+ {training/logs => test}/log_gate_gen48.log         |    0
+ {training/logs => test}/log_gate_gen51.log         |    0
+ {training/logs => test}/log_gate_gen52.log         |    0
+ {training/logs => test}/log_gate_gen53.log         |    0
+ {training/logs => test}/log_gate_gen54.log         |    0
+ {training/logs => test}/log_gate_gen55.log         |    0
+ {training/logs => test}/log_run_gen44.log          |    0
+ {training/logs => test}/log_run_gen45.log          |    0
+ {training/logs => test}/log_run_gen46.log          |    0
+ {training/logs => test}/log_run_gen47.log          |    0
+ {training/logs => test}/log_run_gen48.log          |    0
+ {training/logs => test}/log_run_gen51.log          |    0
+ {training/logs => test}/log_run_gen52.log          |    0
+ {training/logs => test}/log_run_gen53.log          |    0
+ {training/logs => test}/log_run_gen54.log          |    0
+ {training/logs => test}/log_run_gen55.log          |    0
+ {training => test}/m46_gen.sh                      |    4 +-
+ {training => test}/m46_session_ledger.md           |    0
+ {training => test}/m46_step.sh                     |   14 +-
+ {training => test}/marathon-loop.sh                |    0
+ {training => test}/marathon-watchdog.sh            |    0
+ {training => test}/marathon.mjs                    |    0
+ {training => test}/migrate_ni20.mjs                |    0
+ test/mm_diag.mjs                                   |   17 +
+ test/music_probe.mjs                               |   34 +
+ test/orbit_all.mjs                                 |   26 +
+ test/orbit_fade.mjs                                |   19 +
+ test/orbit_fade2.mjs                               |   19 +
+ test/orbit_probe.mjs                               |   33 +
+ test/playthrough.mjs                               |   37 +
+ test/pred_levels.mjs                               |   52 +
+ {training => test}/rafzzer_champion.json           |    0
+ .../rafzzer_champion_18i_backup.json               |    0
+ .../rafzzer_champion_lawv3_archive.json            |    0
+ {training => test}/rafzzer_gate_gen1.json          |    0
+ {training => test}/rafzzer_gate_gen10.json         |    0
+ {training => test}/rafzzer_gate_gen11.json         |    0
+ {training => test}/rafzzer_gate_gen12.json         |    0
+ {training => test}/rafzzer_gate_gen13.json         |    0
+ {training => test}/rafzzer_gate_gen14.json         |    0
+ {training => test}/rafzzer_gate_gen15.json         |    0
+ {training => test}/rafzzer_gate_gen16.json         |    0
+ {training => test}/rafzzer_gate_gen17.json         |    0
+ {training => test}/rafzzer_gate_gen18.json         |    0
+ {training => test}/rafzzer_gate_gen19.json         |    0
+ {training => test}/rafzzer_gate_gen2.json          |    0
+ {training => test}/rafzzer_gate_gen20.json         |    0
+ {training => test}/rafzzer_gate_gen21.json         |    0
+ {training => test}/rafzzer_gate_gen22.json         |    0
+ {training => test}/rafzzer_gate_gen23.json         |    0
+ {training => test}/rafzzer_gate_gen24.json         |    0
+ {training => test}/rafzzer_gate_gen25.json         |    0
+ {training => test}/rafzzer_gate_gen26.json         |    0
+ {training => test}/rafzzer_gate_gen27.json         |    0
+ {training => test}/rafzzer_gate_gen28.json         |    0
+ {training => test}/rafzzer_gate_gen29.json         |    0
+ {training => test}/rafzzer_gate_gen3.json          |    0
+ {training => test}/rafzzer_gate_gen30.json         |    0
+ {training => test}/rafzzer_gate_gen31.json         |    0
+ {training => test}/rafzzer_gate_gen32.json         |    0
+ {training => test}/rafzzer_gate_gen33.json         |    0
+ {training => test}/rafzzer_gate_gen34.json         |    0
+ {training => test}/rafzzer_gate_gen35.json         |    0
+ {training => test}/rafzzer_gate_gen36.json         |    0
+ {training => test}/rafzzer_gate_gen37.json         |    0
+ {training => test}/rafzzer_gate_gen38.json         |    0
+ {training => test}/rafzzer_gate_gen39.json         |    0
+ {training => test}/rafzzer_gate_gen4.json          |    0
+ {training => test}/rafzzer_gate_gen40.json         |    0
+ {training => test}/rafzzer_gate_gen41.json         |    0
+ {training => test}/rafzzer_gate_gen42.json         |    0
+ {training => test}/rafzzer_gate_gen42_global1.json |    0
+ {training => test}/rafzzer_gate_gen43.json         |    0
+ {training => test}/rafzzer_gate_gen43_global1.json |    0
+ {training => test}/rafzzer_gate_gen44.json         |    0
+ {training => test}/rafzzer_gate_gen45.json         |    0
+ {training => test}/rafzzer_gate_gen46.json         |    0
+ {training => test}/rafzzer_gate_gen47.json         |    0
+ {training => test}/rafzzer_gate_gen47_global1.json |    0
+ {training => test}/rafzzer_gate_gen48.json         |    0
+ {training => test}/rafzzer_gate_gen48_global1.json |    0
+ {training => test}/rafzzer_gate_gen49.json         |    0
+ {training => test}/rafzzer_gate_gen5.json          |    0
+ {training => test}/rafzzer_gate_gen50.json         |    0
+ {training => test}/rafzzer_gate_gen51.json         |    0
+ {training => test}/rafzzer_gate_gen52.json         |    0
+ {training => test}/rafzzer_gate_gen53.json         |    0
+ {training => test}/rafzzer_gate_gen54.json         |    0
+ {training => test}/rafzzer_gate_gen55.json         |    0
+ {training => test}/rafzzer_gate_gen6.json          |    0
+ {training => test}/rafzzer_gate_gen7.json          |    0
+ {training => test}/rafzzer_gate_gen8.json          |    0
+ {training => test}/rafzzer_gate_gen9.json          |    0
+ {training => test}/rafzzer_gens.mjs                |   12 +-
+ {training => test}/rafzzer_lineage.json            |    0
+ {training => test}/rafzzer_run_gen1.json           |    0
+ {training => test}/rafzzer_run_gen10.json          |    0
+ {training => test}/rafzzer_run_gen11.json          |    0
+ {training => test}/rafzzer_run_gen12.json          |    0
+ {training => test}/rafzzer_run_gen13.json          |    0
+ {training => test}/rafzzer_run_gen15.json          |    0
+ {training => test}/rafzzer_run_gen16.json          |    0
+ {training => test}/rafzzer_run_gen17.json          |    0
+ {training => test}/rafzzer_run_gen18.json          |    0
+ {training => test}/rafzzer_run_gen19.json          |    0
+ {training => test}/rafzzer_run_gen2.json           |    0
+ {training => test}/rafzzer_run_gen20.json          |    0
+ {training => test}/rafzzer_run_gen21.json          |    0
+ {training => test}/rafzzer_run_gen22.json          |    0
+ {training => test}/rafzzer_run_gen23.json          |    0
+ {training => test}/rafzzer_run_gen24.json          |    0
+ {training => test}/rafzzer_run_gen25.json          |    0
+ {training => test}/rafzzer_run_gen26.json          |    0
+ {training => test}/rafzzer_run_gen27.json          |    0
+ {training => test}/rafzzer_run_gen28.json          |    0
+ {training => test}/rafzzer_run_gen29.json          |    0
+ {training => test}/rafzzer_run_gen3.json           |    0
+ {training => test}/rafzzer_run_gen30.json          |    0
+ {training => test}/rafzzer_run_gen31.json          |    0
+ {training => test}/rafzzer_run_gen32.json          |    0
+ {training => test}/rafzzer_run_gen34.json          |    0
+ {training => test}/rafzzer_run_gen35.json          |    0
+ .../rafzzer_run_gen35_v5basis_backup.json          |    0
+ {training => test}/rafzzer_run_gen36.json          |    0
+ {training => test}/rafzzer_run_gen37.json          |    0
+ {training => test}/rafzzer_run_gen38.json          |    0
+ {training => test}/rafzzer_run_gen39.json          |    0
+ {training => test}/rafzzer_run_gen4.json           |    0
+ {training => test}/rafzzer_run_gen40.json          |    0
+ {training => test}/rafzzer_run_gen41.json          |    0
+ {training => test}/rafzzer_run_gen42.json          |    0
+ {training => test}/rafzzer_run_gen43.json          |    0
+ {training => test}/rafzzer_run_gen44.json          |    0
+ {training => test}/rafzzer_run_gen45.json          |    0
+ {training => test}/rafzzer_run_gen46.json          |    0
+ {training => test}/rafzzer_run_gen47.json          |    0
+ {training => test}/rafzzer_run_gen48.json          |    0
+ {training => test}/rafzzer_run_gen49.json          |    0
+ {training => test}/rafzzer_run_gen5.json           |    0
+ {training => test}/rafzzer_run_gen50.json          |    0
+ {training => test}/rafzzer_run_gen51.json          |    0
+ {training => test}/rafzzer_run_gen52.json          |    0
+ {training => test}/rafzzer_run_gen53.json          |    0
+ {training => test}/rafzzer_run_gen54.json          |    0
+ {training => test}/rafzzer_run_gen55.json          |    0
+ {training => test}/rafzzer_run_gen6.json           |    0
+ {training => test}/rafzzer_run_gen7.json           |    0
+ {training => test}/rafzzer_run_gen8.json           |    0
+ {training => test}/rafzzer_run_gen9.json           |    0
+ {training => test}/rafzzer_ship.mjs                |    0
+ {training => test}/rafzzer_train.sh                |   10 +-
+ {training => test}/rafzzer_verdict.py              |    0
+ {training => test}/rafzzer_verify_gen35_v6a.json   |    0
+ {training => test}/rafzzer_verify_gen35_v6b.json   |    0
+ test/rail_diag.mjs                                 |   31 +
+ test/real1x.mjs                                    |   48 +
+ test/realpath_probe.mjs                            |   28 +
+ test/replay_gen9_more.sh                           |    8 +
+ test/sig_final.mjs                                 |   36 +
+ test/sig_probe.mjs                                 |   38 +
+ test/snapshots.mjs                                 |   33 +
+ test/tab_diag.mjs                                  |   25 +
+ test/tab_diag2.mjs                                 |   23 +
+ test/tab_diag3.mjs                                 |   15 +
+ test/target_diag.mjs                               |   16 +
+ test/toggle_probe.mjs                              |   56 +
+ test/topbar_probe.mjs                              |   32 +
+ test/twobugs_probe.mjs                             |   52 +
+ test/wolfico_probe.mjs                             |   16 +
+ test/xp_probe.mjs                                  |   43 +
+ tools/chromium-libs/libfreebl3.so                  |  Bin 14408 -> 0 bytes
+ tools/chromium-libs/libfreeblpriv3.so              |  Bin 751784 -> 0 bytes
+ tools/chromium-libs/libnspr4.so                    |  Bin 254440 -> 0 bytes
+ tools/chromium-libs/libnss3.so                     |  Bin 1406352 -> 0 bytes
+ tools/chromium-libs/libnssckbi.so                  |  Bin 582024 -> 0 bytes
+ tools/chromium-libs/libnssdbm3.so                  |  Bin 186528 -> 0 bytes
+ tools/chromium-libs/libnssutil3.so                 |  Bin 203056 -> 0 bytes
+ tools/chromium-libs/libplc4.so                     |  Bin 22632 -> 0 bytes
+ tools/chromium-libs/libplds4.so                    |  Bin 14472 -> 0 bytes
+ tools/chromium-libs/libsmime3.so                   |  Bin 191072 -> 0 bytes
+ tools/chromium-libs/libsoftokn3.so                 |  Bin 357768 -> 0 bytes
+ tools/chromium-libs/libssl3.so                     |  Bin 417144 -> 0 bytes
+ tools/setup_env.sh                                 |   92 -
+ tools/ship.sh                                      |    1 -
+ training/replay_gen9_more.sh                       |    8 -
+ watch.html                                         | 8433 ++++++++++++++++++++
+ 268 files changed, 10952 insertions(+), 852 deletions(-)
