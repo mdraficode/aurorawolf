@@ -4405,8 +4405,8 @@ function showOverlay(mode) {
 }
 
 /* NEW GAME — a whole new world + a fresh wolf, while the all-time record stands.
-   Rolls a new random seed, resets the campaign (level 1, tier 1), then reloads the page
-   with ?seed=<new> so the world actually regenerates. The high-score recap
+   Rolls a new random seed, resets the campaign (the game's base level 0, tier 1), then reloads
+   the page with ?seed=<new> so the world actually regenerates. The high-score recap
    (revontulet_bestRun / revontulet_lastRun) is separate and never cleared. */
 function newGame() {
   let s;

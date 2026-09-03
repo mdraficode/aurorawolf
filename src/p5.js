@@ -603,10 +603,10 @@ window.CAMP = (() => {
   const hasSave = () => { try { return !!localStorage.getItem(LS); } catch (e) { return false; } };
   // continue reproduces the SAME world the save was made in (seed recorded at save time).
   const continueSeed = () => (S && S.seed != null ? S.seed : (typeof SEED !== 'undefined' ? SEED : 0));
-  // NEW GAME: a fresh random seed + a brand-new wolf (level 1, tier 1, q0 board) — but the
-  // all-time RECORD survives: trophies + best-tier times and the player's name carry over, and
-  // the run/trophy record (revontulet_bestRun in p4) is never touched. The caller navigates to
-  // the returned ?seed= so the world actually changes.
+  // NEW GAME: a fresh random seed + a brand-new wolf (the game's base level 0 'Young Pup',
+  // tier 1, q0 board) — but the all-time RECORD survives: trophies + best-tier times and the
+  // player's name carry over, and the run/trophy record (revontulet_bestRun in p4) is never
+  // touched. The caller navigates to the returned ?seed= so the world actually changes.
   const newGame = () => {
     const seed = ((Math.random() * 1e9) | 0) >>> 0;
     const keep = { trophies: (S && S.trophies) || [], best: (S && S.best) || {}, name: (S && S.name) || '' };
