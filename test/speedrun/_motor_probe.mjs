@@ -1,0 +1,23 @@
+import { chromium } from 'playwright';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+const URL = pathToFileURL(fileURLToPath(import.meta.url)+'/../../../index.html').href + '?autostart=1&seed=7777&quality=low&speed=8&rate=4&re=10';
+const b = await chromium.launch({ args: ['--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader'] });
+const pg = await b.newPage({ viewport: { width: 900, height: 520 } });
+const errs=[]; pg.on('pageerror',e=>errs.push(e.message));
+await pg.goto(URL,{waitUntil:'domcontentloaded',timeout:120000});
+await pg.waitForFunction(()=>typeof state!=='undefined'&&state==='play'&&window.CAMP,null,{timeout:120000});
+await pg.waitForTimeout(2000);
+const s0 = await pg.evaluate(()=>({x:wolf.pos.x,z:wolf.pos.z,d:wolf.distance,yaw:wolf.yaw,cam:camYaw,inp:JSON.stringify(input),keys:JSON.stringify(keys),state,paused:input.paused}));
+console.log('before', s0);
+await pg.keyboard.down('KeyW');
+await pg.waitForTimeout(3000);
+const s1 = await pg.evaluate(()=>({x:wolf.pos.x,z:wolf.pos.z,d:wolf.distance,yaw:wolf.yaw,cam:camYaw,keys:JSON.stringify(keys),speed:wolf.speed}));
+await pg.keyboard.up('KeyW');
+console.log('after W 3s', s1);
+// camera drag test
+const c0 = await pg.evaluate(()=>camYaw);
+await pg.mouse.move(450,260); await pg.mouse.down(); await pg.mouse.move(550,260,{steps:5}); await pg.mouse.up();
+const c1 = await pg.evaluate(()=>camYaw);
+console.log('camYaw drag +100px:', c0.toFixed(3), '->', c1.toFixed(3), 'delta', (c1-c0).toFixed(3), 'expected', (-100*0.0078).toFixed(3));
+console.log('errs', errs.length, errs.slice(0,3));
+await b.close();

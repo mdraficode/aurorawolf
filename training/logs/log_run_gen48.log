@@ -1,0 +1,21 @@
+  3s · hp93.5 stam10 L0 90.8m · fit≈-60
+  23s · hp96 stam84 L0 413m · fit≈-58
+  43s · hp100 stam100 L0 803.7m · fit≈-63
+  63s · hp108 stam48 L1 1355m · fit≈-35
+  83s · hp55.6 stam105 L1 1860.5m · fit≈-40
+  103s · hp102 stam40 L1 2414.8m · fit≈-58
+  123s · hp108 stam34 L1 2986.6m · fit≈-107
+  143s · hp116 stam47 L2 3548m · fit≈-92
+  163s · hp116 stam44 L2 4101.1m · fit≈-96
+  183s · hp120 stam49 L3 4708.3m · fit≈-31
+  203s · hp124 stam60 L3 5281.7m · fit≈-65
+  224s · hp105.6 stam63 L3 5599.4m · fit≈-68
+  244s · hp124 stam52 L3 6175.1m · fit≈-72
+  264s · hp124 stam46 L3 6772.5m · fit≈-76
+  284s · hp124 stam36 L3 7387m · fit≈-79
+  304s · hp124 stam37 L3 8003.2m · fit≈-83
+  324s · hp124 stam40 L3 8584.4m · fit≈-86
+  344s · hp132 stam43 L4 9162.1m · fit≈-101
+  364s · hp132 stam106 L4 9580.8m · fit≈-105
+RUN GEN 48: DIED(fight) · fitness -166 · L3 · 402xp · 1240.8s(sim) · 19.4xp/min · TIER 0 (0 trophies, best —s) · stage prep leg0 · side 0 · warns 0 · errs 0
+  cause: the Level 5 Lion · scars now {"fight":2,"neglect":0,"water":0}

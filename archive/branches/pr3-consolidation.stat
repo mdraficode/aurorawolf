@@ -1,0 +1,5 @@
+ .github/workflows/auto-integrate.yml | 88 ---------------------------------
+ .github/workflows/drive-fetch.yml    | 59 ----------------------
+ .github/workflows/env-relay.yml      | 94 ++++++++++++++++++++++++++++++++++++
+ tools/ship.sh                        |  1 -
+ 4 files changed, 94 insertions(+), 148 deletions(-)
