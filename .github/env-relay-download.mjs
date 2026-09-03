@@ -98,7 +98,28 @@ async function viaPlaywright() {
   // (4) save the emitted download. Log each stage so a failure is attributable.
   const resp = await page.goto(URL_, { waitUntil: 'domcontentloaded', timeout: 120000 });
   dbg(`[relay]   landing page ${resp ? resp.status() : '?'} → ${page.url()}`);
-  await page.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => console.log('[relay]   networkidle timeout (continuing)'));
+  await page.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => dbg('[relay]   networkidle timeout (continuing)'));
+
+  // WeTransfer shows a cookie-consent gate ("I agree") before the file list. Dismiss
+  // it first — otherwise the Download control never appears. Try a broad set of
+  // accept/dismiss buttons, tolerant of a missing gate.
+  const acceptSels = [
+    'button:has-text("I agree")', 'button:has-text("Accept")', 'button:has-text("Accept all")',
+    'button:has-text("Accept All")', 'button:has-text("Agree")', 'button:has-text("OK")',
+    'button:has-text("Yes")', '[data-testid*="accept"]', 'button#onetrust-accept-btn-handler'
+  ];
+  for (const sel of acceptSels) {
+    const n = await page.locator(sel).count().catch(() => 0);
+    if (n > 0) {
+      dbg(`[relay]   dismissing consent via ${sel}`);
+      await page.locator(sel).first().click({ timeout: 10000 }).catch(() => {});
+      await page.waitForTimeout(1500);
+      break;
+    }
+  }
+  // Give the SPA a beat to hydrate the file list after consent.
+  await page.waitForTimeout(2500);
+  await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
 
   // Broad, resilient selector set + a helper that reads the DOM once and reports
   // what it found (so the run log is diagnostic when the page differs).
@@ -116,9 +137,11 @@ async function viaPlaywright() {
 
   const selectors = [
     'a.download', 'button.download', 'a[data-download]', '[data-download]',
-    'a[href*="/downloads/"]', '[href*="/download"]',
+    'a[href*="/downloads/"]', '[href*="/download"]', 'a[href*="download_link"]',
+    '[data-testid="download"]', '[data-testid*="download"]',
     'button:has-text("Download")', 'a:has-text("Download")',
-    'button:has-text("download")', 'a:has-text("download")'
+    'button:has-text("download")', 'a:has-text("download")',
+    'button[aria-label*="ownload"]', 'a[aria-label*="ownload"]'
   ];
 
   // Wire the download event BEFORE clicking so nothing is missed.
