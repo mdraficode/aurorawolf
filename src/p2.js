@@ -408,6 +408,69 @@ const dustPool = (() => {
   };
 })();
 
+/* BREATH IN THE COLD — a faint wisplet under the wolf's nose, never a cloud. The old
+   effect fed the additive glow pool (size 3.4, AdditiveBlending) so exhaled breath read
+   as a dense glowing fog. This pool uses normal blending, a tiny particle, very low
+   opacity and a short life, and the exhale drifts down-and-back like a wisp of vapour —
+   visible only just below the muzzle. */
+const texBreath = canvasTex(32, (g, s) => {
+  const gr = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  gr.addColorStop(0, 'rgba(255,255,255,.8)');
+  gr.addColorStop(0.55, 'rgba(255,255,255,.3)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, s, s);
+});
+const breathPool = (() => {
+  const N = 120;
+  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  const vel = new Float32Array(N * 3), life = new Float32Array(N), maxLife = new Float32Array(N);
+  const base = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) pos[i * 3 + 1] = -9999;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+  const mat = new THREE.PointsMaterial({
+    size: 1.1, map: texBreath, vertexColors: true, transparent: true,
+    blending: THREE.NormalBlending, depthWrite: false, opacity: 0.28
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false; scene.add(pts);
+  let cursor = 0;
+  const BR = [0.90, 0.93, 0.97];   // cold white vapour
+  return {
+    _mat: mat,
+    exhale(x, y, z, fwdX, fwdZ) {
+      const i = cursor; cursor = (cursor + 1) % N;
+      pos[i*3]   = x + (Math.random() - 0.5) * 0.06;
+      pos[i*3+1] = y + (Math.random() - 0.5) * 0.04;
+      pos[i*3+2] = z + (Math.random() - 0.5) * 0.06;
+      base[i*3] = BR[0]; base[i*3+1] = BR[1]; base[i*3+2] = BR[2];
+      // a soft puff straight out, then gravity + a tiny backward drift make it sag
+      vel[i*3]   = (fwdX || 0) * 0.25 + (Math.random() - 0.5) * 0.12;
+      vel[i*3+1] = 0.12 + Math.random() * 0.10;
+      vel[i*3+2] = (fwdZ || 0) * 0.25 + (Math.random() - 0.5) * 0.12;
+      life[i] = maxLife[i] = 0.5 + Math.random() * 0.35;
+    },
+    update(dt) {
+      for (let i = 0; i < N; i++) {
+        if (life[i] <= 0) continue;
+        life[i] -= dt;
+        if (life[i] <= 0) { pos[i*3+1] = -9999; col[i*3] = col[i*3+1] = col[i*3+2] = 0; continue; }
+        vel[i*3+1] -= 0.55 * dt;                       // the wisp sinks as it cools
+        pos[i*3]   += vel[i*3] * dt;
+        pos[i*3+1] += vel[i*3+1] * dt;
+        pos[i*3+2] += vel[i*3+2] * dt;
+        const f = life[i] / maxLife[i];
+        // fade out fast — never linger into a cloud
+        const a = f * f;
+        col[i*3] = base[i*3] * a; col[i*3+1] = base[i*3+1] * a; col[i*3+2] = base[i*3+2] * a;
+      }
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.color.needsUpdate = true;
+    }
+  };
+})();
+
 /* butterflies (day, warm biomes) & fireflies (night, forest biomes) — removed:
    the floating light specks read as noise rather than life, so the ambience now
    comes from weather, aurora and audio alone */

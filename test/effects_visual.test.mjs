@@ -24,11 +24,17 @@ const R = await page.evaluate(() => {
   bloodPool.burst = (c, n, dx, dz, big) => { wraps.bloodBurst++; bB(c, n, dx, dz, big); };
   const dP = dustPool.puff.bind(dustPool);
   dustPool.puff = (x, y, z, big) => { wraps.dustPuff++; wraps.dustPuffY.push(y); dP(x, y, z, big); };
+  const eB = breathPool.exhale.bind(breathPool);
+  wraps.breathPos = [];
+  breathPool.exhale = (x, y, z, fx, fz) => { wraps.breathPos.push({ x, y, z, fx, fz }); eB(x, y, z, fx, fz); };
 
   R.blendChecks = {
     poolIsAdditive: pool._mat.blending === THREE.AdditiveBlending,
     bloodIsNormal: bloodPool._mat.blending === THREE.NormalBlending,
     dustIsNormal: dustPool._mat.blending === THREE.NormalBlending,
+    breathIsNormal: breathPool._mat.blending === THREE.NormalBlending,
+    breathFaint: breathPool._mat.opacity <= 0.4,
+    breathTiny: breathPool._mat.size <= 1.4,
   };
 
   const mkInput = () => ({ f: true, b: false, l: false, r: false, sprint: true, jump: false, paused: false, mx: 0, my: 0 });
@@ -84,6 +90,40 @@ const R = await page.evaluate(() => {
       R.bloodSquirtsForward = dz > 0.3;   // the bite lands ahead (wolf faces +z toward victim); blood flies onward
     } else R.bloodSquirtsForward = false;
   }
+
+  // ---- 4. COLD BREATH: a faint wisplet under the nose, NOT an additive glow cloud ----
+  // The legacy emitter used pool.burst(., 0xeaf4fa, ., AdditiveBlending) — that colour is
+  // the giveaway. Spy the additive pool for it and confirm the breath now goes to
+  // breathPool.exhale. We drive the real tick's cold-breath branch by forcing a cold
+  // climate at the wolf and letting a few frames run.
+  const addBreath = { count: 0 };
+  const pB3 = pool.burst.bind(pool);
+  pool.burst = (c, n, col, sp, up, spd) => { if (n > 0 && col === 0xeaf4fa) addBreath.count += n; pB3(c, n, col, sp, up, spd); };
+  // put the wolf somewhere cold, standing, and let tick() fire its breath timer
+  const spots = [];
+  for (const ch2 of chunks.values()) { const c = ch2.cx, zz = ch2.cz; const s = c * CHUNK + 1, t = zz * CHUNK + 1; spots.push({ x: s, z: t, t: climateAt(s, t, heightAt(s, t)).temp }); }
+  spots.sort((a, b) => a.t - b.t);
+  const cold = spots[0];
+  wolf.pos.x = cold.x; wolf.pos.z = cold.z; wolf.pos.y = Math.max(heightAt(cold.x, cold.z), WATER_Y) + 0.1;
+  wolf.grounded = true; wolf.speed = 0; wolf.stamina = 100; wolf.exhausted = false; wolf.deadT = 0; wolf.swimming = false; wolf.flyT = 0;
+  // make the audio engine ready so the breath branch actually runs (plain ?autostart=1
+  // enters play without the gesture that initialises audio)
+  if (typeof audio !== 'undefined' && !audio.ready) audio.init();
+  // clear the breath timer so the next tick emits, then run frames
+  breathT = 0; pantT = 0;
+  const breathe0 = wraps.breathPos.length;
+  for (let i = 0; i < 6; i++) { tick(); }
+  R.wolfTemp = climateAt(wolf.pos.x, wolf.pos.z, heightAt(wolf.pos.x, wolf.pos.z)).temp;
+  R.breathExhaled = wraps.breathPos.length - breathe0 > 0;
+  // the exhale must sit just below the muzzle: roughly nose height (pos.y + ~0.66) and a
+  // touch in front (fwd offset). Veriy y is below wolf head (pos.y + 1.0) and above the feet.
+  const b = wraps.breathPos[wraps.breathPos.length - 1];
+  if (b) {
+    R.breathBelowNose = b.y < wolf.pos.y + 1.0 && b.y > wolf.pos.y + 0.3;
+    R.breathInFront = (Math.abs(b.fx) + Math.abs(b.fz)) > 0.5;
+  } else { R.breathBelowNose = false; R.breathInFront = false; }
+  // the additive glow pool must NOT be the breath carrier any more
+  R.noAdditiveBreath = addBreath.count === 0;
   return R;
 });
 
@@ -94,12 +134,19 @@ const checks = {
   'blood uses NormalBlending (liquid, not glow-additive)': R.blendChecks.bloodIsNormal,
   'dust uses NormalBlending (opaque, not glow-additive)': R.blendChecks.dustIsNormal,
   'additive pool is still additive (ember trait)': R.blendChecks.poolIsAdditive,
+  'breath uses NormalBlending (not glow-additive)': R.blendChecks.breathIsNormal,
+  'breath particle is faint (low opacity)': R.blendChecks.breathFaint,
+  'breath particle is tiny (small size)': R.blendChecks.breathTiny,
   'sprint emits underfoot dust puffs': R.sprintDustPuffs > 0,
   'sprint dust hugs the ground (feet level)': R.dustHugsGround,
   'combat suppresses sprint dust': R.combatDustPuffs === 0,
   'wolf bite sprays liquid bloodPool': R.bloodBurstOnHit,
   'animal hit emits NO additive red smoke': R.animalHitNoAdditiveRedSmoke !== false,
   'blood squirts away from the wound (direction)': R.bloodSquirtsForward !== false,
+  'cold breath exhales a wisplet': R.breathExhaled,
+  'breath appears below the nose (not a cloud)': R.breathBelowNose,
+  'breath drifts forward from the muzzle': R.breathInFront,
+  'breath no longer uses additive glow pool': R.noAdditiveBreath,
 };
 let ok = true;
 for (const [k, v] of Object.entries(checks)) { if (!v) ok = false; console.log((v ? 'PASS' : 'FAIL') + '  ' + k); }

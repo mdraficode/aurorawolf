@@ -5285,6 +5285,7 @@ function tick() {
   pool.update(adt);
   if (typeof bloodPool !== 'undefined' && bloodPool.update) bloodPool.update(adt);
   if (typeof dustPool !== 'undefined' && dustPool.update) dustPool.update(adt);
+  if (typeof breathPool !== 'undefined' && breathPool.update) breathPool.update(adt);
   if (!caveState.in) WORLD_EVENTS.update(dt);
   if (caveState.in) caveTick(dt);
   updateSeasons();
@@ -5338,7 +5339,13 @@ function tick() {
       const running2 = wolf.speed > 7.5;
       breathT = running2 ? 0.85 : 2.3;
       if (wolf.speed > 1.5 || wolf.stamina < 30) audio.breath(running2 ? 0.05 : 0.022);
-      if (tempHere < -0.15 && !wolf.swimming && wolf.deadT <= 0) pool.burst(V3(wolf.pos.x + Math.sin(wolf.yaw) * 0.9, wolf.pos.y + 0.75, wolf.pos.z + Math.cos(wolf.yaw) * 0.9), 1, 0xeaf4fa, 0.32, 0.5, 0.8);   // breath hangs in the cold
+      // cold breath: a faint wisplet just under the muzzle — normal-blended, tiny, and it
+      // fades fast so it never reads as a dense cloudy fog (the old additive pool burst did).
+      if (tempHere < -0.15 && !wolf.swimming && wolf.deadT <= 0) {
+        const fwdX = Math.sin(wolf.yaw), fwdZ = Math.cos(wolf.yaw);
+        if (typeof breathPool !== 'undefined' && breathPool.exhale)
+          breathPool.exhale(wolf.pos.x + fwdX * 0.85, wolf.pos.y + 0.66, wolf.pos.z + fwdZ * 0.85, fwdX, fwdZ);
+      }
     }
     if (wolf.stamina < 28 && wolf.deadT <= 0) { pantT -= dt; if (pantT <= 0) { pantT = 1.5; audio.pant(); } }
     if (wolf.hp < 30 && wolf.hp > 0 && wolf.deadT <= 0) { whimperT -= dt; if (whimperT <= 0) { whimperT = 3.8; audio.whimper(); } }
