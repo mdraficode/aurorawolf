@@ -3135,7 +3135,7 @@ class Boss {
     if (this.dead || this.invuln) return;
     this.hp -= dmg * (ambush ? 1.5 : 1);
     this.flinchT = 0.2;
-    bloodBurst(this.pos, 12 + dmg * 3, ambush ? 1.4 : 1);
+    bloodBurst(this.pos, 12 + dmg * 3, ambush ? 1.4 : 1, this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z);
     audio.boneCrunch();
     music.hitStab();
     const bb = el('bossBar');
@@ -5281,7 +5281,10 @@ function tick() {
   updateAtmosphere(dt);
   updateSense(dt);
   updateMagicGlow(dt);
-  pool.update(Math.max(dt, 0.0001));
+  const adt = Math.max(dt, 0.0001);
+  pool.update(adt);
+  if (typeof bloodPool !== 'undefined' && bloodPool.update) bloodPool.update(adt);
+  if (typeof dustPool !== 'undefined' && dustPool.update) dustPool.update(adt);
   if (!caveState.in) WORLD_EVENTS.update(dt);
   if (caveState.in) caveTick(dt);
   updateSeasons();

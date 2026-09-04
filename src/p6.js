@@ -231,7 +231,7 @@ window.PACK = (() => {
   const biteEnemy = (m, e) => {
     if (e.pack) {   // a rival wolf — a real duel
       e.hp -= m.dmg;
-      bloodBurst(e.pos, 12, 1);
+      bloodBurst(e.pos, 12, 1, e.pos.x - m.pos.x, e.pos.z - m.pos.z);
       e.flinchT = 0.25;
       if (e.hp <= 0) e.die();
       return;

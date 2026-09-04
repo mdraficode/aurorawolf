@@ -248,6 +248,7 @@ const pool = (() => {
   pts.frustumCulled = false; scene.add(pts);
   let cursor = 0;
   return {
+    _mat: mat,
     burst(center, n, colorHex, spread, up, speed) {
       const c = new THREE.Color(colorHex);
       for (let k = 0; k < n; k++) {
@@ -271,6 +272,133 @@ const pool = (() => {
         pos[i*3+1] += vel[i*3+1] * dt;
         pos[i*3+2] += vel[i*3+2] * dt;
         vel[i*3+1] -= 2.4 * dt;
+        const f = life[i] / maxLife[i];
+        col[i*3] = base[i*3] * f; col[i*3+1] = base[i*3+1] * f; col[i*3+2] = base[i*3+2] * f;
+      }
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.color.needsUpdate = true;
+    }
+  };
+})();
+
+/* LIQUID BLOOD — a hit's squirt, but not the glowing smoke trait. The additive pool
+   reads as a soft ember puff (which is why a hit looked like red smoke). This pool uses
+   normal blending, small opaque dark-red droplets, a rigid squirt direction and real
+   gravity, so a bite sprays a fan of droplets that arc and drop like liquid — never smoke. */
+const texDrop = canvasTex(32, (g, s) => {
+  const gr = g.createRadialGradient(s/2, s/2, s*0.06, s/2, s/2, s/2);
+  gr.addColorStop(0, 'rgba(255,255,255,.95)');
+  gr.addColorStop(0.62, 'rgba(255,255,255,.72)');
+  gr.addColorStop(1, 'rgba(255,255,255,.18)');
+  g.fillStyle = gr; g.fillRect(0, 0, s, s);
+});
+const bloodPool = (() => {
+  const N = 240;
+  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  const vel = new Float32Array(N * 3), life = new Float32Array(N), maxLife = new Float32Array(N);
+  const base = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) pos[i * 3 + 1] = -9999;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+  const mat = new THREE.PointsMaterial({
+    size: 1.7, map: texDrop, vertexColors: true, transparent: true,
+    blending: THREE.NormalBlending, depthWrite: false, opacity: 0.96
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false; scene.add(pts);
+  let cursor = 0;
+  const BLOODS = [[0.70, 0.04, 0.05], [0.55, 0.03, 0.04], [0.80, 0.08, 0.09], [0.42, 0.02, 0.03]];
+  return {
+    _mat: mat,
+    burst(center, n, dirX, dirZ, big) {
+      big = big || 1;
+      let nx, nz;
+      if (dirX === undefined || (Math.hypot(dirX, dirZ) < 1e-4)) {
+        const a = Math.random() * Math.PI * 2; nx = Math.sin(a); nz = Math.cos(a);
+      } else {
+        const dl = Math.hypot(dirX, dirZ); nx = dirX / dl; nz = dirZ / dl;
+      }
+      for (let k = 0; k < n; k++) {
+        const i = cursor; cursor = (cursor + 1) % N;
+        pos[i*3]   = center.x + (Math.random() - 0.5) * 0.22 * big;
+        pos[i*3+1] = center.y + (Math.random() - 0.5) * 0.14 * big;
+        pos[i*3+2] = center.z + (Math.random() - 0.5) * 0.22 * big;
+        const c = BLOODS[(Math.random() * BLOODS.length) | 0];
+        base[i*3] = c[0]; base[i*3+1] = c[1]; base[i*3+2] = c[2];
+        const sp = (1.6 + Math.random() * 2.6) * big;           // rigid squirt fan
+        const spread = (Math.random() - 0.5) * 1.3;
+        vel[i*3]   = nx * sp + spread * 1.1;
+        vel[i*3+1] = (0.6 + Math.random() * 1.7) * big;         // kick up, then fall
+        vel[i*3+2] = nz * sp + spread * 1.1;
+        life[i] = maxLife[i] = 0.42 + Math.random() * 0.42;
+      }
+    },
+    update(dt) {
+      for (let i = 0; i < N; i++) {
+        if (life[i] <= 0) continue;
+        life[i] -= dt;
+        if (life[i] <= 0) { pos[i*3+1] = -9999; col[i*3] = col[i*3+1] = col[i*3+2] = 0; continue; }
+        vel[i*3+1] -= 6.2 * dt;                                  // gravity pulls the liquid down
+        pos[i*3]   += vel[i*3] * dt;
+        pos[i*3+1] += vel[i*3+1] * dt;
+        pos[i*3+2] += vel[i*3+2] * dt;
+        const f = life[i] / maxLife[i];
+        col[i*3] = base[i*3] * f; col[i*3+1] = base[i*3+1] * f; col[i*3+2] = base[i*3+2] * f;
+      }
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.color.needsUpdate = true;
+    }
+  };
+})();
+
+/* SPRINT DUST — a soft, low, fully opaque wisp hugged at the paws (NOT the additive
+   ember-trait that used to wrap the whole body). Emitted at ground level behind the
+   rear paws, short-lived and small, so it reads as kicked-up dust underfoot — no
+   distracting cloud around the wolf. */
+const dustPool = (() => {
+  const N = 240;
+  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+  const vel = new Float32Array(N * 3), life = new Float32Array(N), maxLife = new Float32Array(N);
+  const base = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) pos[i * 3 + 1] = -9999;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+  const mat = new THREE.PointsMaterial({
+    size: 2.0, map: texSoft, vertexColors: true, transparent: true,
+    blending: THREE.NormalBlending, depthWrite: false, opacity: 0.5
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false; scene.add(pts);
+  let cursor = 0;
+  const DUSTS = [[0.62, 0.58, 0.50], [0.55, 0.51, 0.44], [0.68, 0.63, 0.55]];
+  return {
+    _mat: mat,
+    puff(x, y, z, big) {
+      const n = 1 + ((Math.random() * 2) | 0);
+      for (let k = 0; k < n; k++) {
+        const i = cursor; cursor = (cursor + 1) % N;
+        pos[i*3]   = x + (Math.random() - 0.5) * 0.5;
+        pos[i*3+1] = y + Math.random() * 0.1;
+        pos[i*3+2] = z + (Math.random() - 0.5) * 0.5;
+        const c = DUSTS[(Math.random() * DUSTS.length) | 0];
+        base[i*3] = c[0]; base[i*3+1] = c[1]; base[i*3+2] = c[2];
+        vel[i*3]   = (Math.random() - 0.5) * 0.5;
+        vel[i*3+1] = 0.35 + Math.random() * 0.4;
+        vel[i*3+2] = (Math.random() - 0.5) * 0.5;
+        life[i] = maxLife[i] = 0.3 + Math.random() * 0.3;
+      }
+    },
+    update(dt) {
+      for (let i = 0; i < N; i++) {
+        if (life[i] <= 0) continue;
+        life[i] -= dt;
+        if (life[i] <= 0) { pos[i*3+1] = -9999; col[i*3] = col[i*3+1] = col[i*3+2] = 0; continue; }
+        vel[i*3+1] -= 1.1 * dt;                                  // barely floats, sinks back
+        pos[i*3]   += vel[i*3] * dt;
+        pos[i*3+1] += vel[i*3+1] * dt;
+        pos[i*3+2] += vel[i*3+2] * dt;
         const f = life[i] / maxLife[i];
         col[i*3] = base[i*3] * f; col[i*3+1] = base[i*3+1] * f; col[i*3+2] = base[i*3+2] * f;
       }

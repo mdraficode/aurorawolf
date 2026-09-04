@@ -453,9 +453,28 @@ function buildWolf() {
   return { group: g, legs, lowers, head, tail };
 }
 
-function bloodBurst(pos, n = 14, big = 1) {   // a registered hit's blood squirt — red, brief, unmistakable
-  pool.burst(pos, n, 0xc21018, 0.5 * big, 2.6 * big, 3.2 * big);
-  pool.burst(pos, Math.round(n * 0.45), 0x8c0d12, 0.3 * big, 1.7 * big, 2.1 * big);
+function bloodBurst(pos, n = 14, big = 1, dirX, dirZ) {   // a registered hit's liquid blood squirt — sprays away from the wound, never smoke
+  if (typeof bloodPool !== 'undefined' && bloodPool.burst) bloodPool.burst(pos, n, dirX, dirZ, big);
+}
+/* Are we in an actual fight? A threatening predator/boss/rival is circling, or a blow
+   landed on us moments ago. Used to decide whether the wolf may kick up sprint dust —
+   during a scrap the only effect on the wolf should be the liquid blood, never smoke. */
+function __wolfInCombat() {
+  try {
+    if (state !== 'play' || wolf.deadT > 0) return false;
+    if (tSec - wolf.lastHurt < 2.5) return true;                 // still bleeding / reeling
+    const R = 24;
+    for (const ch of chunks.values())
+      for (const pr of ch.predators)
+        if (!pr.dead && pr.threatening && pr.pos.distanceTo(wolf.pos) < R) return true;
+    if (typeof bosses !== 'undefined')
+      for (const b of bosses)
+        if (!b.dead && b.pos && Math.abs(b.pos.x - wolf.pos.x) < R && Math.abs(b.pos.z - wolf.pos.z) < R) return true;
+    if (window.PACK && window.PACK.members)
+      for (const m of window.PACK.members)
+        if (!m.dead && m.pack && (m.pack.stance === 'attack' || m.pack.stance === 'challenge') && m.pos.distanceTo(wolf.pos) < R) return true;
+  } catch (e) { }
+  return false;
 }
 
 class Wolf {
@@ -683,11 +702,15 @@ class Wolf {
     this.howlCd = Math.max(0, this.howlCd - dt);
     this.senseCd = Math.max(0, this.senseCd - dt);
 
-    if (sprint && this.grounded) {
+    if (sprint && this.grounded && !__wolfInCombat()) {
+      // kick up a LOW dust wisp hugging the ground behind the rear paws — never a thick
+      // smoke cloud around the body, and never during a fight (blood is the only effect then)
       this.stepAcc += dt;
-      if (this.stepAcc > 0.12) {
+      if (this.stepAcc > 0.16) {
         this.stepAcc = 0;
-        pool.burst(this.pos, 2, 0xb9ae94, 0.8, 1.0, 1.4);
+        const bx = this.pos.x - Math.sin(this.yaw) * 0.7, bz = this.pos.z - Math.cos(this.yaw) * 0.7;
+        const gy = Math.max(this.pos.y, heightAt(bx, bz));
+        if (typeof dustPool !== 'undefined' && dustPool.puff) dustPool.puff(bx, gy + 0.05, bz, 1);
       }
     }
     // footsteps: cadence follows gait, timbre follows the ground
@@ -833,7 +856,7 @@ class Wolf {
       if (ambush) dmg += 1;
       if (this.crouch && behind) dmg += 1;            // a prowling strike from the blind side
       best.hit(dmg, behind, ambush);
-      bloodBurst(best.pos, 14 + dmg * 6, 1);          // a real hit means blood
+      bloodBurst(best.pos, 14 + dmg * 6, 1, best.pos.x - this.pos.x, best.pos.z - this.pos.z);   // a real hit means blood — sprays of the prey, away from the bite
       audio.boneCrunch();
       if (typeof music !== 'undefined') music.hitStab();
       if (ambush) { toast('🩸 AMBUSH! A killing bite from the blind side'); audio.thud(); }
@@ -930,7 +953,7 @@ class RivalWolf {
     this.hp -= (this.pack.stance === 'undecided' || this.pack.stance === 'ignore') ? 2 : 1;   // ambush an unaware pack
     AnimalHealthBar.show(this);
     if (this.flinchT <= 0) this.flinchT = 0.3;
-    bloodBurst(this.pos, 12, 0.9);
+    bloodBurst(this.pos, 12, 0.9, this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z);
     this.pack.provoked();          // biting a wolf answers the question of stance
     if (this.hp <= 0) this.die();
   }
@@ -938,7 +961,7 @@ class RivalWolf {
     if (this.dead || this.pack.stance !== 'bonded') return;
     this.hp -= Math.max(1, Math.round(dmg));
     this.flinchT = 0.3;
-    bloodBurst(this.pos, 10 + dmg * 3, 1);
+    bloodBurst(this.pos, 10 + dmg * 3, 1, this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z);
     if (this.hp <= 0) { audio.cry(0.8); this.die(true); }
   }
   die(silent) {
@@ -992,7 +1015,7 @@ class RivalWolf {
       if (dWolf < 2.4 && this.atkCd <= 0) {
         this.atkCd = 1.15;
         this.biteT = 0.36;              // claw, then bite — like every wolf
-        bloodBurst(wolf.pos, 14, 1);
+        bloodBurst(wolf.pos, 14, 1, wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
         // a bonded packmate may take the bite meant for you
         if (!(window.PACK && window.PACK.intercept(this, this.dmg, this.sp.label, '🐺')))
           wolfTakeDamage(this.dmg, this.pos, this.sp.label, '🐺');
@@ -1713,7 +1736,7 @@ class Animal {
     this.hp -= dmg;
     AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.32;
-    pool.burst(this.pos, 6 + dmg * 4, ambush ? 0xd23a2a : 0xffb3a0, 1.1, 2.2, 2.6);
+    bloodBurst(this.pos, 6 + dmg * 4, 1, this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z);   // liquid blood sprays off the prey, away from the bite
     if (!this.injured && this.hp > 0 && this.hp <= Math.ceil((this.sp.hp || 1) / 2)) {
       this.injured = true;                    // it will limp, bleed, and try to hide
       if (this.pos.distanceTo(wolf.pos) < 40) toast(`🩸 The ${this.sp.label.toLowerCase()} is wounded — follow the blood`);
@@ -1989,7 +2012,7 @@ class Predator {
     this.hp -= Math.max(1, dmg - (this.armor || 0));   // a veteran's hide turns part of the bite
     AnimalHealthBar.show(this);              // first blood reveals the bar
     this.flinchT = 0.38;
-    bloodBurst(this.pos, 10 + dmg * 5, ambush ? 1.3 : 1);   // the hit's blood, big on an ambush
+    bloodBurst(this.pos, 10 + dmg * 5, ambush ? 1.3 : 1, this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z);   // the hit's blood, big on an ambush
     if (!this.injured && this.hp > 0 && this.hp <= Math.ceil((this.sp.hp || 1) / 2)) {
       this.injured = true;                    // it will limp, bleed, and try to hide
       if (this.pos.distanceTo(wolf.pos) < 40) toast(`🩸 The ${this.sp.label.toLowerCase()} is wounded — follow the blood`);
@@ -2120,7 +2143,7 @@ class Predator {
         if (this.atkCd <= 0) {
           this.atkCd = this.sp.atkCd * this.ai.cdMul * (this.furious ? 0.75 : 1);
           this.biteT = 0.36;                                     // claw, then bite
-          bloodBurst(wolf.pos, 16, 1.1);                          // the wolf's blood
+          bloodBurst(wolf.pos, 16, 1.1, wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);   // the wolf's blood — sprays away from the bite
           if (!(window.PACK && window.PACK.intercept(this, this.dmg, this.sp.label, this.sp.icon)))
             wolfTakeDamage(this.dmg, this.pos, `Level ${this.level} ${this.sp.label}`, this.sp.icon);
         }
@@ -2242,7 +2265,7 @@ class SkyEagle {
     this.hp -= Math.max(1, dmg - (this.armor || 0));
     AnimalHealthBar.show(this);
     this.flinchT = 0.42;                       // a hit mid-flight knocks it off its line
-    bloodBurst(this.pos, 12 + dmg * 4, 1.2);   // feathers and blood
+    bloodBurst(this.pos, 12 + dmg * 4, 1.2, this.pos.x - wolf.pos.x, this.pos.z - wolf.pos.z);   // feathers and liquid blood
     if (this.hp <= 0) { this.die(); return; }
     if (this.hp <= this.maxHp * 0.34) { this.fleeing = true; toast(`🦅 The wounded eagle retreats into the sky`, true); }
     else if (this.pos.distanceTo(wolf.pos) < 45) toast(`🦅 The Golden Eagle reels — it climbs away for a moment`);
@@ -2331,7 +2354,7 @@ class SkyEagle {
       if (dWolfH < this.sp.reach * 1.4 && dyOK && this.atkCd <= 0 && this.flinchT <= 0) {
         this.atkCd = (this.ai.fury ? 2.2 : 3.6) * this.ai.cdMul;
         wolfTakeDamage(this.dmg, this.pos, `Level ${this.level} ${this.sp.label}`, this.sp.icon);
-        bloodBurst(wolf.pos, 16, 1.2);
+        bloodBurst(wolf.pos, 16, 1.2, wolf.pos.x - this.pos.x, wolf.pos.z - this.pos.z);
         if (typeof audio !== 'undefined') audio.eagle();
         this.state = 'climb'; this.breakT = 1.6;
       } else if (dT < 1.8 || this.alt < 1.3) {                           // swooped past — pull up
