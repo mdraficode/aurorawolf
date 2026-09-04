@@ -4844,12 +4844,9 @@ function updateSensesTick() {       // slow tick: the world leaves its marks
     SENSE.hearT = senseT > 0 ? 1.4 : 4;
     pool.burst(V3(hear.pos.x, hear.pos.y + 1.1, hear.pos.z), 3, 0xf0e6c8, 0.6, 1.1, 0.9);
   }
-  // broken vegetation: sprinting through cover
-  SENSE.trampleT -= 0.6;
-  if (wolf.speed > 9 && !wolf.swimming && coverAt(wolf.pos) > 0.45 && SENSE.trampleT <= 0) {
-    SENSE.trampleT = 0.25;
-    pool.burst(V3(wolf.pos.x, wolf.pos.y + 0.5, wolf.pos.z), 4, 0x6f8f4a, 0.8, 1.4, 1.6);
-  }
+  // broken vegetation: sprinting through cover — feedback only, no glow. The old
+  // burst fed the additive glow pool at body height (wolf.pos.y+0.5), which read as a
+  // pulsing glowing cloud around the wolf every 0.25s of a sprint. Removed entirely.
 }
 function updatePawPrints(dt) {
   if (!pawPrints) {

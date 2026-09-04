@@ -42,9 +42,18 @@ const R = await page.evaluate(() => {
   // ---- 1. SPRINT underfoot dust (call wolf.update directly; tick() clobbers input) ----
   wolf.pos.x = 0; wolf.pos.z = 100; wolf.pos.y = Math.max(heightAt(0, 100), WATER_Y) + 0.1;
   wolf.grounded = true; wolf.exhausted = false; wolf.stamina = 100; wolf.flyT = 0; wolf.crouch = false; wolf.swimming = false;
+  // track any body-height additive glow burst — the sprint-through-cover glow (0x6f8f4a)
+  // used to fire at wolf.pos.y+0.5 every 0.25s. It must be gone entirely.
+  const glow = { bodyGlow: 0 };
+  const pBGlow = pool.burst.bind(pool);
+  pool.burst = (c, n, col, sp, up, spd) => {
+    if (n > 0 && col === 0x6f8f4a) glow.bodyGlow++;
+    pBGlow(c, n, col, sp, up, spd);
+  };
   const start = { dust: wraps.dustPuff };
-  for (let i = 0; i < 60; i++) wolf.update(dt, mkInput(), wolf.yaw + Math.PI, 0);
+  for (let i = 0; i < 60; i++) { wolf.update(dt, mkInput(), wolf.yaw + Math.PI, 0); if (typeof updateSense === 'function') updateSense(dt); }
   R.sprintDustPuffs = wraps.dustPuff - start.dust;
+  R.noSprintGlow = glow.bodyGlow === 0;
   const wolfGround = heightAt(wolf.pos.x, wolf.pos.z);
   R.wolfGroundY = wolfGround;
   R.dustHugsGround = wraps.dustPuffY.length > 0 && wraps.dustPuffY.every(y => y <= wolfGround + 0.6);
@@ -138,6 +147,7 @@ const checks = {
   'breath particle is faint (low opacity)': R.blendChecks.breathFaint,
   'breath particle is tiny (small size)': R.blendChecks.breathTiny,
   'sprint emits underfoot dust puffs': R.sprintDustPuffs > 0,
+  'no body-height sprint glow (0x6f8f4a)': R.noSprintGlow,
   'sprint dust hugs the ground (feet level)': R.dustHugsGround,
   'combat suppresses sprint dust': R.combatDustPuffs === 0,
   'wolf bite sprays liquid bloodPool': R.bloodBurstOnHit,
