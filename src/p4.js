@@ -771,12 +771,10 @@ function updateSensesTick() {       // slow tick: the world leaves its marks
       if (SENSE.scents.length > 160) SENSE.scents.shift();
     }
   }
-  // you hear it before you see it
+  // hearing is kept as a sense but its cloud is gone: the old additive burst at
+  // hear.pos (the nearest moving animal/predator) painted a cream glow at body height
+  // every couple of seconds — the intermittent "breathing fog" on roaming animals.
   SENSE.hearT -= 0.6;
-  if (hear && (senseT > 0 ? hearD < 58 : hearD < 24) && SENSE.hearT <= 0) {
-    SENSE.hearT = senseT > 0 ? 1.4 : 4;
-    pool.burst(V3(hear.pos.x, hear.pos.y + 1.1, hear.pos.z), 3, 0xf0e6c8, 0.6, 1.1, 0.9);
-  }
   // broken vegetation: sprinting through cover — feedback only, no glow. The old
   // burst fed the additive glow pool at body height (wolf.pos.y+0.5), which read as a
   // pulsing glowing cloud around the wolf every 0.25s of a sprint. Removed entirely.
