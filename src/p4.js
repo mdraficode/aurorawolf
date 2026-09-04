@@ -710,25 +710,15 @@ function ensureSenseMeshes() {
   }
 }
 const SCENT_COL = { prey: [0.42, 0.85, 0.5], pred: [1, 0.32, 0.25], blood: [0.75, 0.08, 0.08], rival: [0.72, 0.5, 0.95] };
-function updateSenseFX() {          // paint tracks & scent while the sense burns
+function updateSenseFX() {          // paint the ground's marks while the sense burns
   ensureSenseMeshes();
   const on = senseT > 0 && !caveState.in;
-  scentCloud.visible = on; trackMarks.visible = on;
+  scentCloud.visible = false;       // the scent cloud was a coloured fog that hugged every
+                                    // animal/predator — removed completely. Only the paw-print
+                                    // tracks (a ground decal, never a body cloud) read the world.
+  trackMarks.visible = on;
   if (!on) return;
-  const pos = scentCloud.geometry.attributes.position, col = scentCloud.geometry.attributes.color;
   const now = tSec;
-  let n = 0;
-  for (const sc of SENSE.scents) {
-    if (n >= 160) break;
-    const age = (now - sc.t) / 60;                     // scent fades over a minute
-    if (age > 1) continue;
-    pos.setXYZ(n, sc.x, groundAt(sc.x, sc.z) + 0.35, sc.z);
-    const c = SCENT_COL[sc.k], f = (1 - age) * 0.95;
-    col.setXYZ(n, c[0] * f, c[1] * f, c[2] * f);
-    n++;
-  }
-  scentCloud.geometry.setDrawRange(0, n);
-  pos.needsUpdate = true; col.needsUpdate = true;
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), S1 = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
   let m = 0;
   for (const tr of SENSE.tracks) {

@@ -108,7 +108,8 @@ try {
     out.senseOn = senseT > 0;
     ensureSenseMeshes();
     updateSenseFX();
-    out.senseVisible = scentCloud.visible === true && trackMarks.visible === true;
+    // the scent cloud (the animal/predator fog) is gone; only the ground tracks remain
+    out.senseVisible = trackMarks.visible === true && scentCloud.visible === false;
     /* ---- cave cache ---- */
     let cacheFound = false;
     for (let i = 0; i < 10 && !cacheFound; i++) {

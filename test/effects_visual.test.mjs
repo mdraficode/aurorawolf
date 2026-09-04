@@ -154,6 +154,10 @@ const R = await page.evaluate(() => {
   senseT = 6.5; updateSensesTick(); updateSenseFX();
   R.noAnimalAdditiveCloud = cl.additiveCloud === 0;
   R.cloudColsCaught = cl.additiveCloud;
+  // e) the wolf-sense SCENT CLOUD (the coloured fog that hugged every animal/predator)
+  //    must be gone — the ground tracks remain, the cloud does not.
+  R.scentCloudHidden = typeof scentCloud === 'undefined' || scentCloud === null || scentCloud.visible === false;
+  R.tracksStillShown = !!trackMarks && trackMarks.visible === true;
   senseT = 0;
   return R;
 });
@@ -180,6 +184,8 @@ const checks = {
   'breath drifts forward from the muzzle': R.breathInFront,
   'breath no longer uses additive glow pool': R.noAdditiveBreath,
   'animals/predators emit NO additive body cloud': R.noAnimalAdditiveCloud,
+  'wolf-sense scent cloud (the animal/predator fog) is gone': R.scentCloudHidden,
+  'ground tracks still show during sense': R.tracksStillShown,
 };
 let ok = true;
 for (const [k, v] of Object.entries(checks)) { if (!v) ok = false; console.log((v ? 'PASS' : 'FAIL') + '  ' + k); }
