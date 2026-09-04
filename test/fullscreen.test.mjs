@@ -48,43 +48,58 @@ const fsExit = page => page.evaluate(() => window.__fsExit);
   await page.close();
 }
 
-// ---- 2) FRESH human start via menu (navigation): removing an armed gesture, first touch completes it ----
+// ---- 2) FRESH human start via the real Start Game drop-down: IN-PLACE reset keeps fullscreen ----
+// Regression for the fullscreen bug: "Start Game" used to do `location.href = ?seed=X&autostart=1`,
+// which RELOADS the page — and a reload always exits browser fullscreen and cannot re-enter without a
+// fresh gesture. The fix re-seeds the world IN THIS DOCUMENT (no navigation), so fullscreen survives the
+// click. We assert (a) the page did NOT navigate/reload (a window marker survives), (b) fullscreen is
+// requested during the click, and (c) it is never EXITED.
 {
   const page = await newPage();
   await page.goto(URL + '?seed=42&quality=low', { timeout: 90000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'menu', null, { timeout: 90000 });
   await page.waitForTimeout(400);
-  await page.click('#btnNewGame');              // menu tap — triggers fullscreen pre-navigation (page reloads)
+  await page.evaluate(() => { window.__survived = 'alive:' + Math.random(); });   // a reload would wipe this
+  await page.click('#btnNewGame');
   await page.waitForTimeout(150);
-  await page.click('#ddNewStart', { noWaitAfter: true });   // navigates to ?autostart=1
-  await page.waitForURL(/autostart=1/, { timeout: 60000 });
+  await page.click('#ddNewStart');   // the REAL Start Game — must NOT reload
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
-  await page.waitForTimeout(500);
-  const afterLoad = await fsCalls(page);        // fresh page, no gesture yet → request deferred
-  await page.mouse.click(640, 380);             // a touch ANYWHERE on the game window snaps to fullscreen
-  await page.waitForTimeout(300);
-  const afterTouch = await fsCalls(page);
-  ck('fresh human start fullscreens on any touch', afterLoad === 0 && afterTouch >= 1, `load=${afterLoad} touch=${afterTouch}`);
+  await page.waitForTimeout(600);
+  const r = await page.evaluate(() => ({
+    survived: window.__survived,                      // set pre-click; gone ⟺ a page reload happened
+    calls: window.__fsCalls, exit: window.__fsExit,
+    seed: new URL(location.href).searchParams.get('seed'),
+    liveSeed: window.SEED
+  }));
+  ck('Start Game keeps fullscreen (no page reload)', r.survived === 'alive:' + r.survived.split(':')[1] && String(r.survived).indexOf('alive:') === 0 && /alive:/.test(r.survived), `survived=${r.survived}`);
+  ck('Start Game requests fullscreen in the click gesture', r.calls >= 1, `calls=${r.calls}`);
+  ck('Start Game never EXITS fullscreen', r.exit === 0, `exit=${r.exit}`);
+  ck('Start Game re-seeds the world (new seed)', !!r.seed && String(r.liveSeed) === String(r.seed), `urlSeed=${r.seed} liveSeed=${r.liveSeed}`);
   await page.close();
 }
 
-// ---- 3) AI start via menu (navigation) fullscreens on any touch ----
+// ---- 3) AI start via the Watch Rafzzer drop-down: same in-place reset, never reloads/fullscreens out ----
 {
   const page = await newPage();
   await page.goto(URL + '?seed=5150&quality=low', { timeout: 90000, waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'menu', null, { timeout: 90000 });
   await page.waitForTimeout(400);
+  await page.evaluate(() => { window.__survived = 'alive:' + Math.random(); });
   await page.click('#btnNewGame');
   await page.waitForTimeout(150);
-  await page.click('#ddNewAI', { noWaitAfter: true });     // navigates to ?autopilot=1 (auto-plays via startIv → startGame)
-  await page.waitForURL(/autopilot=1/, { timeout: 60000 });
+  await page.click('#ddNewAI');   // the real Watch-Rafzzer drop-down — must NOT reload
   await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
   await page.waitForTimeout(800);
-  const before = await fsCalls(page);   // the autopilot's interval enters play outside a gesture → deferred
-  await page.mouse.click(200, 300);     // a touch anywhere completes the swap
-  await page.waitForTimeout(300);
-  const after = await fsCalls(page);
-  ck('AI start fullscreens on any touch', before >= 1 && after >= 1, `load=${before} touch=${after}`);
+  const r = await page.evaluate(() => ({
+    survived: window.__survived,
+    calls: window.__fsCalls, exit: window.__fsExit,
+    seed: new URL(location.href).searchParams.get('seed'), liveSeed: window.SEED,
+    ai: window.AI_ON && window.AI_ON()
+  }));
+  ck('AI Watch keeps fullscreen (no page reload)', /alive:/.test(r.survived), `survived=${r.survived}`);
+  ck('AI Watch requests fullscreen (no deferred second tap)', r.calls >= 1, `calls=${r.calls}`);
+  ck('AI Watch never EXITS fullscreen', r.exit === 0, `exit=${r.exit}`);
+  ck('AI Watch re-seeds the world (new seed)', !!r.seed && String(r.liveSeed) === String(r.seed), `urlSeed=${r.seed} liveSeed=${r.liveSeed}`);
   await page.close();
 }
 

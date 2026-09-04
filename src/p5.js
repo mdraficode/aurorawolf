@@ -671,9 +671,11 @@ window.CAMP = (() => {
   // NEW GAME: a fresh random seed + a brand-new wolf (the game's base level 0 'Young Pup',
   // tier 1, q0 board) — but the all-time RECORD survives: trophies + best-tier times and the
   // player's name carry over, and the run/trophy record (revontulet_bestRun in p4) is never
-  // touched. The caller navigates to the returned ?seed= so the world actually changes.
-  const newGame = () => {
-    const seed = ((Math.random() * 1e9) | 0) >>> 0;
+  // touched. `seed` lets the in-place New Game (no page reload) drive the campaign seed from
+  // the SAME value already pushed into the world's terrain noise (reSeedWorld), so the save's
+  // S.seed always matches the live world; omitted, it rolls its own.
+  const newGame = (seed) => {
+    seed = (seed != null ? seed : ((Math.random() * 1e9) | 0)) >>> 0;
     const keep = { trophies: (S && S.trophies) || [], best: (S && S.best) || {}, name: (S && S.name) || '' };
     S = fresh(); S.seed = seed; S.trophies = keep.trophies; S.best = keep.best; S.name = keep.name;
     try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { }

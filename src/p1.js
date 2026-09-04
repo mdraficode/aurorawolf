@@ -75,25 +75,51 @@ function ridged(n, x, y, oct) {
 
 /* ---------------- world seed & noise fields ---------------- */
 const QPARAMS = (() => { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(''); } })();
-const SEED = (parseInt(QPARAMS.get('seed'), 10) || ((Math.random() * 1e9) | 0)) >>> 0;
+let SEED = (parseInt(QPARAMS.get('seed'), 10) || ((Math.random() * 1e9) | 0)) >>> 0;
 window.SEED = SEED;   // expose the live world seed (tests read it; New Game swaps it via ?seed=)
 const AUTOSTART = QPARAMS.get('autostart') === '1';
 const QUALITY = QPARAMS.get('quality') || 'high';
 
-const seedRng = mulberry32(SEED);
-const nH    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // continents
-const nD    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // hills detail
-const nM    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // mountain mask
-const nR    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // ridges
-const nT    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // temperature
-const nO    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // moisture
-const nF    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // forest clumping
-const nVar  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // ground variation
-const nRiver = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // river bands
-const nMagic = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // enchanted grove fields
-const nClr   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // forest clearings
-const nPath  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // winding animal paths
-const nVol   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // volcanic fields
+let seedRng = mulberry32(SEED);
+let nH    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // continents
+let nD    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // hills detail
+let nM    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // mountain mask
+let nR    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // ridges
+let nT    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // temperature
+let nO    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // moisture
+let nF    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // forest clumping
+let nVar  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));   // ground variation
+let nRiver = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // river bands
+let nMagic = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // enchanted grove fields
+let nClr   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // forest clearings
+let nPath  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // winding animal paths
+let nVol   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));  // volcanic fields
+
+/* Re-seed the world IN PLACE (no page navigation). The whole engine — heightAt,
+   climateAt, biomeWeights, genChunk, the landmark/animation RNGs — reads these
+   module-scope bindings BY NAME, so rebuilding them from a fresh seed regenerates
+   the terrain without a reload. This is what lets "Start Game" stay fullscreen:
+   a ?seed= navigation always exits fullscreen and can't re-enter without a new
+   gesture, but a same-document re-seed keeps the browser's fullscreen state. */
+function reSeedWorld(seed) {
+  SEED = (seed >>> 0);
+  window.SEED = SEED;
+  seedRng = mulberry32(SEED);
+  nH    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nD    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nM    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nR    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nT    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nO    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nF    = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nVar  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nRiver = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nMagic = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nClr   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nPath  = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+  nVol   = makeSimplex(mulberry32(seedRng() * 1e9 | 0));
+}
+window.reSeedWorld = reSeedWorld;   // tests + the New Game path call it
 
 /* ---------------- terrain shape ---------------- */
 const CHUNK = 64, SEG = 32, VIEW_R = 3;   // 7×7 standing (mobile-kind); ridges unroll 9×9

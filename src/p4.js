@@ -4471,34 +4471,122 @@ document.addEventListener('click', e => {
   }
 });
 
+/* ---- IN-PLACE WORLD RESET (the fullscreen fix) ----
+   A ?seed= navigation ALWAYS exits browser fullscreen and cannot re-enter without a fresh
+   gesture, so "Start Game" kept dropping the window out of fullscreen. New Game now regenerates
+   the entire world IN THIS DOCUMENT and re-enters play in the SAME click, so fullscreen survives
+   untouched. We do the equivalent of a page load by hand:
+     1. re-seed the terrain noise (reSeedWorld → everything reads SEED/n* by name)
+     2. tear down every spawned world object (chunks, cave, bosses, meteor, rivals, landmarks,
+        wildlife populations, inventory/stats, quests, spirit/cinema, sense/track, birds)
+     3. drop the wolf back to a level-0 'Young Pup' at a fresh gentle spawn
+     4. reset the campaign in place (CAMP.newGame — same seed, record survives)
+     5. rebuild the boot list at the new spawn and let the boot loop re-grow the chunks,
+        then land in PLAY (forceBootToPlay) instead of the menu (no ?autostart=1 reload). */
+function __newWorldReset(seed) {
+  if (typeof window.reSeedWorld === 'function') window.reSeedWorld(seed);
+  // 2a. chunks + everything rooted in them (terrain, veg, animals, predators, landmarks)
+  for (const ch of Array.from(chunks.values())) disposeChunk(ch);
+  chunks.clear(); genQueue = [];
+  // 2b. cave (if the wolf was under the hill) + its pickups/predators/lights
+  disposeCave();
+  caveState.in = false; caveState.group = null; caveState.pickups = []; caveState.predators = [];
+  caveState.lights = []; caveState.poolAt = null; caveState.entrance = null; caveState.variant = 'cave';
+  caveState.reentryCd = 0; caveState.dripT = 2; caveState.discovered = false; caveState.solids = [];
+  // 2c. bosses (live, detached from chunks) + the boss slow-mo hold
+  for (const b of Array.from(bosses)) { if (b.dispose) b.dispose(); }
+  bosses.length = 0; bossSlowmoT = 0;
+  // 2d. the fallen-star meteor site
+  if (meteorSite) {
+    scene.remove(meteorSite.group);
+    meteorSite.group.traverse(o => { if (o.isMesh) o.geometry.dispose(); });
+    const li = landmarkList.indexOf(meteorSite.lm);
+    if (li >= 0) landmarkList.splice(li, 1);
+    meteorSite = null;
+  }
+  // 2e. any landmarks still listed outside disposed chunks
+  for (const lm of Array.from(landmarkList)) { if (lm.model) scene.remove(lm.model); }
+  landmarkList.length = 0;
+  // 2f. rival wolf packs + the seq counter
+  for (const r of Array.from(rivals)) { if (r.dispose) r.dispose(); }
+  rivals.length = 0; RIVAL_SEQ = 0;
+  // 2g. wildlife population pools → back to full so the new world teems (disposeChunk already
+  //     returned living animals to their pools; refill the caps the world "began" at)
+  for (const k in ECO_CAP) ECO_POP[k] = ECO_CAP[k];
+  eagleTotal = 0; eagleSpawnT = 60;
+  // 2h. inventory + run stats
+  for (const k in inv) inv[k] = 0;
+  stats.gathered = 0; stats.caught = 0; stats.slain = 0; stats.biomes = new Set(); stats.playT = 0;
+  stats.discoveries = new Set(); stats.firstFinds = 0;
+  // 2i. quest engine + the spirit/cinema + quest marks
+  QUESTS.active.length = 0; QUESTS.avail.length = 0; QUESTS.done.length = 0;
+  for (const k in questsDoneByBiome) delete questsDoneByBiome[k];
+  SPIRIT.met = false; SPIRIT.active = null; SPIRIT.cd = 60;
+  CINEMA = { active: false, t: 0, dur: 10 };
+  for (const m of questMarks) scene.remove(m);
+  questMarks.length = 0; questMarkT = 0;
+  // 2j. sensory trails + the wolf-sense cloud
+  SENSE.scents = []; SENSE.tracks = []; SENSE.hearT = 0; SENSE.trampleT = 0;
+  if (scentCloud) { scene.remove(scentCloud); scentCloud = null; }
+  if (trackMarks) { scene.remove(trackMarks); trackMarks = null; }
+  // 2k. ambient flock
+  for (const b of Array.from(BIRDS.list)) scene.remove(b.mesh);
+  BIRDS.list.length = 0;
+  // 3. the wolf back to a fresh pup at a new spawn in the NEW terrain
+  wolf.resetRunState();
+  wolf.findSpawn();
+  wolf.model.position.copy(wolf.pos);
+  wolf.model.rotation.y = wolf.yaw;
+  recalcWolfLevel();
+  inputClear();
+  // 4. campaign reset in place (same seed as the world; the all-time record survives)
+  if (window.CAMP && window.CAMP.newGame) window.CAMP.newGame(seed);
+  // fresh run recap + a clean camera
+  window.RUN = window.freshRun();
+  camYaw = wolf.yaw + Math.PI;
+  camTarget.copy(wolf.pos); camTarget.y += 1.5;
+  updateCamera(0.016);
+  updateAtmosphere(0);
+  // 5. re-grow the chunks at the new spawn via the boot loop, then land in PLAY
+  bootList = []; bootDone = 0;
+  const ccx = Math.floor(wolf.pos.x / CHUNK), ccz = Math.floor(wolf.pos.z / CHUNK);
+  for (let dz = -2; dz <= 2; dz++)
+    for (let dx = -2; dx <= 2; dx++)
+      bootList.push({ cx: ccx + dx, cz: ccz + dz, d: dx * dx + dz * dz });
+  bootList.sort((a, b) => a.d - b.d);
+  forceBootToPlay = true;
+  state = 'boot';
+}
+
 /* NEW GAME — a whole new world + a fresh wolf, while the all-time record stands.
-   Rolls a new random seed, resets the campaign (the game's base level 0, tier 1), then reloads
-   the page with ?seed=<new> so the world actually regenerates. The high-score recap
-   (revontulet_bestRun / revontulet_lastRun) is separate and never cleared. */
+   Rolls a new random seed, resets the campaign (the game's base level 0, tier 1), then
+   regenerates the world IN PLACE (no page reload) so browser fullscreen survives the click.
+   The URL's ?seed= is updated via history.replaceState (a pure address change — it never
+   navigates, so fullscreen stays). The high-score recap (revontulet_bestRun / revontulet_lastRun)
+   is separate and never cleared. */
 function newGame() {
-  let s;
-  if (window.CAMP && window.CAMP.newGame) s = window.CAMP.newGame();
-  else s = ((Math.random() * 1e9) | 0) >>> 0;
-  try {
-    const u = new URL(location.href);
-    u.searchParams.set('seed', String(s));
-    u.searchParams.delete('autopilot');   // "Start Game" is a human run — no AI watch loop
-    u.searchParams.set('autostart', '1'); // land directly in the freshly-seeded world and play
-    location.href = u.toString();
-  } catch (e) { location.reload(); }
+  const s = ((Math.random() * 1e9) | 0) >>> 0;
+  __newWorldReset(s);              // re-seed in place; sets state='boot' + forceBootToPlay so the boot loop re-grows chunks, then lands in play
+  __fsNewGameURL(s, false);        // reflect the new seed in the address bar WITHOUT navigating
+  enterFullscreen();               // still inside the click gesture — keep fullscreen, never drop it
 }
 /* NEW GAME + WATCH RAFZZER — the same fresh world, but the wolf plays itself (watch mode).
-   Navigating with ?autopilot=1 reuses the shipped watch loop and preserves the other params. */
+   Identical in-place reset; the boot loop land in play, then hands the wolf to the brain. */
 function newGameAI() {
-  let s;
-  if (window.CAMP && window.CAMP.newGame) s = window.CAMP.newGame();
-  else s = ((Math.random() * 1e9) | 0) >>> 0;
+  const s = ((Math.random() * 1e9) | 0) >>> 0;
+  __newWorldReset(s);
+  __fsNewGameURL(s, true);
+  enterFullscreen();
+  aiAfterBootToPlay = true;        // AI handoff fires when the boot loop lands in play
+}
+function __fsNewGameURL(seed, autopilot) {
   try {
     const u = new URL(location.href);
-    u.searchParams.set('seed', String(s));
-    u.searchParams.set('autopilot', '1');
-    location.href = u.toString();
-  } catch (e) { location.reload(); }
+    u.searchParams.set('seed', String(seed));
+    if (autopilot) u.searchParams.set('autopilot', '1');
+    else { u.searchParams.delete('autopilot'); u.searchParams.set('autostart', '1'); }
+    history.replaceState(null, '', u.toString());   // cosmetics only — NO location.href (that kills fullscreen)
+  } catch (e) { }
 }
 /* The "Resume Last Game" primary: land exactly where the wolf fell, then play.
    With no playable saved session it is simply entering the wild ("ENTER THE WILD"). */
@@ -5061,6 +5149,8 @@ if (/[?&]audit=1/.test(location.search)) {
 /* ---------------- boot & main loop ---------------- */
 const clock = new THREE.Clock();
 let bootList = [], bootDone = 0;
+let forceBootToPlay = false;   // an in-place New Game needs the boot loop to land in PLAY (no reload → no ?autostart=1)
+let aiAfterBootToPlay = false;  // newGameAI hands the wolf to the brain once the in-place reset lands in play
 let perfT = 0, perfN = 0, perfDone = false;
 (function initBoot() {
   const ccx = Math.floor(wolf.pos.x / CHUNK), ccz = Math.floor(wolf.pos.z / CHUNK);
@@ -5100,13 +5190,33 @@ function tick() {
     const bar = el('bootBar');
     if (bar) bar.style.width = Math.round(bootDone / bootList.length * 100) + '%';
     if (bootDone >= bootList.length) {
-      if (AUTOSTART) {
+      // Reload (?autostart=1) cleared the click gesture, so the browser refuses an immediate
+      // fullscreen; the global pointerdown/keydown listener completes the swap on the player's
+      // FIRST touch or key (browsers never allow it on load). But an IN-PLACE New Game
+      // (__newWorldReset, no reload) KEEPS the click gesture alive for the frames it takes to
+      // re-grow chunks, so we enter fullscreen right here and land straight in play.
+      const wasForced = forceBootToPlay;
+      // Plain ?autostart=1 reload (or a cold boot with no gesture): the browser refuses an
+      // immediate fullscreen, so the global pointerdown/keydown listener completes the swap on the
+      // player's FIRST touch or key. Enter play directly WITHOUT setState('play') (which would
+      // request fullscreen and put the window into fullscreen state headless, breaking tests that
+      // resize the viewport, e.g. landscape). An IN-PLACE New Game (wasForced) KEEPS the click
+      // gesture, so THAT path does the full play entry + fullscreen right here.
+      if (AUTOSTART && !wasForced) {
         state = 'play';
         ui.hud.classList.remove('hidden');
-        // a fresh start reached play via navigation (?autostart=1) which cleared the click gesture, so
-        // the browser refuses an immediate fullscreen; the global pointerdown/keydown listener below
-        // completes the swap on the player's FIRST touch or key (browsers never allow it on load).
         if (window.__fsBtnSync) window.__fsBtnSync();   // hide the fs button the instant play begins
+      } else if (wasForced) {
+        forceBootToPlay = false;
+        audio.init(); audio.resume(); toast('🐺 Roam free — the wild is endless', true);
+        setState('play');
+        enterFullscreen();   // still inside the click gesture — keep fullscreen, never drop it
+        if (window.__fsBtnSync) window.__fsBtnSync();
+        if (aiAfterBootToPlay) {   // watch-mode handoff (AI) runs once the new world is live
+          aiAfterBootToPlay = false;
+          const b = el('btnStart'); if (b) b.disabled = true;   // the brain is already in — stop the START auto-press from double-starting
+          if (window.AI_PLAY) window.AI_PLAY(true);
+        }
       } else {
         state = 'menu';
         menuReady();

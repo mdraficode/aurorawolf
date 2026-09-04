@@ -464,6 +464,14 @@ class Wolf {
     this.model = m.group;
     this.legs = m.legs; this.lowers = m.lowers; this.head = m.head; this.tail = m.tail;
     scene.add(this.model);
+    this.resetRunState();
+    this.findSpawn();
+    this.model.position.copy(this.pos);
+    this.model.rotation.y = this.yaw;
+  }
+  /* reset the per-run body to a brand-new wolf (level 0 'Young Pup', full hp/stamina,
+     no perks) — used at boot AND by the in-place "New Game" re-seed. */
+  resetRunState() {
     this.pos = V3(0, 20, 0);
     this.vy = 0;
     this.yaw = 0;
@@ -493,7 +501,14 @@ class Wolf {
     this.flyDirY = 0;
     this.trailAcc = 0;
     this.stepAcc = 0;
-    // find a gentle spawn: not underwater, not high mountains
+    delete this._wkx; delete this._wkz; delete this._wkt; delete this._wkcd;
+    delete this.sprintLock; delete this.stepDist; delete this.drownToastT;
+    if (this.model) this.model.scale.set(1, 1, 1);
+  }
+  /* find a gentle spawn in the CURRENT world: not underwater, not high mountains.
+     Reads heightAt/climateAt/biomeWeights live, so after an in-place re-seed it lands
+     the wolf in the brand-new terrain without a page reload. */
+  findSpawn() {
     let sx = 0, sz = 0, bestScore = -1;
     for (let i = 0; i < 40; i++) {
       const a = i * 2.399963, r = 40 + i * 14;
@@ -507,8 +522,7 @@ class Wolf {
     }
     this.pos.x = sx; this.pos.z = sz;
     this.pos.y = Math.max(heightAt(sx, sz), WATER_Y) + 0.1;
-    this.model.position.copy(this.pos);
-    this.model.rotation.y = this.yaw;
+    return { x: sx, z: sz };
   }
   update(dt, input, camYaw, camPitch) {
     if (this.deadT > 0) {          // slain — respawn handled by updateHUD
