@@ -49,10 +49,12 @@ reconciled repo is the source of truth and the relay machinery was retired with 
 
 ## 3 · One command to rebuild all of it
 
-    bash /home/user/setup_env.sh      # idempotent, ~2 min, ends with a real browser launch
+    npm install                      # repo deps (playwright, express, pngjs)
+    bash test/browserlab/boot.sh     # idempotent — Chromium 149 + SwiftShader from npm's @sparticuz/chromium
 
-Sources: libs are kept in `/home/user/env_libs/` (persisted) with `/home/user/drive_drop/libs/`
-as fallback. `/tmp/chromium` and `~/.cache/ms-playwright/` do **not** survive turn boundaries.
+Sources: everything comes from the npm registry (allowed by the egress allowlist); no system
+packages or `sudo` are needed. `/tmp/browserlab` and `~/.cache/ms-playwright/` do **not** survive
+turn boundaries, so re-run `boot.sh` after each sandbox reset.
 
 ## 4 · What the Drive zip (`training v2.zip`, 26 MB) actually contains
 

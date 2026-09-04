@@ -277,9 +277,8 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   +5/+5/heal/bolt/once ✓ C: charge-intercept + roll-fail control ✓) — plus smoke, menu_trophy_ai,
   events, pack, campaign all green on the v6.7 build.
 - **Env note (Arena sandbox):** only github.com is reachable; Playwright's CDN is blocked, so the browser
-  comes from `@sparticuz/chromium` (npm) symlinked into the ms-playwright registry —
-  `/home/user/setup_env.sh` re-does the whole env in ~2 min. Drive zips arrive via a one-shot Actions
-  relay on the session branch. **Trainer action pending: rotate the `~/.ghtoken` PAT** (it rode inside
+  comes from `@sparticuz/chromium` (npm) via `bash test/browserlab/boot.sh`. Drive zips arrive via a one-shot
+  Actions relay on the session branch. **Trainer action pending: rotate the `~/.ghtoken` PAT** (it rode inside
   the Drive zip and, briefly, a temporary branch commit — history already rewound).
 - **Next:** GEN 56 on the v6.7 build (champion GEN 50 · bar −55) — the kit answers the Leopard Legend;
   then the announced-but-unspecified "major gameplay progress system update" when the trainer specs it.
@@ -311,8 +310,8 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   yaw-lag law, 180° law, the campaign on one page, the four routes, the Legend combat grammar, six drills).
 - **Environment:** `ENVIRONMENT.md` records the MEASURED egress allowlist, the Chromium workaround and a
   file-by-file audit of the Drive zip (`training v2.zip` == commit `855eb4e`, byte-identical; only
-  unique items are the two secrets). `/home/user/setup_env.sh` restored. `shots/forest.jpg` is
-  overwritten by `forest.test.mjs` on every run — restore it or gitignore it.
+  unique items are the two secrets). Bootstrap = `bash test/browserlab/boot.sh`. `shots/forest.jpg`
+  was untracked & gitignored — `forest.test.mjs` regenerates it, so it is no longer committed.
 - **Next:** the human-speedrun session continues on this build. The Tier-1 trophy is still unclaimed;
   M47's honest number is **0.94 dps dealt vs 4.86 incoming** (the Leopard reaches 9 hp and the wolf dies).
 
@@ -334,8 +333,9 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   build) and the four superseded handoffs `NEXT_DEV.md`, `M46_RESUME.md`, `M46_MISSION_BRIEF.md`,
   `MISSION2.md` — all four still named **GEN 9 · fit 283** as champion (three crown moves stale) and
   would have misdirected a fresh agent. Everything remains recoverable from git history.
-- **Bootstrap moved into the repo** (`tools/setup_env.sh` + `tools/chromium-libs/`): the turn boundary
-  wipes everything outside `/home/user/aurorawolf`, so the env recipe cannot live in `$HOME`.
+- **Bootstrap moved into the repo** (`test/browserlab/boot.sh`, Chromium 149 + SwiftShader from npm's
+  `@sparticuz/chromium`): the turn boundary wipes everything outside `/home/user/aurorawolf`, so the
+  env recipe must live in the repo. This replaces the older `tools/setup_env.sh` + `tools/chromium-libs/`.
 
 ### 4.5g Session 2026-09-03 (human-speedrun continued — the fight is CLOSED)
 - **The tier-1 fight is solved and coached — the PARK law (probe v25):** walk-orbit at
@@ -365,7 +365,7 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
 
 ### 4.6 Repository-hygiene decisions (2026-09-01)
 - `training/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.
-- `shots/*.png` regenerable → gitignored; `shots/README.md` + `forest.jpg` tracked.
+- `shots/*.png` and `shots/forest.jpg` are regenerable → gitignored; `shots/README.md` tracked.
 - **All 101 test files made repo-relative** (`pathToFileURL(fileURLToPath(import.meta.url) +
   '/../../index.html')`) — no `/home/user/index.html` hardcoding; suites pass from a fresh clone.
 - One-time history merge: the old GitHub history (single-file API commits) was replaced by the full

@@ -78,10 +78,10 @@ aurorawolf/
 │   ├── logs/                    ← per-gen console records
 │   └── history/                 ← pre-LAW-v4 + phase-0 replay records
 ├── tools/
-│   ├── setup_env.sh        ← sandbox bootstrap (idempotent): npm + Chromium + libs + launch check
-│   └── chromium-libs/      ← the 12 nspr/nss .so files headless Chromium needs (apt is blocked)
+│   └── ship.sh             ← single-branch publish: build + push to main → live ~1 min
+├── test/browserlab/      ← sandbox bootstrap: `bash test/browserlab/boot.sh` (Chromium 149 + SwiftShader from npm)
 ├── vendor/three.min.js   ← embedded Three.js
-├── shots/                ← screenshots (gitignored *.png; README.md + forest.jpg tracked)
+├── shots/                ← screenshots (regenerable, gitignored)
 └── uploads/  ← reference screenshot (watch.html removed 2026-09-02 — it was a stale pre-crown-bake build)
 ```
 
@@ -489,8 +489,8 @@ human players get them too**; the brains only had to be taught the doors exist (
   `test/browserlab/boot.sh`, `docs/TRAINING_MANUAL.md`, `docs/ENVIRONMENT.md`; reports gitignored
   under `test/speedrun/runs/`.
 - **Environment (Arena sandbox):** see `docs/ENVIRONMENT.md` — the egress is an allowlist (github +
-  npm + PyPI only), so Chromium comes from `@sparticuz/chromium` 149.0.7827.0 + Debian nspr/nss libs
-  (shipped in `tools/chromium-libs/`). `bash tools/setup_env.sh` rebuilds all of it in ~2 min. The one
+  npm + PyPI only), so a headless Chromium 149 + SwiftShader comes from npm's `@sparticuz/chromium`
+  via `bash test/browserlab/boot.sh` (idempotent, no sudo). The one
   Drive/WeTransfer backup (`AW-V1.zip`) was fetched via the now-retired `env-relay` Actions workflow,
   audited (sha256 `b7d67bcd…`, byte-identical to the reconciled repo — its only unique content was
   `.revontulet.keystore` / `.ghtoken`, never committed), and the relay machinery was deleted with it.
