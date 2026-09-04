@@ -43,12 +43,20 @@ src/                    ← source: p1 math/terrain · p2 render/veg · p3 wolf+
 vendor/three.min.js     ← three.js r134 (inlined at build)
 tools/ship.sh           ← canonical publish: `bash tools/ship.sh "msg"` = build + push to main → live ~1 min
 publish.sh              ← archive only: `archive [alias]` = permanent archive.org snapshot (github mode delegates to ship.sh)
-test/                   ← 24-suite gate (all gates + probes; see test/README.md for the CLI)
+test/                   ← Playwright gate (all gates + probes)
 shots/                  ← current-build screenshots (cave crystals · night aurora · waterfall · forest)
 docs/                   ← knowledge docs: README(here) is player-facing; AGENT_BRIEF, MASTER, BUGS, PLAYLOG, TRAINING_MANUAL, CAMPAIGN_DESIGN, ENVIRONMENT, LINKS, RAFZZER, RESTORE
+training/               ← the AI brain's lineage (RAFZZER champion + per-generation gauges)
+archive/                → git-history extras preserved in the repo (e.g. branches/ snapshots)
 ~/.ghtoken              ← GitHub access (keep! revocable at github.com/settings/tokens)
 ```
 Build · test · publish: `npm run build` · `npm test` · `npm run publish`
+
+> 🏷️ **Single-branch repo.** This repo has **one branch: `main`** — there are no feature,
+> session, or arena branches. All updates go straight to `main` via `tools/ship.sh`
+> (build → commit → push), which is what makes the live site at
+> https://mdraficode.github.io/aurorawolf/ update ~1 minute after a push.
+> End users / players never touch branches; the git history is the only record.
 
 > ⚠️ **Standing rule:** updates go to the live web link only. APK rebuilds **only when explicitly requested** (restore `android/` from tag `archive/android-apk` first).
 
