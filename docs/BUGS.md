@@ -516,3 +516,44 @@ should be one clean `main` branch.
 `src/shell.html` (removed `btnMenuAI` + `tplPause`) · `src/p4.js` (`showOverlay`, `enterFullscreen`,
 capture listener, boot AUTOSTART) · `src/autopilot.js` (delegation) · `.gitignore` · docs ·
 `test/pause_fullmenu.test.mjs` · `test/fullscreen.test.mjs`.
+
+---
+
+# 🎛 Session 2026-09-04 — "Start Game closes the Fullscreen; it should stay fullscreen the whole time"
+
+## Symptom
+Starting the game (Start Game / Watch-the-AI) dropped the browser out of fullscreen and it did not
+return until the player tapped again. The fullscreen button (`#fsBtn`) could also take the window
+out of fullscreen.
+
+## Root cause (confirmed by code + instrumentation)
+- **Fresh-start navigation:** `newGame()` / `newGameAI()` (src/p4.js) roll a fresh seed via
+  `CAMP.newGame()` then write `location.href = ?seed=<s>&autostart=1`. A full page load ALWAYS exits
+  fullscreen (the user gesture is consumed by the navigation; no browser allows fullscreen on load).
+  The new document boots non-fullscreen and stays that way until the player's next gesture.
+- **`#fsBtn` toggle:** the toggle block (src/p4.js) was the ONLY code that called `exitFullscreen`.
+  Pressing it once in fullscreen dropped the window out of fullscreen — breaking the "stay fullscreen
+  the whole time" requirement from the wrong side.
+- **Verified NOT the culprit:** pause→resume already keeps fullscreen. Instrumented single-page run
+  (autostart → play → pause → Resume Last Game → `#tPause`): `requestFullscreen` = 1 · `exit` = 0 ·
+  `fs:YES` persisted. Only the fresh-start navigation kills it.
+
+## Fix (source, src/p4.js)
+- **`#fsBtn` is now ENTER-ONLY** — it may only call `requestFullscreen`, never `exitFullscreen`.
+  Leaving fullscreen is now only the browser's own Escape (or a genuine navigation away); no in-game
+  button drops it.
+- **`#fsBtn` is hidden during active play** — `sync()` shows it only when `!fullscreen && !inPlay`
+  (`state !== 'play'`), and `setState()` plus the autostart→play boot transition call it immediately.
+  A hidden button can never be tapped to leave fullscreen mid-game.
+- The capture-phase `pointerdown`/`keydown` any-touch listener (from `8d83db3`) still re-enters
+  fullscreen on the first interaction after a fresh-start navigation, so the game visibly stays
+  fullscreen from the player's standpoint.
+
+## Tests
+- `test/fullscreen.test.mjs` extended: (a) pressing `#fsBtn` never exits fullscreen (enter-only),
+  (b) pressing it still requests fullscreen, (c) the button is hidden during play. All 7 checks pass;
+  human pause→resume, fresh human start, AI start, and touch-UI request paths still pass.
+
+## Files
+`src/p4.js` (enter-only `#fsBtn`, hide-during-play, `__fsBtnSync` hooks) · `test/fullscreen.test.mjs`
+(enter-only + hidden-during-play checks). Rebuild of `index.html` committed with it.

@@ -14,18 +14,23 @@ const ck = (n, c, x) => { console.log((c ? '  ✓ ' : '  ✗ ') + n + (c ? '' : 
 const newPage = async (opts) => {
   const page = await b.newPage(opts || { viewport: { width: 1280, height: 760 } });
   page.on('pageerror', e => fails.push('pageerror: ' + e.message.slice(0, 160)));
-  // spy: count every requestFullscreen call (Element + Document, std + webkit)
+  // spy: count every requestFullscreen / exitFullscreen call (Element + Document, std + webkit)
   await page.addInitScript(() => {
-    window.__fsCalls = 0;
-    const bump = (orig, that, args) => { window.__fsCalls++; return orig.apply(that, args); };
+    window.__fsCalls = 0; window.__fsExit = 0;
+    const bump = (orig, that, args, tag) => { if (tag === 'EXIT') window.__fsExit++; else window.__fsCalls++; return orig.apply(that, args); };
     for (const proto of [Element.prototype, Document.prototype]) {
-      if (proto.requestFullscreen) { const o = proto.requestFullscreen; proto.requestFullscreen = function (...a) { return bump(o, this, a); }; }
-      if (proto.webkitRequestFullscreen) { const o = proto.webkitRequestFullscreen; proto.webkitRequestFullscreen = function (...a) { return bump(o, this, a); }; }
+      if (proto.requestFullscreen) { const o = proto.requestFullscreen; proto.requestFullscreen = function (...a) { return bump(o, this, a, 'REQ'); }; }
+      if (proto.webkitRequestFullscreen) { const o = proto.webkitRequestFullscreen; proto.webkitRequestFullscreen = function (...a) { return bump(o, this, a, 'REQ'); }; }
+    }
+    for (const proto of [Document.prototype]) {
+      if (proto.exitFullscreen) { const o = proto.exitFullscreen; proto.exitFullscreen = function (...a) { return bump(o, this, a, 'EXIT'); }; }
+      if (proto.webkitExitFullscreen) { const o = proto.webkitExitFullscreen; proto.webkitExitFullscreen = function (...a) { return bump(o, this, a, 'EXIT'); }; }
     }
   });
   return page;
 };
 const fsCalls = page => page.evaluate(() => window.__fsCalls);
+const fsExit = page => page.evaluate(() => window.__fsExit);
 
 // ---- 1) HUMAN pause→resume (same page, real gesture) requests fullscreen ----
 {
@@ -94,6 +99,35 @@ const fsCalls = page => page.evaluate(() => window.__fsCalls);
   if (box) { await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); await page.waitForTimeout(300); }
   const c1 = await fsCalls(page);
   ck('touching a game button (touch UI) requests fullscreen', c1 >= 1, `before=${c0} after=${c1}`);
+  await page.close();
+}
+
+// ---- 5) the #fsBtn may only ENTER fullscreen — it must never EXIT (fullscreen stays the whole time) ----
+{
+  const page = await newPage();
+  await page.goto(URL + '?autostart=1&seed=4242&quality=low', { timeout: 90000, waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
+  await page.waitForTimeout(500);
+  // enter fullscreen with a touch, then drive the fs button a few times — exit must stay 0
+  await page.mouse.click(640, 380);
+  await page.waitForTimeout(200);
+  const fb = await page.locator('#fsBtn').boundingBox();
+  if (fb) { for (let i = 0; i < 3; i++) { await page.mouse.click(fb.x + fb.width / 2, fb.y + fb.height / 2); await page.waitForTimeout(150); } }
+  const exits = await fsExit(page);
+  const reqs = await fsCalls(page);
+  ck('pressing the fullscreen button never EXITS fullscreen (enter-only)', exits === 0, `exit=${exits}`);
+  ck('pressing the fullscreen button still requests fullscreen', reqs >= 1, `req=${reqs}`);
+  await page.close();
+}
+
+// ---- 6) the #fsBtn is hidden during active play (it cannot be tapped to leave fullscreen) ----
+{
+  const page = await newPage();
+  await page.goto(URL + '?autostart=1&seed=4243&quality=low', { timeout: 90000, waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => typeof state !== 'undefined' && state === 'play', null, { timeout: 90000 });
+  await page.waitForTimeout(500);
+  const hidden = await page.evaluate(() => { const f = document.getElementById('fsBtn'); return f ? !f.classList.contains('show') : true; });
+  ck('the fullscreen button is hidden during play', hidden === true, `hidden=${hidden}`);
   await page.close();
 }
 

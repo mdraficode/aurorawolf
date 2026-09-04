@@ -4558,6 +4558,7 @@ function setState(s) {
     if (typeof toggleQuestLog === 'function') toggleQuestLog(false);
     if (s === 'pause') { showOverlay('pause'); inputClear(); if (window.CAMP && window.CAMP.onPause) window.CAMP.onPause(); }
   }
+  if (window.__fsBtnSync) window.__fsBtnSync();   // the fs button follows the state instantly (hidden during play)
 }
 /* ---- ALWAYS FULLSCREEN — ANY TOUCH TO THE GAME WINDOW ----
    `enterFullscreen()` requests browser fullscreen (works on desktop *and* touch; the old code bailed
@@ -4777,18 +4778,25 @@ for (const id of ['invBtn', 'questBtn', 'btnAI', 'tPause']) { const b = el(id); 
   };
   const sync = () => {
     const fs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    fb.classList.toggle('show', !fs);
+    // during active play the game is meant to stay fullscreen (any touch re-enters it), so the
+    // fs button is hidden entirely — it can never be tapped to leave fullscreen mid-game.
+    const inPlay = typeof state !== 'undefined' && state === 'play';
+    fb.classList.toggle('show', !fs && !inPlay);
     if (wasFS && !fs) attention();   // just left fullscreen — demand the eyes
     wasFS = fs;
   };
   document.addEventListener('fullscreenchange', sync);
   document.addEventListener('webkitfullscreenchange', sync);
+  window.__fsBtnSync = sync;   // called on every setState so the button hides instantly during play
   let sawPtr = false;
   const go = () => {
+    // FULLSCREEN IS ALWAYS-ON: the game is meant to stay fullscreen the whole time, so the
+    // fs button may only ENTER fullscreen — it never exits it. (Leaving fullscreen is only the
+    // browser's own Escape, or a genuine navigation away; no in-game button drops it.) The exit
+    // branch that used to live here was what took the window out of fullscreen on a press.
     try {
       const cur = document.fullscreenElement || document.webkitFullscreenElement;
-      if (cur) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
-      else { const p = root.requestFullscreen ? root.requestFullscreen() : root.webkitRequestFullscreen(); if (p && p.catch) p.catch(() => { }); }
+      if (!cur) { const p = root.requestFullscreen ? root.requestFullscreen() : root.webkitRequestFullscreen(); if (p && p.catch) p.catch(() => { }); }
     } catch (err) { }
     setTimeout(sync, 50); sync();
   };
@@ -5098,6 +5106,7 @@ function tick() {
         // a fresh start reached play via navigation (?autostart=1) which cleared the click gesture, so
         // the browser refuses an immediate fullscreen; the global pointerdown/keydown listener below
         // completes the swap on the player's FIRST touch or key (browsers never allow it on load).
+        if (window.__fsBtnSync) window.__fsBtnSync();   // hide the fs button the instant play begins
       } else {
         state = 'menu';
         menuReady();

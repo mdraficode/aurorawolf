@@ -387,6 +387,15 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
     human/AI start and pause→resume enters fullscreen. Fresh starts arriving via navigation
     (`?autostart=1`/`?autopilot=1`) clear the gesture, so the first key/tap completes the swap
     (`commits 2114ae1` + `8d83db3`).
+- **Follow-up bug fix — "Start Game closes the Fullscreen; it should stay fullscreen the whole time"**
+  (`commit` this session). Root cause: `newGame()`/`newGameAI()` navigate (`location.href`), and a
+  full page load always exits fullscreen; the `#fsBtn` toggle was the only code that called
+  `exitFullscreen`, so pressing it also dropped the window. Fix: **`#fsBtn` is enter-only** (it can
+  never call `exitFullscreen`) and **hidden during active play** (`sync()` shows it only when
+  `!fullscreen && !inPlay`; called immediately from `setState()` and the autostart→play boot
+  transition). Leaving fullscreen is now only the browser's own Escape or a genuine navigation away.
+  Verified: `test/fullscreen.test.mjs` now asserts (a) entering fullscreen never exits it, (b) it
+  still requests fullscreen, (c) the button is hidden during play — all 7 checks pass.
 - **Repo hygiene (`87e365e`):** removed legacy test-only `tools/chromium-libs/` (12 binary `.so`)
   and `tools/setup_env.sh` — the working bootstrap is `test/browserlab/boot.sh` (Chromium from npm,
   no sudo/system install). Untracked regenerable `shots/forest.jpg`; extended `.gitignore` to
@@ -433,8 +442,9 @@ seed line (extension must be exact zero-pad; verify seed length = NW).
 
 ## 6 · CURRENT STATE (branch = `main`; lineage — GEN 50 is the champion; the Tier-1 trophy is the frontier)
 
-**Repo:** single branch `main` at `87e365e` (HEAD) — all recent session work committed & pushed.
-The AI-watch/pause/fullscreen fixes and the repo cleanup are live on `main`. The next agent should
+**Repo:** single branch `main` at `04c60d4` (HEAD) — all recent session work committed & pushed.
+The AI-watch/pause/fullscreen fixes, the repo cleanup, and the "stay fullscreen the whole time" fix
+(fullscreen button is enter-only + hidden during play) are live on `main`. The next agent should
 work directly on `main` (no feature/session branch).
 
 Lineage (LAW v4): 34 fit 25 SURVIVED(cap) → **35 fit 59 CHAMPION** (died L8 Leopard, 126.6 xp/min)
