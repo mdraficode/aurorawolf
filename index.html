@@ -8361,24 +8361,19 @@ function setState(s) {
     if (s === 'pause') { showOverlay('pause'); inputClear(); if (window.CAMP && window.CAMP.onPause) window.CAMP.onPause(); }
   }
 }
-/* ---- ALWAYS START IN FULLSCREEN (every game / resume) ----
-   Every entry into play — human start, human pause→resume, AI start, AI pause→resume — must take
-   the whole screen. `enterFullscreen()` requests browser fullscreen (works on desktop *and* touch;
-   the old code bailed on desktop via a `body.touch` guard) and, on touch devices, also locks
-   landscape. Fullscreen needs a user gesture, so when a request is made outside one (a fresh start
-   that navigates to a new page) it is rejected and `fsPending` stays set — the very next tap/key
-   then completes the swap. */
-let fsPending = false;
+/* ---- ALWAYS FULLSCREEN — ANY TOUCH TO THE GAME WINDOW ----
+   `enterFullscreen()` requests browser fullscreen (works on desktop *and* touch; the old code bailed
+   on desktop via a `body.touch` guard) and, on touch devices, also locks landscape. Fullscreen needs
+   a user gesture, so every start/resume also arms a one-shot that the first interaction completes.
+   Beyond that, a global listener means ANY tap/click/touch anywhere on the game window — on a game
+   button, on the touch UI, or on empty ground — snaps to fullscreen whenever it isn't already. */
 function enterFullscreen() {
   try {
     const root = document.documentElement;
     const cur = document.fullscreenElement || document.webkitFullscreenElement;
     if ((root.requestFullscreen || root.webkitRequestFullscreen) && !cur) {
       const pr = root.requestFullscreen ? root.requestFullscreen() : root.webkitRequestFullscreen();
-      if (pr && pr.then) { pr.then(() => { fsPending = false; }).catch(() => { fsPending = true; }); }  // no gesture yet — the first tap/key retries
-      else fsPending = false;
-    } else {
-      fsPending = false;   // already fullscreen (or no API) — nothing pending
+      if (pr && pr.then) pr.catch(() => { });   // no gesture yet — listeners below retry on the next interaction
     }
   } catch (e) { }
   // orientation lock matters only on touch/landscape devices (desktop is already wide)
@@ -8387,9 +8382,14 @@ function enterFullscreen() {
       screen.orientation.lock('landscape').catch(() => { });
   } catch (e) { }
 }
-/* if a start attempt couldn't fullscreen (no gesture yet), the first interaction completes it */
-addEventListener('pointerdown', () => { if (fsPending) enterFullscreen(); });
-addEventListener('keydown', () => { if (fsPending) enterFullscreen(); });
+/* ANY touch/press on the whole window enters fullscreen (skip only while typing a wolf's name).
+   Capture phase so it fires even when a game/touch button calls stopPropagation() on its own pointerdown. */
+addEventListener('pointerdown', () => { if (!document.fullscreenElement && !document.webkitFullscreenElement) enterFullscreen(); }, { passive: true, capture: true });
+addEventListener('keydown', e => {
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;   // the name field — don't fullscreen mid-keystroke
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) enterFullscreen();
+});
 function startGame() {
   audio.init(); audio.resume();
   enterFullscreen();
@@ -8897,10 +8897,9 @@ function tick() {
       if (AUTOSTART) {
         state = 'play';
         ui.hud.classList.remove('hidden');
-        // a fresh start reached play via navigation (?autostart=1), which clears the click gesture,
-        // so the browser refuses an immediate fullscreen. Arm the one-shot below: the FIRST tap or
-        // key the player makes completes the fullscreen swap (browsers never allow it on load).
-        fsPending = true;
+        // a fresh start reached play via navigation (?autostart=1) which cleared the click gesture, so
+        // the browser refuses an immediate fullscreen; the global pointerdown/keydown listener below
+        // completes the swap on the player's FIRST touch or key (browsers never allow it on load).
       } else {
         state = 'menu';
         menuReady();
