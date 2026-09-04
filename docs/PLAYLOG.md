@@ -228,3 +228,25 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - fsBtn relocated INTO the info strip: last flex child of #topbar, at the terrain pill's right (gap 8-12px, same band — follows the centered strip at every breakpoint; the old absolute/breakpoint positions deleted). 30px disc now.
 - ATTENTION on exit: leaving fullscreen triggers 3s of glow+blink — JS-driven (setInterval 50ms, ~2Hz opacity blink + 1Hz box-shadow halo, inline styles = env-proof per the M39 transition-stall lesson), then clears to the quiet rest state and STAYS until fullscreen hides it again. No fanfare on first load (wasFS gate).
 - Verified: besideTerrain+sameBand at 900x560/700x500/800x390/680x380, zero overlaps incl. left column, quiet on load; real cycle: enters+hidden, exit blink trace 0.89/0.99/0.73/0.46/0.54/0.88/0.99 then settled ''+shadow cleared+shown. quest 32/32, ai 15/15. Live: byte-verified.
+
+### Mission 43 — home menu + fullscreen polish, and a single-branch repo
+- **Menu rework** (committed `ab8155e`): the two main buttons (`🧭 NEW GAME` / `▶ RESUME GAME`) are now
+  pure **drop-down triggers**, each opening its two choices below it (`▶ Start Game` / `🤖 Watch The
+  Rafzzer the AI Play`; `▶ Resume Last Game` / `🤖 Resume Rafzzer the AI Play`). `newGame()` navigates
+  with `?seed=<new>&autostart=1` so Start Game drops straight into play; the old record/trophies survive.
+- **Removed the redundant side `🧠 Watch Rafzzer the AI Play` button** — it already lives in the NEW GAME /
+  RESUME drop-downs. Autopilot delegation updated (`commit 95f9868`).
+- **Pause = the exact first-load menu**: `showOverlay('pause')` reuses `tplStart` (two cards + drop-downs +
+  side record) instead of a 2-button RESUME / NEW GAME + stats screen; it saves the live run so Resume
+  Last Game continues in place; `tplPause`/`btnResume`/`btnNew`/`pStats` deleted (`commit 95f9868`).
+- **Fullscreen on ANY touch**: a document-level capture-phase `pointerdown` listener requests fullscreen
+  from any tap/click (game button, touch UI, or empty ground), guarded by not-already-fullscreen and
+  skipping only the name field; `startGame()`/`setState('play')` also call it so every human/AI start and
+  pause→resume enters fullscreen. Fresh navigation-starts complete it on the first key/tap
+  (`commits 2114ae1` + `8d83db3`).
+- **Single-branch repo**: the Arena session branch `arena/01a066d5-aurorawolf` (identical to `main`) was
+  deleted remote + local — `git ls-remote origin` → only `main`. Publish = `tools/ship.sh`
+  (build → `git push origin main`). Removed legacy test-only `tools/chromium-libs/` + `tools/setup_env.sh`
+  (bootstrap = `test/browserlab/boot.sh`), untracked regenerable `shots/forest.jpg` (`commit 87e365e`).
+- **New tests**: `test/pause_fullmenu.test.mjs`, `test/fullscreen.test.mjs`. Suites verified green:
+  smoke, menu, pause_fullmenu, fullscreen, landscape, touch, ai (15/15), forest, campaign, hudfit.

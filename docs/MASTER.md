@@ -93,8 +93,8 @@ aurorawolf/
 cd aurorawolf
 python3 build.py                 # rebuild index.html from src/
 # play locally: open index.html, or serve it; live = https://mdraficode.github.io/aurorawolf/
-bash publish.sh github "what changed"   # build + push index.html → Pages (LIVE ~1-2 min)
-# NOTE: the repo now also carries the full source tree — after feature work, commit + git push (see §13)
+bash tools/ship.sh "what changed"   # build + commit + git push origin main → Pages (LIVE ~1 min)
+# NOTE: single-branch `main` (no feature/session branches) — feature work commits straight to main
 ```
 
 ---
@@ -202,7 +202,7 @@ node training/rafzzer_gens.mjs promote 40 --verdict=reject --note="…"   # trai
 # verdicts: --verdict=promote  (gate PASS + fitness > champion fit REQUIRED; writes champion file)
 #           --verdict=reject   (standard)
 # then COMMIT everything (+ update training/m46_session_ledger.md + MASTER.md §10) and:
-git add -A && git commit -m "M46 …" && git push        # or: bash publish.sh github "…" for a live-only bump
+git add -A && git commit -m "M46 …" && git push origin main   # single-branch main — ship.sh does build+commit+push in one
 ```
 
 **Pipeline detail:**
@@ -311,7 +311,8 @@ NEW FINDING (gens 40–49, v6 coach): the line survives long and now reads the c
 ## 11 · Tests & verification
 
 ```bash
-npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium
+npm install                          # repo deps (playwright, express, pngjs) — Playwright browser NOT fetched
+bash test/browserlab/boot.sh         # Chromium 149 + SwiftShader from npm's @sparticuz/chromium (no CDN/apt/sudo)
 node test/side.test.mjs     # 25/25 — side errands: board turn, no-risk templates, XP feed, senses 24/25
 node test/campaign.test.mjs # campaign / trophy / death-rigor / reload
 node test/pack.test.mjs     # bonding / howl / pack combat
@@ -321,7 +322,7 @@ Known flakes/limits: the **collision suite** has a pre-existing load flake (fail
 line, proven against the previous build too); **headless RAF freezes** — the suites drive ticks
 manually (`?autopilot=1&nolearn=1` + `BOT_OFF` + `window.CAMP.tick()`); probes in `test/` are
 research scratch and may be run ad hoc. Playwright browsers & node_modules **do not persist**
-across sandbox snapshots — reinstall per session (above).
+across sandbox snapshots — re-run `bash test/browserlab/boot.sh` per session (above).
 
 ---
 
@@ -330,7 +331,8 @@ across sandbox snapshots — reinstall per session (above).
 ```bash
 git clone https://github.com/mdraficode/aurorawolf.git && cd aurorawolf
 git config user.name "…" && git config user.email "…"        # .git/config is NOT part of the clone backup
-npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium
+npm install                                                  # repo deps — Playwright browser NOT fetched
+bash test/browserlab/boot.sh                                 # Chromium 149 + SwiftShader (npm @sparticuz/chromium)
 python3 build.py                                             # repo index.html is committed, but rebuild to be safe
 node training/rafzzer_gens.mjs status                            # lineage + champion intact?
 git log --oneline -5                                         # should reach the last M46 commit
@@ -347,8 +349,8 @@ Then simply continue at §8 (next gen = 40).
   (On 2026-09-01 the old API-only history was replaced by the full project history via a one-time
   force push; the live `index.html` content is identical — 1 242 826 bytes.)
 - `index.html` at repo root = the live build; Pages redeploys automatically from `main`.
-- `publish.sh github` still works for live-only updates; preferring `git push` keeps the source and
-  the live build in lockstep.
+- **Repo is single-branch `main`** — no `arena/**` or PR branches. Publish: `bash tools/ship.sh "msg"`
+  (build + commit + `git push origin main`), which keeps the source and the live build in lockstep.
 - **Push recipe (workspace resets wipe `git config`, so the remote URL is not stored):**
   ```bash
   cd aurorawolf && git add -A && git commit -m "…"

@@ -35,11 +35,12 @@ and publishes.
 | Live game (GitHub Pages) | https://mdraficode.github.io/aurorawolf/ |
 | Original repo | github.com/mdraficode/aurorawolf (public, branch `main`, Pages = `/` from `main`) |
 | **Duplicate repo (v2)** | github.com/mdraficode/aurorawolf-v2 (exact copy; **RETIRED per user directive 2026-09-01 — never touch or push to it; do NOT sync it**) |
-| Git auth | `~/.ghtoken` — classic PAT, `repo` scope. **NEVER commit it.** Push: `git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git main:main` (remote URL is NOT persisted in backups — re-add each session) |
-| APK | git tag `archive/android-apk` holds the signed APK + WebView wrapper; signing key `~/.revontulet.keystore` (never committed). **APK only on explicit request** |
-| Publish (live-only bump) | `bash publish.sh github "msg"` — builds + pushes index.html via GitHub Contents API (~1–2 min). Prefer full `git push` so source and live build stay in lockstep |
+| Git auth | `~/.ghtoken` — classic PAT, `repo` scope. **NEVER commit it.** Push: `git push origin main` (the remote is configured; if auth prompts, the Arena GitHub connection needs reconnecting — the repo has no other branch) |
+| APK | git tag `archive/android-apk` holds the signed APK + WebView wrapper; signing key `~.revontulet.keystore` (never committed). **APK only on explicit request** |
+| **Branches** | **single branch: `main`** — no `arena/**`, no feature/PR branches. All work commits straight to `main`. `git ls-remote origin` → only `refs/heads/main` |
+| Publish (live-only bump) | `bash tools/ship.sh "msg"` — build + `git push origin main` → GitHub Pages live ~1 min. (Legacy `publish.sh github` now delegates to `ship.sh`; prefer `ship.sh` directly) |
 | Build | `python3 build.py` → index.html from shell.html + style.css + vendor/three.min.js + src/p1..p6 + autopilot.js |
-| Tests | Playwright + headless Chromium (SwiftShader). `npm install` + `npx playwright install chromium` + `sudo -n npx playwright install-deps chromium` per session (deps do NOT persist across snapshots) |
+| Tests | Playwright + headless Chromium (SwiftShader). `npm install` then `bash test/browserlab/boot.sh` (idempotent, Chromium 149 from npm's `@sparticuz/chromium`; no CDN/apt, no sudo). Re-run after each sandbox reset |
 | Current champion | **GEN 50 · fit −55** (v6 basis; old 283/59 scores were wall-inflated) · 336 weights · **TIER 1, 0 trophies — the trophy is the frontier** |
 | Next generation | **GEN 56** (nothing spawned yet; runs on the **v6.8 build** = boss-kit + speedrun fixes, see §4.5d/§4.5e). Trainer order: finish the **human-speedrun session** first — no bot, no brain, reach the Tier-1 trophy and log it in `TRAINING_MANUAL.md`. |
 
@@ -363,6 +364,37 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
   (fm −0.8 → +0.12 wrap; arrive-sprint drains 77→11). Repro + suspects:
   `test/speedrun/HANDOFF_2026-09-03.md`.
 
+### 4.5h Session 2026-09-04 (home menu, fullscreen, repo hygiene — MAIN-ONLY)
+- **User asked to make the repo one clean `main` branch.** The Arena session branch
+  `arena/01a066d5-aurorawolf` was a platform artifact (contents identical to `main`); deleted
+  from the remote and locally. `git ls-remote origin` now shows **only `refs/heads/main`**.
+  Publish path is `tools/ship.sh` (build → `git push origin main`) — no branches, no PRs.
+- **Home menu rework (previous commit `ab8155e`):** the `🧭 NEW GAME` / `▶ RESUME GAME` card
+  buttons became *drop-down triggers* (each opens its two choices below it: `▶ Start Game` /
+  `🤖 Watch The Rafzzer the AI Play`, and `▶ Resume Last Game` / `🤖 Resume Rafzzer the AI Play`);
+  `newGame()` navigates with `?seed=<new>&autostart=1` so Start Game drops straight into play.
+- **Bug fixes shipped:**
+  - **Removed the redundant side `🧠 Watch Rafzzer the AI Play` button** (`#btnMenuAI`) below
+    `🏆 HIGHEST RECORD` — the AI-watch choice already lives inside the NEW GAME / RESUME drop-downs
+    (`#ddNewAI` / `#ddResumeAI`). Autopilot delegation updated accordingly (`commit 95f9868`).
+  - **Pause now shows the exact first-load menu** — `showOverlay('pause')` reuses `tplStart`
+    (two cards + drop-downs + side record) instead of the old 2-button `tplPause`/`RESUME`/`NEW GAME`
+    + `pStats` screen. It saves the live run so "Resume Last Game" continues in place
+    (`commit 95f9868`).
+  - **Fullscreen on ANY touch to the game window** — a document-level *capture-phase* `pointerdown`
+    listener requests fullscreen from any tap/click (game button, touch UI, or empty ground) and
+    only skips while typing a wolf's name; `startGame()`/`setState('play')` also call it, so every
+    human/AI start and pause→resume enters fullscreen. Fresh starts arriving via navigation
+    (`?autostart=1`/`?autopilot=1`) clear the gesture, so the first key/tap completes the swap
+    (`commits 2114ae1` + `8d83db3`).
+- **Repo hygiene (`87e365e`):** removed legacy test-only `tools/chromium-libs/` (12 binary `.so`)
+  and `tools/setup_env.sh` — the working bootstrap is `test/browserlab/boot.sh` (Chromium from npm,
+  no sudo/system install). Untracked regenerable `shots/forest.jpg`; extended `.gitignore` to
+  `shots/*.jpg|jpeg|webp`. Verifiable: build reproduces `index.html` byte-identically; `smoke`,
+  `forest`, `menu`, `landscape`, `touch`, `fullscreen`, `pause_fullmenu`, `ai` suites all pass.
+- **New regression tests:** `test/pause_fullmenu.test.mjs` (menu parity + resume-in-place) and
+  `test/fullscreen.test.mjs` (requestFullscreen spy across all start/resume/touch paths).
+
 ### 4.6 Repository-hygiene decisions (2026-09-01)
 - `training/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.
 - `shots/*.png` and `shots/forest.jpg` are regenerable → gitignored; `shots/README.md` tracked.
@@ -388,7 +420,8 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
    maxLevel, cause, `side` (RUN.side), warns/errs, beats, scars, knobs.
 5. Judge with the LAW (trophies ≫ road ≫ efficiency; deaths pay tier-scaled penalty; side errands
    +25 capped 3). Update `training/m46_session_ledger.md` + MASTER.md §9 + AGENT_BRIEF §3/§6.
-6. Commit everything (collect-at-end) + push + (if game build changed) `publish.sh github`.
+6. Commit everything (collect-at-end) + push to `main` (`git push origin main`), or just run
+   `bash tools/ship.sh "msg"` which builds + commits + pushes in one step (single-branch repo).
 
 **Footguns:** background jobs don't survive turn boundaries (a generation must be run and awaited in
 one session); headless RAF freezes (tests drive `CAMP.tick()` manually); `BOT_OFF=true` still leaves
@@ -398,7 +431,11 @@ seed line (extension must be exact zero-pad; verify seed length = NW).
 
 ---
 
-## 6 · CURRENT STATE (why GEN 40 is next)
+## 6 · CURRENT STATE (branch = `main`; lineage — GEN 50 is the champion; the Tier-1 trophy is the frontier)
+
+**Repo:** single branch `main` at `87e365e` (HEAD) — all recent session work committed & pushed.
+The AI-watch/pause/fullscreen fixes and the repo cleanup are live on `main`. The next agent should
+work directly on `main` (no feature/session branch).
 
 Lineage (LAW v4): 34 fit 25 SURVIVED(cap) → **35 fit 59 CHAMPION** (died L8 Leopard, 126.6 xp/min)
 → 36 fit 19 (first ritual + first Legend fight ~18 s) → 37 fit −43 (rival pack attack in prep) →
@@ -420,11 +457,13 @@ scale). Watch xpRate, avgQuestS, tier clock, RUN.side in each run report.
 ```bash
 git clone https://github.com/mdraficode/aurorawolf.git && cd aurorawolf
 git config user.name "…" && git config user.email "…"        # git config is never in backups
-npm install && npx playwright install chromium && sudo -n npx playwright install-deps chromium
+npm install               # repo deps (playwright, express, pngjs) — Playwright browser NOT fetched
+bash test/browserlab/boot.sh   # Chromium 149 + SwiftShader from npm's @sparticuz/chromium (no CDN/apt/sudo)
 python3 build.py          # committed index.html is already built; rebuild to be certain
+node test/smoke.mjs && node test/menu.test.mjs && node test/fullscreen.test.mjs && node test/pause_fullmenu.test.mjs
 node test/side.test.mjs && node test/campaign.test.mjs && node test/pack.test.mjs
-node training/rafzzer_gens.mjs status   # champion GEN 35 fit 59, lineage to GEN 39
-# push (needs ~/.ghtoken):  git push https://x-access-token:${GH}@github.com/mdraficode/aurorawolf.git main:main
+node training/rafzzer_gens.mjs status   # champion GEN 50 (fit −55), lineage to GEN 55
+# push (single branch):     git push origin main
 ```
 
 **Duplicate-repo check (historical):** at snapshot `aurorawolf-v2` matched `aurorawolf` file-for-file

@@ -24,6 +24,14 @@ node test/speedrun/_aim_fast_probe.mjs            # aim/motor isolation — run 
 
 Boost URL: `index.html?speed=N&rate=R&re=K&autostart=1&quality=low`
 
+> **Starting a run (current menu behaviour):** the home menu's two buttons are *drop-down
+> triggers* — `🧭 NEW GAME ▾` opens `▶ Start Game` / `🤖 Watch The Rafzzer the AI Play`, and
+> `▶ RESUME GAME ▾` opens `▶ Resume Last Game` / `🤖 Resume Rafzzer the AI Play`. Start Game
+> drops into a fresh world at the menu's choice; pressing **P** (or the ⏸ button) pauses to
+> the **same** full home menu, and Resume Last Game continues the live run in place. **Any
+> touch to the game window goes fullscreen** (browser fullscreen needs a gesture, so the very
+> first tap/key after a fresh navigation completes it).
+
 | knob | what it really does | limit |
 |---|---|---|
 | `speed` | sim steps per batch | `RATE` is clamped to **4** in `src/autopilot.js` — asking for more silently gives you 4 |

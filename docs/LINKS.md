@@ -4,7 +4,8 @@
 - **Play:** https://mdraficode.github.io/aurorawolf/
 - **Short alias:** https://spoo.me/playaurorawolf → same place
 - **Repo:** https://github.com/mdraficode/aurorawolf (public)
-- Updating: `bash publish.sh github "what changed"` → pushes index.html → Pages rebuilds (~1–2 min).
+- Updating: `bash tools/ship.sh "what changed"` → build + `git push origin main` → Pages rebuilds (~1 min).
+  The repo is **single-branch `main`** — no feature/session/PR branches; `git ls-remote origin` → only `main`.
 - Token: `~/.ghtoken` (classic PAT, scopes repo+workflow). Revocable at github.com/settings/tokens.
 
 ## 🧊 Frozen permanent snapshots (never change, never die)

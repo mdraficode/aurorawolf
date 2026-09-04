@@ -471,3 +471,48 @@ below another on the single New Game button. The "Resume Game" button does the s
 `src/p4.js` (`wireStartMenu`, `startOrResume`, `resumeAI`, `newGameAI`, `showRecord`, `menuReady`) ·
 `src/p5.js` (`save`/`load`/`restoreBody`/`restoreWolf`/`resume`/`canResume`) · `src/autopilot.js` ·
 `test/menu.test.mjs` (redesigned-menu assertions) · `test/landscape.test.mjs` (start-page layout probes).
+
+# 🎛 Session 2026-09-04 — redundant AI button removed · pause = full start menu · fullscreen on touch · main-only repo
+
+**Requested:** (1) remove the redundant side `🧠 Watch Rafzzer the AI Play` button — it already lives in
+the NEW GAME / RESUME drop-downs; (2) the pause overlay must be **exactly** the same as the first-load
+start page (not a 2-button RESUME / NEW GAME screen); (3) the game should start fullscreen on human/AI
+start and every pause→resume; (4) **any touch** to the game window triggers fullscreen; (5) the repo
+should be one clean `main` branch.
+
+## What changed
+- **Removed the redundant side AI button** — `#btnMenuAI` deleted from `tplStart`; the delegated
+  `btnMenuAI` handler removed from `src/autopilot.js`. The AI watch entry is now ONLY the drop-down
+  choices `#ddNewAI` (NEW GAME) / `#ddResumeAI` (RESUME) plus the in-game corner `#btnAI`.
+- **Pause shows the full first-load menu** — `showOverlay('pause')` reuses `tplStart` (two cards +
+  drop-downs + side record), sets the start layout (`data-mode='start'`), saves the live run (so
+  Resume Last Game continues in place), and calls `menuReady()`. Deleted `tplPause`, `btnResume`,
+  `btnNew`, `pStats`.
+- **Fullscreen on every start/resume** — `startGame()` and `setState('play')` call
+  `enterFullscreen()` (replaces the old touch-only `enterLandscape()`); on touch devices it also
+  locks landscape.
+- **Fullscreen on ANY touch** — a document-level **capture-phase** `pointerdown` listener requests
+  fullscreen from any tap/click (a game button, the touch UI, or empty ground), guarded by
+  `not already fullscreen`, and skips only while typing a wolf's name. Fresh starts that arrive via
+  navigation (`?autostart=1` / `?autopilot=1`) clear the click gesture so the browser refuses an
+  immediate request — the first key/tap completes the swap. Removed the now-redundant `fsPending`
+  one-shot.
+- **Main-only repo** — deleted the `arena/01a066d5-aurorawolf` branch (remote + local), removed
+  legacy test-only `tools/chromium-libs/` + `tools/setup_env.sh` (bootstrap is
+  `test/browserlab/boot.sh`), untracked regenerable `shots/forest.jpg` and expanded `.gitignore`.
+
+## Tests
+- `test/pause_fullmenu.test.mjs` — redundant side AI button gone; pause = full home menu; resume
+  continues the live run (same distance, no fresh spawn).
+- `test/fullscreen.test.mjs` — requestFullscreen spy: human pause→resume requests it; fresh human +
+  AI starts fullscreen on any touch; touching a touch-UI button requests it (capture phase beats
+  `stopPropagation`).
+- Updated `test/menu.test.mjs` (no `#btnMenuAI`), `test/landscape.test.mjs` (desktop requests
+  fullscreen), `test/menu_trophy_ai.mjs` + `test/ai.test.mjs` (AI via `#btnNewGame` → `#ddNewAI`),
+  `test/smoke.mjs` (`#ddNewStart` navigates → `noWaitAfter` + `waitForURL`), `test/touch.test.mjs`
+  (pause menu is full home menu).
+
+## Files
+`src/shell.html` (removed `btnMenuAI` + `tplPause`) · `src/p4.js` (`showOverlay`, `enterFullscreen`,
+capture listener, boot AUTOSTART) · `src/autopilot.js` (delegation) · `.gitignore` · docs ·
+`test/pause_fullmenu.test.mjs` · `test/fullscreen.test.mjs`.
