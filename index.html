@@ -2619,7 +2619,7 @@ class RivalWolf {
   }
   die(silent) {
     this.dead = true;
-    if (!silent) pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
+    if (!silent) { if (typeof bloodBurst === 'function') bloodBurst(this.pos, 16, 1); }   // liquid blood, no cloud
     scene.remove(this.model);
     if (silent) {   // a packmate falls to the wild — no loot, no XP, and its quest toil is lost
       if (typeof updateInv === 'function') updateInv();
@@ -3166,7 +3166,6 @@ const AnimalCombat = {
     const d = a.pos.distanceTo(wolf.pos);
     if (d < 2.4 + a.sp.scale * 0.6) {
       wolfTakeDamage(a.sp.charge, a.pos, a.sp.label, '🦌');
-      pool.burst(a.pos, 10, 0xffb090, 1.2, 2.2, 2.4);
       a.startFlee(wolf.pos);
       return;
     }
@@ -3406,7 +3405,7 @@ class Animal {
   dieSilently() {           // taken by a wild predator — no loot, herd panics
     if (this.dead) return;
     this.dead = true; animalTotal--;
-    pool.burst(this.pos, 18, 0xd84a3a, 1.5, 2.6, 3);
+    if (typeof bloodBurst === 'function') bloodBurst(this.pos, 12, 1);   // liquid blood, no cloud
     if (this.herd) for (const m of this.herd.members) if (!m.dead) m.startFlee(this.pos);
     scene.remove(this.model);
   }
@@ -3594,7 +3593,7 @@ class Animal {
     this.dead = true;
     audio.cry(1 / Math.max(0.6, (this.sp.scale || 1) * 0.9));
     animalTotal--;
-    pool.burst(this.pos, 26, 0xffe0a8, 1.8, 3.4, 3.6);
+    if (typeof bloodBurst === 'function') bloodBurst(this.pos, 14, 1);   // liquid blood, no cloud
     AnimalLoot.grant(this);
     if (typeof questEvent === 'function') questEvent('kill', { species: this.name, pos: { x: this.pos.x, z: this.pos.z } });
     if (typeof addXp === 'function') addXp(this.sp.hp >= 4 ? 12 : 6);   // bigger prey, bigger tale
@@ -3688,7 +3687,7 @@ class Predator {
     this.dead = true;
     this.threatening = false;
     predatorTotal--;
-    pool.burst(this.pos, 34, 0xffd9a8, 2.2, 4.0, 4.2);
+    if (typeof bloodBurst === 'function') bloodBurst(this.pos, 16, 1);   // liquid blood, no cloud
     audio.cry(0.55);
     if (typeof questEvent === 'function') questEvent('kill', { species: 'predator', pos: { x: this.pos.x, z: this.pos.z }, level: this.level });
     if (typeof addXp === 'function') addXp(this.xpBounty || 20);
@@ -3928,8 +3927,7 @@ class SkyEagle {
     if (this.dead) return;
     this.dead = true; this.threatening = false;
     eagleTotal--;
-    pool.burst(this.pos, 30, 0xffd9a8, 2.2, 4.0, 4.2);
-    pool.burst(this.pos, 16, 0xc21018, 1.4, 2.4, 3.0);
+    if (typeof bloodBurst === 'function') bloodBurst(this.pos, 16, 1);   // liquid blood, no cloud
     audio.cry(0.5);
     if (typeof questEvent === 'function') questEvent('kill', { species: 'predator', pos: { x: this.pos.x, z: this.pos.z }, level: this.level });
     if (typeof addXp === 'function') addXp(this.xpBounty || 20);
@@ -4825,7 +4823,6 @@ function updateSensesTick() {       // slow tick: the world leaves its marks
       if (a.injured) {
         SENSE.scents.push({ x: a.pos.x, z: a.pos.z, k: 'blood', t: tSec });
         if (SENSE.scents.length > 160) SENSE.scents.shift();
-        if (d < 60 && Math.random() < 0.5) pool.burst(V3(a.pos.x, a.pos.y + 0.3, a.pos.z), 1, 0x8f1414, 0.5, 0.9, 1.2);
       }
       // hearing: the closest thing that moves
       if (moved > 0.4 && d < hearD) { hearD = d; hear = a; }
@@ -4918,10 +4915,11 @@ function updateSense(dt) {
         pool.burst(V3(p.x, p.y + 0.5, p.z), 1, PICKUP_DEF[p.type].color, 0.3, 0.8, 0.5);
     }
     for (const a of ch.animals) {
-      if (!a.dead && a.pos.distanceTo(wolf.pos) < 40) pool.burst(a.pos, 2, 0xff6a4a, 0.8, 1.2, 0.6);
+      // a nearby animal is revealed by the scent cloud (ground level) — no glowing
+      // body burst. The old additive burst at a.pos read as a cloud around the animal.
     }
     for (const pr of ch.predators) {
-      if (!pr.dead && pr.pos.distanceTo(wolf.pos) < 46) pool.burst(pr.pos, 3, 0xff2020, 1.0, 1.4, 0.7);
+      // likewise revealed by the scent cloud at ground level, never a body glow.
     }
   }
 }

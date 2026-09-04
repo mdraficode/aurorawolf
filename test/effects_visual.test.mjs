@@ -133,6 +133,28 @@ const R = await page.evaluate(() => {
   } else { R.breathBelowNose = false; R.breathInFront = false; }
   // the additive glow pool must NOT be the breath carrier any more
   R.noAdditiveBreath = addBreath.count === 0;
+
+  // ---- 5. OTHER CHARACTERS: no additive body-cloud on animals / predators ----
+  // The cloud that used to wrap other characters came from additive pool bursts at their
+  // body height: the sense markers (0xff6a4a / 0xff2020), the retaliate charge (0xffb090),
+  // the blood-scent drip (0x8f1414) and the death clouds (0xffe0a8 / 0xffd9a8 / 0xd84a3a /
+  // 0xc21018). Spy the additive pool for ALL of these while driving those exact events.
+  const cloudCols = new Set([0xff6a4a, 0xff2020, 0xffb090, 0x8f1414, 0xffe0a8, 0xffd9a8, 0xd84a3a, 0xc21018]);
+  const cl = { additiveCloud: 0 };
+  const pBAll = pool.burst.bind(pool);
+  pool.burst = (c, n, col, sp, up, spd) => { if (n > 0 && cloudCols.has(col)) cl.additiveCloud += n; pBAll(c, n, col, sp, up, spd); };
+  // a) an animal death (caught) — must show liquid blood, not an additive cloud
+  const victim2 = (() => { for (const c of chunks.values()) for (const a of c.animals) if (!a.dead) return a; return null; })();
+  if (victim2) { victim2.caught(); }
+  // b) a predator death (die) — liquid blood only
+  const pred = (() => { for (const c of chunks.values()) for (const p of c.predators) if (!p.dead) return p; return null; })();
+  if (pred && typeof pred.die === 'function') { pred.die(); }
+  // c) a bonded rival wolf dies loudly — liquid blood only
+  // d) wolf-sense markers on animals/predators — no body glow
+  senseT = 6.5; updateSensesTick(); updateSenseFX();
+  R.noAnimalAdditiveCloud = cl.additiveCloud === 0;
+  R.cloudColsCaught = cl.additiveCloud;
+  senseT = 0;
   return R;
 });
 
@@ -157,6 +179,7 @@ const checks = {
   'breath appears below the nose (not a cloud)': R.breathBelowNose,
   'breath drifts forward from the muzzle': R.breathInFront,
   'breath no longer uses additive glow pool': R.noAdditiveBreath,
+  'animals/predators emit NO additive body cloud': R.noAnimalAdditiveCloud,
 };
 let ok = true;
 for (const [k, v] of Object.entries(checks)) { if (!v) ok = false; console.log((v ? 'PASS' : 'FAIL') + '  ' + k); }

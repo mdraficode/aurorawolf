@@ -966,7 +966,7 @@ class RivalWolf {
   }
   die(silent) {
     this.dead = true;
-    if (!silent) pool.burst(this.pos, 22, 0xffe0a8, 1.6, 3.0, 3.2);
+    if (!silent) { if (typeof bloodBurst === 'function') bloodBurst(this.pos, 16, 1); }   // liquid blood, no cloud
     scene.remove(this.model);
     if (silent) {   // a packmate falls to the wild — no loot, no XP, and its quest toil is lost
       if (typeof updateInv === 'function') updateInv();
@@ -1513,7 +1513,6 @@ const AnimalCombat = {
     const d = a.pos.distanceTo(wolf.pos);
     if (d < 2.4 + a.sp.scale * 0.6) {
       wolfTakeDamage(a.sp.charge, a.pos, a.sp.label, '🦌');
-      pool.burst(a.pos, 10, 0xffb090, 1.2, 2.2, 2.4);
       a.startFlee(wolf.pos);
       return;
     }
@@ -1753,7 +1752,7 @@ class Animal {
   dieSilently() {           // taken by a wild predator — no loot, herd panics
     if (this.dead) return;
     this.dead = true; animalTotal--;
-    pool.burst(this.pos, 18, 0xd84a3a, 1.5, 2.6, 3);
+    if (typeof bloodBurst === 'function') bloodBurst(this.pos, 12, 1);   // liquid blood, no cloud
     if (this.herd) for (const m of this.herd.members) if (!m.dead) m.startFlee(this.pos);
     scene.remove(this.model);
   }
@@ -1941,7 +1940,7 @@ class Animal {
     this.dead = true;
     audio.cry(1 / Math.max(0.6, (this.sp.scale || 1) * 0.9));
     animalTotal--;
-    pool.burst(this.pos, 26, 0xffe0a8, 1.8, 3.4, 3.6);
+    if (typeof bloodBurst === 'function') bloodBurst(this.pos, 14, 1);   // liquid blood, no cloud
     AnimalLoot.grant(this);
     if (typeof questEvent === 'function') questEvent('kill', { species: this.name, pos: { x: this.pos.x, z: this.pos.z } });
     if (typeof addXp === 'function') addXp(this.sp.hp >= 4 ? 12 : 6);   // bigger prey, bigger tale
@@ -2035,7 +2034,7 @@ class Predator {
     this.dead = true;
     this.threatening = false;
     predatorTotal--;
-    pool.burst(this.pos, 34, 0xffd9a8, 2.2, 4.0, 4.2);
+    if (typeof bloodBurst === 'function') bloodBurst(this.pos, 16, 1);   // liquid blood, no cloud
     audio.cry(0.55);
     if (typeof questEvent === 'function') questEvent('kill', { species: 'predator', pos: { x: this.pos.x, z: this.pos.z }, level: this.level });
     if (typeof addXp === 'function') addXp(this.xpBounty || 20);
@@ -2275,8 +2274,7 @@ class SkyEagle {
     if (this.dead) return;
     this.dead = true; this.threatening = false;
     eagleTotal--;
-    pool.burst(this.pos, 30, 0xffd9a8, 2.2, 4.0, 4.2);
-    pool.burst(this.pos, 16, 0xc21018, 1.4, 2.4, 3.0);
+    if (typeof bloodBurst === 'function') bloodBurst(this.pos, 16, 1);   // liquid blood, no cloud
     audio.cry(0.5);
     if (typeof questEvent === 'function') questEvent('kill', { species: 'predator', pos: { x: this.pos.x, z: this.pos.z }, level: this.level });
     if (typeof addXp === 'function') addXp(this.xpBounty || 20);

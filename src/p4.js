@@ -769,7 +769,6 @@ function updateSensesTick() {       // slow tick: the world leaves its marks
       if (a.injured) {
         SENSE.scents.push({ x: a.pos.x, z: a.pos.z, k: 'blood', t: tSec });
         if (SENSE.scents.length > 160) SENSE.scents.shift();
-        if (d < 60 && Math.random() < 0.5) pool.burst(V3(a.pos.x, a.pos.y + 0.3, a.pos.z), 1, 0x8f1414, 0.5, 0.9, 1.2);
       }
       // hearing: the closest thing that moves
       if (moved > 0.4 && d < hearD) { hearD = d; hear = a; }
@@ -862,10 +861,11 @@ function updateSense(dt) {
         pool.burst(V3(p.x, p.y + 0.5, p.z), 1, PICKUP_DEF[p.type].color, 0.3, 0.8, 0.5);
     }
     for (const a of ch.animals) {
-      if (!a.dead && a.pos.distanceTo(wolf.pos) < 40) pool.burst(a.pos, 2, 0xff6a4a, 0.8, 1.2, 0.6);
+      // a nearby animal is revealed by the scent cloud (ground level) — no glowing
+      // body burst. The old additive burst at a.pos read as a cloud around the animal.
     }
     for (const pr of ch.predators) {
-      if (!pr.dead && pr.pos.distanceTo(wolf.pos) < 46) pool.burst(pr.pos, 3, 0xff2020, 1.0, 1.4, 0.7);
+      // likewise revealed by the scent cloud at ground level, never a body glow.
     }
   }
 }
