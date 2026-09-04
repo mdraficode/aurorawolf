@@ -659,7 +659,9 @@ class Wolf {
       }
     } else this._wkt = 0;
 
-    const ground = groundAt(this.pos.x, this.pos.z);
+    let ground = groundAt(this.pos.x, this.pos.z);
+    const stTop = standTopAt(this.pos.x, this.pos.z, this.pos.y);
+    if (stTop > ground) ground = stTop;   // a log / boulder / stump top gives footing once the wolf is on/above it
     const wy = groundWaterY();
     this.swimming = wy > -500 && ground < wy - 0.85 && this.pos.y <= wy + 0.1;
     if (input.jump && this.grounded && !this.swimming) {

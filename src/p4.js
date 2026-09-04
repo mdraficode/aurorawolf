@@ -533,17 +533,32 @@ function genChunk(cx, cz) {
 
   /* ---- instantiate: full meshes near, impostors far ---- */
   chunk.vegItems = { trees: treeSets };
+  // big trunks & landmark stone stay as solid walls (no top) — the wolf can never land on a live tree
   for (const k in treeSets) {
     const br = SOLID_TRUNK_R[k]; if (!br) continue;
     for (const t of treeSets[k]) chunk.solids.push({ x: t.x, z: t.z, r: br * (t.sx || 1) });
   }
-  for (const rk of rocks) if (rk.s >= 1.0) chunk.solids.push({ x: rk.x, z: rk.z, r: 0.8 * rk.s });
+  // boulders: a low one is a hop-up that you can stand on; a tall one is still a wall
+  for (const rk of rocks) if (rk.s >= 1.0) {
+    const so = { x: rk.x, z: rk.z, r: 0.8 * rk.s };
+    const top = heightAt(rk.x, rk.z) + 1.0 * rk.s;
+    if (top - heightAt(rk.x, rk.z) <= JUMPABLE_TOP) so.top = top;
+    chunk.solids.push(so);
+  }
   for (const t of (treeSets.fallenTree || [])) {   // a log is a wall of circles laid end to end
     const L = 8.5 * (t.s || 1), r = 0.5 * (t.s || 1);
     const ax = Math.sin(t.ry || 0), az = Math.cos(t.ry || 0);
-    for (let k = -2; k <= 2; k++) chunk.solids.push({ x: t.x + ax * k * L * 0.19, z: t.z + az * k * L * 0.19, r });
+    for (let k = -2; k <= 2; k++) {
+      const xx = t.x + ax * k * L * 0.19, zz = t.z + az * k * L * 0.19;
+      chunk.solids.push({ x: xx, z: zz, r, top: heightAt(xx, zz) + 0.62 * (t.s || 1) });
+    }
   }
-  for (const t of (treeSets.stump || [])) chunk.solids.push({ x: t.x, z: t.z, r: 0.52 * (t.s || 1) });
+  for (const t of (treeSets.stump || [])) {
+    const so = { x: t.x, z: t.z, r: 0.52 * (t.s || 1) };
+    const top = heightAt(t.x, t.z) + 0.95 * (t.s || 1);
+    if (top - heightAt(t.x, t.z) <= JUMPABLE_TOP) so.top = top;
+    chunk.solids.push(so);
+  }
   chunk.floorItems = { grass, bushes, ferns, leafPatches, branches, flowers, glowFlowers };
   const dC0 = Math.hypot(cx * CHUNK + 32 - wolf.pos.x, cz * CHUNK + 32 - wolf.pos.z);
   buildChunkVeg(chunk, dC0 > 124);
@@ -1375,6 +1390,26 @@ const caveState = {
   reentryCd: 0, dripT: 2, discovered: false
 };
 function groundAt(x, z) { return caveState.in ? caveFloorAt(x, z) : heightAt(x, z); }
+/* Highest standable obstacle top under the wolf's feet (world Y), if the wolf is at/above it.
+   Only counts solids that carry a `top` (jumpable logs, low boulders, stumps); trunks & tall
+   rocks have no `top` and never give footing. Returns -Infinity when standing over plain ground. */
+function standTopAt(x, z, feetY) {
+  const c0x = Math.floor(x / CHUNK), c0z = Math.floor(z / CHUNK);
+  let best = -Infinity;
+  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+    const ch = chunks.get(ck(c0x + a, c0z + b));
+    if (!ch || !ch.solids) continue;
+    for (const so of ch.solids) {
+      if (so.top === undefined) continue;
+      const ddx = x - so.x, ddz = z - so.z;
+      const rr = so.r + WOLF_BODY_R;
+      if (ddx > rr || ddx < -rr || ddz > rr || ddz < -rr) continue;
+      if (ddx * ddx + ddz * ddz > rr * rr) continue;
+      if (so.top <= feetY + 0.05 && so.top > best) best = so.top;
+    }
+  }
+  return best;
+}
 /* ---- solids: big trunks & boulders block the wolf — the world has edges you can run into ---- */
 const SOLID_TRUNK_R = {   // base trunk (bottom) radius per species, × instance sx
   spruce: 0.18, snowSpruce: 0.18, pine: 0.2, birch: 0.12, autumnBirch: 0.12, rowan: 0.11,
@@ -1382,6 +1417,7 @@ const SOLID_TRUNK_R = {   // base trunk (bottom) radius per species, × instance
   fir: 0.2, deadPine: 0.4
 };
 const WOLF_BODY_R = 0.55;
+const JUMPABLE_TOP = 1.35;   // max standable obstacle height (terrain → top); taller rocks/trunks stay solid walls
 function collideSolids(w, dx, dz) {
   if (w.flyT > 0) return;                    // magic flight passes the trunks
   const worst = pushOutSolids(w, dx, dz);
@@ -1421,6 +1457,7 @@ function pushOutSolids(o, dx, dz) {          // circles push a body out; returns
       const ch = chunks.get(ck(c0x + a, c0z + b));
       if (!ch || !ch.solids) continue;
       for (const so of ch.solids) {
+        if (so.top !== undefined && o.pos.y >= so.top - 0.05) continue;   // airborne/above it — let the wolf clear it & drop onto it
         const ddx = o.pos.x - so.x; if (ddx > 3.2 || ddx < -3.2) continue;
         const ddz = o.pos.z - so.z; if (ddz > 3.2 || ddz < -3.2) continue;
         const rr = so.r + R, d2 = ddx * ddx + ddz * ddz;
