@@ -21,20 +21,45 @@ try {
       }
       return arr;
     };
-    // ---- find a real tree trunk near spawn ----
-    let tree = null;
+    // helpers shared by every lane below
+    const solidsAround = (x, z) => {
+      const c0x = Math.floor(x / CHUNK), c0z = Math.floor(z / CHUNK), arr = [];
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const ch = chunks.get(ck(c0x + a, c0z + b)); if (ch && ch.solids) arr.push(...ch.solids); }
+      return arr;
+    };
+    const laneClear = (x0, z0, x1, z1, except = []) => {   // no other solid and no water along a run-up
+      for (let i = 0; i <= 16; i++) {
+        const px = x0 + (x1 - x0) * i / 16, pz = z0 + (z1 - z0) * i / 16;
+        if (heightAt(px, pz) < waterYNow() + 0.6) return false;
+        for (const so of solidsAround(px, pz)) if (!except.includes(so) && Math.hypot(px - so.x, pz - so.z) < so.r + 0.55 + 0.8) return false;
+      }
+      return true;
+    };
+    const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [Math.SQRT1_2, Math.SQRT1_2], [-Math.SQRT1_2, Math.SQRT1_2], [Math.SQRT1_2, -Math.SQRT1_2], [-Math.SQRT1_2, -Math.SQRT1_2]];
+    const ground = (px, pz) => { wolf.pos.x = px; wolf.pos.z = pz; wolf.pos.y = heightAt(px, pz); wolf.vy = 0; wolf.grounded = true; wolf.speed = 0; };
+    // ---- find a real tree trunk near spawn: a full-height wall (no standable top — logs, stumps and
+    //      low boulders are hop-ups since a57eb5a) with a CLEAR 9 m run-up from some direction. Picked
+    //      deterministically (nearest first, fixed direction order) — the old random pick could land on
+    //      a trunk whose lane held another solid or water, so the wolf never arrived at sprint speed. ----
+    let tree = null, tu = null;
     for (let i = 0; i < 60 && !tree; i++) {
-      const cands = solidsNear().filter(s => Math.hypot(s.x - wolf.pos.x, s.z - wolf.pos.z) < 60);
-      if (cands.length) tree = cands[(Math.random() * cands.length) | 0];
-      else { wolf.pos.x += 90; wolf.pos.z += 60; for (let k = 0; k < 10; k++) tick(); }   // hop WITH the streamer
+      const cands = solidsNear().filter(s => s.top === undefined && s.r <= 0.6 && Math.hypot(s.x - wolf.pos.x, s.z - wolf.pos.z) < 60)
+        .sort((a, b) => Math.hypot(a.x - wolf.pos.x, a.z - wolf.pos.z) - Math.hypot(b.x - wolf.pos.x, b.z - wolf.pos.z));
+      for (const c of cands) {
+        for (const [ux, uz] of DIRS) {
+          if (laneClear(c.x - ux * 10.5, c.z - uz * 10.5, c.x - ux * 1.6, c.z - uz * 1.6, [c])) { tree = c; tu = [ux, uz]; break; }
+        }
+        if (tree) break;
+      }
+      if (!tree) { wolf.pos.x += 90; wolf.pos.z += 60; for (let k = 0; k < 10; k++) tick(); }   // hop WITH the streamer
     }
     out.hasTree = !!tree;
     const minDist = (s) => Math.hypot(wolf.pos.x - s.x, wolf.pos.z - s.z) - s.r - 0.55;
     if (tree) {
+      const [ux, uz] = tu, px = uz, pz = -ux;   // u = approach direction, p = its right-hand perpendicular
       // ---- sprint head-on into the trunk ----
       wolf.hp = 100; wolf.impactCd = 0; wolf.stamina = 100;
-      const d0 = Math.hypot(tree.x - wolf.pos.x, tree.z - wolf.pos.z);
-      wolf.pos.x = tree.x - (d0 < 8 ? 8 : d0) ; wolf.pos.z = tree.z; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
+      ground(tree.x - ux * 8, tree.z - uz * 8);
       const yaw = Math.atan2(tree.x - wolf.pos.x, tree.z - wolf.pos.z);
       let maxPen = 0, hit = false, minSpdAfterHit = 99;
       for (let i = 0; i < 240; i++) {
@@ -50,24 +75,35 @@ try {
       out.sprintStumble = minSpdAfterHit < 5;   // speed dips hard at the moment of impact
       // ---- walk into the same trunk: blocked, but no blood ----
       wolf.hp = 100; wolf.impactCd = 0;
-      wolf.pos.x = tree.x - 8; wolf.pos.z = tree.z; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
+      ground(tree.x - ux * 8, tree.z - uz * 8);
       for (let i = 0; i < 200; i++) wolf.update(1 / 30, IN(0), yaw, 0.3);
       out.walkBlocked = minDist(tree) > -0.06;
       out.walkHp = wolf.hp;
-      // ---- slide past at a glancing angle ----
+      // ---- slide past at a glancing angle: same lane, offset 0.35 m so the trunk is brushed, not butted ----
       wolf.hp = 100; wolf.impactCd = 0;
-      wolf.pos.x = tree.x - 7; wolf.pos.z = tree.z - 7; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
-      const yaw45 = Math.atan2(1, 1);   // heading NE, trunk passed on the right
-      for (let i = 0; i < 200; i++) { wolf.update(1 / 30, IN(0), yaw45, 0.3); if (wolf.stamina <= 0) wolf.stamina = 100; }
-      out.slideProgress = wolf.pos.x - (tree.x - 7);
+      const s0x = tree.x - ux * 7 + px * 0.35, s0z = tree.z - uz * 7 + pz * 0.35;
+      ground(s0x, s0z);
+      const yawG = Math.atan2(ux, uz);   // heading straight down the lane; the trunk sits 0.35 m off the line
+      for (let i = 0; i < 200; i++) { wolf.update(1 / 30, IN(0), yawG, 0.3); if (wolf.stamina <= 0) wolf.stamina = 100; }
+      out.slideProgress = (wolf.pos.x - s0x) * ux + (wolf.pos.z - s0z) * uz;   // metres made along the lane
       out.slideHp = wolf.hp;
     }
     // ---- synthetic boulder: clean numbers ----
+    // The boulder goes on a LANE that holds nothing else: no trunk/stump/log inside the run-up and no
+    // water under it, so the wolf really arrives at the stone (a trunk in the lane used to stop the
+    // wolf 5 m short and fail the "reached the wall" half of the check — the old load flake).
     const chere = chunks.get(ck(Math.floor(wolf.pos.x / CHUNK), Math.floor(wolf.pos.z / CHUNK)));
-    const rock = { x: wolf.pos.x + 60, z: wolf.pos.z, r: 1.2 };
-    chere.solids.push(rock);
+    let rock = null;
+    for (const [dx, dz] of [[60, 0], [-60, 0], [0, 60], [0, -60], [42, 42], [-42, 42], [42, -42], [-42, -42], [30, 0], [-30, 0], [0, 30], [0, -30]]) {
+      const rx = wolf.pos.x + dx, rz = wolf.pos.z + dz, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L;
+      if (!chunks.get(ck(Math.floor(rx / CHUNK), Math.floor(rz / CHUNK)))) continue;
+      if (laneClear(rx - ux * 9.5, rz - uz * 9.5, rx + ux * 1.5, rz + uz * 1.5)) { rock = { x: rx, z: rz, r: 1.2 }; rock.ux = ux; rock.uz = uz; break; }
+    }
+    if (!rock) { rock = { x: wolf.pos.x + 60, z: wolf.pos.z, r: 1.2 }; rock.ux = 1; rock.uz = 0; out.rockLaneFallback = true; }
+    const chRock = chunks.get(ck(Math.floor(rock.x / CHUNK), Math.floor(rock.z / CHUNK))) || chere;
+    chRock.solids.push(rock);
     wolf.hp = 100; wolf.impactCd = 0; wolf.stamina = 100;
-    wolf.pos.x = rock.x - 8; wolf.pos.z = rock.z; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
+    wolf.pos.x = rock.x - rock.ux * 8; wolf.pos.z = rock.z - rock.uz * 8; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
     const yr = Math.atan2(rock.x - wolf.pos.x, rock.z - wolf.pos.z);
     for (let i = 0; i < 240; i++) { wolf.update(1 / 30, IN(1), yr, 0.3); if (wolf.stamina <= 0) wolf.stamina = 100; }
     const rockGap = Math.hypot(wolf.pos.x - rock.x, wolf.pos.z - rock.z) - rock.r - 0.55;
@@ -75,12 +111,12 @@ try {
     out.rockHp = wolf.hp;
     // walking: no damage even head-on
     wolf.hp = 100; wolf.impactCd = 0;
-    wolf.pos.x = rock.x - 6; wolf.pos.z = rock.z;
+    wolf.pos.x = rock.x - rock.ux * 6; wolf.pos.z = rock.z - rock.uz * 6; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z);
     for (let i = 0; i < 160; i++) wolf.update(1 / 30, IN(0), yr, 0.3);
     out.rockWalkHp = wolf.hp;
     const rockWalkGap = Math.hypot(wolf.pos.x - rock.x, wolf.pos.z - rock.z) - rock.r - 0.55;
     out.rockWalkBlocked = rockWalkGap > -0.1 && rockWalkGap < 2.2;
-    chere.solids.pop();
+    chRock.solids.pop();
     // ---- underground: surface solids don't apply; cave stalagmites do ----
     const lm = { type: 'cave', x: wolf.pos.x + 30, z: wolf.pos.z, model: null, ember: null, mist: null, found: true, tier: 'common', label: 'Cave Mouth' };
     // place a surface boulder right on the cave path — underground it must be ignored
@@ -115,32 +151,67 @@ try {
     }
     out.hasLog = !!log;
     if (log) {
-      const ax = Math.sin(log.ry || 0), az = Math.cos(log.ry || 0);
-      const rLog = 0.5 * (log.s || 1);
-      const segDist = (px, pz) => {   // distance to the log's line segment
-        const t2 = Math.max(-1, Math.min(1, ((px - log.x) * ax + (pz - log.z) * az) / (4.25 * (log.s || 1))));
-        return Math.hypot(px - (log.x + ax * t2 * 4.25 * (log.s || 1)), pz - (log.z + az * t2 * 4.25 * (log.s || 1)));
+      const s = log.s || 1, ax = Math.sin(log.ry || 0), az = Math.cos(log.ry || 0);
+      const rLog = 0.5 * s;
+      const segDist = (px, pz) => {   // distance to the log's axis segment (the mesh, ±4.25·s)
+        const t2 = Math.max(-1, Math.min(1, ((px - log.x) * ax + (pz - log.z) * az) / (4.25 * s)));
+        return Math.hypot(px - (log.x + ax * t2 * 4.25 * s), pz - (log.z + az * t2 * 4.25 * s));
       };
-      // sprint straight at the log's middle, perpendicular
+      // The game's collision model for a log is FIVE circles laid along its axis (genChunk), spaced
+      // 1.6·s apart with blocking radius 0.5·s + 0.55 — they overlap, so there is no gap, but a body
+      // pressed between two of them settles into a NOTCH up to ~0.5 m deeper than an ideal capsule.
+      // Measure what the game guarantees: never inside a circle, never across the axis.
+      const circles = logChunk.solids.filter(so => Math.abs(so.r - rLog) < 1e-6 && segDist(so.x, so.z) < 0.02);
+      out.logCircles = circles.length;
+      if (!circles.length) { const L = 8.5 * s; for (let k = -2; k <= 2; k++) circles.push({ x: log.x + ax * k * L * 0.19, z: log.z + az * k * L * 0.19, r: rLog }); }
+      const circleGap = (px, pz) => Math.min(...circles.map(c => Math.hypot(px - c.x, pz - c.z) - rLog - 0.55));
+      const nearestCircle = (px, pz) => circles.reduce((b, c) => (Math.hypot(px - c.x, pz - c.z) < Math.hypot(px - b.x, pz - b.z) ? c : b), circles[0]);
+      const sideOf = (px, pz) => (-(px - log.x) * az + (pz - log.z) * ax) >= 0 ? 1 : -1;
+      // A log is a jumpable/standable obstacle: a wolf whose FEET are already at/above the bark steps
+      // onto it (a57eb5a). So approach on the ground, from the side whose ground is below the bark.
+      const contactGround = (side) => heightAt(log.x - az * 1.05 * side, log.z + ax * 1.05 * side);
+      const mid = nearestCircle(log.x, log.z);
+      const midTop = mid.top !== undefined ? mid.top : heightAt(mid.x, mid.z) + 0.62 * s;
+      const side = contactGround(1) <= contactGround(-1) ? 1 : -1;
+      out.logBelowBark = contactGround(side) < midTop - 0.05;
+      // sprint straight at the log's middle, perpendicular, from 9 m out — grounded, not dropped from the air
+      const sx = log.x - az * 9 * side, sz = log.z + ax * 9 * side;
+      out.logLaneClear = laneClear(sx, sz, log.x - az * 2.6 * side, log.z + ax * 2.6 * side, circles);   // the run-up, stopping short of the log's own circles
       wolf.hp = 100; wolf.impactCd = 0; wolf.stamina = 100;
-      const px0 = log.x - az * 9, pz0 = log.z + ax * 9;   // perpendicular offset
-      wolf.pos.x = px0; wolf.pos.z = pz0; wolf.pos.y = heightAt(px0, pz0) + 0.5;
+      ground(sx, sz);
       const yawL = Math.atan2(log.x - wolf.pos.x, log.z - wolf.pos.z);
-      let minSeg = 99;
-      for (let i = 0; i < 220; i++) { wolf.update(1 / 30, IN(1), yawL, 0.3); minSeg = Math.min(minSeg, segDist(wolf.pos.x, wolf.pos.z) - rLog - 0.55); if (wolf.stamina <= 0) wolf.stamina = 100; }
-      out.logBlocked = minSeg > -0.22;
-      out.logHp = wolf.hp;
-      // walk along the log's axis from one end: the circles hold the whole length
-      wolf.hp = 100; wolf.impactCd = 0;
-      let worstAlong = 99;
-      for (let step = 0; step < 40; step++) {
-        const lx = log.x + ax * (-4.6 + step * 0.24), lz = log.z + az * (-4.6 + step * 0.24);
-        wolf.pos.x = lx - az * 1.9; wolf.pos.z = lz + ax * 1.9; wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z) + 0.5;
-        const yawP = Math.atan2(lx - wolf.pos.x, lz - wolf.pos.z);
-        for (let k = 0; k < 3; k++) wolf.update(1 / 30, IN(0), yawP, 0.3);
-        worstAlong = Math.min(worstAlong, segDist(wolf.pos.x, wolf.pos.z) - rLog - 0.55);
+      let minSeg = 99, minCircle = 99, crossed = false;
+      for (let i = 0; i < 220; i++) {
+        wolf.update(1 / 30, IN(1), yawL, 0.3);
+        minSeg = Math.min(minSeg, segDist(wolf.pos.x, wolf.pos.z) - rLog - 0.55);
+        minCircle = Math.min(minCircle, circleGap(wolf.pos.x, wolf.pos.z));
+        if (sideOf(wolf.pos.x, wolf.pos.z) !== side) crossed = true;
+        if (wolf.stamina <= 0) wolf.stamina = 100;
       }
-      out.logSolidAlong = worstAlong > -0.3;   // no gaps to slip through
+      out.logReached = minCircle < 0.3;          // it got to the bark (nothing else in the lane stopped it)
+      out.logNeverInside = minCircle > -0.1;     // the push-out held: the body never entered a circle
+      out.logCrossed = crossed;                  // never through to the far side
+      out.logNotch = minSeg;                     // how deep the body sat between two circles (geometry, informational)
+      out.logHp = wolf.hp;
+      // walk at the log from 40 stations along the circle-covered span (±3.2·s): every station must stop
+      // the wolf before the axis. Stations where the bark is at/below the wolf's feet are skipped —
+      // stepping onto a log from higher ground is the standable rule, not a gap.
+      wolf.hp = 100; wolf.impactCd = 0;
+      let worstAlong = 99, crossedAlong = false, stations = 0;
+      const span = 3.2 * s;
+      for (let step = 0; step < 40; step++) {
+        const t = -span + step * (2 * span / 39);
+        const lx = log.x + ax * t, lz = log.z + az * t;
+        const c = nearestCircle(lx, lz), cTop = c.top !== undefined ? c.top : heightAt(c.x, c.z) + 0.62 * s;
+        if (heightAt(lx - az * 1.05 * side, lz + ax * 1.05 * side) >= cTop - 0.05) continue;
+        stations++;
+        ground(lx - az * 1.9 * side, lz + ax * 1.9 * side);
+        const yawP = Math.atan2(lx - wolf.pos.x, lz - wolf.pos.z);
+        for (let k = 0; k < 14; k++) { wolf.update(1 / 30, IN(0), yawP, 0.3); if (sideOf(wolf.pos.x, wolf.pos.z) !== side) crossedAlong = true; }
+        worstAlong = Math.min(worstAlong, circleGap(wolf.pos.x, wolf.pos.z));
+      }
+      out.logStations = stations;
+      out.logSolidAlong = worstAlong > -0.1 && !crossedAlong;   // no gaps to slip through
     }
     // stumps registered?
     let stumps = 0;
@@ -202,8 +273,13 @@ try {
   ok(R.totalSolids > 50, `solid registry populated (${R.totalSolids} circles)`);
   ok(R.hasLog, 'fallen log found in the wild');
   if (R.hasLog) {
-    ok(R.logBlocked, `sprint into the log stops at its bark (${R.logHp} HP after)`);
-    ok(R.logSolidAlong, 'the log is solid along its whole length — no gaps');
+    ok(R.logCircles === 5, `log registered as 5 solid circles (${R.logCircles})`);
+    if (R.logBelowBark) {
+      ok(R.logNeverInside && !R.logCrossed, `sprint into the log stops at its bark — never inside a circle, never through (notch ${(+R.logNotch).toFixed(2)} m · ${R.logHp} HP after)`);
+      if (R.logLaneClear) ok(R.logReached, 'the sprint actually reached the bark (clear lane)');
+      else console.log('  · lane to the log held another solid — reach not asserted');
+      ok(R.logSolidAlong, `the log is solid along its whole length — no gaps (${R.logStations} stations)`);
+    } else console.log('  · log lies below foot level on both sides (standable) — bark test not applicable here');
   }
   ok(R.stumps >= 0, `stumps registered (${R.stumps} in view)`);
   ok(R.deerBlocked && R.deerWalked, `deer walks but never enters the boulder (moved ${(+R.deerMoved || 0).toFixed(1)} m)`);

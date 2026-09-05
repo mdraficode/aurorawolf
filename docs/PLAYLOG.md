@@ -250,3 +250,22 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
   (bootstrap = `test/browserlab/boot.sh`), untracked regenerable `shots/forest.jpg` (`commit 87e365e`).
 - **New tests**: `test/pause_fullmenu.test.mjs`, `test/fullscreen.test.mjs`. Suites verified green:
   smoke, menu, pause_fullmenu, fullscreen, landscape, touch, ai (15/15), forest, campaign, hudfit.
+
+### Mission 44 — the world re-seeds in place, the body stops glowing, the logs become footholds
+- **Start Game keeps fullscreen for real** (`5380cba`): New Game / New Game (Watch) regenerate the
+  whole world inside the same document (`reSeedWorld` + `__newWorldReset` + `forceBootToPlay`),
+  no `location.href`, so the click gesture and the fullscreen both survive. `test/fullscreen.test.mjs`
+  asserts no reload, `fsExit == 0`, `SEED` re-seeded.
+- **VFX pass — nothing glows on a body any more** (`e6458b4` → `2de0862`): liquid blood
+  (`bloodPool`, NormalBlending, gravity, squirts away from the wound) replaces red smoke; sprint
+  leaves a low dust wisp behind the rear paws (`dustPool`) and none at all in combat; cold breath is a
+  faint wisplet under the nose (`breathPool`); the sprint-through-cover glow, the animal/predator
+  body clouds, the wolf-sense **scent cloud** and the **hearing burst** are gone — **Q** now paints
+  paw-print tracks only. New suite `test/effects_visual.test.mjs`.
+- **Fallen logs, low boulders and stumps are jumpable and standable** (`a57eb5a`): topped solids
+  (`so.top`), `standTopAt`, push-out skipped when the feet are above the top; trunks/tall rocks stay
+  walls. `collision.test.mjs` rewritten around the game's five-circle log model with grounded,
+  clear-lane approaches (2026-09-05) — was flaky after this change, now 10/10.
+- **Workspace recovery 2026-09-05:** the trainer's Drive `Training-v2.patch` reconciled against
+  `main` (base `1a3b0b7` → target `4fa4b10`, everything already on main); its one uncommitted file,
+  the ring-trace probe, restored as `test/speedrun/_probe_trace.mjs`. `docs/HANDOFF_2026-09-05.md`.

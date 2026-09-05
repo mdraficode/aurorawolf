@@ -9,7 +9,7 @@ a fresh agent can act immediately without asking the user anything.
 `README.md` (player-facing). `MASTER.md` and `AGENT_BRIEF.md` must BOTH be updated in the same
 commit whenever project state, law, architecture, or instructions change.
 
-**Snapshot:** 2026-09-02b (v6.8 — the M47 human-speedrun fixes merged onto the v6.7 boss-kit; see §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
+**Snapshot:** 2026-09-05 (v6.8 build + the 2026-09-04 fullscreen/VFX/obstacle commits; workspace recovered from the trainer's Drive patch — see §4.5i and `docs/HANDOFF_2026-09-05.md`; game/law/champion unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
 duplicate repo `github.com/mdraficode/aurorawolf-v2` (exact copy, created 2026-09-01; **RETIRED by
 user directive — never work in, sync, or push to v2**).
 
@@ -37,10 +37,10 @@ and publishes.
 | **Duplicate repo (v2)** | github.com/mdraficode/aurorawolf-v2 (exact copy; **RETIRED per user directive 2026-09-01 — never touch or push to it; do NOT sync it**) |
 | Git auth | `~/.ghtoken` — classic PAT, `repo` scope. **NEVER commit it.** Push: `git push origin main` (the remote is configured; if auth prompts, the Arena GitHub connection needs reconnecting — the repo has no other branch) |
 | APK | git tag `archive/android-apk` holds the signed APK + WebView wrapper; signing key `~.revontulet.keystore` (never committed). **APK only on explicit request** |
-| **Branches** | **single branch: `main`** — no `arena/**`, no feature/PR branches. All work commits straight to `main`. `git ls-remote origin` → only `refs/heads/main` |
+| **Branches** | **single branch: `main`** — no `arena/**`, no feature/PR branches. `git ls-remote --heads origin` → only `refs/heads/main`. **Arena caveat:** every Arena session is pinned to its own `arena/<id>-aurorawolf` branch by the platform; the trainer's standing order is to land that work on `main` and delete the session branch afterwards (2026-09-05 directive). GitHub leftovers: PR #4 (superseded) is closed by the trainer himself. |
 | Publish (live-only bump) | `bash tools/ship.sh "msg"` — build + `git push origin main` → GitHub Pages live ~1 min. (Legacy `publish.sh github` now delegates to `ship.sh`; prefer `ship.sh` directly) |
 | Build | `python3 build.py` → index.html from shell.html + style.css + vendor/three.min.js + src/p1..p6 + autopilot.js |
-| Tests | Playwright + headless Chromium (SwiftShader). `npm install` then `bash test/browserlab/boot.sh` (idempotent, Chromium 149 from npm's `@sparticuz/chromium`; no CDN/apt, no sudo). Re-run after each sandbox reset |
+| Tests | Playwright + headless Chromium (SwiftShader). `npm install` then `bash test/browserlab/boot.sh` (idempotent, Chromium 149 from npm's `@sparticuz/chromium`; no CDN/apt, no sudo). Re-run after each sandbox reset. **Gate on `a57eb5a` (2026-09-05): `npm test` 27/27** after the collision-suite rewrite (was 26/27 — see §4.5i) |
 | Current champion | **GEN 50 · fit −55** (v6 basis; old 283/59 scores were wall-inflated) · 336 weights · **TIER 1, 0 trophies — the trophy is the frontier** |
 | Next generation | **GEN 56** (nothing spawned yet; runs on the **v6.8 build** = boss-kit + speedrun fixes, see §4.5d/§4.5e). Trainer order: finish the **human-speedrun session** first — no bot, no brain, reach the Tier-1 trophy and log it in `TRAINING_MANUAL.md`. |
 
@@ -404,6 +404,41 @@ completion feeds the ONE XP pool and counts `RUN.side`; never advances the campa
 - **New regression tests:** `test/pause_fullmenu.test.mjs` (menu parity + resume-in-place) and
   `test/fullscreen.test.mjs` (requestFullscreen spy across all start/resume/touch paths).
 
+### 4.5i Sessions 2026-09-04b/c/d + 2026-09-05 (in-place re-seed · VFX pass · standable obstacles · recovery)
+- **Start Game re-seeds IN PLACE (`5380cba`):** the enter-only `#fsBtn` fix (§4.5h) was not enough —
+  `newGame()`/`newGameAI()` still navigated, and a page load always exits fullscreen. Now
+  `reSeedWorld(seed)` (p1, noise fields rebuilt by name) + `__newWorldReset(seed)` (p4: dispose
+  chunks/cave/bosses/meteor/rivals/wildlife/quests/spirit/sense/birds, `Wolf.resetRunState()` +
+  `findSpawn()`, `CAMP.newGame(seed)`, rebuilt boot list, `forceBootToPlay`) land in play inside the
+  same click; the URL is updated with `history.replaceState` only. `test/fullscreen.test.mjs` asserts
+  no reload / `fsExit == 0` / `SEED` re-seeded for both Start Game and AI Watch.
+- **VFX pass — no body glow anywhere (`e6458b4` · `d579613` · `0e7e405` · `b9a19ed` · `4415ebd` ·
+  `2de0862`):** dedicated NormalBlending pools in p2 — `bloodPool` (liquid droplets with gravity,
+  squirting away from the wound), `dustPool` (ground-level sprint wisp behind the rear paws, suppressed
+  in combat via `__wolfInCombat()`), `breathPool` (faint wisplet under the nose). Removed: the sprint
+  cover glow, every additive death/retaliate/scent cloud on animals & predators, the wolf-sense
+  **scent cloud** (only paw-print `trackMarks` remain when **Q** burns) and the hearing burst. The
+  Legend's one-time death glow is deliberately kept. Suite: `test/effects_visual.test.mjs`.
+- **Jumpable / standable obstacles (`a57eb5a`):** fallen logs (+0.62·s), low boulders (+1.0·s) and
+  stumps (+0.95·s) carry `so.top` when ≤ `JUMPABLE_TOP` 1.35; `pushOutSolids` skips a topped solid
+  once the body is at/above it, `standTopAt()` gives footing. Trunks, tall rocks, landmark stone: no
+  top, full-height walls even mid-jump.
+- **2026-09-05 recovery session (this brief's author):** the trainer's Drive file `Training-v2.patch`
+  turned out to be `git diff 1a3b0b7..4fa4b10` — everything in it was already on `main`, which had
+  moved eight commits further; its one uncommitted file, the ring-trace fight probe, was restored as
+  `test/speedrun/_probe_trace.mjs`. Proof + resume point: `docs/HANDOFF_2026-09-05.md`.
+  **Collision suite rewritten (test-side, trainer's choice):** the log check had become intermittent
+  after `a57eb5a` because it dropped the wolf from `heightAt + 0.5` (above the bark on high ground = a
+  legal step-up), measured against an ideal capsule (the game's log is five circles — a body wedged
+  between two sits up to 0.5 m deeper), and had no clear-lane guarantee for the trunk/boulder run-ups
+  (the old "load flake"). It now grounds the wolf, picks clear lanes deterministically, asserts the
+  game's own guarantee (never inside a circle, never across the axis, 40 walk stations) and skips
+  stations where the bark is at/below foot level. 10/10 consecutive passes; `npm test` 27/27.
+- **Trainer decisions 2026-09-05:** (1) Arena session work is transferred to `main` and the session
+  branch removed after the transfer — keep only `main`; (2) collision flake = fix the test, keep the
+  game rule; (3) bring the docs current first, then the PARK engagement fix (§4.5g open item) toward
+  the Tier-1 trophy; (4) the trainer closes PR #4 himself.
+
 ### 4.6 Repository-hygiene decisions (2026-09-01)
 - `training/rafzzer_candidate.json` = transient spawn artifact → **untracked + gitignored**.
 - `shots/*.png` and `shots/forest.jpg` are regenerable → gitignored; `shots/README.md` tracked.
@@ -442,10 +477,16 @@ seed line (extension must be exact zero-pad; verify seed length = NW).
 
 ## 6 · CURRENT STATE (branch = `main`; lineage — GEN 50 is the champion; the Tier-1 trophy is the frontier)
 
-**Repo:** single branch `main` at `04c60d4` (HEAD) — all recent session work committed & pushed.
-The AI-watch/pause/fullscreen fixes, the repo cleanup, and the "stay fullscreen the whole time" fix
-(fullscreen button is enter-only + hidden during play) are live on `main`. The next agent should
-work directly on `main` (no feature/session branch).
+**Repo:** single branch `main` at `a57eb5a` (2026-09-04 23:30 UTC) = the v6.8 game + the 2026-09-04
+commits (in-place re-seed fullscreen fix, liquid-blood/dust/breath VFX, fog removals, standable
+obstacles). The 2026-09-05 recovery work (collision-suite rewrite, `_probe_trace.mjs`, these docs)
+lands on `main` per the trainer's transfer directive (§4.5i). Build reproducible (`python3 build.py`
+== committed `index.html`, crown GEN 50 baked). Full gate `npm test` 27/27 on this build.
+
+**Next task (trainer-ordered 2026-09-05):** the PARK engagement fix in `test/speedrun/run.mjs`
+(open item of §4.5g; repro + suspects in `test/speedrun/HANDOFF_2026-09-03.md`) → first real
+`boss-end {res:'slain'}` + Tier-1 trophy logged in `TRAINING_MANUAL.md` → then rank the four routes →
+then GEN 56 (LAW v4, park grammar = drill 7, no promote without a trainer verdict).
 
 Lineage (LAW v4): 34 fit 25 SURVIVED(cap) → **35 fit 59 CHAMPION** (died L8 Leopard, 126.6 xp/min)
 → 36 fit 19 (first ritual + first Legend fight ~18 s) → 37 fit −43 (rival pack attack in prep) →
@@ -471,6 +512,7 @@ npm install               # repo deps (playwright, express, pngjs) — Playwrigh
 bash test/browserlab/boot.sh   # Chromium 149 + SwiftShader from npm's @sparticuz/chromium (no CDN/apt/sudo)
 python3 build.py          # committed index.html is already built; rebuild to be certain
 node test/smoke.mjs && node test/menu.test.mjs && node test/fullscreen.test.mjs && node test/pause_fullmenu.test.mjs
+node test/collision.test.mjs && node test/effects_visual.test.mjs   # 2026-09-04/05 work: standable obstacles · VFX pass
 node test/side.test.mjs && node test/campaign.test.mjs && node test/pack.test.mjs
 node training/rafzzer_gens.mjs status   # champion GEN 50 (fit −55), lineage to GEN 55
 # push (single branch):     git push origin main

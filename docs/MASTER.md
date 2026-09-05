@@ -5,8 +5,9 @@
 the project identity, the codebase map, the neural-training system, the CURRENT progress state,
 and the road ahead. **Rule: whenever a session changes the law, the brain architecture, the
 features, or the lineage state, update this file in the same commit.** It is the memory of the
-project. Last updated: **2026-09-03** (human-speedrun session — the tier-1 fight coached as closed;
-rig fixes + docs in this commit). Previous header: 2026-09-01 (post GEN 39).
+project. Last updated: **2026-09-05** (workspace recovery; docs brought current for the 2026-09-04
+commits — in-place re-seed, VFX pass, standable obstacles; collision suite rewritten). Previous
+headers: 2026-09-03 (human-speedrun — the tier-1 fight coached as closed), 2026-09-01 (post GEN 39).
 
 ---
 
@@ -60,7 +61,8 @@ aurorawolf/
 │   ├── p6.js           ← 🐺 THE PACK: howl → bond, pack hunts with you, rivals/pack attacks
 │   └── autopilot.js    ← 🤖 AI PLAY (watch mode) + 🧠 RAFZZER v1.0 neural brain + bot policy + LAW v4 fitness
 ├── docs/                   ← knowledge docs: AGENT_BRIEF, MASTER, BUGS, PLAYLOG, TRAINING_MANUAL,
-│                              CAMPAIGN_DESIGN, ENVIRONMENT, LINKS, RAFZZER, RESTORE (README stays at root)
+│                              CAMPAIGN_DESIGN, ENVIRONMENT, LINKS, RAFZZER, RESTORE (README stays at root),
+│                              HANDOFF_2026-09-05 (recovery proof + the exact resume point)
 ├── test/                   ← TESTS ONLY (27 suites in `npm test`, + 8 standalone suites)
 │   ├── *.test.mjs / *.check.mjs ← the suites (side, campaign, pack, bosskit, world, collision, …)
 │   ├── smoke.mjs, menu_trophy_ai.mjs ← in `npm test` despite the plain names
@@ -318,7 +320,9 @@ node test/campaign.test.mjs # campaign / trophy / death-rigor / reload
 node test/pack.test.mjs     # bonding / howl / pack combat
 node training/rafzzer_gens.mjs status
 ```
-Known flakes/limits: the **collision suite** has a pre-existing load flake (fails on a rotating
+Known flakes/limits: the **collision suite's** old load flake was fixed 2026-09-05 (clear-lane, grounded
+approaches; the log check measures the game's five-circle model) — 10/10 passes on `a57eb5a`; the
+historical note stands for older builds: it had a pre-existing load flake (fails on a rotating
 line, proven against the previous build too); **headless RAF freezes** — the suites drive ticks
 manually (`?autopilot=1&nolearn=1` + `BOT_OFF` + `window.CAMP.tick()`); probes in `test/` are
 research scratch and may be run ad hoc. Playwright browsers & node_modules **do not persist**
@@ -516,6 +520,14 @@ human players get them too**; the brains only had to be taught the doors exist (
   click arms AI; corner toggle still works; pageerrors none. `smoke.mjs` + `menu.test.mjs` green.
 
 ## 16 · Recent commits (orientation)
+
+- `a57eb5a` — jumpable/standable obstacles (logs · low boulders · stumps carry `so.top`; `standTopAt`).
+- `2de0862` · `4415ebd` · `b9a19ed` · `0e7e405` · `d579613` · `e6458b4` — the VFX pass: liquid blood +
+  ground dust pools, breath wisplet, every body glow / scent cloud / hearing burst removed
+  (`test/effects_visual.test.mjs`).
+- `5380cba` — Start Game re-seeds the world in place (fullscreen survives); `4fa4b10` — `#fsBtn`
+  enter-only + hidden in play; `04c60d4` — docs handout; `87e365e` / `bd7cead` — repo hygiene.
+- (2026-09-05) collision suite rewrite + `test/speedrun/_probe_trace.mjs` restored + these docs.
 
 - `96b9c7d` — GEN 39 rejected (−97); harness records RUN.side; ledger rows 36–39.
 - `c62466b` — **side errands** feature (safe fast-XP channel) + senses 24/25 architecture (26/336).
