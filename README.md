@@ -26,7 +26,7 @@ cp ~/.revontulet.keystore android/revontulet.keystore   # never committed
 | **F** | Attack — bite & claw. **Behind ×3 · flank ×2 · face ×1; an unaware strike from the blind side = AMBUSH crit** |
 | **X** | Prowl (crouch) — half speed, detection halved, bites from behind hit harder. Touch: 🐾 PROWL |
 | **E** | Gather (berries, mushrooms, herbs, wood, stones) & drink at water |
-| **Q** | Wolf sense — the ground lights up: 🐾 tracks, scent clouds (green prey · red predators · violet rivals), blood trails, resources |
+| **Q** | Wolf sense — the ground lights up with 🐾 paw-print tracks of everything that passed (a flat decal on the ground; the old scent fog around animals is gone) |
 | **H** | Howl (scares every animal within earshot) |
 | **Drag mouse / wheel** | Orbit + zoom camera, **free through the full 90°** — pan upward and the camera glides in over the wolf's shoulder: by ~40° up the wolf has slipped out of the bottom of the frame, and at the full 90° the camera sits just above its head looking straight up — **nothing but sky, horizon to zenith** (auroras, stars, moon) · **C** snap behind wolf |
 | **T** | Time ×8 (watch sunsets, seasons & auroras) |
@@ -45,7 +45,7 @@ tools/ship.sh           ← canonical publish: `bash tools/ship.sh "msg"` = buil
 publish.sh              ← archive only: `archive [alias]` = permanent archive.org snapshot (github mode delegates to ship.sh)
 test/                   ← Playwright gate (all gates + probes)
 shots/                  ← current-build screenshots (cave crystals · night aurora · waterfall · forest)
-docs/                   ← knowledge docs: README(here) is player-facing; AGENT_BRIEF, MASTER, BUGS, PLAYLOG, TRAINING_MANUAL, CAMPAIGN_DESIGN, ENVIRONMENT, LINKS, RAFZZER, RESTORE
+docs/                   ← knowledge docs: README(here) is player-facing; AGENT_BRIEF, MASTER, BUGS, PLAYLOG, TRAINING_MANUAL, CAMPAIGN_DESIGN, ENVIRONMENT, LINKS, RAFZZER, RESTORE, HANDOFF_2026-09-05 (latest resume point)
 training/               ← the AI brain's lineage (RAFZZER champion + per-generation gauges)
 archive/                → git-history extras preserved in the repo (e.g. branches/ snapshots)
 ~/.ghtoken              ← GitHub access (keep! revocable at github.com/settings/tokens)
@@ -80,7 +80,7 @@ Build · test · publish: `npm run build` · `npm test` · `npm run publish`
 - **Minimap & world map** — circular live minimap (top-right): terrain, vivid water, colored resource dots, dashed **predator territory rings**, gold **landmark markers + guidance chevron with distance**, hunting predators (red), and a heading arrow — all scrolling in real time. **M** (or click the minimap) opens a **centered big map** of ~900 m around you with landmark names, updating live as you move
 - **6 blending biomes** — Snowy Taiga, Frozen Tundra, Boreal Forest, Autumn Grove, Flower Meadows, Frostpeak Mountains (+ shorelines), each with its own trees, plants, ground colors and **wildlife** (elk, reindeer, deer, rabbits, hares, foxes, arctic foxes, mountain goats)
 - **Wildlife AI** — animals graze, wander and flee; walk slowly to stalk, sprint to run them down (they tire out); meat is yours
-- **👃 Three senses** — *see* the world; *hear* the closest moving thing; *smell* it: wolf sense paints tracks and drifting scent on the ground (green prey · red predators · violet rivals), and blood reads loudest of all
+- **👃 Three senses** — *see* the world; *hear* the closest moving thing; *smell* it: wolf sense paints paw-print tracks on the ground (a flat decal — never a cloud around a body), and a wounded animal limps and bleeds a trail you can follow
 - **🩸 The hunt** — follow tracks → hear it → prowl in low → strike from the blind side. Wounded prey limps, bleeds a trail and goes to ground in thick cover; sprint through brush and you'll crunch it
 - **🌍 Living populations** — every species keeps count. Hunt a valley empty and it stays empty; wild predators take prey too; herds birth back in spring (you can witness fawns). The world remembers
 - **🌸 Seasons** — a 12-day year rides the day cycle: spring births & rain, summer plenty, autumn migrations, winter snow & bitter cold — the HUD shows the turning year
@@ -112,4 +112,4 @@ src/shell.html page template
 vendor/three.min.js  Three.js r134 (embedded at build time)
 python3 build.py      → regenerates index.html
 ```
-Headless render/smoke tests live in `test/` (Playwright): `node test/render.test.mjs`
+Headless smoke/gate tests live in `test/` (Playwright): `npm test` runs the 27-suite gate; single suites e.g. `node test/smoke.mjs`, `node test/collision.test.mjs`, `node test/effects_visual.test.mjs` (env: `npm install && bash test/browserlab/boot.sh`)

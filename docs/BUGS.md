@@ -557,3 +557,69 @@ out of fullscreen.
 ## Files
 `src/p4.js` (enter-only `#fsBtn`, hide-during-play, `__fsBtnSync` hooks) · `test/fullscreen.test.mjs`
 (enter-only + hidden-during-play checks). Rebuild of `index.html` committed with it.
+
+---
+
+# 🎛 Session 2026-09-04b — "Start Game" re-seeds the world IN PLACE (fullscreen finally survives)
+
+**Symptom (still there after the enter-only `#fsBtn` fix):** pressing ▶ Start Game / 🤖 Watch The
+Rafzzer dropped the browser out of fullscreen. `newGame()` / `newGameAI()` navigated with
+`location.href = ?seed=<s>&autostart=1`; a full page load always exits fullscreen and no browser
+allows a re-request without a fresh gesture.
+
+**Fix (`5380cba`, src/p1.js · p3.js · p4.js · p5.js):** the world is regenerated **in this document**.
+- `src/p1.js`: `SEED` and the noise fields became `let`; `reSeedWorld(seed)` rebuilds every terrain
+  noise by name (no reload); `window.SEED` stays live.
+- `src/p3.js`: `Wolf.resetRunState()` / `findSpawn()` pulled out of the constructor so an in-place
+  New Game can rerun them.
+- `src/p5.js`: `CAMP.newGame(seed)` accepts an explicit seed — campaign seed == world seed; the
+  all-time record (`revontulet_bestRun` / `_lastRun`) and trophies are untouched.
+- `src/p4.js`: `__newWorldReset(seed)` disposes chunks / cave / bosses / meteor / rivals / wildlife /
+  quests / spirit / sense / birds, re-seeds, rebuilds the boot list and sets `forceBootToPlay`, so the
+  boot loop lands in PLAY inside the same click. `__fsNewGameURL` is a pure `history.replaceState`.
+  A plain `?autostart=1` reload still enters play as before.
+- `test/fullscreen.test.mjs`: in-place reset checks for Start Game and AI Watch — no reload,
+  `fsCalls ≥ 1`, `fsExit == 0`, `SEED` re-seeded.
+
+# 🎨 Session 2026-09-04c — combat & body VFX pass: liquid blood, ground dust, breath wisp, no body fog
+
+Player report: the wolf ran inside a thick glowing cloud (sprint "smoke"), hits read as red smoke,
+cold breath wrapped the muzzle in fog, and every animal/predator wore a pulsing "breathing fog".
+All of it came from one source: everything was fed into the single **additive** glow `pool`.
+
+| Commit | Change |
+|---|---|
+| `e6458b4` | `src/p2.js`: two dedicated **NormalBlending** pools — `bloodPool` (small dark-red droplets, real gravity, rigid squirt direction; a bite sprays a fan that arcs and falls like liquid) and `dustPool` (low opaque wisp hugging the ground). `src/p3.js`: `bloodBurst()` sprays liquid blood *away from the wound* (every victim/wolf hit passes the attacker→victim vector); sprint fires a **ground-level dust puff behind the rear paws** instead of a body burst, suppressed while `__wolfInCombat()` (a threatening predator/boss/rival near, or just struck) so a fight shows only blood. `src/p4.js`: `Boss.hit()` squirts blood; `tick()` updates both pools. `src/p6.js`: pack bite-on-rival sprays blood. New suite **`test/effects_visual.test.mjs`**. |
+| `d579613` | Cold-weather breath → `breathPool` (NormalBlending, size 1.1, opacity 0.28, short life, drifts down-and-back): a faint wisplet under the nose at the muzzle (0.85 fwd, y+0.66), never a glowing cloud. The additive pool carries no `0xeaf4fa` breath burst any more. |
+| `0e7e405` | The sprint-through-cover glow burst (`0x6f8f4a` at body height every 0.25 s while `speed > 9` in dense cover) removed entirely — no body effect on a ground sprint. |
+| `b9a19ed` | Additive body clouds on **other characters** removed: `updateSense` animal/predator bursts, the injured blood-scent drip, `AnimalCombat.protectTick` retaliate glow, and every death cloud (caught / die / dieSilently / rival-die / eagle-die) → all now `bloodBurst` liquid blood. The Legend's one-time death glow is kept on purpose. |
+| `4415ebd` | The **wolf-sense scent cloud** (`scentCloud` Points — green prey / red predator / blood / violet rival fog at each creature, fading over a minute) removed completely; `updateSenseFX` hard-fixes `scentCloud.visible = false`. Paw-print `trackMarks` (a flat ground decal) remain, so **Q** still reads the world. Tests: `effects_visual` "scent cloud gone" + "tracks still show"; `hunt` asserts `trackMarks.visible && !scentCloud.visible`. |
+| `2de0862` | The **hearing burst** (additive cream glow at `hear.pos` every couple of seconds — the intermittent fog on roaming animals) removed; `SENSE.hearT` is still tracked. |
+
+**Doc consequence:** README's "scent clouds (green prey · red predators · violet rivals)" wording
+under **Q** / "Three senses" describes the removed fog — see the README update in this commit.
+
+# 🪵 Session 2026-09-04d — jumpable, standable obstacles (fallen logs · low boulders · stumps)
+
+**Reported:** a fallen log blocked the wolf at every altitude — a jump was stopped mid-air by the same
+invisible wall that stops a walk.
+
+**Fix (`a57eb5a`, src/p4.js · p3.js):** solid circles may carry a **`top`** (world Y of the standable
+surface), assigned at generation: fallen logs (`+0.62·s`), low boulders (`+1.0·s`, only if
+`≤ JUMPABLE_TOP = 1.35`), stumps (`+0.95·s`, same cap). `pushOutSolids` skips the horizontal push
+when the body is at/above `so.top − 0.05`, so a jump clears the obstacle; `standTopAt(x, z, feetY)`
+(p4) returns the highest topped solid under the feet and `Wolf.update` (p3) lands on it, so the wolf
+can stand on a log. Tree trunks, tall rocks and landmark stone carry **no** `top` → full-height walls
+even mid-jump. Verified live: jump over a log and stand on it; trunks still block in the air.
+
+**Test consequence (found 2026-09-05, fixed in `test/collision.test.mjs`):** the collision suite's
+log check became intermittent. Root causes, all test-side: (1) it dropped the wolf from
+`heightAt + 0.5` instead of grounding it — on ground higher than the bark the new rule *correctly*
+lets the wolf step onto the log; (2) it measured the body against an ideal capsule, but the game's
+log is **five circles** (spacing 1.6·s, radius 0.5·s + 0.55) and a body pressed between two of them
+settles into a notch up to 0.5 m deeper than the capsule (tolerance was 0.22); (3) the "reached the
+wall" half of the boulder check and the trunk pick had no clear-lane guarantee (the old load flake in
+MASTER §11). The suite now grounds the wolf, picks trunks/boulder lanes that are free of other solids
+and water (deterministic nearest-first), asserts the game's own guarantee for logs (never inside a
+circle, never across the axis, 40 walk stations along the span), and skips stations where the bark is
+at/below foot level (the standable rule, not a gap). 10/10 consecutive passes on `a57eb5a`.
