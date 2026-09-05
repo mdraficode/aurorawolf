@@ -10548,16 +10548,16 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
     };
     const origRender = renderer.render.bind(renderer);
     let step = 0, batchIdx = 0;
-    renderer.render = function (...a) { if (step % SPEED !== SPEED - 1 || batchIdx % R_EVERY !== R_EVERY - 1) return; return origRender(...a); };
+    renderer.render = function (...a) { const nn = window.__boost.n || SPEED; if (step % nn !== nn - 1 || batchIdx % R_EVERY !== R_EVERY - 1) return; return origRender(...a); };
     clock.getDelta = function () { return 0.05; };   // every executed step is one full game tick
-    window.__boost = { batches: 0, ticks: 0, warns: 0, lastMsg: '' };
+    window.__boost = { batches: 0, ticks: 0, warns: 0, lastMsg: '', n: SPEED };   // n = LIVE batch size (the speedrun rig drops it to 2 for boss fights — 0.4 s batches are too coarse for the fight grammar — and back up for travel)
     let lastEnd = 0, batchDur = 0;
     setInterval(() => {
-      const cyc = Math.max(50, SPEED * 50 / RATE, batchDur * 1.15);   // never schedule tighter than we can breathe
+      const cyc = Math.max(50, (window.__boost.n || SPEED) * 50 / RATE, batchDur * 1.15);   // never schedule tighter than we can breathe
       if (performance.now() - lastEnd < cyc) return;
       if (!tickFn) return;
       const t0 = performance.now();
-      for (step = 0; step < SPEED; step++) {
+      for (step = 0; step < (window.__boost.n || SPEED); step++) {
         try { tickFn(); window.__boost.ticks++; }
         catch (e) { window.__boost.warns++; window.__boost.lastMsg = String(e && e.message).slice(0, 120); }
       }

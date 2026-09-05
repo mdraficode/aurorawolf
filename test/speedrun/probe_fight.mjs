@@ -339,18 +339,24 @@ let fleeing = false, fleeT0 = 0, prev = null, radOut = false, aimErr = 0;
            Park: pure tangent walk; trim r toward r_park with 1.40/1.75 (cos trim ≈ ±0.2).
            Walks regen 11/s and the strike whiffs at fm -pi (dot -1) — the park is the
            game's recovery AND the bite platform. */
-        const rPark = Math.min(3.35, Math.max(2.55, 7 / (b.turn || 2.2)));
-        const inTail = b.facingMe < -1.5 || (b.facingMe < -0.9 && f.w.stam <= 14);
+        const rPark = Math.min(3.30, Math.max(2.45, 7 / ((b.turn || 2.2) + 0.30)));
+        /* PARK-ENGAGEMENT FIX (2026-09-05): the original gates tested facingMe (a DOT,
+           range [-1,1]) against -1.5 / -1.2 — impossible values, dead code (the thresholds
+           were authored in GAP radians). Zoned now in |gap| radians with a MARGIN freeze
+           radius (7/(neck+0.30), band [rPark-0.45, rPark]) so a walking orbit never falls
+           below the neck rate: PARK |gap| > 2.40 · ARRIVE-walk |gap| > 1.90 (settle trim
+           1.10 when wide) · sprint transit below (cut 1.45). Mirrors run.mjs — see its
+           park comment + the parklab1/parklab2 traces. */
         const lowStam = f.w.stam <= 14 || f.w.exh;
-        if (inTail && !lowStam) {                        // PARK: freeze the gap at dead-behind
+        if (Math.abs(b.gap) > 2.40) {                    // PARK: freeze the gap at dead-behind
           sprint = false;
-          thWant = r > rPark + 0.30 ? 1.40 : r < rPark - 0.30 ? 1.75 : 1.57;
+          thWant = r > rPark ? 1.30 : r < rPark - 0.45 ? 1.75 : 1.57;
           mode = 'ring';
-        } else if (b.facingMe < -1.2) {                  // ARRIVE (last stretch): walk, no overshoot
-          sprint = false; thWant = 1.57; mode = 'ring';
+        } else if (Math.abs(b.gap) > 1.90) {             // ARRIVE: walk, settle r into the band
+          sprint = false; thWant = r > rPark + 0.40 ? 1.10 : r > rPark ? 1.30 : 1.57; mode = 'ring';
         } else {
           sprint = !lowStam;
-          thWant = sprint ? 1.50 : 1.57;
+          thWant = sprint ? 1.45 : 1.57;
           mode = 'ring';
         }
       }

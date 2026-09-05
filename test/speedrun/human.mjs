@@ -187,6 +187,25 @@ export function EYES_FIGHT() {
     })();
     out.camp = { leg: window.CAMP.state().leg, tier: window.CAMP.state().tier, stage: window.CAMP.state().stage };
     const B = [];
+    /* BITE-JAM SENSE (parklab17: two counted bites, zero boss damage): the engine's bite
+       scan offers chunk animals+predators+rivals and picks the CLOSEST inside a ±78° cone
+       (dot >= 0.2 vs the nose) — a deer standing between the wolf and the Legend eats the
+       strike. The rig must know the nearest cone-blocker to refuse a jammed press. */
+    const fx0 = Math.sin(w.yaw), fz0 = Math.cos(w.yaw);
+    let jam = 99;
+    const offerJam = a => {
+      if (!a || a.dead || (a.pack && a.pack.stance === 'bonded')) return;
+      if (a.constructor && a.constructor.name === 'Boss') return;   // Bosses live in chunk.predators (p4.js:3144) — the boss is the TARGET, not a jammer
+      const dx = a.pos.x - w.pos.x, dz = a.pos.z - w.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d >= jam || d > 6 || Math.abs(a.pos.y - w.pos.y) > 3.5) return;
+      if ((dx * fx0 + dz * fz0) / (d || 1) < 0.2) return;
+      jam = d;
+    };
+    if (typeof chunks !== 'undefined') for (const ch of chunks.values()) {
+      for (const a of ch.animals) offerJam(a);
+      for (const a of ch.predators) offerJam(a);
+    }
     for (const b of bosses) {
       if (b.dead) continue;
       const tfx = Math.sin(b.heading), tfz = Math.cos(b.heading);
@@ -201,7 +220,8 @@ export function EYES_FIGHT() {
            A player reads this off the beast's shoulders; the ring law steers on it. */
         gap: +Math.atan2(Math.sin(Math.atan2(twx, twz) - b.heading), Math.cos(Math.atan2(twx, twz) - b.heading)).toFixed(3),
         turn: +((b.def.flight ? 5 : 2.2) * (1 + (b.phase | 0) * 0.15)).toFixed(2),
-        reach: f1(b.sp.reach), biteR: f1(3.6 + b.sp.scale * 0.7), dmg: b.def.dmg, spd: f1(b.def.speed)
+        reach: f1(b.sp.reach), biteR: f1(3.6 + b.sp.scale * 0.7), dmg: b.def.dmg, spd: f1(b.def.speed),
+        jam: f1(jam)
       });
     }
     out.bosses = B;
@@ -284,8 +304,32 @@ export class Human {
   async lookAt(x, z) { const e = await this.eyes(60); return this.aim(bearingTo(e.w.x, e.w.z, x, z)); }
 
   /* ---- the bite: a real F press, never faster than the 0.75 s swing ---- */
-  async bite(tSecNow) {
+  async bite(tSecNow, bossD) {
     if (tSecNow - this.lastBiteT < 0.72) return false;
+    /* STRIKE-TIME JAM CHECK (parklab18: 2 of 4 presses eaten by deer that wandered into
+       the cone between the sense poll and the click): the engine picks the CLOSEST live
+       target in a ±78° cone — re-read the cone atomically, abort without burning the
+       0.72 s rate limit so the press retries next poll. */
+    if (bossD !== undefined) {
+      const jam = await this.pg.evaluate(() => {
+        const w = wolf, fx = Math.sin(w.yaw), fz = Math.cos(w.yaw);
+        let jam = 99;
+        const off = a => {
+          if (!a || a.dead || (a.pack && a.pack.stance === 'bonded')) return;
+          if (a.constructor && a.constructor.name === 'Boss') return;   // Bosses live in chunk.predators — never jam on the target itself
+          const dx = a.pos.x - w.pos.x, dz = a.pos.z - w.pos.z, d = Math.hypot(dx, dz);
+          if (d >= jam || d > 6 || Math.abs(a.pos.y - w.pos.y) > 3.5) return;
+          if ((dx * fx + dz * fz) / (d || 1) < 0.2) return;
+          jam = d;
+        };
+        if (typeof chunks !== 'undefined') for (const ch of chunks.values()) {
+          for (const a of ch.animals) off(a);
+          for (const a of ch.predators) off(a);
+        }
+        return jam;
+      });
+      if (jam <= bossD + 0.60) return false;   // moving deer need real clearance, not a photo finish
+    }
     this.lastBiteT = tSecNow;
     await this.tap('KeyF');
     return true;

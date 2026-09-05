@@ -269,3 +269,28 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - **Workspace recovery 2026-09-05:** the trainer's Drive `Training-v2.patch` reconciled against
   `main` (base `1a3b0b7` → target `4fa4b10`, everything already on main); its one uncommitted file,
   the ring-trace probe, restored as `test/speedrun/_probe_trace.mjs`. `docs/HANDOFF_2026-09-05.md`.
+
+### 2026-09-06 — the park becomes a real duel (fight labs 14–38 + route labs; no commit until this one)
+- **Six rig/engine defects found and fixed in the fight loop**: the bite-jam (the engine picks the
+  CLOSEST ±78°-cone target, so a deer between wolf and boss eats the press — jam sense + atomic
+  strike-time re-check in `H.bite` + grazer-priced arena scorer); the jam sense blocking on the Boss
+  itself (Bosses live in `chunk.predators`, `p4.js:3144`); `holdN ≤ 2` rejecting the dive's 3rd poll
+  (the exact poll the nose enters the bite cone); crouch stand-up firing before the press (a full
+  **7.5-dmg crouched ambush press** now confirmed); the post-teleport geometry being backwards (the
+  ambush lands the wolf in the boss's FACE, gap ≈ 0 — the crossing now sprints); and speed-8 fights
+  being unwinnable (0.4 s batches — new live boost switch `window.__boost.n`, router drops to 2 for
+  fights and back to 8 for travel, `mark('fight-speed')`).
+- **The fight law is now a faithful port of probe v24/v25 + the RESOLVE LAW** (a bite lands 0.38 s
+  after the press — press when the predicted gap at resolution clears the behind line:
+  `|gap| + gv·0.38 > 1.93`). Lap-rate physics corrected (ω = v·cos(cut)/r; r 2.25–2.55 is the winning
+  band; nothing out-turns the neck from r ≥ 4.6). Stamina discipline: walk-lap regen, sprint only
+  with purpose (floors 18–60 by branch).
+- **Arc (iron, L5, seed 7777)**: 0 bites/17–20 s survival at session start → parklab35 nine presses
+  (wolf died at hp ~10 with boss 31) → parklab38 resolve law: 38.4 s fight, boss 39 at wolf death.
+  The kill is ~2× short on press RATE (~0.1/s); press value is solved (6.8 avg behind).
+- **Route labs (pack/hunt)**: every route enters the Leopard at L4–5 — the campaign gates
+  progression, the level lever is dead; pack howls never confirmed a bond. Kill must come from
+  fight law + **break-offs** (a wolf death resets the boss to 45; a break-off does not — the next
+  item). Reports now dump live (`run_<tag>_live.json`), so cap-crashes no longer lose the polls.
+- **Repo rule made DEFAULT (trainer directive)**: one branch, `main`, forever — no session/arena
+  branches; everything lands on and pushes to `main`.

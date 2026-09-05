@@ -52,9 +52,11 @@ archive/                → git-history extras preserved in the repo (e.g. branc
 ```
 Build · test · publish: `npm run build` · `npm test` · `npm run publish`
 
-> 🏷️ **Single-branch repo.** This repo has **one branch: `main`** — there are no feature,
-> session, or arena branches. All updates go straight to `main` via `tools/ship.sh`
-> (build → commit → push), which is what makes the live site at
+> 🏷️ **Single-branch repo — DEFAULT RULE.** This repo has **one branch: `main`** — there
+> are no feature, session, or arena branches, and none may ever be created: all work
+> progress stays on `main`, commits go to `main`, pushes go to `main` (trainer directive
+> 2026-09-06, standing for every future session). All updates go straight to `main` via
+> `tools/ship.sh` (build → commit → push), which is what makes the live site at
 > https://mdraficode.github.io/aurorawolf/ update ~1 minute after a push.
 > End users / players never touch branches; the git history is the only record.
 

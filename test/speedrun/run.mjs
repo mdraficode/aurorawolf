@@ -122,17 +122,29 @@ const mark = (type, data, force) => {
   lastNote = sig; lastNoteT = H.wall();
   const e = H.note(type, data);
   rep.milestones.push(Object.assign({ sim: lastSim }, e));
+  /* LIVE DUMP (parklab25/27/32: a router crash at cap kills the process before the
+     final write — hours of polls lost). Every forced mark (boss start/end, death, stage)
+     snapshots the report; the final write keeps the timestamped name. */
+  if (force) { try { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(path.join(OUT, `run_${TAG}_live.json`), JSON.stringify(rep, null, 1)); } catch (e2) { } }
   if (rep.milestones.length > 6000) rep.milestones.splice(0, 2000);
   return e;
 };
 let lastSim = 0, lastLeg = -1, lastStage = '', deedT0 = 0, simT0 = null;
+let liveSpeed = SPEED;   // the FIGHT-SPEED SWITCH: travel at SPEED, fights at 2 (0.1 s batches) — the fight grammar is dt-sensitive (routepack2: 0 bites at 0.4 s batches, 9 presses at 0.1 s)
 let fight = null, deedFails = 0, lastDeedR = '', healWait = 0;
 
 /* --fightlab: skip the campaign and drop a Legend on the router's head immediately
    (debugging the fight in isolation — a scored run never uses this) */
 if (flag('fightlab')) {
   const labLeg = +arg('labLeg', 0), labTier = +arg('labTier', 1);
-  const lab = await page.evaluate(({ labLeg, labTier }) => {
+  /* the lab entry state mirrors the REAL ritual integration (parklab1-3 spawned the boss
+     at +14 m facing the wolf — an entry the real run never sees): the channel completes at
+     d < 3.2, the Legend materialises right there with a fresh heading of 0, and the real
+     log (iron_park2) shows the wolf entering at fm ≈ -0.8 → |gap| ≈ 2.5. Default entry:
+     L5 (the iron route's natural awaken level), hp 95%, stam 90 (topped), wolf parked at
+     bearing labFm around the boss at radius labR. */
+  const labLvl = +arg('labLvl', 5), labFm = +arg('labFm', 2.5), labR = +arg('labR', 2.7);
+  const lab = await page.evaluate(({ labLeg, labTier, labLvl, labFm, labR }) => {
     const S = window.CAMP.state();
     S.leg = labLeg; S.tier = labTier; S.stage = 'boss';
     const def = window.CAMP.legendDef();
@@ -144,10 +156,15 @@ if (flag('fightlab')) {
           ch[arr].splice(i, 1); try { a.dispose(); } catch (e) { }
         }
     }
-    const x = wolf.pos.x + 14, z = wolf.pos.z;
+    const x = wolf.pos.x + 2.6, z = wolf.pos.z;
     bosses.push(new Boss(def.camp === 'beast' ? 'enchanted' : 'forest', x, z, false, def));
-    return { boss: def.name, hp: def.hp, dmg: def.dmg, scale: def.scale, speed: def.speed };
-  }, { labLeg, labTier });
+    wolf.level = labLvl; if (typeof recalcWolfLevel === 'function') recalcWolfLevel();
+    wolf.hp = Math.round(wolf.maxHp * 0.95); wolf.stamina = 90;
+    wolf.pos.x = x + Math.sin(labFm) * labR; wolf.pos.z = z + Math.cos(labFm) * labR;
+    wolf.pos.y = heightAt(wolf.pos.x, wolf.pos.z);
+    wolf.yaw = Math.atan2(x - wolf.pos.x, z - wolf.pos.z);
+    return { boss: def.name, hp: def.hp, dmg: def.dmg, scale: def.scale, speed: def.speed, lvl: wolf.level, maxHp: wolf.maxHp, entryGap: labFm };
+  }, { labLeg, labTier, labLvl, labFm, labR });
   mark('fightlab', lab, true);
   console.log('   🧪 fightlab: ' + JSON.stringify(lab));
 }
@@ -179,6 +196,22 @@ let fightMarkT = -99;
 async function fightLoop(e0) {
   let travel = 1.6, lastDist = null, lastCam = null, side = (fight && fight.side) || 1;
   let guard = 0;
+  /* THE CADENCE TUNER (parklab7's smoking gun, ported from probe_fight §THE CADENCE LAW):
+     the sim boost runs the world in batches of SPEED×0.05 s and NOTHING changes between
+     batches — but this loop never slept, so at speed 8/rate 3 it read the SAME frozen
+     world ~19 times per batch (parklab7's trace: 19 identical polls at clock 70.8), each
+     poll re-aiming at stale state. That is the disease under 'the park does not engage in
+     the real run': geometry decided on a world that never moves. The tuner nudges the
+     sleep until ONE decision lands per batch (dt EMA ≈ SPEED×0.05), 48-260 ms. */
+  let pollMs = 60, lastC = null, dtEma = 0;
+  const cadence = async clockNow => {
+    if (lastC !== null) {
+      const dt = clockNow - lastC;
+      if (dt >= 0) { dtEma = dtEma * 0.75 + dt * 0.25; if (dtEma >= 0.001) pollMs = Math.round(Math.max(48, Math.min(260, pollMs * Math.pow((liveSpeed * 0.05) / dtEma, 0.55)))); }
+    }
+    lastC = clockNow;
+    await sleep(pollMs);
+  };
   for (;;) {
     if (++guard > 4000) return 'guard';
     const f = await H.eyesFight();
@@ -193,7 +226,7 @@ async function fightLoop(e0) {
       fight = { name: b0 ? b0.n : '?', t0: f.t, sim0: f.clock, hp0: f.w.hp, bites: 0, swings: 0, hits: 0, dmgTaken: 0,
         behind: 0, face: 0, flank: 0, fled: 0, windEscapes: 0, spent: 0, side, leg: f.camp.leg, tier: f.camp.tier,
         rSum: 0, rN: 0, fmSum: 0, bossHp0: b0 ? b0.hp : 0 };
-      fight.dip = 0; fight.struck = false; fight.prevWind = 0; fight.radOut = false; fight.holdN = 0; fight.lastCut = -9;
+      fight.dip = 0; fight.struck = false; fight.prevWind = 0; fight.radOut = false; fight.holdN = 0; fight.lastCut = -9; fight.dive = 0;
       mark('boss-start', { boss: fight.name, hp: b0 && b0.mhp, dmg: b0 && b0.dmg, spd: b0 && b0.spd, flight: b0 && b0.flight, wolfHp: f.w.hp, wolfLvl: f.w.lvl, travel: +travel.toFixed(2), tac: FIGHT_TAC }, true);
       fightMarkT = f.clock;
     }
@@ -203,6 +236,7 @@ async function fightLoop(e0) {
       fightMarkT = f.clock;
       const b = f.bosses[0];
       mark('fight', { boss: F.name, bhp: b && b.hp, r: F.rN ? +(F.rSum / F.rN).toFixed(1) : null, fm: F.rN ? +(F.fmSum / F.rN).toFixed(2) : null,
+        turn: b && b.turn, gap: b && b.gap, mode: F.mode,
         behindPct: F.bites ? Math.round(F.behind / F.bites * 100) : 0, bites: F.bites, dmgPerBite: F.bites ? +((F.bossHp0 - (b ? b.hp : 0)) / F.bites).toFixed(1) : 0,
         hits: F.hits, dmgTaken: +F.dmgTaken.toFixed(0), whp: f.w.hp, stam: f.w.stam, travel: +travel.toFixed(2), clock: f.clock }, true);
       F.rSum = 0; F.rN = 0; F.fmSum = 0;
@@ -218,16 +252,103 @@ async function fightLoop(e0) {
     F.rSum += b.d; F.rN++; F.fmSum += b.facingMe; F.mode = 'ring';
     const toB = bearingTo(f.w.x, f.w.z, b.x, b.z);
     const r = b.d;
+    /* AMBUSH-TELEPORT DETECTOR (telemetry): a Legend kit can relocate in one tick (Leopard
+       'ambush': 6.5 m behind the wolf's nose, src/p4.js — next bite ×1.5, kb 1.7). No
+       pursuit raises r >2.5 m in one poll. NO fleeing in answer (parklab14: the 0.9 s
+       escape sprint drained the tank, the pursuit face-locked the wolf, and a stamina-broke
+       wolf can neither open range nor out-turn — five deaths, all the same). The teleport
+       lands the wolf at the beast's FLANK at r 6.5: the zone law's own timed dive-in
+       recovers straight to the tail, which is also where stamina recovers. */
+    const rJump = r - (fight.pr ?? r);
+    fight.pr = r;
+    if (rJump > 2.5) {
+      fight.teleports = (fight.teleports || 0) + 1; fight.tpAt = f.clock; fight.dive = 0;
+      if (f.w.crouch) await H.tap('KeyX');      // abort any crouched dive — the geometry moved
+      mark('boss-teleport', { n: fight.teleports, r: +r.toFixed(1), clock: f.clock, stam: f.w.stam });
+    }
+    /* GAP VELOCITY + THE RESOLVE LAW: a bite lands 0.38 s AFTER the press (atkT windup,
+       p3) — its value is the geometry at RESOLUTION, not at press. Resolving behind
+       (ag > 1.93) pays 4.5-7.5; resolving face pays 1. So press when the PREDICTED gap
+       ag + gv·0.38 clears the behind line — early in a fast-growing sprint leg (gv +2.5:
+       press at ag 1.2 → resolves 2.15 behind), never during the dive's inward collapse
+       (gv negative). This is the difference between lab35's 1-2 dmg presses and kills. */
+    {
+      const agNow = Math.abs(b.gap);
+      if (fight.pg !== undefined && f.clock > (fight.pgc ?? -9)) {
+        const gvNow = (agNow - fight.pg) / Math.max(0.05, f.clock - fight.pgc);
+        if (Math.abs(gvNow) < 12) fight.gv = (fight.gv ?? gvNow) * 0.6 + gvNow * 0.4;
+      }
+      fight.pg = agNow; fight.pgc = f.clock;
+    }
 
-    /* --- health line: a human breaks off, sprints clear, and lets the 3 hp/s regen work --- */
+    /* --- THE ARENA IS HALF THE FIGHT (manual §4.1, probe's own law): collideSolids
+       multiplies speed by 0.22 on a trunk — a park orbit flown through forest flies at
+       3 m/s, slower than the neck, and the gap can never advance (parklab10-12: gap
+       pinned 0-1.2 at r 3.6-4.4, stamina bled, eaten — 452 solids near the lab spawn).
+       A human leads the beast to a clearing FIRST. Score once per fight (the world is
+       static), then lead: sprint for the clearing; the beast pursues at 12.5 vs 13.5. */
+    if (FIGHT_TAC === 'park' && fight.arena == null) {
+      fight.arena = await page.evaluate(() => {
+        const SOL = [];
+        for (const [, ch] of chunks) for (const so of (ch.solids || []))
+          if (Math.hypot(so.x - wolf.pos.x, so.z - wolf.pos.z) < 120) SOL.push(so);
+        /* GRAZERS JAM THE BITE (parklab18/19: half the presses eaten by deer — the engine
+           picks the CLOSEST cone target, and the clearings the scorer loves are meadows,
+           i.e. exactly where deer graze). Count live animals per site and price them in. */
+        const AN = [];
+        try {
+          for (const [, ch] of chunks) for (const arr of [ch.animals || [], ch.predators || []])
+            for (const a of arr) if (a && a.pos && !a.dead) AN.push(a);
+        } catch (e) { return { err: String(e && e.message || e) }; }
+        let here = 99;
+        for (const so of SOL) { const dd = Math.hypot(so.x - wolf.pos.x, so.z - wolf.pos.z) - (so.r || 1.2); if (dd < here) here = dd; }
+        let best = null, bs = -1e9;
+        for (let k = 0; k < 320; k++) {
+          const a = k * 2.399963, rr = 6 + (k % 18) * 5.5;
+          const x = wolf.pos.x + Math.sin(a) * rr, z = wolf.pos.z + Math.cos(a) * rr;
+          const h = heightAt(x, z);
+          if (h < WATER_Y + 2.0) continue;
+          let slope = 0;
+          for (const [ox, oz] of [[8, 0], [-8, 0], [0, 8], [0, -8], [6, 6], [-6, -6], [6, -6], [-6, 6]])
+            slope = Math.max(slope, Math.abs(heightAt(x + ox, z + oz) - h));
+          let clear = 99;
+          for (const so of SOL) { const dd = Math.hypot(so.x - x, so.z - z) - (so.r || 1.2); if (dd < clear) clear = dd; }
+          let grazers = 0;
+          for (const a2 of AN) if (Math.hypot(a2.pos.x - x, a2.pos.z - z) < 22) grazers++;
+          const score = Math.min(clear, 14) * 3 - slope * 4 - rr * 0.30 - (h > 34 ? 8 : 0) - grazers * 2.5;
+          if (score > bs) { bs = score; best = { x: +x.toFixed(1), z: +z.toFixed(1), clear: +clear.toFixed(1), slope: +slope.toFixed(2), away: +rr.toFixed(0), grazers } }; }
+        return { here: +here.toFixed(1), best };
+      }).catch(err => ({ err: String(err && err.message || err) }));   // parklab20: never swallow this silently again
+      fight.arenaUntil = lastSim + 30;   // timebox: 30 sim-s to reach the clearing, else fight here
+      mark('arena', fight.arena, true);
+    }
+    if (FIGHT_TAC === 'park' && fight.arena && fight.arena.here != null && fight.arena.here < 6 && fight.arena.best) {
+      const dA = Math.hypot(fight.arena.best.x - f.w.x, fight.arena.best.z - f.w.z);
+      if (dA > 5 && f.clock < (fight.arenaUntil || 1e9)) {
+        F.mode = 'arena';
+        await H.aimFast(bearingTo(f.w.x, f.w.z, fight.arena.best.x, fight.arena.best.z), f.cam);
+        await H.move({ f: true, sprint: f.w.stam > 20 && !f.w.exh });
+        await cadence(f.clock); continue;
+      }
+      if (dA <= 5) { fight.arena.here = 99; mark('arena-reached', { clear: fight.arena.best.clear, clock: f.clock }, true); }
+    }
+
+    /* --- health line: a human breaks off, sprints clear, and lets the 3 hp/s regen work ---
+       (NOT under the park tac: the Legend has no leash, so fleeing just trades the
+       whiff-proof tail for a footrace the wolf loses on stamina — the PARK is the
+       recovery: 3 hp/s regen behind it while every strike whiffs. parklab8's five deaths
+       were all flee-mode spirals.) */
     const fleeHp = Math.max(30, f.w.maxHp * (isIron ? 0.36 : 0.32));
-    if (f.w.hp < fleeHp && b.d < 30 && f.w.stam >= 15) {
+    if (FIGHT_TAC !== 'park' && f.w.hp < fleeHp && b.d < 30 && f.w.stam >= 15) {
       F.fled++; F.mode = 'flee';
       await H.aimFast(toB + Math.PI, f.cam);
       await H.move({ f: true, sprint: f.w.stam > 8 });
+      /* crouch discipline: stand only once the press actually fired (atkCd hot) or the
+         window closed — parklab18's stand-up beat the bite, so every press was uncrouched */
+      if (fight.dive === 0 && f.w.crouch && (f.w.atkCd > 0.5 || f.clock - (fight.diveEnd ?? -9) > 0.5)) await H.tap('KeyX');
       if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
       F.hp0 = f.w.hp;
-      continue;
+      await cadence(f.clock); continue;
     }
     if (F.mode === 'flee') { F.mode = 'ring'; F.hp0 = f.w.hp; }
 
@@ -236,22 +357,22 @@ async function fightLoop(e0) {
       F.mode = 'sub';
       await H.aimFast(toB + Math.PI, f.cam);
       await H.move({ f: true, sprint: f.w.stam > 12 });
-      continue;
+      await cadence(f.clock); continue;
     }
     if (b.charging || b.tac > 0) {
       F.mode = 'dodge';
       await H.aimFast(toB + side * Math.PI / 2, f.cam);
       await H.move({ f: true, sprint: f.w.stam > 10 });
-      continue;
+      await cadence(f.clock); continue;
     }
     /* --- the Eagle Legend: only strikeable inside the dive --- */
     if (b.flight) {
-      if (b.inv) { F.mode = 'sky'; await H.move({}); await H.aimFast(toB, f.cam); continue; }
+      if (b.inv) { F.mode = 'sky'; await H.move({}); await H.aimFast(toB, f.cam); await cadence(f.clock); continue; }
       F.mode = 'dive';
       await H.aimFast(toB, f.cam);
       await H.move({ f: r > 3.0, sprint: false });
-      if (r <= b.biteR && Math.abs(b.y - f.w.y) < 3.4) { F.swings++; if (await H.bite(f.t)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; } }
-      continue;
+      if (r <= b.biteR && Math.abs(b.y - f.w.y) < 3.4) { F.swings++; if (await H.bite(f.t, b.d)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; } }
+      await cadence(f.clock); continue;
     }
 
     /* --- THE RING: the walk-ring grammar (probe_fight BASE law — the measured winner at
@@ -285,15 +406,18 @@ async function fightLoop(e0) {
       await H.aimFast(moveDir, f.cam);
       await H.move({ f: true, sprint });
       const nose = Math.abs(wrapPI(toB - f.w.yaw));
-      if (!b.inv && fight.holdN <= 2 && r <= b.biteR && nose <= 1.15 && b.facingMe < -0.35 && b.wind <= 0.30 && f.w.atkCd <= 0.1) {
+      if (!b.inv && fight.holdN <= 3 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
         F.swings++;
-        if (await H.bite(f.t)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
+        if (await H.bite(f.t, b.d)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
       }
+      /* crouch discipline: stand only once the press actually fired (atkCd hot) or the
+         window closed — parklab18's stand-up beat the bite, so every press was uncrouched */
+      if (fight.dive === 0 && f.w.crouch && (f.w.atkCd > 0.5 || f.clock - (fight.diveEnd ?? -9) > 0.5)) await H.tap('KeyX');
       if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
       F.hp0 = f.w.hp;
       if (b.facingMe > 0.85 && r < 4.6 && b.wind <= 0) side = -side;   // lapped onto its good side: reverse
       F.side = side; F.mode = mode;
-      continue;
+      await cadence(f.clock); continue;
     }
     /* --- THE PARK (probe_fight v25 — the only measured WINNER): walk-orbit at the freeze
        radius r_park = 7 / neck (2.77-3.35 m) with the gap parked at dead-behind — the
@@ -304,31 +428,135 @@ async function fightLoop(e0) {
        respawn is the game's intended full-tank retry. */
     if (FIGHT_TAC === 'park') {
       const ag = Math.abs(b.gap);
-      const rPark = Math.min(3.35, Math.max(2.55, 7 / (b.turn || 2.53)));
-      const inTail = b.facingMe < -1.5 || (b.facingMe < -0.9 && f.w.stam <= 14);
+      /* THE LAP-RATE LAW (parklab21: gap never lapped — 0 bites). cut is measured from
+         TANGENT, so the wolf's angular rate is ω = v·cos(cut)/r. The old rPark 7/(neck+0.3)
+         ≈ 2.8 is the FREEZE radius (ω_walk = 7/2.8 = 2.5 ≈ neck 2.2: stalemate, a lap takes
+         a dozen seconds, every teleport resets it). The WINNING radii are the probe v11/v17
+         band: at r 2.25 the walk laps at 7/2.25 = 3.1 = +0.9 rad/s on the neck — flank to
+         tail in ~1.8 s, INSIDE the ~5 s teleport cycle. Tight also means the plants whiff
+         on angle (dot −1) and stam regens at the walk. Hold r in [rPark-0.40, rPark]. */
+      const rPark = 2.25;
+      /* PARK-ENGAGEMENT FIX (2026-09-05, lab run parklab1): the old gates tested facingMe —
+         a DOT product, range [-1, 1] — against -1.5 / -1.2: impossible values, DEAD CODE on
+         every build (those thresholds were authored in GAP radians, then applied to the dot).
+         The park could only engage through the stam<=14 bypass. And the first widening pass
+         (fm < -0.9 / fm < -0.6) still lost the tail: at speed-8 batches (0.4 s) a sprint
+         transit advances the gap ~1 rad PER BATCH, so the park window is crossed inside one
+         poll; and a walk held OUTSIDE rPark (r 3.3-3.8 vs 7/neck 3.18) is out-turned — the
+         gap retreats to the FACE (parklab1: gap -2.97 -> +1.95 -> 0, dead in 26 s).
+         The law is now zoned in |gap| radians with radius discipline:
+           PARK   |gap| > 2.40  walk, r held in [rPark-0.50, rPark] — at r <= 7/neck the
+                             walking omega (7/r) is NEVER below the neck, so the gap cannot
+                             retreat to the face; it freezes or creeps deeper behind.
+           ARRIVE |gap| > 1.90  already walking (called one zone early: ~0.5 rad ≈ one
+                             sprint batch of margin before the park line), r trimmed to the
+                             same band.
+           TRANSIT else        sprint the front half (cut 1.45, omega_rel ≈ +2.4 rad/s).
+         Suspects closed: (a) the zone gates ARE the widening, in the honest metric;
+         (b) arrive cut 1.50 -> 1.45; (c) b.turn reads 2.2 live in the real eyes (mark). */
       const lowStam = f.w.stam <= 14 || f.w.exh;
       let cut, sprint = false, mode = 'ring';
-      if (b.wind > 0 && ag < 1.42) { cut = Math.PI / 2 - 1.45; sprint = f.w.stam > 12 && !f.w.exh; mode = 'wind'; }
-      else if (r > 3.95) { cut = Math.PI / 2 - 0.50; sprint = f.w.stam >= 25 && !f.w.exh; mode = 'close'; }   // the SHUT-IN: drive past its face (26 m/s closing), its 180° turn hands me the blind side
-      else if (inTail && !lowStam) { cut = Math.PI / 2 - (r > rPark + 0.30 ? 1.40 : r < rPark - 0.30 ? 1.75 : 1.57); mode = 'park'; }
-      else if (b.facingMe < -1.2) { cut = Math.PI / 2 - 1.57; mode = 'park'; }        // last stretch: walk, no overshoot
-      else { sprint = !lowStam; cut = Math.PI / 2 - (sprint ? 1.50 : 1.57); mode = 'ring'; }
+      /* THE STRIKE-CYCLE GRAMMAR — a faithful port of probe_fight v24/v25, the law that
+         beat this boss at L5 (one ~6-dmg press per 1.8 s strike cycle, incoming ~0):
+         · the strike fires ONCE, at the plant's END (wind 0.55→0; hit needs |gap| ≤ 1.37
+           AND r ≤ 4.59) — safety is TIMING, not angle;
+         · the neck turns 2.2 rad/s in cooldown but only 0.4 DURING the 0.55 s plant, and
+           inside 4.0 m the boss PIVOTS instead of walking;
+         · so: WINDUP while caught (ag < 1.52) → TANGENT WALK (ω 2.7 at r 2.4: the gap
+           grows +2.3 rad/s straight through the plant — the strike whiffs, zero stam);
+           strike just landed (b.atk ≥ 0.40 ≈ 0.3-0.65 s old, wind gone) → SPRINT-LEG to
+           deep-behind (5.6 rad/s) if not there, then the DIVE: 2 nose-in polls (thWant
+           0.55/0.90 — press lands on the 2nd), 2 out-polls pay the radius back (2.20/2.60);
+           between windows → PARK RING: walk tangent at the freeze radius, dead-behind,
+           regen 11/s. (parklab22-29: my own controller variants all face-tanked at ~7 dps
+           or starved the dive gate — the probe's cycle sync is the whole game.) */
+      const struckFresh = (b.atk ?? 1) >= 0.40 && b.wind <= 0.05;
+      if (b.wind > 0 && ag < 1.52) {
+        /* tangent escape: WALK at r ≤ 3.6 (ω 2.7 vs the plant's 0.4 neck — gap +2.3 rad/s
+           through the windup, the strike whiffs); SPRINT the tangent beyond 3.6, where a
+           walk's ω = 7/r ≤ 1.9 cannot clear the 1.37 arc in 0.55 s (lab30 fight 1: three
+           hits exactly there) */
+        cut = 0; sprint = r > 3.6 && f.w.stam > 30 && !f.w.exh; fight.dive = 0; mode = 'windt';   // the sprint dodge is a luxury — a hit costs 14, a dry tank costs the fight
+      }
+      /* the SHUT-IN crossing: post-teleport the wolf lands at gap ≈ 0 — dead in its FACE
+         (parklab32 marks: every teleport resets to gap 0.1-0.6), and outside 4.0 m the
+         boss WALKS at 12.5 vs the wolf's 7 — a walking cross is run down. Sprint the
+         crossing when caught in the arc or fresh off a teleport; walk in only when
+         already behind-ish (stam > 60 = luxury sprint). */
+      else if (r > 3.95) { cut = Math.PI / 2 - 0.55; sprint = (ag < 1.50 || f.w.stam > 60 || f.clock - (fight.tpAt ?? -99) < 2) && f.w.stam > 12 && !f.w.exh; fight.dive = 0; mode = 'shut'; }
+      else if (fight.dive > 0) {
+        fight.dive--;
+        const far = r > 2.55;
+        cut = Math.PI / 2 - (fight.dive >= 2 ? (far ? 0.90 : 0.55) : (far ? 2.20 : 2.60));
+        mode = 'dive';
+        if (fight.dive === 0) fight.diveEnd = f.clock;
+      }
+      else if (struckFresh && ag > 1.98 && f.w.atkCd <= 0.1 && f.w.stam > 12 && !f.w.exh) {   // 1.98 not 2.20: the sleg peaks at 2.1 (lab33 polls) and the walk gives it back — bite-legal is 1.93
+        fight.dive = 4; cut = Math.PI / 2 - (r > 2.55 ? 0.90 : 0.55); mode = 'dive';
+        if (!f.w.crouch) await H.tap('KeyX');   // crouched blind-side bite: (3+1amb+1crouch)×1.5 = 7.5 (p3 bite math)
+      }
+      else if (ag <= 2.20 && b.wind <= 0.05 && f.w.atkCd <= 0.1 && f.w.stam > 18 && !f.w.exh) { cut = Math.PI / 2 - 1.50; sprint = true; mode = 'sleg'; }   /* lab35/36 law — the free-running leg (lab37) sprinted through the danger arc and took 7 hits in 12 s */
+      else if (ag > 2.40) { cut = Math.PI / 2 - (r > 2.80 ? 1.30 : r < 2.35 ? 1.75 : 1.57); mode = 'park'; }
+      else if (ag > 1.90) { cut = Math.PI / 2 - (r > 3.20 ? 1.10 : r > 2.80 ? 1.30 : 1.57); mode = 'arrive'; }
+      /* the cooldown IS the sprint window (probe v23): lap at 13.5·cos(0.12)/r ≈ 4-5.6 rad/s
+         to the tail while its neck idles; the walk comes back at the plant (windt) and the
+         park. lab30's walk-ring sagged at ω 2.0 < 2.2 and died in the face arc. */
+      else { cut = Math.PI / 2 - 1.45; sprint = !lowStam && f.w.stam > 20; mode = 'ring'; }   // floor 20: at 28-33 the walk-ring bled the gap back (lab33)
       const thNow = Math.PI / 2 - cut;
       fight.holdN = (thNow === fight.lastCut) ? fight.holdN + 1 : 1;
       fight.lastCut = thNow;
-      const moveDir = toB + side * thNow;
+      /* THE AIM LEAD (ported from probe_fight v10 — the rig's fightLoop never had it):
+         the wolf's nose eases toward the command at dt·9, so a commanded cut is travelled
+         short — every inward trim filtered into pure tangent, r never settled into the
+         freeze band, and the boss out-walked the orbit (the '0 damage in 8 real attempts'
+         sprint-ring disease lived here too). Measure the shortfall from the wolf's own
+         displacement and ask for it up front. */
+      if (fight.pv && f.clock - (fight.pc ?? f.clock) > 0.02) {
+        const trav = wrapPI(Math.atan2(f.w.x - fight.pv.wx, f.w.z - fight.pv.wz) - fight.pv.toB);
+        const e = wrapPI(trav * side - fight.pv.th);
+        if (Math.abs(e) < 1.3) fight.aimErr = Math.max(-0.9, Math.min(0.9, (fight.aimErr || 0) * 0.65 + e * 0.35));
+      }
+      const thCmd = thNow - (fight.dive > 0 ? 0 : (fight.aimErr || 0));   // a dive aims true — lead offsets break the bite cone
+      fight.pv = { wx: f.w.x, wz: f.w.z, toB, th: thCmd };
+      fight.pc = f.clock;
+      const moveDir = toB + side * thCmd;
       await H.aimFast(moveDir, f.cam);
       await H.move({ f: true, sprint });
+      /* per-poll fight trace (the 4-s marks hid the physics; bounded, report-only) */
+      (F.polls = F.polls || []).push({ c: f.clock, g: +b.gap.toFixed(2), r: +r.toFixed(2), fm: +b.facingMe.toFixed(2),
+        m: mode, s: sprint ? 1 : 0, st: f.w.stam, hp: Math.round(f.w.hp), w: +b.wind.toFixed(2), cd: +f.w.atkCd.toFixed(2),
+        nv: +Math.abs(wrapPI(toB - f.w.yaw)).toFixed(2), sd: side, th: +thCmd.toFixed(2),
+        j: +(b.jam ?? 99).toFixed(1), hn: fight.holdN, batk: +(b.atk ?? 1).toFixed(2), inv: b.inv ? 1 : 0,
+        yaw: +f.w.yaw.toFixed(2), hdg: +b.hdg.toFixed(2), cr: f.w.crouch ? 1 : 0 });
+      if (F.polls.length > 900) F.polls.splice(0, 300);
       const nose = Math.abs(wrapPI(toB - f.w.yaw));
-      if (!b.inv && fight.holdN <= 2 && r <= b.biteR && nose <= 1.15 && b.facingMe < -0.35 && b.wind <= 0.30 && f.w.atkCd <= 0.1) {
+      if (!b.inv && fight.holdN <= 3 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
         F.swings++;
-        if (await H.bite(f.t)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
+        if (await H.bite(f.t, b.d)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
       }
+      /* crouch discipline: stand only once the press actually fired (atkCd hot) or the
+         window closed — parklab18's stand-up beat the bite, so every press was uncrouched */
+      if (fight.dive === 0 && f.w.crouch && (f.w.atkCd > 0.5 || f.clock - (fight.diveEnd ?? -9) > 0.5)) await H.tap('KeyX');
       if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
       F.hp0 = f.w.hp;
-      if (b.facingMe > 0.85 && r < 4.6 && b.wind <= 0) side = -side;
+      /* side law for the PARK: ONE orbit direction per fight — the 180° law. Direction by
+         polar kinematics: dβ/dt = −side·(v·sinθ)/r for the wolf's bearing β around the boss,
+         so growing |gap| needs side = −sign(gap) (verified against parklab1's wrap trace:
+         side +1 with gap −2.97 advanced the gap to −π exactly as this predicts). The old
+         shared flip (fm > 0.85 -> side = -side) reversed the orbit every poll under
+         face-lock (parklab3), an unlatched sign jitters at gap≈0 (parklab4), re-latching
+         per transit entry reversed the orbit at the park doorstep (parklab8), and the first
+         latch here used +sign(gap) — the inverse — walking the gap INTO the face (lab10:
+         gap −1.55 → −0.39, eaten). Latch once per fight; hard face-lock ~4 s earns ONE
+         deliberate reversal. */
+      if (!fight.tSide) fight.tSide = b.gap >= 0 ? -1 : 1;
+      if (ag < 1.90) {
+        fight.tLock = (b.facingMe > 0.9 && b.wind <= 0) ? (fight.tLock || 0) + 1 : 0;
+        if (fight.tLock > 10) { fight.tSide = -fight.tSide; fight.tLock = 0; }
+      } else fight.tLock = 0;
+      side = fight.tSide;
       F.side = side; F.mode = mode;
-      continue;
+      await cadence(f.clock); continue;
     }
     /* --- THE RING: v20 dip grammar (measured in probe_fight v15-v20) or the sprint ring --- */
     if (FIGHT_TAC === 'v20') {
@@ -362,13 +590,16 @@ async function fightLoop(e0) {
       const nose = Math.abs(wrapPI(toB - f.w.yaw));
       /* the dip gate: press on the second in-poll of the dip (nose ~0.7) — read 1.03 whiffed,
          0.81 landed, so 1.05 is the ceiling; behind it (ambush x1.5), not during its plant. */
-      if (!b.inv && fight.dip === 3 && r <= b.biteR && nose <= 1.15 && b.facingMe < -0.35 && b.wind <= 0.30 && f.w.atkCd <= 0.1) {
+      if (!b.inv && fight.dip === 3 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
         F.swings++;
-        if (await H.bite(f.t)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
+        if (await H.bite(f.t, b.d)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
       }
+      /* crouch discipline: stand only once the press actually fired (atkCd hot) or the
+         window closed — parklab18's stand-up beat the bite, so every press was uncrouched */
+      if (fight.dive === 0 && f.w.crouch && (f.w.atkCd > 0.5 || f.clock - (fight.diveEnd ?? -9) > 0.5)) await H.tap('KeyX');
       if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
       F.hp0 = f.w.hp;
-      continue;   // no side swaps in v20: a fixed lap never reverses (manual law v8)
+      await cadence(f.clock); continue;   // no side swaps in v20: a fixed lap never reverses (manual law v8)
     }
     /* --- THE RING: sprint it while the legs last, tighten it when they don't --- */
     const gassed = f.w.exh || f.w.stam < 8;
@@ -389,7 +620,7 @@ async function fightLoop(e0) {
     const nose = Math.abs(wrapPI(toB - f.w.yaw));
     if (!b.inv && r <= b.biteR + 0.35 && nose < 1.42) {
       F.swings++;
-      if (await H.bite(f.t)) {
+      if (await H.bite(f.t, b.d)) {
         F.bites++;
         if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++;
       }
@@ -467,7 +698,10 @@ try {
 
     /* ---- a Legend is loose: the fight owns everything ---- */
     if (e.camp.stage === 'boss' && e.bosses.length) {
+      if (SPEED > 2 && liveSpeed !== 2) { await page.evaluate(() => { window.__boost.n = 2; }).catch(() => { }); liveSpeed = 2; mark('fight-speed', { to: 2, clock: e.clock }); }
       const res = await fightLoop(e);
+      if (SPEED > 2 && liveSpeed !== SPEED) { await page.evaluate(() => { window.__boost.n = SPEED; }).catch(() => { }); liveSpeed = SPEED; mark('fight-speed', { to: SPEED, clock: e.clock }); }
+      if (e.w && e.w.crouch) await H.tap('KeyX');      // never leave the wolf prowling between fights
       if (fight) {
         fight.simS = +(lastSim - fight.sim0).toFixed(1);
         fight.mode = res;

@@ -9,7 +9,7 @@ a fresh agent can act immediately without asking the user anything.
 `README.md` (player-facing). `MASTER.md` and `AGENT_BRIEF.md` must BOTH be updated in the same
 commit whenever project state, law, architecture, or instructions change.
 
-**Snapshot:** 2026-09-05 (v6.8 build + the 2026-09-04 fullscreen/VFX/obstacle commits; workspace recovered from the trainer's Drive patch — see §4.5i and `docs/HANDOFF_2026-09-05.md`; game/law/champion unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
+**Snapshot:** 2026-09-06 (park fight labs 14–38 + route labs: six fight-loop defects fixed — bite-jam, Boss-in-chunk.predators, holdN, crouch ordering, teleport face-geometry, speed-8 batches; the RESOLVE LAW; the fight-speed switch `window.__boost.n`; iron/L5 now 9 presses and 38 s fights, boss at 31–43 at wolf death — kill ~2× short on press rate, next = BREAK-OFF law; see `docs/HANDOFF_2026-09-06.md`. Game/law/champion otherwise unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
 duplicate repo `github.com/mdraficode/aurorawolf-v2` (exact copy, created 2026-09-01; **RETIRED by
 user directive — never work in, sync, or push to v2**).
 
@@ -37,7 +37,7 @@ and publishes.
 | **Duplicate repo (v2)** | github.com/mdraficode/aurorawolf-v2 (exact copy; **RETIRED per user directive 2026-09-01 — never touch or push to it; do NOT sync it**) |
 | Git auth | `~/.ghtoken` — classic PAT, `repo` scope. **NEVER commit it.** Push: `git push origin main` (the remote is configured; if auth prompts, the Arena GitHub connection needs reconnecting — the repo has no other branch) |
 | APK | git tag `archive/android-apk` holds the signed APK + WebView wrapper; signing key `~.revontulet.keystore` (never committed). **APK only on explicit request** |
-| **Branches** | **single branch: `main`** — no `arena/**`, no feature/PR branches. `git ls-remote --heads origin` → only `refs/heads/main`. **Arena caveat:** every Arena session is pinned to its own `arena/<id>-aurorawolf` branch by the platform; the trainer's standing order is to land that work on `main` and delete the session branch afterwards (2026-09-05 directive). GitHub leftovers: PR #4 (superseded) is closed by the trainer himself. |
+| **Branches** | **single branch: `main` — DEFAULT RULE (2026-09-06 trainer directive, standing forever):** do NOT create any branch for work progress. Keep all files on `main`, commit to `main`, push to `main`; one clean repo, zero extra branches. If the platform pins a session branch anyway, land the work on `main` and delete the session branch before session end. `git ls-remote --heads origin` → only `refs/heads/main`. GitHub leftovers: PR #4 (superseded) is closed by the trainer himself. |
 | Publish (live-only bump) | `bash tools/ship.sh "msg"` — build + `git push origin main` → GitHub Pages live ~1 min. (Legacy `publish.sh github` now delegates to `ship.sh`; prefer `ship.sh` directly) |
 | Build | `python3 build.py` → index.html from shell.html + style.css + vendor/three.min.js + src/p1..p6 + autopilot.js |
 | Tests | Playwright + headless Chromium (SwiftShader). `npm install` then `bash test/browserlab/boot.sh` (idempotent, Chromium 149 from npm's `@sparticuz/chromium`; no CDN/apt, no sudo). Re-run after each sandbox reset. **Gate on `a57eb5a` (2026-09-05): `npm test` 27/27** after the collision-suite rewrite (was 26/27 — see §4.5i) |
@@ -483,10 +483,13 @@ obstacles). The 2026-09-05 recovery work (collision-suite rewrite, `_probe_trace
 lands on `main` per the trainer's transfer directive (§4.5i). Build reproducible (`python3 build.py`
 == committed `index.html`, crown GEN 50 baked). Full gate `npm test` 27/27 on this build.
 
-**Next task (trainer-ordered 2026-09-05):** the PARK engagement fix in `test/speedrun/run.mjs`
-(open item of §4.5g; repro + suspects in `test/speedrun/HANDOFF_2026-09-03.md`) → first real
-`boss-end {res:'slain'}` + Tier-1 trophy logged in `TRAINING_MANUAL.md` → then rank the four routes →
-then GEN 56 (LAW v4, park grammar = drill 7, no promote without a trainer verdict).
+**Next task (trainer-ordered; 2026-09-06 state — see `docs/HANDOFF_2026-09-06.md`):** the park
+ENGAGEMENT fix is done (the rig fights: 9 presses, 38 s fights, 6.8-avg-value behind presses at
+iron/L5). Remaining, in order: the **BREAK-OFF law** (disengage at hp<~35%, regen 3 hp/s, re-engage
+— a wolf death resets the boss to 45, a break-off does not; the effective-tank multiplier closes
+the ~2× press-rate gap) → optional nose-flick press-rate pass → first real `boss-end {res:'slain'}`
++ Tier-1 trophy logged in `TRAINING_MANUAL.md` → route ranking data already collected (all routes
+enter at L4–5) → GEN 56 (LAW v4, park grammar = drill 7, no promote without a trainer verdict).
 
 Lineage (LAW v4): 34 fit 25 SURVIVED(cap) → **35 fit 59 CHAMPION** (died L8 Leopard, 126.6 xp/min)
 → 36 fit 19 (first ritual + first Legend fight ~18 s) → 37 fit −43 (rival pack attack in prep) →

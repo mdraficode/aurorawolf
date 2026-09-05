@@ -5,9 +5,10 @@
 the project identity, the codebase map, the neural-training system, the CURRENT progress state,
 and the road ahead. **Rule: whenever a session changes the law, the brain architecture, the
 features, or the lineage state, update this file in the same commit.** It is the memory of the
-project. Last updated: **2026-09-05** (workspace recovery; docs brought current for the 2026-09-04
-commits — in-place re-seed, VFX pass, standable obstacles; collision suite rewritten). Previous
-headers: 2026-09-03 (human-speedrun — the tier-1 fight coached as closed), 2026-09-01 (post GEN 39).
+project. Last updated: **2026-09-06** (park fight labs 14–38 + route labs: six fight-loop defects
+fixed, the resolve law, the fight-speed switch, the duel is real and ~2× from the kill —
+`docs/HANDOFF_2026-09-06.md`). Previous headers: 2026-09-05 (workspace recovery), 2026-09-03
+(human-speedrun — the tier-1 fight coached as closed), 2026-09-01 (post GEN 39).
 
 ---
 
@@ -231,6 +232,22 @@ stop (exit 3 = all attempts failed); collect-at-end publishing; never chain gate
 ---
 
 ## 9 · Current state (2026-09-01) — WHERE WE LEFT OFF
+
+**SESSION 2026-09-06 (park fight continued — the OPEN ITEM is now the kill itself):** fight labs
+14–38 + pack/hunt route labs. Six defects fixed (bite-jam — the engine picks the closest ±78°-cone
+target and a deer eats the press; the jam sense blocking on the Boss itself, since Bosses live in
+`chunk.predators` p4.js:3144; `holdN≤2` rejecting the dive's nose-arrival poll; crouch stand-up
+beating the press; the teleport landing the wolf in the boss's FACE not its flank; speed-8 fights
+being unwinnable → live boost switch `window.__boost.n`, fights at 2, travel at 8). The law is a
+faithful probe-v24/v25 port **+ the RESOLVE LAW** (a bite lands 0.38 s after the press — press when
+`|gap| + gv·0.38 > 1.93` so it resolves BEHIND: 4.5–7.5 dmg crouched). Arc at iron/L5/seed 7777:
+0 bites → 9 presses, 38.4 s fights, boss at 31–43 when the wolf falls — **press value solved
+(6.8 avg), press rate (~0.1/s) is the last gap**, and the next move is the BREAK-OFF law (a wolf
+death resets the boss to 45; a break-off does not). Routes: iron/pack/hunt ALL enter at L4–5 —
+the campaign gates progression, no level lever at leg 0. Full detail: `docs/HANDOFF_2026-09-06.md`,
+`TRAINING_MANUAL.md` §5.7, `PLAYLOG.md` 2026-09-06. **Repo rule now DEFAULT: one branch `main`
+forever — no session/arena branches; all work lands on and pushes to `main`** (2026-09-06 trainer
+directive).
 
 **Champion: GEN 50 — fit −55** (v6 basis, 2026-09-01 — second promotion of the session): died PREP L5 at
 1152 sim-s · 708xp · **36.9 xp/sim-min (best pace of the v6 era)** · RUN.side 2. Predecessor GEN 46

@@ -316,6 +316,33 @@ counts clean time; (3) never flee below stam 15 — stand, die, retry on the res
   an echo teleport. The clones die with the Legend (B9) — but not before they have killed you.
   This is why LAW v4 measures *speed and efficiency to the highest tier*, not "a trophy".
 
+### 5.7 The 2026-09-06 additions (fight labs 14–38 — read before touching the fight law)
+
+- **THE BITE-JAM LAW.** The engine's bite picks the CLOSEST live target in the ±78° nose
+  cone (`p3.attack()`), and **Bosses are registered in `chunk.predators`** (`p4.js:3144`).
+  Two consequences the rig must respect forever: a grazer between wolf and boss eats the
+  press (jam sense + atomic strike-time re-check in `H.bite` + grazer-priced arena
+  scoring), and any "nearest blocker" scan must exclude Bosses by class or it blocks on
+  the target itself.
+- **THE RESOLVE LAW.** A bite lands **0.38 s after the press** (`atkT`). Value = geometry
+  at RESOLUTION, not at press: `|gap| + gv·0.38 > 1.93` (gv = gap-velocity EMA) — press
+  early in a fast-growing sprint leg so it resolves BEHIND (4.5–7.5 dmg with crouch +
+  ambush); a press at the gap peak resolves face (1 dmg).
+- **The teleport lands the wolf in the boss's FACE** (gap ≈ 0), not at its flank — the
+  boss relocates behind the wolf while still heading toward it. The crossing must sprint
+  (outside 4 m the boss walks 12.5 vs the wolf's 7).
+- **Lap-rate physics: `ω = v·cos(cut)/r`** (cut measured from tangent). r 2.25–2.55 is the
+  winning band (walk ω 2.75–3.1 vs neck 2.2); r = 7/neck is only the FREEZE radius; from
+  r ≥ 4.6 nothing out-turns the neck (cosθ ≥ 1.06 impossible) — inrush, don't orbit.
+- **Speed-8 fights are unwinnable** (0.4 s batches): the router now switches
+  `window.__boost.n` 8→2 on boss-stage entry and back (verified). Travel stays fast.
+- **Crouch economics**: behind bite (3) + ambush (1) + crouch (1) ×1.5 = **7.5**; stand up
+  only AFTER the press; never finish a fight crouched (0.42× speed).
+- **Route-entry levels are campaign-gated**: iron/pack/hunt ALL reach the Leopard at L4–5.
+  No level lever exists at leg 0 — the kill comes from law + break-offs, not grind.
+- Fight reports now dump live (`runs/run_<tag>_live.json` on every forced mark) — a crash
+  at cap no longer loses the polls.
+
 ---
 
 ## 6. Session protocol
