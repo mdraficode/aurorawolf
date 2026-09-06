@@ -509,3 +509,19 @@ New laws (all live from parklab88):
 4. **Hygiene radius 45 m** at the altar (was 30 — the ring let L9–10 hunters close
    during the 2.4 s channel).
 
+
+
+### 5.12 v6.9 world features — what the runner should know (2026-09-07)
+
+- **Terrain re-rolled:** crest lines now exceed 110 m with permanent snow; **fjords** cut sea arms
+  through the ranges (steep walls, water floors). Route math that assumed ≤70 m climbs or dry
+  mountain corridors is stale — re-probe travel lines through any mass you knew.
+- **Vistas (🏔️, rare):** cairns on 40 m+ high points, ~1 per 2–3 mountain chunks. +25 XP each, first
+  find also heals 25 + full stamina. Marked on minimap AND big map whether found or not — free
+  waypoint routing. A vista detour that costs <40 s of travel is XP-positive.
+- **Cliff falls (🌊, rare):** +25 XP, same discovery rules, common along fjord walls.
+- **Caves:** ~4–5 mouths per mountain view now. Interior bats: one 2-dmg swoop if you loiter under a
+  roost (they never chase — 13 m leash from the roost). Ignore them; they ignore a passing wolf.
+- **Fish:** 3–5 per lake, +6 XP +1 meat per catch, **bite only connects from water/shallows**
+  (`swimming || heightAt < WATER_Y + 0.35`). Not a fight route XP source on current routes — but a
+  lake crossing + strike is a legal, cheap top-up when a leg passes water anyway.

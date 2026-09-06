@@ -40,9 +40,9 @@ and publishes.
 | **Branches** | **single branch: `main` — DEFAULT RULE (2026-09-06 trainer directive, standing forever):** do NOT create any branch for work progress. Keep all files on `main`, commit to `main`, push to `main`; one clean repo, zero extra branches. If the platform pins a session branch anyway, land the work on `main` and delete the session branch before session end. `git ls-remote --heads origin` → only `refs/heads/main`. GitHub leftovers: PR #4 (superseded) is closed by the trainer himself. |
 | Publish (live-only bump) | `bash tools/ship.sh "msg"` — build + `git push origin main` → GitHub Pages live ~1 min. (Legacy `publish.sh github` now delegates to `ship.sh`; prefer `ship.sh` directly) |
 | Build | `python3 build.py` → index.html from shell.html + style.css + vendor/three.min.js + src/p1..p6 + autopilot.js |
-| Tests | Playwright + headless Chromium (SwiftShader). `npm install` then `bash test/browserlab/boot.sh` (idempotent, Chromium 149 from npm's `@sparticuz/chromium`; no CDN/apt, no sudo). Re-run after each sandbox reset. **Gate on `a57eb5a` (2026-09-05): `npm test` 27/27** after the collision-suite rewrite (was 26/27 — see §4.5i) |
+| Tests | Playwright + headless Chromium (SwiftShader). `npm install` then `bash test/browserlab/boot.sh` (idempotent, Chromium 149 from npm's `@sparticuz/chromium`; no CDN/apt, no sudo). Re-run after each sandbox reset. **Gate on `a57eb5a` (2026-09-05): `npm test` 27/27** after the collision-suite rewrite (was 26/27 — see §4.5i) · **v6.9 gate (2026-09-07): 27/27 + gather/ecosystem/mystic + `test/v69_features.test.mjs` all green** |
 | Current champion | **GEN 50 · fit −55** (v6 basis; old 283/59 scores were wall-inflated) · 336 weights · **TIER 1, 0 trophies — the trophy is the frontier** |
-| Next generation | **GEN 56** (nothing spawned yet; runs on the **v6.8 build** = boss-kit + speedrun fixes, see §4.5d/§4.5e). Trainer order: finish the **human-speedrun session** first — no bot, no brain, reach the Tier-1 trophy and log it in `TRAINING_MANUAL.md`. |
+| Next generation | **GEN 56** (nothing spawned yet; the world build is now **v6.9** — boss-kit + speedrun fixes + the map features of 2026-09-07, see §3.5). Trainer order: finish the **human-speedrun session** first — no bot, no brain, reach the Tier-1 trophy and log it in `TRAINING_MANUAL.md`. Hunt status: **paused at the Tiger wall** (parklab88; kite-then-channel designed in `docs/HANDOFF_2026-09-06.md`) — resume from there; note v6.9 re-rolled the high terrain (peaks >110 m, fjords), so old mountain travel lines are stale (§5.12). |
 
 ---
 
@@ -104,6 +104,14 @@ and publishes.
 - Update MASTER.md + AGENT_BRIEF.md in the same commit that changes law/architecture/state.
 
 ---
+
+### 3.5 v6.9 map features (2026-09-07, user request)
+
+Sky peaks + fjords, doubled cave density, defensive bats (NO chase — 13 m roost leash is a hard
+law), vista POIs (+25 XP, minimap + big-map marks), cliff falls, water-only fish hunting.
+Mechanics in `docs/MASTER.md` §7g; laws proven in `test/v69_features.test.mjs` (in the repo, run
+directly: `node test/v69_features.test.mjs`). Standing gotcha: exceptions inside the tick try/catch
+surface ONLY in the `#err` banner — check it whenever HUD/season/streaming look frozen.
 
 ## 4 · DECISIONS MADE BY THE AGENT (with rationale — the user accepted them)
 

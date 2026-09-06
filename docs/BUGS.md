@@ -623,3 +623,11 @@ MASTER §11). The suite now grounds the wolf, picks trunks/boulder lanes that ar
 and water (deterministic nearest-first), asserts the game's own guarantee for logs (never inside a
 circle, never across the axis, 40 walk stations along the span), and skips stations where the bark is
 at/below foot level (the standable rule, not a gap). 10/10 consecutive passes on `a57eb5a`.
+
+**v6.9 note (2026-09-07):** the frame-loop fault tolerance has a blind spot worth remembering —
+an exception inside the tick `try/catch` is bannered into `#err` and *swallowed*: `pageerror`
+stays silent, so headless tests can't see it. The v6.9 fish tick hook hit a TDZ (`adt` used before
+its `const`), freezing HUD/season/chunk-streaming for ~6 suites while every test reported
+"pageerrors: none". **Rule: whenever HUD text, season, or streaming look frozen in a probe, read
+`document.getElementById('err').textContent` — the banner names the throw.** (Fixed same turn;
+both hooks take `dt` now.)
