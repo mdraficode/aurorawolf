@@ -756,7 +756,7 @@ async function fightLoop(e0) {
         fight.pGap = b.gap;
         if (fight.dive === 0) fight.diveEnd = f.clock;
       }
-      else if (b.wind <= 0.05 && ((struckFresh && f.w.stam > 15) || (r <= 2.9 && f.w.stam > 25)) && ag > 1.55 && (fight.gv ?? 2) > -0.5 && f.w.atkCd <= 0.1 && !f.w.exh) {   /* lab67 law (start 1.55, press the rising window) + parklab75: REFUSE falling gaps — dives started on gv<-0.5 collapsed under the resolve line before the nose settled (every shallow dive in the lab75 dump) */   /* parklab64/65: at park radius (r<=2.9, the measured 0%-hit zone) every clean-cooldown cone is pressable — but stam>25 for park presses: the perpetual-dive machine burned the tank to 21-45 and the tired tp catches then walked into hits. Rest between cycles: the park walk regens 11/s */   /* parklab60: the climb tops at gap ~1.6, so the old 1.98 gate opened twice in 24 s; the bite's own resolve gate (|gap|+gv·0.38 > 1.93) vets every press anyway — pressing at 1.55 with gv +2 resolves at 2.3, behind. parklab46: floor 50 missed windows by 1 stam — the dive is WALK-cheap (nose-in + out), the kill is the best defense */
+      else if (b.wind <= 0.05 && ((struckFresh && f.w.stam > 15) || (r <= 2.9 && f.w.stam > 25) || (r <= 4.2 && f.w.stam > 40)) && ag > 1.55 && (fight.gv ?? 2) > -0.5 && f.w.atkCd <= 0.1 && !f.w.exh) {   /* lab67 law (start 1.55, press the rising window) + parklab75: REFUSE falling gaps — dives started on gv<-0.5 collapsed under the resolve line before the nose settled (every shallow dive in the lab75 dump) */   /* parklab64/65: at park radius (r<=2.9, the measured 0%-hit zone) every clean-cooldown cone is pressable — but stam>25 for park presses: the perpetual-dive machine burned the tank to 21-45 and the tired tp catches then walked into hits. Rest between cycles: the park walk regens 11/s */   /* parklab60: the climb tops at gap ~1.6, so the old 1.98 gate opened twice in 24 s; the bite's own resolve gate (|gap|+gv·0.38 > 1.93) vets every press anyway — pressing at 1.55 with gv +2 resolves at 2.3, behind. parklab46: floor 50 missed windows by 1 stam — the dive is WALK-cheap (nose-in + out), the kill is the best defense */
         fight.dive = 6; fight.dFar = r > 2.55; cut = Math.PI / 2 - (r > 2.05 ? 0.30 : 0.55); mode = 'dive';
         if (!f.w.crouch) await H.tap('KeyX');   // crouched blind-side bite: (3+1amb+1crouch)×1.5 = 7.5 (p3 bite math)
       }
@@ -1043,7 +1043,7 @@ try {
          stretch (the wolf arrived at every boss-start at stam 8-16 — this block used to sit
          AFTER the d<3.2 channel, i.e. dead code on the actual path). Standing rest beside a
          predator is suicide, so rest only clear of one (walk away if it is within 26 m). */
-      if ((isIron || isPack) && (e.w.hp < e.w.maxHp * 0.90 || e.w.stam < 80) && healWait < 40) {
+      if ((isIron || isPack) && (e.w.hp < e.w.maxHp * 0.90 || e.w.stam < 80) && healWait < 80) {   /* parklab88: the Tiger entered at 107/172 — hunters at the altar ate the 40-cap of rest polls */
         healWait++;
         const pr = (e.animals || []).filter(a => a.kind === 'predator' || a.danger).sort((a2, b2) => a2.d - b2.d)[0];
         if (pr && pr.d < 26) await H.aim(bearingTo(e.w.x, e.w.z, pr.x, pr.z) + Math.PI);
