@@ -305,7 +305,16 @@ async function fightLoop(e0) {
          and TURN when the flee bearing pins against terrain. */
       const wps = (f.preds || []).filter(pp => pp.hp > 0);
       const wpNear = wps.filter(pp => pp.d < 14).sort((a, c) => a.d - c.d)[0];
-      if (wpNear && !fight.fleePred && (fight.fleeCd ?? -99) < f.clock) {
+      /* parklab87: THE ENDGAME RACE — the Leopard was at 27.5 with the wolf at 140 when
+         a Level-7 lion latched: the 12 s flee drained the tank to stam 4, ate 6 hits, and
+         the give-up returned at hp 47 with the lion still there — dead at bhp ~15, a kill
+         stolen by a third party. When the boss is nearly done (<=30 hp) and the tank is
+         fat (>=90), the flee loses a race the press engine is winning: IGNORE the hunter,
+         keep the boss law, eat the odd hit — 4 presses beat 2 fronts. Early-game latches
+         (bhp high, a long race ahead) still disengage — two fronts for 60 s is death. */
+      const endRace = b.hp <= 40 && f.w.hp >= 70;   /* parklab87 run3: bhp 31.5 missed the 30-bound by 1.5, the flee latched, hits 7->11 — the gate must cover the whole winnable stretch: 40 hp is ~6-10 presses (~30-45 s), a 70+ tank absorbs a hunter through that */
+      if (wpNear && endRace && !fight._raceMark) { fight._raceMark = true; mark('wild-race', { k: wpNear.k, lvl: wpNear.lvl, bhp: +b.hp.toFixed(1), hp: Math.round(f.w.hp), clock: f.clock }, true); }
+      if (wpNear && !endRace && !fight.fleePred && (fight.fleeCd ?? -99) < f.clock) {
         fight.fleePred = true; fight.fleePredT = f.clock; fight.wildTurn = 0; fight.wildStuck = 0;
       }
       if (fight.fleePred && (!wps.some(pp => pp.d < 40) || f.clock - (fight.fleePredT ?? f.clock) > 12)) {

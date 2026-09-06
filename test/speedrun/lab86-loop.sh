@@ -11,11 +11,11 @@ for i in $(seq 1 "$N"); do
   pkill -f chrome-lab 2>/dev/null; sleep 1
   LOG="test/speedrun/runs/${TAG}run${i}.log"
   echo "== [$TAG #$i] $(date +%H:%M:%S) ==================" >> "$LOG"
-  timeout 300 node test/speedrun/run.mjs --fightlab --route=iron --seed=7777 \
-    --cap=240 --speed=8 --rate=10 --re=10 --tag="${TAG}run${i}" >> "$LOG" 2>&1
-  # stop on the TIGER kill (leg 1) — the Leopard (leg 0) is expected to die now
-  if grep -q 'Tiger Legend","res":"slain' "$LOG" || grep -q '"leg":2' "$LOG"; then
-    echo "== TIGER KILL at iteration $i — log: $LOG"
+  timeout 420 node test/speedrun/run.mjs --fightlab --route=iron --seed=7777 \
+    --cap=600 --speed=8 --rate=10 --re=10 --tag="${TAG}run${i}" >> "$LOG" 2>&1
+  # stop on the TIGER kill (leg 1), leg 2, or the TROPHY event (tier 1 closes)
+  if grep -q 'Tiger Legend","res":"slain' "$LOG" || grep -q '"leg":2' "$LOG" || grep -q "TROPHY" "$LOG"; then
+    echo "== TIGER/TROPHY at iteration $i — log: $LOG"
     exit 0
   fi
 done
