@@ -10534,7 +10534,7 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
      step; headless rAF (which starves timers) becomes irrelevant. */
   const QS2 = new URLSearchParams(location.search);
   const SPEED = Math.min(16, Math.max(1, +(QS2.get('speed') || 1)));
-  const RATE = Math.min(4, Math.max(0.25, +(QS2.get('rate') || 1)));   // sim-seconds per wall-second target
+  const RATE = Math.min(10, Math.max(0.25, +(QS2.get('rate') || 1)));   // sim-seconds per wall-second target (cap 10: parklab86 — compute is ~1.5ms/tick, the old cap-4 + 50ms floor starved the sim to ~0.55x)
   const R_EVERY = Math.min(10, Math.max(1, +(QS2.get('re') || 1)));       // render once per K batches (headless: rendering is the bottleneck)
   window.BOT_SPEED = SPEED;
   if (SPEED > 1) {
@@ -10553,7 +10553,7 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
     window.__boost = { batches: 0, ticks: 0, warns: 0, lastMsg: '', n: SPEED };   // n = LIVE batch size (the speedrun rig drops it to 2 for boss fights — 0.4 s batches are too coarse for the fight grammar — and back up for travel)
     let lastEnd = 0, batchDur = 0;
     setInterval(() => {
-      const cyc = Math.max(50, (window.__boost.n || SPEED) * 50 / RATE, batchDur * 1.15);   // never schedule tighter than we can breathe
+      const cyc = Math.max(10, (window.__boost.n || SPEED) * 50 / RATE, batchDur * 1.15);   // never schedule tighter than we can breathe (floor 50->10: parklab86 profile — batch compute is 6ms at n=4; the 50ms floor was pure idle)
       if (performance.now() - lastEnd < cyc) return;
       if (!tickFn) return;
       const t0 = performance.now();
@@ -10564,7 +10564,7 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
       batchDur = performance.now() - t0;
       lastEnd = performance.now();
       window.__boost.batches++; batchIdx++;
-    }, 25);
+    }, 8);   /* parklab86: 25ms starved under CDP traffic (the rig's ~110ms evaluate cadence pushed the effective period to ~160ms); 8ms costs nothing when it just returns */
   }
 
   const SIMNOW = () => performance.now() * (window.BOT_SPEED || 1);   // brain thinks in game-time (sim runs BOT_SPEED× faster than the wall clock)

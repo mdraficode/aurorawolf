@@ -221,7 +221,7 @@ async function fightLoop(e0) {
     if (lastDist !== null) { const dStep = Math.max(0, f.w.dist - lastDist); if (dStep > 0.05 && dStep < 12) travel = travel * 0.7 + dStep * 0.3; }
     lastDist = f.w.dist;
 
-    if (!fight || fight.name !== (f.bosses[0] && f.bosses[0].n)) {
+    if (f.bosses.length && (!fight || fight.name !== (f.bosses[0] && f.bosses[0].n))) {   /* parklab85 kill-boundary: when the boss DIED the empty list re-armed a ghost '?' fight with zeroed counters and the router's boss-end printed the ghost instead of the kill record. Empty list + open fight = the kill — fall through to the 'slain' exit with the REAL fight intact */
       const b0 = f.bosses.sort((a, c) => (a.clone ? 1 : 0) - (c.clone ? 1 : 0))[0];
       fight = { name: b0 ? b0.n : '?', t0: f.t, sim0: f.clock, hp0: f.w.hp, bites: 0, swings: 0, hits: 0, dmgTaken: 0,
         behind: 0, face: 0, flank: 0, fled: 0, windEscapes: 0, spent: 0, side, leg: f.camp.leg, tier: f.camp.tier,
