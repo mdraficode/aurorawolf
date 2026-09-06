@@ -331,3 +331,29 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - **lab83** lab67 press path restored (radial dives, no dive lead, sag exit): still 1 press — dive polls show gap −0.5/poll at r 2.5–2.9.
 - **lab84** **inside-first dive** (th 0.30 while r > 2.05, then 0.55): dives cross inside, gap holds, nose settles — 0.84–1.28 at hn3.
 - **lab85** **the plant press** (nose gate → 1.36, the cone edge): press volume 1 → 6–9/fight. Run 2 fight 1: 6 × 7.5 = 45 dmg (boss ~2.5 at the wolf's death). **Run 5 fight 1: LEOPARD LEGEND SLAIN at 49.1 s** — wolf alive at ~42 hp, L5→8, leg 0→1. Route continued to the Tiger Legend (hp 62/dmg 16/biteR 4.65) and died twice there — that's lab 86+'s problem.
+
+## Lab 86 — the speed sessions (2026-09-06 evening, post-trophy)
+
+- **Goal: faster simulation** so attempt volume rises (the user's directive) + in-game stability.
+- **Profiled the sim**: section-skip bisect + batchDur probe → per-tick compute is only
+  1.5–17 ms; heightAt (339 calls/tick, 1.55 µs each) is NOT the cost. The boost
+  scheduler's 50 ms floor + rate cap 4 starved the sim to ~0.55x.
+- **Scheduler unlock** (rate cap 10, 10 ms floor, 8 ms pump): travel 0.55 → ~2.5x —
+  sessions reach the Tiger far sooner. Fights must NOT run unlocked: back-to-back
+  batches starve the rig's CDP round-trips, poll dt blew out to 0.3–0.7 s (the law went
+  blind — 6 straight 0–1-press fights). `__boost.setMode(1)` restores the exact
+  pre-unlock fight arithmetic; poll dt back to 0.1–0.2 s, presses land again.
+- **Kill-attribution bug fixed** (rig): the empty boss list at a kill re-armed a ghost
+  '?' fight — boss-end now attributes the real kill. Verified live: a SECOND career
+  Leopard kill, 30.8 s, 9 bites / 8 behind, properly logged.
+- **The 14–18 s input stalls found and fixed**: per-op CDP timing showed LONG mouse
+  jumps (return-to-center, 430 px drags) blocking in Chromium input dispatch — five
+  per fight, the real source of the 0.2–0.3x fight pace AND the false 'teleport'
+  detections (displacement between stalled polls). aimFast is now a continuous held
+  drag (center-park once, one down, ≤250 px deltas/poll, aimUp at fight end) — also
+  the way a player actually holds a camera.
+- **EYES_FIGHT chunk gate**: skip chunks >200 m out (jam caps 6 m, preds 90 m — far
+  chunks are provably no-ops); fast travel loads denser chunk sets.
+- **Ops**: two loop instances in parallel (2 cores), `lab86-loop.sh`, stop on Tiger
+  kill / leg 2. Frontier unchanged: Tiger Legend (62 hp / 16 dmg / biteR 4.65).
+
