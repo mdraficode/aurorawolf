@@ -10552,8 +10552,17 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
     clock.getDelta = function () { return 0.05; };   // every executed step is one full game tick
     window.__boost = { batches: 0, ticks: 0, warns: 0, lastMsg: '', n: SPEED };   // n = LIVE batch size (the speedrun rig drops it to 2 for boss fights — 0.4 s batches are too coarse for the fight grammar — and back up for travel)
     let lastEnd = 0, batchDur = 0;
-    setInterval(() => {
-      const cyc = Math.max(10, (window.__boost.n || SPEED) * 50 / RATE, batchDur * 1.15);   // never schedule tighter than we can breathe (floor 50->10: parklab86 profile — batch compute is 6ms at n=4; the 50ms floor was pure idle)
+    const pump = () => {
+      /* parklab86: with batches back-to-back the page saturated and the speedrun rig's
+         CDP round-trips queued 300-600ms behind batch work — polls spanned 0.3-0.7s of
+         sim and the fight law went blind (6 straight 0-1-press fights; breath-tuning at
+         floor 45/2.6x and 30/1.8x never recovered the old poll density). FIGHT mode now
+         restores the EXACT pre-unlock arithmetic (floor 50, rate capped 4, ×1.15) — the
+         equilibrium the lab64-85 law was tuned on (fights ~0.55x, poll dt ~0.1s sim).
+         Travel keeps the unlocked rate (measured ~2.5x). */
+      const cyc = window.__boost.fight
+        ? Math.max(50, (window.__boost.n || SPEED) * 50 / Math.min(RATE, 4), batchDur * 1.15)
+        : Math.max(10, (window.__boost.n || SPEED) * 50 / RATE, batchDur * 1.15);
       if (performance.now() - lastEnd < cyc) return;
       if (!tickFn) return;
       const t0 = performance.now();
@@ -10564,7 +10573,17 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
       batchDur = performance.now() - t0;
       lastEnd = performance.now();
       window.__boost.batches++; batchIdx++;
-    }, 8);   /* parklab86: 25ms starved under CDP traffic (the rig's ~110ms evaluate cadence pushed the effective period to ~160ms); 8ms costs nothing when it just returns */
+    };
+    /* parklab86: the interval DELAY is the real lever — a 125Hz timer taxes every CDP
+       round-trip even when its callback just returns (fights sagged to 0.3x). Travel
+       pumps at 8ms; FIGHT mode swaps to the lab64-85-native 25ms (the rig calls
+       __boost.setMode on its fight-speed switches). */
+    window.__boost.setMode = fight => {
+      window.__boost.fight = fight ? 1 : 0;
+      if (window.__pumpIv) clearInterval(window.__pumpIv);
+      window.__pumpIv = setInterval(pump, fight ? 25 : 8);
+    };
+    window.__pumpIv = setInterval(pump, 8);
   }
 
   const SIMNOW = () => performance.now() * (window.BOT_SPEED || 1);   // brain thinks in game-time (sim runs BOT_SPEED× faster than the wall clock)
