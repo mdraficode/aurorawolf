@@ -153,6 +153,7 @@ export function EYES(R) {
    1.4 m of sprint — i.e. the difference between holding a 4 m ring and spiralling
    out of it. This one reads the wolf, the Legends and the clock, and nothing else. */
 export function EYES_FIGHT() {
+  const __t0 = performance.now();
   const out = { ok: false };
   try {
     const w = wolf;
@@ -213,7 +214,13 @@ export function EYES_FIGHT() {
       if ((dx * fx0 + dz * fz0) / (d || 1) < 0.2) return;
       jam = d;
     };
+    /* parklab86: after fast travel (n=8) the loaded chunk set is dense and this loop
+       ran 60-100ms per poll ON THE GAME THREAD — blocking the boost pump and sagging
+       fight pace to 0.28x. The jam scan caps at 6 m and preds at 90 m, so chunks past
+       ~2 chunk radii are provably no-ops: skip them by chunk-center distance. */
     if (typeof chunks !== 'undefined') for (const ch of chunks.values()) {
+      const cdx = (ch.cx * CHUNK + 32) - w.pos.x, cdz = (ch.cz * CHUNK + 32) - w.pos.z;
+      if (cdx * cdx + cdz * cdz > 200 * 200) continue;
       for (const a of ch.animals) { offerJam(a); }
       for (const a of ch.predators) { offerJam(a); offerPred(a); }
     }
@@ -237,6 +244,7 @@ export function EYES_FIGHT() {
     }
     PP.sort((a, c) => a.d - c.d);
     out.bosses = B; out.preds = PP.slice(0, 3);
+    out.ms = +(performance.now() - __t0).toFixed(1);   // TEMP parklab86: in-page scan cost
     out.err = null;
   } catch (e) { out.err = String(e && e.message || e); }
   return out;
@@ -265,19 +273,32 @@ export class Human {
 
   /* ---- the fast aim: no extra round trip (the caller hands me the camYaw it just
          read), the shortest possible drag, and no sleep afterwards ---- */
+  /* parklab86: the per-poll aim was move(center)+down+move(px)+up — the LONG jumps
+     (return-to-center after a 430px drag, or the drag itself) intermittently stalled
+     14-18s inside CDP input (down/up always 2-9ms, small moves 9-35ms). A real player
+     holds the drag: park at center ONCE per fight, press once, then only small deltas
+     (<=250px) per poll. Big turns now take 2-3 polls — the aim-lead already expects
+     that; the yaw easing absorbs the rest. aimUp() lifts the hold at fight end. */
   async aimFast(bearing, camNow, vd) {
     const d = wrapPI(bearing + Math.PI - camNow);          // the 180° law: I run along camYaw + PI
-    if (Math.abs(d) < 0.035) return 0;
     const sens = 0.0078 * Math.max(0.55, Math.min(1.5, (vd || 8.5) / 8.5));
-    const px = Math.max(-430, Math.min(430, -d / sens));
+    const px = Math.max(-250, Math.min(250, -d / sens));
+    if (Math.abs(px) < 3) return 0;
     const vp = this.vp || (this.vp = this.pg.viewportSize()) || { width: 960, height: 540 };
     const cx = Math.round(vp.width / 2), cy = Math.round(vp.height / 2);
-    await this.pg.mouse.move(cx, cy);
-    await this.pg.mouse.down();
-    await this.pg.mouse.move(cx + px, cy, { steps: 2 });
-    await this.pg.mouse.up();
+    if (!this._aimHeld) {
+      await this.pg.mouse.move(cx, cy);
+      await this.pg.mouse.down();
+      this._aimHeld = true;
+      this._aimX = cx; this._aimY = cy;
+    }
+    let nx = this._aimX + px;
+    nx = Math.max(40, Math.min(vp.width - 40, nx));        // never park near the edge (camEdgeHold tilts)
+    await this.pg.mouse.move(nx, this._aimY);
+    this._aimX = nx;
     return d;
   }
+  async aimUp() { if (this._aimHeld) { this._aimHeld = false; try { await this.pg.mouse.up(); } catch (e) { } } }
 
   /* ---- keyboard: held keys are diffed so we never spam events ---- */
   async key(code, down) {
@@ -286,7 +307,7 @@ export class Human {
     if (down) await this.pg.keyboard.down(code); else await this.pg.keyboard.up(code);
   }
   async tap(code) { await this.pg.keyboard.press(code); }
-  async releaseAll() { for (const c of Object.keys(this.held)) if (this.held[c]) await this.key(c, false); }
+  async releaseAll() { await this.aimUp(); for (const c of Object.keys(this.held)) if (this.held[c]) await this.key(c, false); }
   async move(m) {
     await this.key('KeyW', !!m.f); await this.key('KeyS', !!m.b);
     await this.key('KeyA', !!m.l); await this.key('KeyD', !!m.r);

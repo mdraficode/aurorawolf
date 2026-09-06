@@ -245,7 +245,7 @@ async function fightLoop(e0) {
     /* the wolf fell: let the wake-up happen, then the router re-plans */
     if (f.w.deadT > 0) { await H.releaseAll(); await sleep(700); F.mode = 'dead'; return 'dead'; }
     /* the Legend is down */
-    if (!f.bosses.length) { await H.move({}); F.mode = 'slain'; return 'slain'; }
+    if (!f.bosses.length) { await H.move({}); await H.aimUp(); F.mode = 'slain'; return 'slain'; }
 
     /* target the real Legend (clones are the Beast Master's echoes — bite them only if they are on top of me) */
     const real = f.bosses.filter(b => !b.clone);
@@ -783,14 +783,15 @@ async function fightLoop(e0) {
       fight.pv = { wx: f.w.x, wz: f.w.z, toB, th: thCmd };
       fight.pc = f.clock;
       const moveDir = toB + side * thCmd;
-      await H.aimFast(moveDir, f.cam);
-      await H.move({ f: true, sprint });
+      const _a0 = performance.now(); await H.aimFast(moveDir, f.cam); fight._ta = performance.now() - _a0;
+      const _m0 = performance.now(); await H.move({ f: true, sprint }); fight._tm = performance.now() - _m0;
       /* per-poll fight trace (the 4-s marks hid the physics; bounded, report-only) */
       (F.polls = F.polls || []).push({ c: f.clock, g: +b.gap.toFixed(2), r: +r.toFixed(2), fm: +b.facingMe.toFixed(2),
         m: mode, s: sprint ? 1 : 0, st: f.w.stam, hp: Math.round(f.w.hp), w: +b.wind.toFixed(2), cd: +f.w.atkCd.toFixed(2),
         nv: +Math.abs(wrapPI(toB - f.w.yaw)).toFixed(2), sd: side, th: +thCmd.toFixed(2),
         j: +(b.jam ?? 99).toFixed(1), hn: fight.holdN, batk: +(b.atk ?? 1).toFixed(2), inv: b.inv ? 1 : 0,
-        yaw: +f.w.yaw.toFixed(2), hdg: +b.hdg.toFixed(2), cr: f.w.crouch ? 1 : 0 });
+        yaw: +f.w.yaw.toFixed(2), hdg: +b.hdg.toFixed(2), cr: f.w.crouch ? 1 : 0, e: f.ms ?? -1, wd: +(performance.now() / 1000 - (fight._lw ?? performance.now() / 1000)).toFixed(3), ta: +(fight._ta ?? 0).toFixed(0), tm: +(fight._tm ?? 0).toFixed(0) });
+      fight._lw = performance.now() / 1000;
       if (F.polls.length > 900) F.polls.splice(0, 300);
       const nose = Math.abs(wrapPI(toB - f.w.yaw));
       if (!b.inv && fight.holdN <= 4 && r <= b.biteR && nose <= 1.36 &&   /* cone edge 1.37 (dot>=0.2). parklab84: the nose/resolve gates are ANTI-PHASE in dives (nose settles after the gap dies) — the moment BOTH pass is MID-PLANT: the boss's neck is 0.4, the windt dodge carries the gap 1.6-2.2 rising (gv +2, resolve passes) and the nose reads 1.3-1.6 at thNow 1.05. Opening to the cone edge presses the PLANTED boss — it cannot turn away, the bite resolves deep-behind */ b.wind <= 0.45 &&   /* lab75: the deep-gap press polls sat at w 0.30-0.34 — the bite resolves in 0.38 s, its value is the RESOLVE geometry; early-windup presses are safe */ Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 &&   /* lab67 law (7 presses x 6.4 = the best press output measured): press the RISING window — gap 1.9-2.2 with gv +2 resolves at 2.7 = deep-behind 7.5. parklab70-73's 'deeper' gates (2.15 flat / 2.0 start) starved the cadence to 2-3 presses — reverted */ f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
@@ -952,7 +953,7 @@ try {
 
     /* ---- dead? the deed is lost: wait for the wake-up, then re-plan ---- */
     if (e.w.deadT > 0) {
-      await H.releaseAll();
+      await H.releaseAll();   /* releaseAll lifts the camera drag too (parklab86) */
       rep.deaths.push({ clock: e.clock, cause: e.run.cause, leg: e.camp.leg, stage: e.camp.stage, lvl: e.w.lvl });
       mark('death', { cause: e.run.cause, clock: e.clock });
       await sleep(1400);
@@ -961,9 +962,9 @@ try {
 
     /* ---- a Legend is loose: the fight owns everything ---- */
     if (e.camp.stage === 'boss' && e.bosses.length) {
-      if (SPEED > 2 && liveSpeed !== 2) { await page.evaluate(() => { window.__boost.n = 2; }).catch(() => { }); liveSpeed = 2; mark('fight-speed', { to: 2, clock: e.clock }); }
+      if (SPEED > 2 && liveSpeed !== 2) { await page.evaluate(() => { window.__boost.n = 2; window.__boost.setMode(1); }).catch(() => { }); liveSpeed = 2; mark('fight-speed', { to: 2, clock: e.clock }); }
       const res = await fightLoop(e);
-      if (SPEED > 2 && liveSpeed !== SPEED) { await page.evaluate(() => { window.__boost.n = SPEED; }).catch(() => { }); liveSpeed = SPEED; mark('fight-speed', { to: SPEED, clock: e.clock }); }
+      if (SPEED > 2 && liveSpeed !== SPEED) { await page.evaluate(() => { window.__boost.n = SPEED; window.__boost.setMode(0); }).catch(() => { }); liveSpeed = SPEED; mark('fight-speed', { to: SPEED, clock: e.clock }); }
       if (e.w && e.w.crouch) await H.tap('KeyX');      // never leave the wolf prowling between fights
       if (fight) {
         fight.simS = +(lastSim - fight.sim0).toFixed(1);
