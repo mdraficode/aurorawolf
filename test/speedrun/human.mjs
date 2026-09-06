@@ -193,6 +193,17 @@ export function EYES_FIGHT() {
        strike. The rig must know the nearest cone-blocker to refuse a jammed press. */
     const fx0 = Math.sin(w.yaw), fz0 = Math.cos(w.yaw);
     let jam = 99;
+    /* WILD-HUNTER SIGHT (parklab41: a Level 7 lion killed the wolf mid-break while the
+       fight eyes were blind to everything but the boss). Nearest 3 non-boss predators —
+       bonded packmates are allies, Bosses are the target, not a hunter. */
+    const PP = [];
+    const offerPred = a => {
+      if (!a || a.dead || (a.pack && a.pack.stance === 'bonded')) return;
+      if (a.constructor && a.constructor.name === 'Boss') return;
+      const d = Math.hypot(a.pos.x - w.pos.x, a.pos.z - w.pos.z);
+      if (d > 90) return;
+      PP.push({ k: (a.def && a.def.name) || a.kind || '?', d: f1(d), lvl: a.level | 0, hp: f1(a.hp), x: f1(a.pos.x), z: f1(a.pos.z) });
+    };
     const offerJam = a => {
       if (!a || a.dead || (a.pack && a.pack.stance === 'bonded')) return;
       if (a.constructor && a.constructor.name === 'Boss') return;   // Bosses live in chunk.predators (p4.js:3144) — the boss is the TARGET, not a jammer
@@ -203,8 +214,8 @@ export function EYES_FIGHT() {
       jam = d;
     };
     if (typeof chunks !== 'undefined') for (const ch of chunks.values()) {
-      for (const a of ch.animals) offerJam(a);
-      for (const a of ch.predators) offerJam(a);
+      for (const a of ch.animals) { offerJam(a); }
+      for (const a of ch.predators) { offerJam(a); offerPred(a); }
     }
     for (const b of bosses) {
       if (b.dead) continue;
@@ -224,7 +235,8 @@ export function EYES_FIGHT() {
         jam: f1(jam)
       });
     }
-    out.bosses = B;
+    PP.sort((a, c) => a.d - c.d);
+    out.bosses = B; out.preds = PP.slice(0, 3);
     out.err = null;
   } catch (e) { out.err = String(e && e.message || e); }
   return out;

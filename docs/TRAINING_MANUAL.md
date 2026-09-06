@@ -345,6 +345,32 @@ counts clean time; (3) never flee below stam 15 — stand, die, retry on the res
 
 ---
 
+### 5.8 The Leopard geometry, settled (parklabs 40–63, 2026-09-06)
+
+The fight's real physics, measured per-poll across 15 fights (the run JSONs carry `F.polls`):
+
+- **`reach` 3.4, `biteR` 4.51** (logged at boss-start) — but strikes LAND at r 3.8–4.5: the boss
+  LUNGES inside the 0.55 s plant. **No radial safety exists near it.** Safety is angular
+  (|gap| > ~1.45 at the plant's end) or temporal (absent when it resolves).
+- **Plant cadence ~1 s** (0.55 plant + 0.15 cooldown + movement), not 2–4 s. Gap climbs +0.5 per
+  plant (neck 0.4), snaps back per cooldown (neck 2.2) — the **treadmill**: net zero at
+  r 3.1–3.7, where walk ω = 7/r crosses the 2.2 neck. A wolf holding r 3.2–4 is on a treadmill
+  and dies by attrition.
+- **The dive-in is the only door**: sprint nose-in (thNow 1.05: −7.3 m/s radial, ω_rel +2.9 at
+  r 4) to UNDER r 2.9; there the walk tangent (ω 2.69 at r 2.5) out-climbs the neck through
+  every plant while stamina regens +11/s (p3.js: sprint −15/s, ANY non-sprint +11/s).
+- **Mode hit-rate table** (hit%/poll): dive 0.0 · park 0.0 · windt 2.7 · brkS 2.4 · sleg 4.4
+  (gap flat — removed) · brkW 6.0 · hold 7.4 (removed) · ring 14.2 (gap SHRINKING — removed) ·
+  shut 54.8 (removed). Trust only the 0% modes: the dive press and the dead-behind park.
+- **The dive press is a 6-poll sequence**: the yaw eases at dt·9 — the nose≤1.15 settle takes
+  ~0.3 s (polls 3–4); presses attempted earlier read nv 1.2–2.9 and never fire.
+- **Teleports** (every ~4 s) land the boss 6.5–7.5 m out, gap → ~0.1: they reset the fight, poison
+  the gv resolve EMA (reset `fight.gv = 2`), and cost ~2 hits during the re-establish. The best
+  answer so far: no retreat — the dive-in starts immediately (the pursuit brings the boss in
+  while the gap is already rotating).
+- **Wild hunters join long fights** (a Level 7 lion killed a wolf mid-break): EYES_FIGHT carries
+  `preds[]` (nearest 3 non-boss predators); a hunter within 16 m latches an arc-aware flee.
+
 ## 6. Session protocol
 
 1. `bash test/browserlab/boot.sh`, then `_aim_fast_probe.mjs` — if the aim/motor probe fails,

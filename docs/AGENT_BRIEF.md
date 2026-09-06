@@ -9,7 +9,7 @@ a fresh agent can act immediately without asking the user anything.
 `README.md` (player-facing). `MASTER.md` and `AGENT_BRIEF.md` must BOTH be updated in the same
 commit whenever project state, law, architecture, or instructions change.
 
-**Snapshot:** 2026-09-06 (park fight labs 14–38 + route labs: six fight-loop defects fixed — bite-jam, Boss-in-chunk.predators, holdN, crouch ordering, teleport face-geometry, speed-8 batches; the RESOLVE LAW; the fight-speed switch `window.__boost.n`; iron/L5 now 9 presses and 38 s fights, boss at 31–43 at wolf death — kill ~2× short on press rate, next = BREAK-OFF law; see `docs/HANDOFF_2026-09-06.md`. Game/law/champion otherwise unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
+**Snapshot:** 2026-09-06 (park fight labs 14–63: six fight-loop defects fixed, the resolve law, the fight-speed switch — then labs 40–63 settled the Leopard geometry from per-poll telemetry: plant LUNGE (strikes land at r 3.8–4.5 despite reach 3.4 → no radial safety, break demoted to last resort), ~1 s plant cadence + the r 3.1–3.7 TREADMILL, the DIVE-IN door (sprint nose-in under r 2.9, walk out-climbs the neck at +11 stam/s), 6-poll dive presses (yaw settle), mode hit table dive/park 0.0% vs ring 14.2%/shut 54.8% (leaky branches deleted), wild-hunter law + predator sight. Best run lab60: boss 45→37.5, bites 2/2 behind, died at hp 44 — a close race; next = tp-reset counter → press cadence → the kill; see `docs/HANDOFF_2026-09-06.md` §Continuation + `TRAINING_MANUAL.md` §5.8. Game/champion otherwise unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
 duplicate repo `github.com/mdraficode/aurorawolf-v2` (exact copy, created 2026-09-01; **RETIRED by
 user directive — never work in, sync, or push to v2**).
 
@@ -483,13 +483,15 @@ obstacles). The 2026-09-05 recovery work (collision-suite rewrite, `_probe_trace
 lands on `main` per the trainer's transfer directive (§4.5i). Build reproducible (`python3 build.py`
 == committed `index.html`, crown GEN 50 baked). Full gate `npm test` 27/27 on this build.
 
-**Next task (trainer-ordered; 2026-09-06 state — see `docs/HANDOFF_2026-09-06.md`):** the park
-ENGAGEMENT fix is done (the rig fights: 9 presses, 38 s fights, 6.8-avg-value behind presses at
-iron/L5). Remaining, in order: the **BREAK-OFF law** (disengage at hp<~35%, regen 3 hp/s, re-engage
-— a wolf death resets the boss to 45, a break-off does not; the effective-tank multiplier closes
-the ~2× press-rate gap) → optional nose-flick press-rate pass → first real `boss-end {res:'slain'}`
-+ Tier-1 trophy logged in `TRAINING_MANUAL.md` → route ranking data already collected (all routes
-enter at L4–5) → GEN 56 (LAW v4, park grammar = drill 7, no promote without a trainer verdict).
+**Next task (trainer-ordered; 2026-09-06 labs-40–63 state — see `docs/HANDOFF_2026-09-06.md`
+§Continuation):** the break-off phase is CLOSED (six variants bled: the plant lunge reaches r
+3.8–4.5 — no radial safety; break demoted to hp<25% last resort). The fight law is now the mined
+ladder: windt (plant dodge that closes) → 6-poll dive press → two-phase swing (sprint nose-in
+outside r 2.9 / climbing walk inside) → park. Remaining, in order: (1) the **tp-reset counter** —
+the ~4 s teleport costs ~2 hits per cycle during re-establish; (2) press cadence from the climb
+(dive start when gv > +1.5, the gap rising into legal); (3) first real `boss-end {res:'slain'}`
++ Tier-1 trophy logged in `TRAINING_MANUAL.md` → GEN 56 (LAW v4, park grammar = drill 7, no
+promote without a trainer verdict).
 
 Lineage (LAW v4): 34 fit 25 SURVIVED(cap) → **35 fit 59 CHAMPION** (died L8 Leopard, 126.6 xp/min)
 → 36 fit 19 (first ritual + first Legend fight ~18 s) → 37 fit −43 (rival pack attack in prep) →

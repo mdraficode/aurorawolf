@@ -5,9 +5,10 @@
 the project identity, the codebase map, the neural-training system, the CURRENT progress state,
 and the road ahead. **Rule: whenever a session changes the law, the brain architecture, the
 features, or the lineage state, update this file in the same commit.** It is the memory of the
-project. Last updated: **2026-09-06** (park fight labs 14–38 + route labs: six fight-loop defects
-fixed, the resolve law, the fight-speed switch, the duel is real and ~2× from the kill —
-`docs/HANDOFF_2026-09-06.md`). Previous headers: 2026-09-05 (workspace recovery), 2026-09-03
+project. Last updated: **2026-09-06** (park fight labs 14–63: the Leopard geometry SETTLED —
+plant lunge, ~1 s cadence, the treadmill, the dive-in door, the mode hit table; the duel is a
+close race, lab60 boss 45→37.5 — `docs/HANDOFF_2026-09-06.md`). Previous headers: 2026-09-05
+(workspace recovery), 2026-09-03
 (human-speedrun — the tier-1 fight coached as closed), 2026-09-01 (post GEN 39).
 
 ---
@@ -248,6 +249,20 @@ the campaign gates progression, no level lever at leg 0. Full detail: `docs/HAND
 `TRAINING_MANUAL.md` §5.7, `PLAYLOG.md` 2026-09-06. **Repo rule now DEFAULT: one branch `main`
 forever — no session/arena branches; all work lands on and pushes to `main`** (2026-09-06 trainer
 directive).
+
+**SESSION 2026-09-06b (labs 40–63 — the Leopard geometry settled, runner-only, zero game edits):**
+per-poll telemetry mined across 15 fights → five verdicts, all now law in `run.mjs`: (1) strikes
+LAND at r 3.8–4.5 despite `reach` 3.4 — the boss LUNGES inside the plant → **no radial safety**;
+break demoted to hp<25% last resort after six bleeding variants; (2) plant cadence ~1 s; gap
++0.5/plant, −0.5/cooldown = **the treadmill** at r 3.1–3.7 (walk ω = 7/r crosses the 2.2 neck);
+(3) **the dive-in** is the door: sprint nose-in (thNow 1.05) under r 2.9, then the walk tangent
+out-climbs the neck at +11 stam/s; (4) the dive press needs **6 polls** (yaw settles at dt·9,
+nose≤1.15 on polls 3–4); (5) mode hit%/poll: dive 0.0 · park 0.0 · windt 2.7 · ring 14.2 ·
+shut 54.8 → ring/shut/hold/sleg/tphold DELETED; tp resets gv and cancels breaks. Wild-hunter law
+added (EYES_FIGHT `preds[]`; a Level 7 lion had killed the wolf mid-break) + arena hunter pricing.
+Best run lab60: bites 2/2 behind (7.5), boss 45→37.5, tank 92–104 mid-fight, died at hp 44 —
+**a close race; the ~4 s tp reset (~2 hits each) is the last leak**. Detail:
+`docs/HANDOFF_2026-09-06.md` §Continuation, `TRAINING_MANUAL.md` §5.8, `PLAYLOG.md`.
 
 **Champion: GEN 50 — fit −55** (v6 basis, 2026-09-01 — second promotion of the session): died PREP L5 at
 1152 sim-s · 708xp · **36.9 xp/sim-min (best pace of the v6 era)** · RUN.side 2. Predecessor GEN 46

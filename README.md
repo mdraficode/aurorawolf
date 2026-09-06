@@ -45,7 +45,7 @@ tools/ship.sh           ← canonical publish: `bash tools/ship.sh "msg"` = buil
 publish.sh              ← archive only: `archive [alias]` = permanent archive.org snapshot (github mode delegates to ship.sh)
 test/                   ← Playwright gate (all gates + probes)
 shots/                  ← current-build screenshots (cave crystals · night aurora · waterfall · forest)
-docs/                   ← knowledge docs: README(here) is player-facing; AGENT_BRIEF, MASTER, BUGS, PLAYLOG, TRAINING_MANUAL, CAMPAIGN_DESIGN, ENVIRONMENT, LINKS, RAFZZER, RESTORE, HANDOFF_2026-09-05 (latest resume point)
+docs/                   ← knowledge docs: README(here) is player-facing; AGENT_BRIEF, MASTER, BUGS, PLAYLOG, TRAINING_MANUAL, CAMPAIGN_DESIGN, ENVIRONMENT, LINKS, RAFZZER, RESTORE, HANDOFF_2026-09-06 (latest resume point)
 training/               ← the AI brain's lineage (RAFZZER champion + per-generation gauges)
 archive/                → git-history extras preserved in the repo (e.g. branches/ snapshots)
 ~/.ghtoken              ← GitHub access (keep! revocable at github.com/settings/tokens)

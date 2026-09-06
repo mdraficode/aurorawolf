@@ -294,3 +294,19 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
   item). Reports now dump live (`run_<tag>_live.json`), so cap-crashes no longer lose the polls.
 - **Repo rule made DEFAULT (trainer directive)**: one branch, `main`, forever — no session/arena
   branches; everything lands on and pushes to `main`.
+- **Park-fight law labs 40–63 (2026-09-06 continuation, iron L5 seed 7777)**: fight telemetry mined
+  per-mode across 15 fights — **hit%/poll: dive 0.0, park 0.0, windt 2.7, sleg 4.4 (gap flat),
+  ring 14.2 (gap SHRINKING), shut 54.8**. Verdicts written into law: (a) strikes LAND at r 3.8–4.5
+  despite `reach 3.4` — the boss **lunges inside the plant**, so radial safety does not exist near
+  it (all six break variants bled; break demoted to hp<25% last resort); (b) the plant cadence is
+  ~1 s (0.55 s plant + 0.15 cd), not 2–4 s — the gap climbs +0.5 each plant and snaps back each
+  cooldown: **the treadmill** — net zero at r 3.1–3.7 where walk ω = 7/r equals the 2.2 neck;
+  (c) the escape is the **dive-in**: sprint nose-in (thNow 1.05, −7.3 m/s radial, ω 2.9+) to UNDER
+  r 2.9, where the walk tangent out-climbs the neck through every plant while regen 11/s flows
+  (p3.js: sprint −15/s, ANY non-sprint +11/s); (d) the dive press needs 6 polls — the yaw eases at
+  dt·9 so the nose (≤1.15 gate) only settles on polls 3–4; (e) teleports poison the gv resolve EMA
+  (reset at tp) and cancel breaks. Lab60 (best): dive-in reached r 2.1–2.9, bites 2/2 behind
+  (7.5), boss 45→37.5, tank held 92–104 mid-fight, wolf died at hp 44 — the race is close; the
+  remaining leak is the tp reset (~2 hits each). Wild-hunter law + predator-sight eyes added
+  (EYES_FIGHT `preds[]`): a Level 7 lion had killed the wolf mid-break; arena scorer now prices
+  hunter proximity (−30/−45).

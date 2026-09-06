@@ -227,7 +227,7 @@ async function fightLoop(e0) {
         behind: 0, face: 0, flank: 0, fled: 0, windEscapes: 0, spent: 0, side, leg: f.camp.leg, tier: f.camp.tier,
         rSum: 0, rN: 0, fmSum: 0, bossHp0: b0 ? b0.hp : 0 };
       fight.dip = 0; fight.struck = false; fight.prevWind = 0; fight.radOut = false; fight.holdN = 0; fight.lastCut = -9; fight.dive = 0;
-      mark('boss-start', { boss: fight.name, hp: b0 && b0.mhp, dmg: b0 && b0.dmg, spd: b0 && b0.spd, flight: b0 && b0.flight, wolfHp: f.w.hp, wolfLvl: f.w.lvl, travel: +travel.toFixed(2), tac: FIGHT_TAC }, true);
+      mark('boss-start', { boss: fight.name, hp: b0 && b0.mhp, dmg: b0 && b0.dmg, spd: b0 && b0.spd, reach: b0 && b0.reach, biteR: b0 && b0.biteR, flight: b0 && b0.flight, wolfHp: f.w.hp, wolfLvl: f.w.lvl, travel: +travel.toFixed(2), tac: FIGHT_TAC }, true);
       fightMarkT = f.clock;
     }
     const F = fight;
@@ -261,9 +261,16 @@ async function fightLoop(e0) {
        recovers straight to the tail, which is also where stamina recovers. */
     const rJump = r - (fight.pr ?? r);
     fight.pr = r;
-    if (rJump > 2.5) {
-      fight.teleports = (fight.teleports || 0) + 1; fight.tpAt = f.clock; fight.dive = 0;
+    /* REAL-teleport test (parklab39: 'teleports' 0.4-1.1 s apart are impossible — the
+       special is 8 s; they were the WOLF's own sprint-away growing r > 2.5 in one poll,
+       and every false positive ABORTED an active dive, slaughtering the press rate).
+       A real ambush jumps the BOSS's position ~6.5 m in one poll; walking moves it < 2. */
+    const bJump = fight.pbx !== undefined ? Math.hypot(b.x - fight.pbx, b.z - fight.pbz) : 0;
+    fight.pbx = b.x; fight.pbz = b.z;
+    if (bJump > 4 && rJump > 2.5) {
+      fight.teleports = (fight.teleports || 0) + 1; fight.tpAt = f.clock; fight.dive = 0; fight.gv = 2;   /* the tp gap-jump poisons the resolve EMA — reset to the default */
       if (f.w.crouch) await H.tap('KeyX');      // abort any crouched dive — the geometry moved
+      if (fight.breaking) { fight.breaking = false; mark('break-end', { hp: Math.round(f.w.hp), stam: f.w.stam, bhp: +b.hp.toFixed(1), by: 'teleport', clock: f.clock }, true); }   /* parklab54 fight-2: the tphold is gated !breaking — a teleport mid-break met NO dodge, the boss closed 6.5->3.3 through the band and killed the wolf 76->12 */
       mark('boss-teleport', { n: fight.teleports, r: +r.toFixed(1), clock: f.clock, stam: f.w.stam });
     }
     /* GAP VELOCITY + THE RESOLVE LAW: a bite lands 0.38 s AFTER the press (atkT windup,
@@ -281,6 +288,40 @@ async function fightLoop(e0) {
       fight.pg = agNow; fight.pgc = f.clock;
     }
 
+    /* --- THE WILD-HUNTER LAW (parklab41: the break-off dragged the fight into the wider
+       world and a Level 7 LION killed the wolf at hp 38 while the Leopard just paced —
+       the fight eyes never saw it). The eyes now report the nearest non-boss predators.
+       A hunter inside 16 m LATCHES a full flee: run the bisector away from BOTH threats
+       at sprint (the wolf 13.5 outruns every wild predator), hold the latch until no
+       hunter is within 55 m, never fight two fronts. A latched hunter also cancels an
+       active break-off — running blind through the woods is how the lion caught us. */
+    {
+      const wps = (f.preds || []).filter(pp => pp.hp > 0);
+      const wpNear = wps.filter(pp => pp.d < 16).sort((a, c) => a.d - c.d)[0];
+      if (wpNear) fight.fleePred = true;
+      if (fight.fleePred && !wps.some(pp => pp.d < 55)) {
+        fight.fleePred = false;
+        mark('wild-clear', { clock: f.clock, hp: Math.round(f.w.hp), stam: f.w.stam }, true);
+      }
+      if (fight.fleePred && wps.length) {
+        const wp = wps.sort((a, c) => a.d - c.d)[0];
+        if (fight.breaking) { fight.breaking = false; mark('break-end', { hp: Math.round(f.w.hp), stam: f.w.stam, bhp: +b.hp.toFixed(1), by: 'wild-hunter', clock: f.clock }, true); }
+        /* parklab43 fight-2: the bisector flee ran THROUGH the boss's strike arc
+           (r sagged 4.x, hits 7→9). Escape the arc FIRST — nothing lands past 4.59 —
+           then split from both threats. */
+        const awayB = wrapPI(toB + Math.PI), awayW = wrapPI(bearingTo(f.w.x, f.w.z, wp.x, wp.z) + Math.PI);
+        const split = Math.abs(wrapPI(awayW - awayB));
+        const away = r < 5.2 ? awayB : (split < 2.4 ? wrapPI(awayB + wrapPI(awayW - awayB) / 2) : (r < wp.d ? awayB : awayW));
+        if (fight.fleePredMark !== true) { mark('wild-hunter', { k: wp.k, lvl: wp.lvl, d: +wp.d.toFixed(0), wolfLvl: f.w.lvl, clock: f.clock }, true); fight.fleePredMark = true; }
+        F.mode = 'wild';
+        await H.aimFast(away, f.cam);
+        await H.move({ f: true, sprint: f.w.stam > 8 && !f.w.exh });
+        if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
+        F.hp0 = f.w.hp;
+        await cadence(f.clock); continue;
+      } else fight.fleePredMark = false;
+    }
+
     /* --- THE ARENA IS HALF THE FIGHT (manual §4.1, probe's own law): collideSolids
        multiplies speed by 0.22 on a trunk — a park orbit flown through forest flies at
        3 m/s, slower than the neck, and the gap can never advance (parklab10-12: gap
@@ -295,10 +336,12 @@ async function fightLoop(e0) {
         /* GRAZERS JAM THE BITE (parklab18/19: half the presses eaten by deer — the engine
            picks the CLOSEST cone target, and the clearings the scorer loves are meadows,
            i.e. exactly where deer graze). Count live animals per site and price them in. */
-        const AN = [];
+        const AN = [], PR = [];
         try {
-          for (const [, ch] of chunks) for (const arr of [ch.animals || [], ch.predators || []])
-            for (const a of arr) if (a && a.pos && !a.dead) AN.push(a);
+          for (const [, ch] of chunks) {
+            for (const a of (ch.animals || [])) if (a && a.pos && !a.dead) AN.push(a);
+            for (const a of (ch.predators || [])) if (a && a.pos && !a.dead && !(a.constructor && a.constructor.name === 'Boss')) PR.push(a);
+          }
         } catch (e) { return { err: String(e && e.message || e) }; }
         let here = 99;
         for (const so of SOL) { const dd = Math.hypot(so.x - wolf.pos.x, so.z - wolf.pos.z) - (so.r || 1.2); if (dd < here) here = dd; }
@@ -315,7 +358,11 @@ async function fightLoop(e0) {
           for (const so of SOL) { const dd = Math.hypot(so.x - x, so.z - z) - (so.r || 1.2); if (dd < clear) clear = dd; }
           let grazers = 0;
           for (const a2 of AN) if (Math.hypot(a2.pos.x - x, a2.pos.z - z) < 22) grazers++;
-          const score = Math.min(clear, 14) * 3 - slope * 4 - rr * 0.30 - (h > 34 ? 8 : 0) - grazers * 2.5;
+          /* parklab41: the break-off fled into the woods and a Level 7 lion joined the
+             boss fight — clearings near hunters are death arenas, price them out */
+          let pd = 999;
+          for (const a3 of PR) { const dd = Math.hypot(a3.pos.x - x, a3.pos.z - z); if (dd < pd) pd = dd; }
+          const score = Math.min(clear, 14) * 3 - slope * 4 - rr * 0.30 - (h > 34 ? 8 : 0) - grazers * 2.5 - (pd < 45 ? 30 : 0) - (pd < 22 ? 20 : 0);
           if (score > bs) { bs = score; best = { x: +x.toFixed(1), z: +z.toFixed(1), clear: +clear.toFixed(1), slope: +slope.toFixed(2), away: +rr.toFixed(0), grazers } }; }
         return { here: +here.toFixed(1), best };
       }).catch(err => ({ err: String(err && err.message || err) }));   // parklab20: never swallow this silently again
@@ -324,10 +371,15 @@ async function fightLoop(e0) {
     }
     if (FIGHT_TAC === 'park' && fight.arena && fight.arena.here != null && fight.arena.here < 6 && fight.arena.best) {
       const dA = Math.hypot(fight.arena.best.x - f.w.x, fight.arena.best.z - f.w.z);
+      /* parklab44: a 'standoff at 5.6' edit killed this lead — the boss SPAWNS at r 2.5,
+         so the standoff fired on poll 1 and the fight stayed at the spawn: forest solids
+         (travel 1.76 m/s, break sprint drain 21/s, hits through r 4.4, dead in 20 s).
+         The lead is not the leak — it is what buys a clearing. The 2 entry hits are the
+         entryGap-2.5 spawn tax every fighter pays. */
       if (dA > 5 && f.clock < (fight.arenaUntil || 1e9)) {
         F.mode = 'arena';
         await H.aimFast(bearingTo(f.w.x, f.w.z, fight.arena.best.x, fight.arena.best.z), f.cam);
-        await H.move({ f: true, sprint: f.w.stam > 20 && !f.w.exh });
+        await H.move({ f: true, sprint: f.w.stam > 50 && !f.w.exh });   // TANK-FIRST: the lead must arrive with a tank (parklab40 opened at stam 39 = dead wolf)
         await cadence(f.clock); continue;
       }
       if (dA <= 5) { fight.arena.here = 99; mark('arena-reached', { clear: fight.arena.best.clear, clock: f.clock }, true); }
@@ -351,6 +403,126 @@ async function fightLoop(e0) {
       await cadence(f.clock); continue;
     }
     if (F.mode === 'flee') { F.mode = 'ring'; F.hp0 = f.w.hp; }
+
+    /* --- THE BREAK-OFF (park) — the real recovery, math-checked 2026-09-06: hp regen
+       needs 6 s UNTOUCHED (p4.js:4363 `tSec - lastHurt > 6`), so a leaking park ring
+       NEVER heals (0.22-0.44 hits/s keeps resetting lastHurt — every lab's hp curve is
+       monotone down). The disengage that works: sprint straight away — the wolf 13.5
+       out-runs the boss 12.5, nothing can land past r 4.59, and +3 hp/s starts 6 s
+       after the last hit and keeps flowing WHILE sprinting. A full tank buys ~+40-60 hp;
+       the boss keeps its damage (only a wolf DEATH resets it to 45). Re-engage at 80%
+       hp or when the tank is done; stamina rebuilds at 11/s in the walk-lap fight. */
+    if (FIGHT_TAC === 'park') {
+      /* parklab39: the first break-off law never fired — its stam>55 gate met a tank
+         already drained to 26 by the sprint legs, and the wolf died at hp 43 with the
+         boss at 39. Fire EARLY (hp < 55% while the tank can still open r > 10 — stam 40
+         = 6+ s of sprint-away = +12 m) and end at 75%: the exchange is ~+30 hp per full
+         tank, and the tank refills at 11/s during the walk-lap re-engagement. */
+      /* parklab56, THE VERDICT ON BREAKS: strikes land at r 3.8-4.5 despite reach 3.4 —
+         the boss LUNGES inside the plant, so there is no safe radius anywhere near it
+         (every break variant bled: 51 walk-away, 52 orbit, 53 spiral, 54 tp-blind,
+         55 re-break charge, 56 band). Safety is ANGULAR (dead-behind) or TEMPORAL
+         (dodge the plant), never radial. The break is demoted to a LAST RESORT at
+         hp < 25% — the park-press cycle runs the fight. */
+      const breakHp = f.w.maxHp * 0.25;
+      if (!fight.breaking && f.w.hp < breakHp && f.w.stam > 55 && !f.w.exh && b.wind <= 0.05 && r < (b.reach || 4.59) + 1.2) {   /* r-gate (parklab55): a re-break from tp-distance 7.4 walked the in-lean INTO the boss's charge — 4 hits in 3 s; the tphold owns the post-tp sequence, breaks start only from in/around the band */   /* parklab41: tank 74 recovered +40 hp, tank 41 was purgatory (+1 hp, 16 s); parklab54: NEVER fire mid-plant — the spiral-out eats the live strike (3 hits crossing 3.4), dodge the plant first (windt), break on the clean poll */
+        /* parklab45: the breakaway sprinted BLIND — travel 0.38 (a solid ×0.22 or the
+           steep clearing edge), tank 63 gone in 1.8 s, hp FELL 76->53 mid-break. Scan
+           the away half-plane once per break: 24 rays, runway to the first solid/water
+           step, flatness priced in — flee along the longest runway, not straight back. */
+        fight.breakDir = await page.evaluate(baseB => {
+          let best = null, bs = -1e9;
+          for (let k = 0; k < 24; k++) {
+            const a = baseB + Math.PI + (k / 23 - 0.5) * 2.6;
+            let run = 60, wet = 0, slope = 0, prevH = null, blocked = false;
+            for (let rr = 6; rr <= 60 && !blocked; rr += 6) {
+              const x = wolf.pos.x + Math.sin(a) * rr, z = wolf.pos.z + Math.cos(a) * rr;
+              const h = heightAt(x, z);
+              if (h < WATER_Y + 1.5) { run = rr; wet = 1; blocked = true; break; }
+              if (prevH !== null) slope = Math.max(slope, Math.abs(h - prevH));
+              prevH = h;
+              for (const [, ch] of chunks) for (const so of (ch.solids || [])) {
+                if (Math.hypot(so.x - x, so.z - z) - (so.r || 1.2) < 2) { run = rr; blocked = true; break; }
+              }
+            }
+            const score = run - slope * 2 - wet * 30;
+            if (score > bs) { bs = score; best = a; }
+          }
+          return +best.toFixed(3);
+        }, toB).catch(() => toB + Math.PI);
+        /* parklab52: the scan's winner can sit near-tangent (long flat runway beats
+           radial) — the wolf then sprint-ORBITS at r 3.9-4.2 for 8 s, tank 74->24,
+           never reaching the rest band. Clamp to +-1.0 rad of straight-away: the
+           radial-out component is then >= cos(1.0) = 0.54 -> 7.3 m/s at sprint. */
+        fight.breakDir = toB + Math.PI + Math.max(-1.0, Math.min(1.0, wrapPI(fight.breakDir - (toB + Math.PI))));
+        fight.breaking = true;
+        mark('break-off', { hp: Math.round(f.w.hp), stam: f.w.stam, bhp: +b.hp.toFixed(1), r: +r.toFixed(1), dir: +wrapPI(fight.breakDir - toB - Math.PI).toFixed(2), clock: f.clock }, true);
+      }
+      if (fight.breaking) {
+        if (f.w.hp > f.w.maxHp * 0.75 || f.w.stam < 25 || f.w.exh) {   /* parklab41: grinding to 11 left nothing for the trip home — return with a dash in the tank for the tail-sprint */
+          fight.breaking = false;
+          fight.tpAt = f.clock;   /* parklab45: never fall from a break straight into the ladder — reset the cycle so tphold->hold->phase-cross bring the wolf in clean */
+          mark('break-end', { hp: Math.round(f.w.hp), stam: f.w.stam, bhp: +b.hp.toFixed(1), clock: f.clock }, true);
+        } else {
+          F.mode = 'break';
+          /* parklab50: walking AWAY (7 vs 12.5 pursuit) just drags the boss along — stam
+             72->23, hp +4, nothing recovers. The REST is the DEAD BAND r 4.7-5.15
+             (lab41's own 12 s hit-free hold): outside strike reach 4.59, inside the
+             pursuit trigger 5.19 — the boss can neither strike nor chase. Sprint only
+             to exit the arc, then ORBIT the band: tangent walk (out-lean at the top of
+             the band, in-lean above it), hp +3/s after 6 s clean, stam +11/s. */
+          let bDir, bSp;
+          /* THE BREAK SPIRAL (parklab53's polls, read frame by frame): a straight-away
+             sprint at 13.5 m/s = +2 m PER POLL — it blows through the 0.5 m rest band
+             and crosses the pursuit trigger 5.19; the boss charges at 12.5, the walk
+             in-lean can't match, and r collapses to 1.5-1.9 = strike range (hp 72->53
+             in one lap). The rest band is real but must be approached SLOWLY:
+              · inside strike range: SPRINT the tangent-out (aim 1.30 off) — radial-out
+                only +1.6 m/s at full sprint (no overshoot), ω 3.2 swings the gap so the
+                plant whiffs on angle too;
+              · 4.6-5.0: walk out-lean (1.45, +0.8 m/s) — creeps up to the band;
+              · 5.0-5.15: pure tangent walk — r neutral, hp +3/s (after 6 s clean),
+                stam +11/s (p3.js: any non-sprint regens 11);
+              · >5.15: walk in-lean (1.15) — back under the pursuit trigger before the
+                boss's charge carries it into contact. NEVER aim straight away above
+                strike range: that is the overshoot that wakes the pursuit. */
+          const R_STRIKE = (b.reach || 4.59), R_PURSUIT = R_STRIKE + 0.6;
+          if (r < R_STRIKE) { bDir = toB + side * 1.30; bSp = f.w.stam > 12 && !f.w.exh; }
+          else if (r < R_PURSUIT - 0.2) { bDir = toB + side * 1.45; bSp = false; }
+          else if (r <= R_PURSUIT - 0.04) { bDir = toB + side * 1.57; bSp = false; }
+          else { bDir = toB + side * 1.15; bSp = false; }
+          /* parklab54: travel 0.25 mid-break — the orbit ran into slope/solids and the
+             wolf stood there taking hits. A moving predator that stops moving dies. */
+          fight.brkStuck = (travel < 0.5) ? (fight.brkStuck || 0) + 1 : 0;
+          if (fight.brkStuck > 3) { side = -side; fight.tSide = side; fight.brkStuck = 0; }
+          await H.aimFast(bDir, f.cam);
+          await H.move({ f: true, sprint: bSp });
+          (F.polls = F.polls || []).push({ c: f.clock, g: +b.gap.toFixed(2), r: +r.toFixed(2), m: bSp ? 'brkS' : 'brkW', s: bSp ? 1 : 0, st: f.w.stam, hp: Math.round(f.w.hp), w: +b.wind.toFixed(2), th: +wrapPI(bDir - toB).toFixed(2) });
+          if (F.polls.length > 900) F.polls.splice(0, 300);
+          if (fight.dive === 0 && f.w.crouch && (f.w.atkCd > 0.5 || f.clock - (fight.diveEnd ?? -9) > 0.5)) await H.tap('KeyX');
+          if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
+          F.hp0 = f.w.hp;
+          await cadence(f.clock); continue;
+        }
+      }
+    }
+
+    /* --- POST-TELEPORT PLANT DISCIPLINE: the ambush lands the boss 6.5 m behind the
+       wolf — OUTSIDE reach, but the boss PURSUES EVEN WHILE PLANTING (p4.js: it moves
+       whenever d > reach+0.6; walking away at 7 vs 12.5 = run down in 0.35 s, inside
+       the 0.55 s plant → hit). The rig's inrush made it worse (sprinted INTO the plant:
+       2-4 hits per teleport, labs 15-38). The law: from the teleport, SPRINT DIRECTLY
+       AWAY until the strike is spent — 13.5 vs 12.5 grows r every tick, the whiff is
+       guaranteed, cost ~5 stam. Then the normal cycle resumes on the cooldown window. */
+    /* parklab41 fight-2: the shut's tpAt<2 sprint-in rushed the wolf INTO the planting
+       boss (3 hits on the entry). The hold now covers the WHOLE post-tp approach: walk
+       away (7 lets the boss close to its 5.19 pursuit-stop and plant — the whiff at
+       r > 4.59 is free), sprint only when actually inside the strike radius. */
+    /* parklab58: THE TPHOLD IS DELETED. The ambush tp lands the boss 6.5-7.5 m out —
+       no immediate plant, so the 1.6 s retreat bought nothing and cost a third of every
+       4 s cycle: swing-from-scratch, 2 hits per cycle, park never reached. Post-tp the
+       ladder runs instantly: caught -> swing (the pursuit brings the boss to plant range
+       while the gap is already rotating), behind -> approach/park. */
 
     /* --- the Legend's own moves: submerge (surfaces on top of me), charge, the lion's ring --- */
     if (b.sub > 0) {
@@ -406,7 +578,7 @@ async function fightLoop(e0) {
       await H.aimFast(moveDir, f.cam);
       await H.move({ f: true, sprint });
       const nose = Math.abs(wrapPI(toB - f.w.yaw));
-      if (!b.inv && fight.holdN <= 3 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
+      if (!b.inv && fight.holdN <= 4 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
         F.swings++;
         if (await H.bite(f.t, b.d)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
       }
@@ -471,37 +643,74 @@ async function fightLoop(e0) {
            regen 11/s. (parklab22-29: my own controller variants all face-tanked at ~7 dps
            or starved the dive gate — the probe's cycle sync is the whole game.) */
       const struckFresh = (b.atk ?? 1) >= 0.40 && b.wind <= 0.05;
-      if (b.wind > 0 && ag < 1.52) {
+      if (b.wind > 0 && ag < 2.20) {   /* parklab49: the escape covered only ag<1.52 — a windup starting mid-swing (ag 1.5-2.2, e.g. during a sleg sweep) fell to the walk-ring and ate the plant; the strike needs |gap| <= 1.37, so ag < 2.20 is all exposed arc */
         /* tangent escape: WALK at r ≤ 3.6 (ω 2.7 vs the plant's 0.4 neck — gap +2.3 rad/s
            through the windup, the strike whiffs); SPRINT the tangent beyond 3.6, where a
            walk's ω = 7/r ≤ 1.9 cannot clear the 1.37 arc in 0.55 s (lab30 fight 1: three
            hits exactly there) */
-        cut = 0; sprint = r > 3.6 && f.w.stam > 30 && !f.w.exh; fight.dive = 0; mode = 'windt';   // the sprint dodge is a luxury — a hit costs 14, a dry tank costs the fight
+        /* THE PLANT DODGE CLOSES (parklab59 polls: the boss plants every ~1 s — 0.55 s
+           plant, 0.15 s cooldown — and the gap CLIMBS +0.5 in each plant only to snap
+           back in each cooldown: a treadmill, net zero, at r 3.1-3.7 where walk ω 7/r
+           equals the 2.2 neck. During the plant the neck is 0.4 — closing radius is
+           FREE; under r 2.9 the walk itself out-turns the world (probe v24/v25's law
+           lived at r 2.4: ω 2.9, regen +11/s, whiff on angle). Dodge = sprint
+           nose-in-swung (thNow 1.05: −7.3 m/s radial, ω +2.9 at r 4); tired = walk
+           (a walk's ω still beats the 0.4 plant neck anywhere). */
+        cut = Math.PI / 2 - 1.05;
+        sprint = f.w.stam > 20 && !f.w.exh; fight.dive = 0; mode = 'windt';
       }
       /* the SHUT-IN crossing: post-teleport the wolf lands at gap ≈ 0 — dead in its FACE
          (parklab32 marks: every teleport resets to gap 0.1-0.6), and outside 4.0 m the
          boss WALKS at 12.5 vs the wolf's 7 — a walking cross is run down. Sprint the
          crossing when caught in the arc or fresh off a teleport; walk in only when
          already behind-ish (stam > 60 = luxury sprint). */
-      else if (r > 3.95) { cut = Math.PI / 2 - 0.55; sprint = (ag < 1.50 || f.w.stam > 60 || f.clock - (fight.tpAt ?? -99) < 2) && f.w.stam > 12 && !f.w.exh; fight.dive = 0; mode = 'shut'; }
+      /* ══ THE MINED LADDER (parklab57, from 15 fights of per-poll data) ══
+         hit%/poll by mode: dive 0.0, park 0.0, windt 2.7, sleg 4.4 (gap FLAT),
+         hold 7.4 (−2.1 stam/poll), ring 14.2 (gap SHRINKING 0.54→0.43), shut 54.8.
+         The grammar had drifted out to r 3.5-4.5 where no walk out-turns the 2.2
+         neck (ω = 7/r) and the lunge lands through 4.5. Radial safety does not
+         exist near this boss; safety is ANGULAR (|gap| > 1.45) or the dodge-timing
+         (windt). So the middle of the ladder collapses to ONE law:
+           CAUGHT (|gap| <= 1.90, r <= 4.6) → THE SWING: sprint tangent-dominant
+           (thNow 1.35 — closes slowly, swings hard; ω_rel +0.5 at r 5 rising to
+           +3.3 at r 2.5) until the gap crosses the tail line. Never walk here —
+           the ring's 14.2%/poll and the shut's 54.8% were both walk/cross leaks.
+           The swing sprint is the tank's ONE sanctioned spend (a hit costs 14 hp
+           ≈ 30 stam of healing). Exhausted (or stam < 12): walk tangent — better
+           to bleed angular ground than stand still. */
       else if (fight.dive > 0) {
         fight.dive--;
         const far = r > 2.55;
+        /* parklab62 polls: the yaw eases at dt·9 — 4 old polls left the nose at
+           1.2-2.9 on every press attempt (needs ≤ 1.15). Six polls: four nose-in
+           (the settle takes ~0.3 s), press lands on polls 3-4, two out-polls pay
+           the radius back. */
         cut = Math.PI / 2 - (fight.dive >= 2 ? (far ? 0.90 : 0.55) : (far ? 2.20 : 2.60));
         mode = 'dive';
         if (fight.dive === 0) fight.diveEnd = f.clock;
       }
-      else if (struckFresh && ag > 1.98 && f.w.atkCd <= 0.1 && f.w.stam > 12 && !f.w.exh) {   // 1.98 not 2.20: the sleg peaks at 2.1 (lab33 polls) and the walk gives it back — bite-legal is 1.93
-        fight.dive = 4; cut = Math.PI / 2 - (r > 2.55 ? 0.90 : 0.55); mode = 'dive';
+      else if (struckFresh && ag > 1.55 && f.w.atkCd <= 0.1 && f.w.stam > 15 && !f.w.exh) {   /* parklab60: the climb tops at gap ~1.6, so the old 1.98 gate opened twice in 24 s; the bite's own resolve gate (|gap|+gv·0.38 > 1.93) vets every press anyway — pressing at 1.55 with gv +2 resolves at 2.3, behind. parklab46: floor 50 missed windows by 1 stam — the dive is WALK-cheap (nose-in + out), the kill is the best defense */
+        fight.dive = 6; cut = Math.PI / 2 - (r > 2.55 ? 0.90 : 0.55); mode = 'dive';
         if (!f.w.crouch) await H.tap('KeyX');   // crouched blind-side bite: (3+1amb+1crouch)×1.5 = 7.5 (p3 bite math)
       }
-      else if (ag <= 2.20 && b.wind <= 0.05 && f.w.atkCd <= 0.1 && f.w.stam > 18 && !f.w.exh) { cut = Math.PI / 2 - 1.50; sprint = true; mode = 'sleg'; }   /* lab35/36 law — the free-running leg (lab37) sprinted through the danger arc and took 7 hits in 12 s */
+      else if (ag <= 1.90 && r <= 4.6) {
+        /* THE TWO-PHASE SWING: outside 2.9 the treadmill owns every wolf (the mined
+           table: ring 14.2%/poll, shut 54.8%) — SPRINT the nose-in swing (thNow 1.05:
+           7.3 m/s inward, ω 2.9+ even in cooldown) to dive UNDER 2.9, where the walk
+           tangent (thNow 1.5, ω 2.69 at r 2.5) out-climbs the neck through every
+           plant while regening 11/s. The tank's one sanctioned spend. */
+        if (r > 2.9) { cut = Math.PI / 2 - 1.05; sprint = f.w.stam > 12 && !f.w.exh; mode = 'swing'; }
+        else { cut = Math.PI / 2 - 1.50; sprint = false; mode = 'climb'; }
+        fight.dive = 0;
+      }
+      /* BEHIND (|gap| > 1.90): tighten to the park radius on foot (+11/s), then hold
+         the park — the two measured 0.0%-hit postures. The dive press fires from
+         here on every whiff window (struckFresh). */
       else if (ag > 2.40) { cut = Math.PI / 2 - (r > 2.80 ? 1.30 : r < 2.35 ? 1.75 : 1.57); mode = 'park'; }
       else if (ag > 1.90) { cut = Math.PI / 2 - (r > 3.20 ? 1.10 : r > 2.80 ? 1.30 : 1.57); mode = 'arrive'; }
-      /* the cooldown IS the sprint window (probe v23): lap at 13.5·cos(0.12)/r ≈ 4-5.6 rad/s
-         to the tail while its neck idles; the walk comes back at the plant (windt) and the
-         park. lab30's walk-ring sagged at ω 2.0 < 2.2 and died in the face arc. */
-      else { cut = Math.PI / 2 - 1.45; sprint = !lowStam && f.w.stam > 20; mode = 'ring'; }   // floor 20: at 28-33 the walk-ring bled the gap back (lab33)
+      /* behind but FAR (r > 4.6): walk the tail-approach in — no sprint, the boss's
+         pursuit closes the distance for free; the swing law takes over at the arc */
+      else { cut = Math.PI / 2 - 1.30; sprint = false; fight.dive = 0; mode = 'approach'; }
       const thNow = Math.PI / 2 - cut;
       fight.holdN = (thNow === fight.lastCut) ? fight.holdN + 1 : 1;
       fight.lastCut = thNow;
@@ -530,7 +739,7 @@ async function fightLoop(e0) {
         yaw: +f.w.yaw.toFixed(2), hdg: +b.hdg.toFixed(2), cr: f.w.crouch ? 1 : 0 });
       if (F.polls.length > 900) F.polls.splice(0, 300);
       const nose = Math.abs(wrapPI(toB - f.w.yaw));
-      if (!b.inv && fight.holdN <= 3 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
+      if (!b.inv && fight.holdN <= 4 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
         F.swings++;
         if (await H.bite(f.t, b.d)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
       }
@@ -932,9 +1141,31 @@ async function doDeed(q, e) {
     case 'ritual': {
       const altar = q.wp || e.camp.altar;
       if (!altar) return 'ritual:noaltar';
-      const r = await H.travelTo(altar.x, altar.z, { stop: 2.4, tmo: 240, why: 'ritual' });
-      if (r.ok) { await H.tap('KeyE'); return 'ritual-channeled'; }
-      return 'ritual:' + r.why;
+      /* WILD-HUNTER GUARD (routepack3: a Level-1 Tiger killed the wolf on the altar walk —
+         a skilled human never dies to a stray hunter mid-ritual): segment the walk; when a
+         hostile predator closes inside 15 m and the fight is favorable, face-and-bite it
+         down (the combat-deed loop), then resume the walk. */
+      for (let seg = 0; seg < 6; seg++) {
+        const eg = await H.eyes(90);
+        const pr = (eg.preds || []).filter(p => !p.isBoss && p.d < 15).sort((a, c) => a.d - c.d)[0];
+        if (pr && eg.w.hp > eg.w.maxHp * 0.45 && pr.lvl <= eg.w.lvl + 2) {
+          mark('ritual-guard', { pred: pr.k, lvl: pr.lvl, d: +pr.d.toFixed(0), wolfLvl: eg.w.lvl, clock: eg.clock });
+          for (let k = 0; k < 30; k++) {
+            const e2 = await H.eyes(60);
+            const t = (e2.preds || []).find(p => !p.isBoss && p.d < 40);
+            if (!t || e2.w.hp < e2.w.maxHp * 0.35) break;
+            await H.aim(bearingTo(e2.w.x, e2.w.z, t.x, t.z));
+            await H.move({ f: t.d > 2.6, sprint: false });
+            await H.bite(e2.t);
+            await sleep(H.poll);
+          }
+          continue;
+        }
+        const r = await H.travelTo(altar.x, altar.z, { stop: 2.4, tmo: 60, why: 'ritual' });
+        if (r.ok) { await H.tap('KeyE'); return 'ritual-channeled'; }
+        if (r.why !== 'tmo') return 'ritual:' + r.why;
+      }
+      return 'ritual:tmo';
     }
     default: return 'unknown:' + q.kind;
   }
