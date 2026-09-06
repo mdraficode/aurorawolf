@@ -551,6 +551,40 @@ human players get them too**; the brains only had to be taught the doors exist (
   recorded in `TRAINING_MANUAL.md` §5.9 (labs 64–85). GEN 56 may resume; the runner's next wall is
   the leg-1 Tiger Legend (see §5.9).
 
+### 7g · v6.9 — THE WILD WIDENS: sky peaks, fjords, cave bats, cliff hangers, falls, fish (2026-09-07)
+
+- **Terrain:** the mountain crest term feeds itself — `mm·r²·(56 + 62·mm)` — so the ranges now crest
+  past **110 m** (old ceiling ~56–70) and ride above the existing `46 − 26·coldF` snowline: real
+  snow-capped, sky-touching peaks. **Fjords:** `fjordBandAt()` carves long contour-band sea arms
+  (`ss(.004,.017)` on a warped `nRiver` field) through the mountain mask wherever `mm > .34` —
+  near-vertical walls at the 2 m terrain grid, beds at `WATER_Y − 2.4 − 1.5·nVar`.
+- **Caves:** every qualifying mountain chunk (`mW > .35` on a 5-point quincunx, hash `^0xcafe % 6 < 3`)
+  adds a SECOND mouth beyond the tier roll — h 13–95, ±2.5 m flatness ≤ 10.5, 24 m spacing.
+  `test/v69_features.test.mjs` counts ~4–5 mouths per mountain view (was ~1 per several views).
+- **Bats (`class Bat`, global `bats[]`):** 4–6 roost per cave interior (spawn in `enterCave`, culled in
+  `disposeCave`), 0–2 sentries per outdoor mouth. Roost → swoop (ONE pass, bite 2 dmg + knockback
+  when the intruder is within 3.4 m horizontal / 9 m below) → home. **No chase state exists**: the
+  flight breaks off at 13 m from the roost, full stop — law verified in test (max excursion 13.0–13.1 m).
+- **Cliff hangers (`LANDMARKS.vista`, rare tier):** placed on the chunk's own grid-max point when it
+  tops 40 m with an ≥8 m drop — cairn + waypost + gold flag. Rides the existing discovery pipeline:
+  19 m/0.6 s tick → **+25 XP**, first-find heal+chime, `RUN.landmarks`, questable. Marked 🏔️ on the
+  minimap AND big map (new POI pass in `drawMapOverlays`, found ones lose their halo ring).
+- **Cliff falls:** grid scan finds cells >6 m above water adjacent to below-water cells inside the
+  mountain biome → 3 translucent veils + foam pool, auto-registered as rare `waterfall` landmarks
+  (🌊 on maps, +25 XP). The spec's "fountains from the high mountains into rivers/lakes/sea".
+- **Fish (`class Fish`, `chunk.fish[]`):** 3–5 per water body (≥6 deep grid cells), wander under the
+  surface, leap every 5–12 s with splash bursts (`pool.burst`). **Huntable ONLY from water**: the
+  strike offer in `wolf.attack` is gated on `wolf.swimming || heightAt < WATER_Y + 0.35`; catch =
+  +1 meat, +6 XP, kill-credit. Dry-land strikes pass through — law verified in test.
+- **Bug fixed en route:** my first hook used `adt` before its `const` (TDZ) — the frame died at the
+  fish line every tick, HUD froze at its static HTML ('🌲 Snowy Taiga', season stuck 'summer').
+  Found via the game's own `#err` banner ("Cannot access 'adt' before initialization"); both hooks
+  now take `dt`. Lesson re-learned: **the try/catch tick loop swallows exceptions into `#err` —
+  always read the banner, pageerror stays silent.**
+- **Tests:** `test/v69_features.test.mjs` (skyPeaks > 92, fjord cells, vista/waterfall/cave density
+  per mountain view, vista XP, bat swoop + no-chase + cull, fish jump/land/catch/no-dry-catch).
+  Full suite 27/27 + gather/ecosystem/mystic green with the new terrain.
+
 ### 7d · CRITICAL BUGFIX — Rafzzer button died after TROPHIES → BACK (2026-09-01, user report)
 
 - **Symptom:** opening 🏆 TROPHIES from the main menu and returning (BACK) made the 🧠 Rafzzer

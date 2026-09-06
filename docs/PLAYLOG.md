@@ -357,3 +357,18 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
 - **Ops**: two loop instances in parallel (2 cores), `lab86-loop.sh`, stop on Tiger
   kill / leg 2. Frontier unchanged: Tiger Legend (62 hp / 16 dmg / biteR 4.65).
 
+
+
+## 2026-09-07 · v6.9 map features (user request: "make some more features on the game map")
+
+- **Asked for:** very high mountains with fjords and sky-touching snow-capped peaks; more caves in
+  the ranges (explorable); bats in caves that sometimes attack but never chase; cliff-hanger spots
+  with a stunning view as POIs, minimap-marked, XP on exploration; waterfalls from the peaks feeding
+  rivers/lakes; fish jumping over water bodies, huntable only from (shallow) water.
+- **Shipped:** all six — see MASTER.md §7g for the mechanics and numbers.
+- **Hunt impact:** hunt stayed PAUSED (parklab88 blocker + kite-then-channel design untouched,
+  `test/speedrun/` untouched this turn). New XP sources shift the meta slightly: vistas +25,
+  falls +25, fish +6/meat — noted in TRAINING_MANUAL §5.12.
+- **The one real bug of the turn:** TDZ on `adt` froze the whole frame loop (HUD/season/streaming)
+  while pageerror stayed silent — the game's `#err` banner is the tell. All 27 suite tests +
+  gather/ecosystem/mystic + the new v69 suite green after the fix.
