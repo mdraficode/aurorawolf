@@ -207,7 +207,7 @@ async function fightLoop(e0) {
   const cadence = async clockNow => {
     if (lastC !== null) {
       const dt = clockNow - lastC;
-      if (dt >= 0) { dtEma = dtEma * 0.75 + dt * 0.25; if (dtEma >= 0.001) pollMs = Math.round(Math.max(48, Math.min(260, pollMs * Math.pow((liveSpeed * 0.05) / dtEma, 0.55)))); }
+      if (dt >= 0) { dtEma = dtEma * 0.75 + dt * 0.25; if (dtEma >= 0.001) pollMs = Math.round(Math.max(48, Math.min(110, pollMs * Math.pow((liveSpeed * 0.05) / dtEma, 0.55)))); }   /* cap 110 ms: parklab66 hit autopsies — 0.2 s polls met plants HALF-SPENT (w 0.30), leaving the dodge 0.2 s and the hit; at ~1 poll/batch (0.1 s at speed 2) the plant is caught at w<=0.15 */
     }
     lastC = clockNow;
     await sleep(pollMs);
@@ -227,6 +227,7 @@ async function fightLoop(e0) {
         behind: 0, face: 0, flank: 0, fled: 0, windEscapes: 0, spent: 0, side, leg: f.camp.leg, tier: f.camp.tier,
         rSum: 0, rN: 0, fmSum: 0, bossHp0: b0 ? b0.hp : 0 };
       fight.dip = 0; fight.struck = false; fight.prevWind = 0; fight.radOut = false; fight.holdN = 0; fight.lastCut = -9; fight.dive = 0;
+      fight.tpAt = f.clock;   /* parklab74: the entryGap-2.5 spawn is the teleport geometry (dead-front, inside strike range) — arming tpAt makes the CATCH answer the entry the same way it answers an ambush; every lab's 2-5-hit entries lived here */
       mark('boss-start', { boss: fight.name, hp: b0 && b0.mhp, dmg: b0 && b0.dmg, spd: b0 && b0.spd, reach: b0 && b0.reach, biteR: b0 && b0.biteR, flight: b0 && b0.flight, wolfHp: f.w.hp, wolfLvl: f.w.lvl, travel: +travel.toFixed(2), tac: FIGHT_TAC }, true);
       fightMarkT = f.clock;
     }
@@ -296,12 +297,20 @@ async function fightLoop(e0) {
        hunter is within 55 m, never fight two fronts. A latched hunter also cancels an
        active break-off — running blind through the woods is how the lion caught us. */
     {
+      /* parklab65 fight-2 autopsy: the latch (d<16, clear at 55) never clears while the
+         hunter CHASES, and the flee ran into terrain (travel 0.46 = pinned) — the
+         leopard struck the fleeing wolf 8 times, a bear finished it. The law is now a
+         SHORT disengage, not a marathon: latch only on real contact (d<14), clear at
+         40 m, GIVE UP after 12 s (fighting two beats dying fleeing — cooldown 10 s),
+         and TURN when the flee bearing pins against terrain. */
       const wps = (f.preds || []).filter(pp => pp.hp > 0);
-      const wpNear = wps.filter(pp => pp.d < 16).sort((a, c) => a.d - c.d)[0];
-      if (wpNear) fight.fleePred = true;
-      if (fight.fleePred && !wps.some(pp => pp.d < 55)) {
-        fight.fleePred = false;
-        mark('wild-clear', { clock: f.clock, hp: Math.round(f.w.hp), stam: f.w.stam }, true);
+      const wpNear = wps.filter(pp => pp.d < 14).sort((a, c) => a.d - c.d)[0];
+      if (wpNear && !fight.fleePred && (fight.fleeCd ?? -99) < f.clock) {
+        fight.fleePred = true; fight.fleePredT = f.clock; fight.wildTurn = 0; fight.wildStuck = 0;
+      }
+      if (fight.fleePred && (!wps.some(pp => pp.d < 40) || f.clock - (fight.fleePredT ?? f.clock) > 12)) {
+        fight.fleePred = false; fight.fleeCd = f.clock + 10;
+        mark(f.clock - fight.fleePredT > 12 ? 'wild-giveup' : 'wild-clear', { clock: f.clock, hp: Math.round(f.w.hp), stam: f.w.stam }, true);
       }
       if (fight.fleePred && wps.length) {
         const wp = wps.sort((a, c) => a.d - c.d)[0];
@@ -311,11 +320,16 @@ async function fightLoop(e0) {
            then split from both threats. */
         const awayB = wrapPI(toB + Math.PI), awayW = wrapPI(bearingTo(f.w.x, f.w.z, wp.x, wp.z) + Math.PI);
         const split = Math.abs(wrapPI(awayW - awayB));
-        const away = r < 5.2 ? awayB : (split < 2.4 ? wrapPI(awayB + wrapPI(awayW - awayB) / 2) : (r < wp.d ? awayB : awayW));
+        let away = r < 5.2 ? awayB : (split < 2.4 ? wrapPI(awayB + wrapPI(awayW - awayB) / 2) : (r < wp.d ? awayB : awayW));
+        /* the pinned flee: rotate the bearing 90° per 3 stuck polls — a moving wolf
+           outruns everything; a pinned one dies to the first pursuer */
+        fight.wildStuck = travel < 0.5 ? (fight.wildStuck || 0) + 1 : 0;
+        if (fight.wildStuck > 3) { fight.wildTurn = (fight.wildTurn || 0) + 1; fight.wildStuck = 0; }
+        if (fight.wildTurn) away = wrapPI(away + fight.wildTurn * Math.PI / 2);
         if (fight.fleePredMark !== true) { mark('wild-hunter', { k: wp.k, lvl: wp.lvl, d: +wp.d.toFixed(0), wolfLvl: f.w.lvl, clock: f.clock }, true); fight.fleePredMark = true; }
         F.mode = 'wild';
         await H.aimFast(away, f.cam);
-        await H.move({ f: true, sprint: f.w.stam > 8 && !f.w.exh });
+        await H.move({ f: true, sprint: f.w.stam > 5 && !f.w.exh });
         if (f.w.hp < F.hp0 - 1) { F.hits++; F.dmgTaken += F.hp0 - f.w.hp; }
         F.hp0 = f.w.hp;
         await cadence(f.clock); continue;
@@ -424,8 +438,8 @@ async function fightLoop(e0) {
          55 re-break charge, 56 band). Safety is ANGULAR (dead-behind) or TEMPORAL
          (dodge the plant), never radial. The break is demoted to a LAST RESORT at
          hp < 25% — the park-press cycle runs the fight. */
-      const breakHp = f.w.maxHp * 0.25;
-      if (!fight.breaking && f.w.hp < breakHp && f.w.stam > 55 && !f.w.exh && b.wind <= 0.05 && r < (b.reach || 4.59) + 1.2) {   /* r-gate (parklab55): a re-break from tp-distance 7.4 walked the in-lean INTO the boss's charge — 4 hits in 3 s; the tphold owns the post-tp sequence, breaks start only from in/around the band */   /* parklab41: tank 74 recovered +40 hp, tank 41 was purgatory (+1 hp, 16 s); parklab54: NEVER fire mid-plant — the spiral-out eats the live strike (3 hits crossing 3.4), dodge the plant first (windt), break on the clean poll */
+      const breakHp = 0;   /* parklab69: THE BREAK IS DELETED. Thirty labs of variants (walk-away, band, spiral, runway, tp-cancel, r-gate, endgame-gate) all cost more than they recovered — this run: full tank 125 mid-fight, wolf 26 vs boss 28 (winnable), the break fired anyway, a tp re-broke it 0.3 s later, 3 hits, dead. The walk-dodge economy + the park rest ARE the recovery system. */
+      if (!fight.breaking && f.w.hp < breakHp && f.w.stam > 55 && !f.w.exh && b.wind <= 0.05 && r < (b.reach || 4.59) + 1.2 && b.hp > b.mhp * 0.5) {   /* r-gate (parklab55): a re-break from tp-distance 7.4 walked the in-lean INTO the boss's charge; parklab67 fight-2: the break fired at boss 22.5/45 (the RACE IS WINNABLE) and cost 3 hits — never break when the boss is under half: the endgame is a sprint, not a recovery */   /* parklab41: tank 74 recovered +40 hp, tank 41 was purgatory (+1 hp, 16 s); parklab54: NEVER fire mid-plant — the spiral-out eats the live strike (3 hits crossing 3.4), dodge the plant first (windt), break on the clean poll */
         /* parklab45: the breakaway sprinted BLIND — travel 0.38 (a solid ×0.22 or the
            steep clearing edge), tank 63 gone in 1.8 s, hp FELL 76->53 mid-break. Scan
            the away half-plane once per break: 24 rays, runway to the first solid/water
@@ -578,7 +592,7 @@ async function fightLoop(e0) {
       await H.aimFast(moveDir, f.cam);
       await H.move({ f: true, sprint });
       const nose = Math.abs(wrapPI(toB - f.w.yaw));
-      if (!b.inv && fight.holdN <= 4 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
+      if (!b.inv && fight.holdN <= 4 && r <= b.biteR && nose <= 1.36 &&   /* cone edge 1.37 (dot>=0.2). parklab84: the nose/resolve gates are ANTI-PHASE in dives (nose settles after the gap dies) — the moment BOTH pass is MID-PLANT: the boss's neck is 0.4, the windt dodge carries the gap 1.6-2.2 rising (gv +2, resolve passes) and the nose reads 1.3-1.6 at thNow 1.05. Opening to the cone edge presses the PLANTED boss — it cannot turn away, the bite resolves deep-behind */ b.wind <= 0.45 &&   /* lab75: the deep-gap press polls sat at w 0.30-0.34 — the bite resolves in 0.38 s, its value is the RESOLVE geometry; early-windup presses are safe */ Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 &&   /* lab67 law (7 presses x 6.4 = the best press output measured): press the RISING window — gap 1.9-2.2 with gv +2 resolves at 2.7 = deep-behind 7.5. parklab70-73's 'deeper' gates (2.15 flat / 2.0 start) starved the cadence to 2-3 presses — reverted */ f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
         F.swings++;
         if (await H.bite(f.t, b.d)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
       }
@@ -657,7 +671,14 @@ async function fightLoop(e0) {
            nose-in-swung (thNow 1.05: −7.3 m/s radial, ω +2.9 at r 4); tired = walk
            (a walk's ω still beats the 0.4 plant neck anywhere). */
         cut = Math.PI / 2 - 1.05;
-        sprint = f.w.stam > 20 && !f.w.exh; fight.dive = 0; mode = 'windt';
+        if (r < 1.8) cut = 0;   /* parklab66 polls: the close dove to r 0.47 — inside the wolf's sprint turn radius (v/9 = 1.5 m); the orbit cannot hold, the wolf shoots back OUT through the strike arc. Below 1.8: pure tangent (ω 7.5+) — the gap explodes instead */
+        /* parklab68: the tank died by dodging — every plant sprinted (−15/s ≈ 8/plant)
+           while walk regen gives +11/s ≈ 12/cycle: net −3/cycle, tank sagging 38→10,
+           and the tired dodges then ate the strikes. INSIDE the engage line (r <= 2.9)
+           the WALK dodge is already whiff-safe (ω 7/2.6 = 2.7 vs plant neck 0.4 =
+           +1.26 rad per plant, from gap 0.8 -> 2.1): sprint only outside it, or when
+           the gap is dead-front (< 0.5). */
+        sprint = (r > 2.9 || ag < 0.5) && f.w.stam > 20 && !f.w.exh; fight.dive = 0; mode = 'windt';
       }
       /* the SHUT-IN crossing: post-teleport the wolf lands at gap ≈ 0 — dead in its FACE
          (parklab32 marks: every teleport resets to gap 0.1-0.6), and outside 4.0 m the
@@ -678,29 +699,62 @@ async function fightLoop(e0) {
            The swing sprint is the tank's ONE sanctioned spend (a hit costs 14 hp
            ≈ 30 stam of healing). Exhausted (or stam < 12): walk tangent — better
            to bleed angular ground than stand still. */
+      /* THE TP CATCH (parklab64): the tp lands the boss 6.5-7.5 m out at gap ~0.1 and it
+         closes at 12.5; the old answer (the walk approach) met it at r 4 nose-first —
+         ~2 hits every 4 s cycle. The catch: SPRINT the pure tangent while it closes —
+         tangent ω at r 6.5-4 is 2.1-3.4 vs the approach neck, the plant whiffs on
+         angle, and the wolf arrives at the flank already rotating into the climb. */
+      else if (f.clock - (fight.tpAt ?? -99) < 1.2 && ag <= 1.90 && r > 2.9) {   /* parklab79: the 2.6 s window over-rotated through the tail into the boss's face (fm 0.9, stam 21, dead 14.8 s). 1.2 s won lab76 fight-1 clean (entry press, 0 hits) — the arrive/climb branches finish the rounding */
+        /* parklab71: tp4 landed the boss at r 3.4 — INSIDE the old r>4.6 catch gate —
+           so the swing answered: nose-in at gap 0, +1.4 rad/s, 5 hits in 4 s. The catch
+           (pure tangent, ω 13.5/r: 4.0 at r 3.4, +1.8/s in cooldown, +3.6 through a
+           plant) is the right answer at ANY radius past the climb line. */
+        cut = Math.PI / 2 - 1.57; sprint = f.w.stam > 5 && !f.w.exh; fight.dive = 0; mode = 'catch';   /* sprint on fumes — a WALKING catch (ω 7/r < neck) eats the plant: 14 hp costs more than exhaustion */
+      }
       else if (fight.dive > 0) {
         fight.dive--;
-        const far = r > 2.55;
+        const far = fight.dFar ?? (r > 2.55);   /* parklab76: r hovering at the 2.55 toggle flip-flopped thNow (+0.9/+0.6) every poll — holdN reset, the aim chased a moving target, the nose never settled (29 dives, 1 press). Latch the geometry ONCE at dive start. */
         /* parklab62 polls: the yaw eases at dt·9 — 4 old polls left the nose at
            1.2-2.9 on every press attempt (needs ≤ 1.15). Six polls: four nose-in
            (the settle takes ~0.3 s), press lands on polls 3-4, two out-polls pay
            the radius back. */
-        cut = Math.PI / 2 - (fight.dive >= 2 ? (far ? 0.90 : 0.55) : (far ? 2.20 : 2.60));
+        /* lab83 dump: dives at r 2.5-2.9 collapsed the gap -0.5/poll (wolf omega 7*sin(0.55)/2.8
+           = 1.4 << neck 2.2) — the nose settled only after the window died. lab67's presses all
+           ran at r 0.8-2.0, INSIDE, where 7*sin(0.55)/1.5 = 2.4-3.1 out-turns the neck and the
+           gap HOLDS while the nose settles (nv 0.77-1.09 by poll 2-3). The lab69 walk-dodge
+           parked the orbit at 2.2-2.9 — great defense, dead press geometry. So the dive CUTS
+           IN first: th 0.30 while r > 2.05 (walk 6.7 m/s inward crosses 2.9->2.0 in one poll),
+           then th 0.55 inside — lab67's exact profile. */
+        cut = Math.PI / 2 - (fight.dive >= 2 ? (r > 2.05 ? 0.30 : 0.55) : (far ? 2.20 : 2.60));
         mode = 'dive';
+        /* parklab64 polls: dives OVERSHOT the tail — gap +2.9 -> -2.9 (crossed pi) and
+           kept pressing into the far face quadrant, ending at gap 0. Exit dead-behind:
+           the sign flip past 2 rad or a sagging |gap| ends the dive NOW; the park holds
+           the tail while the tank refills. */
+        /* lab65/67 law RESTORED (parklab70's sign-only remix averaged ~2x fewer presses
+           than lab67's 7): trim the dive at the tail crossing OR when the gap sags and
+           the dive is going nowhere — the dive already pressed by hn2-3, hold the park. */
+        if (fight.pGap !== undefined && ((Math.sign(b.gap) !== Math.sign(fight.pGap) && Math.abs(fight.pGap) > 2) || (Math.abs(b.gap) < Math.abs(fight.pGap) - 0.25 && ag < 2.2 && fight.holdN > 2))) fight.dive = 0;
+        fight.pGap = b.gap;
         if (fight.dive === 0) fight.diveEnd = f.clock;
       }
-      else if (struckFresh && ag > 1.55 && f.w.atkCd <= 0.1 && f.w.stam > 15 && !f.w.exh) {   /* parklab60: the climb tops at gap ~1.6, so the old 1.98 gate opened twice in 24 s; the bite's own resolve gate (|gap|+gv·0.38 > 1.93) vets every press anyway — pressing at 1.55 with gv +2 resolves at 2.3, behind. parklab46: floor 50 missed windows by 1 stam — the dive is WALK-cheap (nose-in + out), the kill is the best defense */
-        fight.dive = 6; cut = Math.PI / 2 - (r > 2.55 ? 0.90 : 0.55); mode = 'dive';
+      else if (b.wind <= 0.05 && ((struckFresh && f.w.stam > 15) || (r <= 2.9 && f.w.stam > 25)) && ag > 1.55 && (fight.gv ?? 2) > -0.5 && f.w.atkCd <= 0.1 && !f.w.exh) {   /* lab67 law (start 1.55, press the rising window) + parklab75: REFUSE falling gaps — dives started on gv<-0.5 collapsed under the resolve line before the nose settled (every shallow dive in the lab75 dump) */   /* parklab64/65: at park radius (r<=2.9, the measured 0%-hit zone) every clean-cooldown cone is pressable — but stam>25 for park presses: the perpetual-dive machine burned the tank to 21-45 and the tired tp catches then walked into hits. Rest between cycles: the park walk regens 11/s */   /* parklab60: the climb tops at gap ~1.6, so the old 1.98 gate opened twice in 24 s; the bite's own resolve gate (|gap|+gv·0.38 > 1.93) vets every press anyway — pressing at 1.55 with gv +2 resolves at 2.3, behind. parklab46: floor 50 missed windows by 1 stam — the dive is WALK-cheap (nose-in + out), the kill is the best defense */
+        fight.dive = 6; fight.dFar = r > 2.55; cut = Math.PI / 2 - (r > 2.05 ? 0.30 : 0.55); mode = 'dive';
         if (!f.w.crouch) await H.tap('KeyX');   // crouched blind-side bite: (3+1amb+1crouch)×1.5 = 7.5 (p3 bite math)
       }
-      else if (ag <= 1.90 && r <= 4.6) {
-        /* THE TWO-PHASE SWING: outside 2.9 the treadmill owns every wolf (the mined
-           table: ring 14.2%/poll, shut 54.8%) — SPRINT the nose-in swing (thNow 1.05:
-           7.3 m/s inward, ω 2.9+ even in cooldown) to dive UNDER 2.9, where the walk
-           tangent (thNow 1.5, ω 2.69 at r 2.5) out-climbs the neck through every
-           plant while regening 11/s. The tank's one sanctioned spend. */
-        if (r > 2.9) { cut = Math.PI / 2 - 1.05; sprint = f.w.stam > 12 && !f.w.exh; mode = 'swing'; }
-        else { cut = Math.PI / 2 - 1.50; sprint = false; mode = 'climb'; }
+      else if (ag <= 1.90 && r <= 5.5) {
+        /* THE TWO-PHASE SWING: outside the engage radius the treadmill owns every wolf
+           (the mined table: ring 14.2%/poll, shut 54.8%) — SPRINT the nose-in swing
+           (thNow 1.05: 7.3 m/s inward, ω 2.9+ even in cooldown) to dive UNDER the
+           engage line, where the walk tangent out-climbs the neck through every plant
+           while regening 11/s. The tank's one sanctioned spend.
+           parklab66: (a) the r-gate was 4.6 — r 4.6-5.5 at gap<1.9 fell to the APPROACH
+           walk IN THE ARC (hit #1); (b) phase 2 turns the neck 2.2 -> 2.53 (b.turn,
+           live) — the old climb cut 1.50 stalled at ω 3.1 vs 2.53 (+0.6 margin, hits
+           #2/#5): phase 2 engages at 2.4 and climbs at 1.30 (ω 3.4-3.7 at r 1.8-2.0). */
+        const R_ENG = b.turn > 2.3 ? 2.4 : 2.9;
+        if (r > R_ENG) { cut = Math.PI / 2 - 1.05; sprint = f.w.stam > 12 && !f.w.exh; mode = 'swing'; }
+        else { cut = Math.PI / 2 - (b.turn > 2.3 ? 1.30 : 1.50); sprint = false; mode = 'climb'; }
         fight.dive = 0;
       }
       /* BEHIND (|gap| > 1.90): tighten to the park radius on foot (+11/s), then hold
@@ -725,7 +779,7 @@ async function fightLoop(e0) {
         const e = wrapPI(trav * side - fight.pv.th);
         if (Math.abs(e) < 1.3) fight.aimErr = Math.max(-0.9, Math.min(0.9, (fight.aimErr || 0) * 0.65 + e * 0.35));
       }
-      const thCmd = thNow - (fight.dive > 0 ? 0 : (fight.aimErr || 0));   // a dive aims true — lead offsets break the bite cone
+      const thCmd = thNow - (fight.dive > 0 ? 0 : (fight.aimErr || 0));   // lab67 law: a dive aims true — the lead (up to +-0.9) would swing the command off the boss and the nose never enters the cone
       fight.pv = { wx: f.w.x, wz: f.w.z, toB, th: thCmd };
       fight.pc = f.clock;
       const moveDir = toB + side * thCmd;
@@ -739,7 +793,7 @@ async function fightLoop(e0) {
         yaw: +f.w.yaw.toFixed(2), hdg: +b.hdg.toFixed(2), cr: f.w.crouch ? 1 : 0 });
       if (F.polls.length > 900) F.polls.splice(0, 300);
       const nose = Math.abs(wrapPI(toB - f.w.yaw));
-      if (!b.inv && fight.holdN <= 4 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
+      if (!b.inv && fight.holdN <= 4 && r <= b.biteR && nose <= 1.36 &&   /* cone edge 1.37 (dot>=0.2). parklab84: the nose/resolve gates are ANTI-PHASE in dives (nose settles after the gap dies) — the moment BOTH pass is MID-PLANT: the boss's neck is 0.4, the windt dodge carries the gap 1.6-2.2 rising (gv +2, resolve passes) and the nose reads 1.3-1.6 at thNow 1.05. Opening to the cone edge presses the PLANTED boss — it cannot turn away, the bite resolves deep-behind */ b.wind <= 0.45 &&   /* lab75: the deep-gap press polls sat at w 0.30-0.34 — the bite resolves in 0.38 s, its value is the RESOLVE geometry; early-windup presses are safe */ Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 &&   /* lab67 law (7 presses x 6.4 = the best press output measured): press the RISING window — gap 1.9-2.2 with gv +2 resolves at 2.7 = deep-behind 7.5. parklab70-73's 'deeper' gates (2.15 flat / 2.0 start) starved the cadence to 2-3 presses — reverted */ f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
         F.swings++;
         if (await H.bite(f.t, b.d)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
       }
@@ -799,7 +853,7 @@ async function fightLoop(e0) {
       const nose = Math.abs(wrapPI(toB - f.w.yaw));
       /* the dip gate: press on the second in-poll of the dip (nose ~0.7) — read 1.03 whiffed,
          0.81 landed, so 1.05 is the ceiling; behind it (ambush x1.5), not during its plant. */
-      if (!b.inv && fight.dip === 3 && r <= b.biteR && nose <= 1.15 && b.wind <= 0.30 && Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 && f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
+      if (!b.inv && fight.dip === 3 && r <= b.biteR && nose <= 1.36 &&   /* cone edge 1.37 (dot>=0.2). parklab84: the nose/resolve gates are ANTI-PHASE in dives (nose settles after the gap dies) — the moment BOTH pass is MID-PLANT: the boss's neck is 0.4, the windt dodge carries the gap 1.6-2.2 rising (gv +2, resolve passes) and the nose reads 1.3-1.6 at thNow 1.05. Opening to the cone edge presses the PLANTED boss — it cannot turn away, the bite resolves deep-behind */ b.wind <= 0.45 &&   /* lab75: the deep-gap press polls sat at w 0.30-0.34 — the bite resolves in 0.38 s, its value is the RESOLVE geometry; early-windup presses are safe */ Math.abs(b.gap) + (fight.gv ?? 2) * 0.38 > 1.93 &&   /* lab67 law (7 presses x 6.4 = the best press output measured): press the RISING window — gap 1.9-2.2 with gv +2 resolves at 2.7 = deep-behind 7.5. parklab70-73's 'deeper' gates (2.15 flat / 2.0 start) starved the cadence to 2-3 presses — reverted */ f.w.atkCd <= 0.1 && (b.jam ?? 99) > b.d + 0.60) {
         F.swings++;
         if (await H.bite(f.t, b.d)) { F.bites++; if (b.facingMe < -0.35) F.behind++; else if (b.facingMe > 0.45) F.face++; else F.flank++; }
       }

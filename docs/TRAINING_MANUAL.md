@@ -405,3 +405,56 @@ no-leash pursuit and the arena multi-threat. Full ledger with measurements: `BUG
 **Do not re-suspect:** `bearingTo` (correct, verified twice), the input chain (exonerated),
 knockback (1.1–2.9 m, not the primary problem), `H.move()` crouch (unsupported — prowl is
 `KeyX`). Three sessions burned on each of those.
+
+### 5.9 THE TROPHY — first kill of the Leopard Legend (parklabs 64–85, 2026-09-06)
+
+**Leopard Legend SLAIN, seed 7777, iron, L5 entry — fight-1 of lab85 run 5: 49.1 s,
+9–10 presses, boss 45 → 0 through phases 2 (2.53) and 3 (2.86), wolf ALIVE at ~42 hp,
+leveled 5 → 8 on the kill, leg advanced 0 → 1.**
+Evidence: `runs/parklab85run5.log` (bhp 5 at clock 41.3 with whp 18.45 → boss-end
+`res:"slain"` at 49.13; the logger's kill-boundary event shows `boss:"?"` with a reset
+counter — the stage/level advance is the corroborating record).
+
+The labs 64–85 arc that got here (every law now lives in `test/speedrun/run.mjs`):
+
+- **lab64–65** tp-catch (sprint the pure tangent while the tp'd boss closes: flank in 0.8 s)
+  + dive overshoot exit; press value mapped: gap ≥ 2.4 at the press = 7.5 (behind+ambush),
+  1.6–2.0 = 1–2.4 (flank/face).
+- **lab66–67** frame autopsy → the near-kill (bhp 3): windt cut 0 below r 1.8, swing gate
+  r ≤ 5.5 phase-aware (engage 2.4 / climb 1.30 when `b.turn` > 2.3), poll cap 110 ms.
+- **lab69** walk-dodge inside r 2.9 (whiff-safe AND tank-positive: −3/cycle → +12/cycle;
+  the tank held 125 for whole fights from here on).
+- **lab70** **the break is deleted** (`breakHp = 0`) — 30 labs of variants all bled more
+  than they healed; do not resurrect.
+- **lab75** entry-as-tp: `fight.tpAt = clock` at boss-start arms the catch for the
+  entryGap-2.5 spawn — labs 46–74's 1–5-hit entries lived there (0-hit entries after).
+- **lab77–78** the dive heading latch (r hovering at the 2.55 toggle flip-flopped thNow,
+  reset holdN every other poll — the nose never settled) + catch r-gate 2.9.
+- **lab83–84 THE PRESS GEOMETRY REDISCOVERED**: the lab69 walk-dodge had parked the orbit
+  at r 2.2–2.9, where the dive's ω (7·sin 0.55 / 2.8 ≈ 1.4) loses to the 2.2 neck — the gap
+  collapsed −0.5/poll and the nose/resolve gates turned out to be **anti-phase** (the nose
+  settles only after the gap dies). Two laws close it: the dive **cuts inside first**
+  (th 0.30 while r > 2.05, then 0.55 — lab67's radius profile, where 7·sin 0.55 / 1.5 ≈ 2.4–3.1
+  out-turns the neck), and…
+- **lab85 THE PLANT PRESS**: the one moment both gates pass together is **mid-plant** — the
+  boss's neck is 0.4, the windt dodge carries the gap 1.6–2.2 rising (gv +2 → resolve gate
+  passes) and the nose reads 1.3–1.6 at thNow 1.05. Opening the nose gate to the cone edge
+  (1.36 of 1.37) presses the PLANTED boss: it cannot turn away, the bite resolves
+  deep-behind. Press volume went 1/fight → 6–9/fight (6 × 7.5 = full 45 in run 2 fight 1;
+  the kill fight crossed both phases).
+- **lab82-loop.sh** the environment answer: this sandbox's chromium lives ~2 min wall (the
+  same target-closed noise as world/forest tests) — ~2–3 fights per session. The loop
+  re-runs whole fightlab sessions (pkill zombie chrome between, stop on `res:"slain"`).
+  The kill landed on iteration 5 of 10.
+
+Surviving law set (labs 64–85, all in run.mjs): tp-catch 1.2 s / r > 2.9 · dive = 6 polls,
+inside-first cuts (0.30 → 0.55), overshoot exit (sign-flip OR sag) · dive start ag > 1.55,
+gv > −0.5, stam > 25 park / struckFresh · press: holdN ≤ 4, r ≤ biteR, nose ≤ 1.36,
+wind ≤ 0.45, |gap| + gv·0.38 > 1.93, jam clear · windt: walk-dodge inside 2.9, sprint
+outside/dead-front, cut 0 below r 1.8 · swing r ≤ 5.5 phase-aware · poll cap 110 ms ·
+**no break** · wild-flee v2 · entry-as-tp.
+
+**The next wall (seen from the far side):** leg 1 is the **Tiger Legend** — hp 62, dmg 16,
+spd 12.6, biteR 4.65, same plant grammar (turn 2.2 base). The wolf arrives at L8–9 with
+~172 hp and the full law set; two probe fights died at 12 and 8 hits with 1 press each —
+the tp cadence looked faster. The law transplant starts at lab 86.

@@ -310,3 +310,24 @@ Full machine logs: `test/playlog.json` (session 3) · minute-by-minute screensho
   remaining leak is the tp reset (~2 hits each). Wild-hunter law + predator-sight eyes added
   (EYES_FIGHT `preds[]`): a Level 7 lion had killed the wolf mid-break; arena scorer now prices
   hunter proximity (−30/−45).
+
+## Labs 64–85 — the press engine and the kill (2026-09-06, same day, runner-law phase)
+
+- **lab64** tp-catch + park-radius dive start: dead 24.2 s, 3/3 behind, bhp 22.5. Catch = 0.8 s tp→flank.
+- **lab65** overshoot exit + rest gate + nose 1.30: fight-1 **bhp 13** (phase 2); fight-2 wild-flee death.
+- **lab66** wild v2 installed; frame autopsy of 9 hits: r 0.47 inside turn radius, climb stalls vs 2.53.
+- **lab67** turn floor + swing 5.5 phase + poll 110: **bhp 3** — one press short (7/7 behind, turn 2.86).
+- **lab68** break endgame gate: tank EMPTY (whp 2.07, stam 12–26) — sprint-dodging is net −3/cycle.
+- **lab69** walk-dodge inside 2.9: TANK FULL 125, bhp 28 — break + tp re-break cost 3 hits.
+- **lab70** `breakHp = 0` (break deleted forever). Sag-exit remix: 4 presses × 2.4 (value collapse).
+- **lab71** catch r-gate 2.9 (tp4 landed inside 4.6 → swing ate 5). 1 press × 7.5 — value restored.
+- **lab72–74** deep-press experiments (gate 2.15 / start 2.0): cadence starved to 2–3 presses — REVERTED to the lab67 resolve law.
+- **lab75** entry-as-tp (tpAt armed at boss-start): 0-hit entries. Poll mining: thNow flip-flop at r 2.55.
+- **lab76** nose 1.25→1.30 + wind 0.45 + gv guard: press thaw begins (1 × 6 at entry, 0 hits).
+- **lab77** dive heading latch (dFar): nose settles by hn2–3 — but dives collapse the gap radially.
+- **lab78–80** catch-window and tangent-dive experiments: front-lock (behindPct 0 whole fights) — reverted.
+- **lab81** seamless-tangent dive: 1 press; the chromium ~2-min lifetime identified (all sessions die wall 100–135 s).
+- **lab82** loop.sh: whole-session repeats, stop on slain. fightlab auto-re-fight kept dying with the browser.
+- **lab83** lab67 press path restored (radial dives, no dive lead, sag exit): still 1 press — dive polls show gap −0.5/poll at r 2.5–2.9.
+- **lab84** **inside-first dive** (th 0.30 while r > 2.05, then 0.55): dives cross inside, gap holds, nose settles — 0.84–1.28 at hn3.
+- **lab85** **the plant press** (nose gate → 1.36, the cone edge): press volume 1 → 6–9/fight. Run 2 fight 1: 6 × 7.5 = 45 dmg (boss ~2.5 at the wolf's death). **Run 5 fight 1: LEOPARD LEGEND SLAIN at 49.1 s** — wolf alive at ~42 hp, L5→8, leg 0→1. Route continued to the Tiger Legend (hp 62/dmg 16/biteR 4.65) and died twice there — that's lab 86+'s problem.

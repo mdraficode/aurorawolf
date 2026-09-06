@@ -532,8 +532,9 @@ human players get them too**; the brains only had to be taught the doors exist (
   Drive/WeTransfer backup (`AW-V1.zip`) was fetched via the now-retired `env-relay` Actions workflow,
   audited (sha256 `b7d67bcd…`, byte-identical to the reconciled repo — its only unique content was
   `.revontulet.keystore` / `.ghtoken`, never committed), and the relay machinery was deleted with it.
-- **Standing order:** finish the human-speedrun session (no bot, no brain) to the Tier-1 trophy and
-  record it in `TRAINING_MANUAL.md` **before** resuming GEN 56.
+- **Standing order:** FULFILLED 2026-09-06 — the Tier-1 trophy (Leopard Legend, first kill) is
+  recorded in `TRAINING_MANUAL.md` §5.9 (labs 64–85). GEN 56 may resume; the runner's next wall is
+  the leg-1 Tiger Legend (see §5.9).
 
 ### 7d · CRITICAL BUGFIX — Rafzzer button died after TROPHIES → BACK (2026-09-01, user report)
 
