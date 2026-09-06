@@ -5,6 +5,7 @@
 # stop on the TIGER kill or leg 2. Usage: bash test/speedrun/lab86-loop.sh [iters] [tag]
 set -u
 cd "$(dirname "$0")/../.."
+mkdir -p test/speedrun/runs   # the re-clone drops this gitignored dir — the loop must self-heal
 N=${1:-8}
 TAG=${2:-parklab82}
 for i in $(seq 1 "$N"); do

@@ -481,3 +481,31 @@ scheduler and Chromium's input pipeline:
   stop on the Tiger kill / leg 2. Fightlab's in-page auto-re-fight dies with the
   browser; don't count on it.
 
+### 5.11 The Tiger wall — first mines, first laws (parklabs 87–88, 2026-09-06 night)
+
+The route now reaches leg 1 regularly (Leopard kills in 40–50 % of sessions at
+9–11 presses). The TIGER (62 hp, dmg 16, **secondWind regen**, fury = a 0.62 s
+charge at 19 m/s) is a different machine — three full-law fights, all lost:
+
+- **The front-loader**: the Leopard's tp landed it behind (the catch solved the entry);
+  the Tiger's charge RE-FACES the wolf every ~2 s — the fights died front-locked
+  (fm 0.83–1.0, gap 0 the whole way, 7–11 hits in 20 s, bhp floor 48.5).
+- **The heal**: bhp ROSE mid-fight (62→50→56). A boss whose hp rises only gets harder —
+  the `b.hp <= 40` race window never opens on a regen boss.
+- **The leg-1 world**: L9–10 wild hunters camp the ritual sites — five of eight leg-1
+  deaths were third parties (a L10 Lion killed the wolf mid-Tiger-fight, then camped
+  three consecutive re-awakens; a L9 Leopard killed one at the channel).
+
+New laws (all live from parklab88):
+
+1. **THE CHARGE DODGE** — `b.charging` → sprint pure tangent; the lunge locks its line
+   at cast and overshoots the slot; the post-charge atkCd 1.6 s + re-face is the free
+   press window. Polls now record `ch`/`sub` for the next mine.
+2. **THE REGEN RACE** — any hp rise between polls (fight.bossRegen) opens the endgame
+   race immediately: ignore hunters, press the engine.
+3. **THE FINAL-PRESS WINDOW** — `b.hp <= 12` races at ANY tank (run4 died fleeing at
+   bhp 10.5/whp 20 because the 70-hp gate blocked the race; 2–3 presses from the end,
+   the presses matter more than the hunter).
+4. **Hygiene radius 45 m** at the altar (was 30 — the ring let L9–10 hunters close
+   during the 2.4 s channel).
+

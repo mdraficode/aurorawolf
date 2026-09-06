@@ -312,7 +312,13 @@ async function fightLoop(e0) {
          fat (>=90), the flee loses a race the press engine is winning: IGNORE the hunter,
          keep the boss law, eat the odd hit — 4 presses beat 2 fronts. Early-game latches
          (bhp high, a long race ahead) still disengage — two fronts for 60 s is death. */
-      const endRace = b.hp <= 40 && f.w.hp >= 70;   /* parklab87 run3: bhp 31.5 missed the 30-bound by 1.5, the flee latched, hits 7->11 — the gate must cover the whole winnable stretch: 40 hp is ~6-10 presses (~30-45 s), a 70+ tank absorbs a hunter through that */
+      /* parklab88: the TIGER regens (secondWind) — the first full-law fight had it at
+         bhp 50 healing while a Level-10 lion latched: bhp>40 = no race, the old flee
+         fired, the wolf bled out in 'wild' mode and the camped lion killed three
+         re-awakens. A boss whose hp RISES between polls only gets harder — race it. */
+      if (fight.pBhp !== undefined && b.hp > fight.pBhp + 0.25) fight.bossRegen = true;
+      fight.pBhp = b.hp;
+      const endRace = ((b.hp <= 40 || fight.bossRegen) && f.w.hp >= 70) || b.hp <= 12;   /* parklab88 run4: died FLEEING at bhp 10.5/whp 20 — the 70-tank gate blocked the race, but at boss <=12 (2-3 presses, ~10 s) the presses matter more than the hunter, at ANY tank */   /* parklab87 run3: bhp 31.5 missed the 30-bound by 1.5, the flee latched, hits 7->11 — the gate must cover the whole winnable stretch: 40 hp is ~6-10 presses (~30-45 s), a 70+ tank absorbs a hunter through that */
       if (wpNear && endRace && !fight._raceMark) { fight._raceMark = true; mark('wild-race', { k: wpNear.k, lvl: wpNear.lvl, bhp: +b.hp.toFixed(1), hp: Math.round(f.w.hp), clock: f.clock }, true); }
       if (wpNear && !endRace && !fight.fleePred && (fight.fleeCd ?? -99) < f.clock) {
         fight.fleePred = true; fight.fleePredT = f.clock; fight.wildTurn = 0; fight.wildStuck = 0;
@@ -666,7 +672,10 @@ async function fightLoop(e0) {
            regen 11/s. (parklab22-29: my own controller variants all face-tanked at ~7 dps
            or starved the dive gate — the probe's cycle sync is the whole game.) */
       const struckFresh = (b.atk ?? 1) >= 0.40 && b.wind <= 0.05;
-      if (b.wind > 0 && ag < 2.20) {   /* parklab49: the escape covered only ag<1.52 — a windup starting mid-swing (ag 1.5-2.2, e.g. during a sleg sweep) fell to the walk-ring and ate the plant; the strike needs |gap| <= 1.37, so ag < 2.20 is all exposed arc */
+      if (b.charging) {   /* parklab88 THE CHARGE DODGE: the Tiger's fury lunge (0.62 s at 19 m/s) locks its line at cast — three Tiger fights died FRONT-LOCKED (fm 0.83-1.0, gap 0, 7-11 hits in 20 s) because the charge re-faces the wolf every ~2 s. Sprint the PURE TANGENT: the charge overshoots the wolf's slot, and the post-charge atkCd 1.6 s + re-face opens the gap from the boss's side — the free press window. */
+        cut = Math.PI / 2 - 1.57; sprint = f.w.stam > 5 && !f.w.exh; fight.dive = 0; mode = 'chdodge';
+      }
+      else if (b.wind > 0 && ag < 2.20) {   /* parklab49: the escape covered only ag<1.52 — a windup starting mid-swing (ag 1.5-2.2, e.g. during a sleg sweep) fell to the walk-ring and ate the plant; the strike needs |gap| <= 1.37, so ag < 2.20 is all exposed arc */
         /* tangent escape: WALK at r ≤ 3.6 (ω 2.7 vs the plant's 0.4 neck — gap +2.3 rad/s
            through the windup, the strike whiffs); SPRINT the tangent beyond 3.6, where a
            walk's ω = 7/r ≤ 1.9 cannot clear the 1.37 arc in 0.55 s (lab30 fight 1: three
@@ -798,7 +807,7 @@ async function fightLoop(e0) {
       (F.polls = F.polls || []).push({ c: f.clock, g: +b.gap.toFixed(2), r: +r.toFixed(2), fm: +b.facingMe.toFixed(2),
         m: mode, s: sprint ? 1 : 0, st: f.w.stam, hp: Math.round(f.w.hp), w: +b.wind.toFixed(2), cd: +f.w.atkCd.toFixed(2),
         nv: +Math.abs(wrapPI(toB - f.w.yaw)).toFixed(2), sd: side, th: +thCmd.toFixed(2),
-        j: +(b.jam ?? 99).toFixed(1), hn: fight.holdN, batk: +(b.atk ?? 1).toFixed(2), inv: b.inv ? 1 : 0,
+        j: +(b.jam ?? 99).toFixed(1), hn: fight.holdN, batk: +(b.atk ?? 1).toFixed(2), inv: b.inv ? 1 : 0, ch: b.charging ? 1 : 0, sub: +(b.sub ?? 0).toFixed(1),
         yaw: +f.w.yaw.toFixed(2), hdg: +b.hdg.toFixed(2), cr: f.w.crouch ? 1 : 0, e: f.ms ?? -1, wd: +(performance.now() / 1000 - (fight._lw ?? performance.now() / 1000)).toFixed(3), ta: +(fight._ta ?? 0).toFixed(0), tm: +(fight._tm ?? 0).toFixed(0) });
       fight._lw = performance.now() / 1000;
       if (F.polls.length > 900) F.polls.splice(0, 300);
@@ -1045,7 +1054,7 @@ try {
       /* arena hygiene: a wild predator sharing the altar gets the fight lost before it starts
          (seed 7777: 8 of 13 hits came from a lion OUTSIDE the Legend's 4.59 m reach). Walk
          away until the area is clean — Legends are unleashed, but mobs are not. */
-      const nearPred = e.preds.find(pp => !pp.isBoss && pp.d < 30);
+      const nearPred = e.preds.find(pp => !pp.isBoss && pp.d < 45);   /* parklab88: the 30 m ring let leg-1 hunters (L9-10) close during the 2.4 s channel — three ritual deaths */
       if (nearPred && e.w.hp > e.w.maxHp * 0.6) {
         const away = bearingTo(nearPred.x, nearPred.z, e.w.x, e.w.z);
         await H.aim(away); await H.move({ f: true, sprint: false }); await sleep(H.poll * 3);
