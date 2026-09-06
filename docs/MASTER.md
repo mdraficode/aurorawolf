@@ -318,6 +318,21 @@ Full per-gen record: `training/m46_session_ledger.md` + `training/rafzzer_lineag
 **Open question answered — side errands ARE banked** (GEN 40: side 2 · GEN 42: side 4 · GEN 43: side 1, under
 the v5 game-clock basis), and the 2.7× boost + game-clock scoring give honest per-sim-minute rates.
 NEW FINDING (gens 40–49, v6 coach): the line survives long and now reads the campaign (GEN 49 walked the FULL road to AWAKEN and fought the Leopard Legend, dying to it) but stays SLOW (18–28 xp/sim-min). v6 coaching (flee line ≥9 dmg, near-errand scoring, hunter-kite) broke the 'die in prep' disease — GEN 46 became the first v6 cap-survivor champion (fit −74). Frontier: reach awaken FAST (GEN 49 needed 2781 sim-s → clock −116), then survive/beat the Leopard Legend and close a leg/tier.
+**SESSION 2026-09-06c (labs 64–86 — THE LEOPARD SLAIN, then the speed sessions):** the press
+engine completed the law: walk-dodge tank (lab69), break deleted forever (lab70, `breakHp=0`),
+entry-as-tp (lab75), dive heading latch (lab77), inside-first dive (lab84), and THE PLANT PRESS
+(lab85: nose gate to the cone edge 1.36 — the only moment the nose and resolve gates co-pass is
+mid-plant, boss neck 0.4, gap riding the windt climb; presses 1 → 6–9 per fight). **First kill:
+lab85 run 5** — 49.1 s, wolf alive ~42 hp, L5→8, leg 0→1; a second career kill (30.8 s, 9 bites)
+verified after the kill-attribution fix. Trophy logged in TRAINING_MANUAL §5.9; PLAYLOG 64–85.
+Then the user-directed SPEED SESSIONS (labs 86): profiling showed per-tick compute is 1.5–17 ms —
+the thieves were the boost scheduler (50 ms floor + rate cap 4) and CHROMIUM'S INPUT PIPELINE
+(3% of long mouse moves stall 3–18 s in CDP dispatch — the real source of the 'chromium dies at
+2 min' pattern). Fixes: scheduler unlock for travel (~2.5×) with `__boost.setMode` restoring the
+law-native fight arithmetic; held-drag camera with a 12 px re-aim threshold / 120 px per-poll cap
+(fights 0.21 → 0.65×); EYES_FIGHT chunk gate (>200 m skipped); kill-attribution. Frontier: the
+leg-1 TIGER LEGEND → tier-1 trophy (`lab86-loop.sh`).
+
 
 ---
 

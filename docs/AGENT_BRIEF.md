@@ -9,7 +9,7 @@ a fresh agent can act immediately without asking the user anything.
 `README.md` (player-facing). `MASTER.md` and `AGENT_BRIEF.md` must BOTH be updated in the same
 commit whenever project state, law, architecture, or instructions change.
 
-**Snapshot:** 2026-09-06 (park fight labs 14–63: six fight-loop defects fixed, the resolve law, the fight-speed switch — then labs 40–63 settled the Leopard geometry from per-poll telemetry: plant LUNGE (strikes land at r 3.8–4.5 despite reach 3.4 → no radial safety, break demoted to last resort), ~1 s plant cadence + the r 3.1–3.7 TREADMILL, the DIVE-IN door (sprint nose-in under r 2.9, walk out-climbs the neck at +11 stam/s), 6-poll dive presses (yaw settle), mode hit table dive/park 0.0% vs ring 14.2%/shut 54.8% (leaky branches deleted), wild-hunter law + predator sight. Best run lab60: boss 45→37.5, bites 2/2 behind, died at hp 44 — a close race; next = tp-reset counter → press cadence → the kill; see `docs/HANDOFF_2026-09-06.md` §Continuation + `TRAINING_MANUAL.md` §5.8. Game/champion otherwise unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
+**Snapshot:** 2026-09-06 evening (**THE TIER-1 FRONTIER IS BROKEN**: Leopard Legend SLAIN — lab85 run 5, 49.1 s, wolf alive ~42 hp, L5→8; second career kill 30.8 s verified; trophy + full law lineage in `TRAINING_MANUAL.md` §5.9, `PLAYLOG.md` labs 64–85. The press engine: inside-first dive + THE PLANT PRESS — nose gate at the cone edge 1.36, fired mid-plant when the boss neck is 0.4 and the gap rides the windt climb; 6–9 presses/fight at 4.4–7.5 dmg. Labs 86 = the SPEED SESSIONS, user-directed: profiled the headless sim (per-tick compute 1.5–17 ms — the scheduler and Chromium's input pipeline were the thieves, not the game), boost scheduler unlocked for travel (~2.5×, `__boost.setMode` restores the exact fight arithmetic), the 14–18 s mouse-move stalls found (3% of long moves block in CDP input) and fixed with a held-drag camera + 12 px/120 px aim law — fight pace 0.21 → 0.65×. Kill-attribution bug fixed (ghost '?' boss-end). Frontier: the leg-1 TIGER LEGEND (62 hp/16 dmg/biteR 4.65) → tier-1 trophy; loop = `test/speedrun/lab86-loop.sh`. Game/champion otherwise unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) · Game/champion otherwise unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
 duplicate repo `github.com/mdraficode/aurorawolf-v2` (exact copy, created 2026-09-01; **RETIRED by
 user directive — never work in, sync, or push to v2**).
 
@@ -483,15 +483,20 @@ obstacles). The 2026-09-05 recovery work (collision-suite rewrite, `_probe_trace
 lands on `main` per the trainer's transfer directive (§4.5i). Build reproducible (`python3 build.py`
 == committed `index.html`, crown GEN 50 baked). Full gate `npm test` 27/27 on this build.
 
-**Next task (trainer-ordered; 2026-09-06 labs-40–63 state — see `docs/HANDOFF_2026-09-06.md`
-§Continuation):** the break-off phase is CLOSED (six variants bled: the plant lunge reaches r
-3.8–4.5 — no radial safety; break demoted to hp<25% last resort). The fight law is now the mined
-ladder: windt (plant dodge that closes) → 6-poll dive press → two-phase swing (sprint nose-in
-outside r 2.9 / climbing walk inside) → park. Remaining, in order: (1) the **tp-reset counter** —
-the ~4 s teleport costs ~2 hits per cycle during re-establish; (2) press cadence from the climb
-(dive start when gv > +1.5, the gap rising into legal); (3) first real `boss-end {res:'slain'}`
-+ Tier-1 trophy logged in `TRAINING_MANUAL.md` → GEN 56 (LAW v4, park grammar = drill 7, no
-promote without a trainer verdict).
+**Next task (trainer-ordered; 2026-09-06 post-trophy state — see `docs/HANDOFF_2026-09-06.md`
+§Continuation and `TRAINING_MANUAL.md` §5.9):** the Leopard kill is REPEATABLE (lab86 era: 2 of
+3 sessions). The run continues toward the **tier-1 trophy**: kill the leg-1 **TIGER LEGEND**
+(62 hp, dmg 16, spd 12.6, biteR 4.65, special 'fury' — a 0.62 s lunge charge, phases speed it
+further) with the same law set transplanted (its fight grammar is the Leopard's: turn 2.2 base,
+same plant cadence; expect the charge to replace the ambush-teleport as the cycle driver).
+Method: `bash test/speedrun/lab86-loop.sh 14 parklabNN` (fast profile — travel ~2.5×, fights
+at the law-native arithmetic; stops on the Tiger kill or leg 2). The wolf arrives L8–9/~172 hp
+with maxHp/strongJaw perks possible. Watch: (1) the charge lands through the windt dodge — the
+plant law may need a charge-specific answer (jam the lunge with the tangent, don't out-run it);
+(2) press value at L9 bite math (crouched ambush should scale); (3) the trophy event is
+`mark('TROPHY', …)` in run.mjs — the loop's own stop grep should add the trophy line. Speed
+work continues per the user's standing directive (faster sim = more attempts per wall), but the
+game's physics step stays fixed at 50 ms — never touched.
 
 Lineage (LAW v4): 34 fit 25 SURVIVED(cap) → **35 fit 59 CHAMPION** (died L8 Leopard, 126.6 xp/min)
 → 36 fit 19 (first ritual + first Legend fight ~18 s) → 37 fit −43 (rival pack attack in prep) →

@@ -458,3 +458,26 @@ outside/dead-front, cut 0 below r 1.8 · swing r ≤ 5.5 phase-aware · poll cap
 spd 12.6, biteR 4.65, same plant grammar (turn 2.2 base). The wolf arrives at L8–9 with
 ~172 hp and the full law set; two probe fights died at 12 and 8 hits with 1 press each —
 the tp cadence looked faster. The law transplant starts at lab 86.
+
+### 5.10 The speed sessions' laws (labs 86 — ops, read before any loop run)
+
+The headless sim's real budget (measured, not guessed): per-tick compute 1.5–17 ms,
+heightAt 339 calls/tick at 1.55 µs each — NOT the cost. The thieves were the boost
+scheduler and Chromium's input pipeline:
+
+- **Travel unlocked, fights preserved**: `?rate` caps at 10 and the pump floor drops to
+  10 ms — travel runs ~2.5× — but fights MUST run the lab64–85 arithmetic
+  (`__boost.setMode(1)`: floor 50 ms, rate capped 4). Unlocked fights starve the rig's
+  CDP round-trips; poll dt blows out to 0.3–0.7 s and the law goes blind (6 straight
+  0–1-press fights, caught and reverted the same session).
+- **The input law**: ~3% of LONG mouse moves stall 3–18 s inside Chromium input
+  dispatch (a quiet-page probe reproduced it with the game idle). The rig now holds the
+  drag (center-park once, one mouse-down per fight, ≤120 px deltas per poll, re-aim only
+  past 12 px, `aimUp()` at fight end). Fight pace 0.21 → 0.65×; false-teleport
+  detections (displacement across a stalled poll) vanished with the stalls.
+- **Kill attribution**: at a boss death the eyes' boss list goes empty — the rig used to
+  re-arm a ghost '?' fight there; boss-end now attributes the real record.
+- **The loop**: `bash test/speedrun/lab86-loop.sh 14 parklabNN` — whole-session repeats,
+  stop on the Tiger kill / leg 2. Fightlab's in-page auto-re-fight dies with the
+  browser; don't count on it.
+
