@@ -282,8 +282,11 @@ export class Human {
   async aimFast(bearing, camNow, vd) {
     const d = wrapPI(bearing + Math.PI - camNow);          // the 180° law: I run along camYaw + PI
     const sens = 0.0078 * Math.max(0.55, Math.min(1.5, (vd || 8.5) / 8.5));
-    const px = Math.max(-250, Math.min(250, -d / sens));
-    if (Math.abs(px) < 3) return 0;
+    /* parklab86 mouse-probe: Chromium input stalls ~3% of moves for 3-4s, scaling with
+       distance — fewer/shorter moves = fewer stalls. Turn radius per poll: 120px =
+       0.94 rad at sens 0.0078 — big turns take 2-4 polls, the aim-lead expects that. */
+    const px = Math.max(-120, Math.min(120, -d / sens));
+    if (Math.abs(px) < 12) return 0;
     const vp = this.vp || (this.vp = this.pg.viewportSize()) || { width: 960, height: 540 };
     const cx = Math.round(vp.width / 2), cy = Math.round(vp.height / 2);
     if (!this._aimHeld) {
