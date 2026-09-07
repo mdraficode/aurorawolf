@@ -579,9 +579,6 @@ body.touch #questTracker { display: none; }
 
 </script>
 <script>
-'use strict';
-/* ================================================================
-   REVONTULET — Aurora Wolf · an infinite procedural wilderness
    Part 1 — math, noise, terrain & biome functions
    ================================================================ */
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -10842,6 +10839,22 @@ window.PACK = (() => {
    outscored the champion. src/autopilot.js keeps the wild mind as the dev fallback. */
 (function () {
   const URL_ON = /[?&]autopilot=1/.test(location.search);
+/* ============ 🤖 AI PLAY — the wolf plays itself (in-game watch mode) ============
+   RAFZZER v1.0 — The Neural AI. The v7 "True Hunter" reflex ladder survives underneath
+   as the BRAINSTEM (water escape, anti-stuck, corridor executor, quest discipline — the
+   things a wolf must never mislearn). Above it grows a neural cortex: 18 senses →
+   10 tanh hidden → 6 sigmoid urges that shape temperament — when to flee, rest, drink,
+   yield ground, how patiently to stalk, how freely to sprint. Weights are born from the
+   baked champion RAFZZER_SEED and evolve ONLY through gated generations: every death is
+   scored, and a mutant may carry its learnings forward solely if it passed the human
+   verification gate (training/rafzzer_gens.mjs). Deaths also write SCARS — lineage memory
+   that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1.
+   M46 v6.5 (crown bake): build.py injects the lineage champion (training/rafzzer_champion.json)
+   into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT, so the shipped 🧠 button plays the current crown
+   (GEN 50, fit −55 at the time of writing); a browser's own rafzzer_best may only play if it
+   outscored the champion. src/autopilot.js keeps the wild mind as the dev fallback. */
+(function () {
+  const URL_ON = /[?&]autopilot=1/.test(location.search);
   window.RAFZZER_SEED = [0.660841, -0.430561, 0.470237, 0.63688, 0.179798, 0.533734, 0.111133, -0.163033, -0.414739, 0.124654, 0.334701, 0.159182, 1.206161, -0.322496, -0.151972, 0.194705, -0.814295, -0.258688, 0.131941, -0.026079, 0.01599, -0.368942, 0.836401, 0.544318, -0.014873, -0.198196, 0.208281, -0.132431, 0.131918, 0.658764, 0.041433, 0.057358, -0.496417, 0.002633, 0.43572, 0.244721, 0.021778, -0.345902, 0.292809, -0.016802, 0.020083, -0.243716, 0.899487, -0.191155, 0.176795, 0.339922, -0.000984, 0.290173, 0.2138, -0.260079, -0.116461, -0.5601, -0.304249, 0.009082, 0.148945, 0.716662, 0.084437, 0.081523, -0.276357, -0.812202, 0.419773, -0.778662, -0.072584, -0.154958, 0.626078, -0.537294, -0.431348, -0.052333, -0.264265, 0.240277, 0.295884, -0.062056, -0.008432, 0.543189, 0.228413, 0.383805, 0.105784, -0.11295, 0.159679, 0.261623, 0.488657, 0.227705, -0.567462, 0.090886, -0.383402, 0.256386, 0.530722, -0.15671, 0.120632, 0.080994, -0.039133, -0.660071, -0.348263, -0.563186, -0.599966, 0.623735, -0.271424, -0.202959, 0.31302, -0.402732, 0.457045, -0.662447, -0.615394, 0.578339, -0.057707, -0.803475, 0.273701, -0.284988, 0.145812, -0.045708, -0.456322, 0.214249, 0.167353, 0.129021, 0.02598, 0.436078, -0.12353, 0.030822, 0.514321, 0.181281, 0.350381, -0.908911, 0.124959, 0.175526, -0.391549, 0.1761, -0.371805, 0.212742, -0.270289, -0.062093, 0.634877, 0.302003, -0.165879, -0.461978, -0.396491, 0.347864, -0.376549, 0.024459, 0.250091, 0.142894, 0.384873, 0.097261, -0.34639, 0.444093, 0.00193, -0.111255, 0.410321, -0.25811, -0.065658, 0.492763, -0.474523, -0.306296, 0.022087, 0.207318, 0.417324, 0.168754, 0.200801, -0.354168, -0.069709, -0.174448, 0.18556, 0.291611, 0.339112, 0.412369, 0.05773, 0.522577, 0.189879, 0.711627, 0.144874, 0.331019, -0.828634, -0.528439, 0.799727, -0.200716, -0.031291, 0.199853, 0.155303, 0.217973, -0.415893, 0.151496, 0.184692, -0.310048, 0.167066, -0.1636, 0.251918, 0.172696, -0.346224, 0.020764, 0.310169, -0.269676, -0.130523, -0.03524, 0.267335, -0.015322, -0.148681, 0.361487, -0.233048, -0.22129, -0.204566, 0.663281, -0.331058, 0.379271, -0.358687, -0.672483, -0.058907, 0.206203, -0.011384, 0.536315, 0.002236, -0.066431, 0.059183, -0.388919, -0.15436, 0.143658, 0.158045, 1.049429, 0.514019, 0.587627, 0.304322, 0.162219, -0.386355, -0.090681, 0.430875, 0.19728, 0.023486, 0.092563, -0.641111, 0.06988, -0.086781, 0.735299, 0.71319, 0.229309, -0.569018, -0.184684, 0.120707, -0.033906, 0.330637, 0.433666, 0.292419, 0.157117, 0.0, 0.0, 0.0, -0.028937, 0.0, -0.02112, -0.02299, 0.0, 0.0, 0.0, 0.0, -0.082697, -0.066222, 0.0, 0.0, 0.0, 0.0, -0.072136, 0.0, 0.0, 0.0, -0.200098, 0.0, 0.127871, -0.100087, 0.061404, 0.0, -0.029175, 0.021515, 0.094487, -0.683838, 0.054204, 0.228556, 0.634188, -0.896252, -0.410855, -0.615134, -0.408798, -0.873353, -0.395407, -0.392559, -0.252724, -0.397507, -0.454858, 0.502233, -0.896682, -0.302524, 0.036779, 0.600712, -0.139051, -0.334937, -0.480396, 0.171137, 0.14593, 0.628856, -0.626556, -0.429514, 0.868961, -0.251789, 0.664863, 0.670853, 0.193187, 0.146813, 0.613075, 0.223686, 0.573343, -0.566894, 0.260784, -0.355465, -0.218495, 1.030018, 0.347097, 0.205032, 0.46196, 0.008297, 0.018643, 0.766179, -1.237327, -0.208372, -0.278817, -0.487677, -0.363586, -0.430091, 0.381994, -0.915827, -0.589511, 0.050147, 0.290291, 0.783649, 0.526112, 0.041804, 0.750322, 0.665757, -0.533332, -0.631208, 0.261624];   // 🧠 M46 v6.5 baked crown: GEN 50 (fit -55.0) — injected by build.py from training/rafzzer_champion.json
 window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v4 mind: seed 20070, 26 senses (336 weights) — trophy lineage; rows 24-25 = side-channel + gate urgency (zero-padded from the 316 brain)   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 LAW-v4 wild mind: seed 20070, 24 senses (316 weights) — the trophy lineage crowns its own champion   // 🧠 baked champion: GEN 9 of the rafzzer lineage (law-v3 fitness 283 — L7/1079xp/79.6xp·min⁻¹, 43s avg quests, cap-survivor); earned its crown through the human gate   // 🧠 baked champion: GEN 3 of the rafzzer lineage (fitness 80 — the cap-survivor, L6/917xp); earned its crown through the human gate
 
@@ -10852,7 +10865,7 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
      step; headless rAF (which starves timers) becomes irrelevant. */
   const QS2 = new URLSearchParams(location.search);
   const SPEED = Math.min(16, Math.max(1, +(QS2.get('speed') || 1)));
-  const RATE = Math.min(10, Math.max(0.25, +(QS2.get('rate') || 1)));   // sim-seconds per wall-second target (cap 10: parklab86 — compute is ~1.5ms/tick, the old cap-4 + 50ms floor starved the sim to ~0.55x)
+  const RATE = Math.min(4, Math.max(0.25, +(QS2.get('rate') || 1)));   // sim-seconds per wall-second target
   const R_EVERY = Math.min(10, Math.max(1, +(QS2.get('re') || 1)));       // render once per K batches (headless: rendering is the bottleneck)
   window.BOT_SPEED = SPEED;
   if (SPEED > 1) {
@@ -10866,42 +10879,23 @@ window.RAFZZER_CHAMP_GEN = 50; window.RAFZZER_CHAMP_FIT = -55.0;   // 🧠 LAW-v
     };
     const origRender = renderer.render.bind(renderer);
     let step = 0, batchIdx = 0;
-    renderer.render = function (...a) { const nn = window.__boost.n || SPEED; if (step % nn !== nn - 1 || batchIdx % R_EVERY !== R_EVERY - 1) return; return origRender(...a); };
+    renderer.render = function (...a) { if (step % SPEED !== SPEED - 1 || batchIdx % R_EVERY !== R_EVERY - 1) return; return origRender(...a); };
     clock.getDelta = function () { return 0.05; };   // every executed step is one full game tick
-    window.__boost = { batches: 0, ticks: 0, warns: 0, lastMsg: '', n: SPEED };   // n = LIVE batch size (the speedrun rig drops it to 2 for boss fights — 0.4 s batches are too coarse for the fight grammar — and back up for travel)
+    window.__boost = { batches: 0, ticks: 0, warns: 0, lastMsg: '' };
     let lastEnd = 0, batchDur = 0;
-    const pump = () => {
-      /* parklab86: with batches back-to-back the page saturated and the speedrun rig's
-         CDP round-trips queued 300-600ms behind batch work — polls spanned 0.3-0.7s of
-         sim and the fight law went blind (6 straight 0-1-press fights; breath-tuning at
-         floor 45/2.6x and 30/1.8x never recovered the old poll density). FIGHT mode now
-         restores the EXACT pre-unlock arithmetic (floor 50, rate capped 4, ×1.15) — the
-         equilibrium the lab64-85 law was tuned on (fights ~0.55x, poll dt ~0.1s sim).
-         Travel keeps the unlocked rate (measured ~2.5x). */
-      const cyc = window.__boost.fight
-        ? Math.max(50, (window.__boost.n || SPEED) * 50 / Math.min(RATE, 4), batchDur * 1.15)
-        : Math.max(10, (window.__boost.n || SPEED) * 50 / RATE, batchDur * 1.15);
+    setInterval(() => {
+      const cyc = Math.max(50, SPEED * 50 / RATE, batchDur * 1.15);   // never schedule tighter than we can breathe
       if (performance.now() - lastEnd < cyc) return;
       if (!tickFn) return;
       const t0 = performance.now();
-      for (step = 0; step < (window.__boost.n || SPEED); step++) {
+      for (step = 0; step < SPEED; step++) {
         try { tickFn(); window.__boost.ticks++; }
         catch (e) { window.__boost.warns++; window.__boost.lastMsg = String(e && e.message).slice(0, 120); }
       }
       batchDur = performance.now() - t0;
       lastEnd = performance.now();
       window.__boost.batches++; batchIdx++;
-    };
-    /* parklab86: the interval DELAY is the real lever — a 125Hz timer taxes every CDP
-       round-trip even when its callback just returns (fights sagged to 0.3x). Travel
-       pumps at 8ms; FIGHT mode swaps to the lab64-85-native 25ms (the rig calls
-       __boost.setMode on its fight-speed switches). */
-    window.__boost.setMode = fight => {
-      window.__boost.fight = fight ? 1 : 0;
-      if (window.__pumpIv) clearInterval(window.__pumpIv);
-      window.__pumpIv = setInterval(pump, fight ? 25 : 8);
-    };
-    window.__pumpIv = setInterval(pump, 8);
+    }, 25);
   }
 
   const SIMNOW = () => performance.now() * (window.BOT_SPEED || 1);   // brain thinks in game-time (sim runs BOT_SPEED× faster than the wall clock)

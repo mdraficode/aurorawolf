@@ -1,4 +1,3 @@
-/* ================================================================
    Part 4 — chunks, weather, day/night, audio, UI, main loop
    ================================================================ */
 const GROUND = {
@@ -488,7 +487,10 @@ function genChunk(cx, cz) {
           scene.add(model);
           const lm = { type, x: model.position.x, z: model.position.z, model, chunkKey: key, ember: model.userData.ember || null, mist: model.userData.mist || null, found: false, tier: def.tier || 'common', label: def.label };
           landmarkList.push(lm);
-          if (def.enterable) chunk.pickups.push({ type: 'caveEnter', mesh: null, idx: 0, x: model.position.x, y: model.position.y + 1.3, z: model.position.z + 2.2, gathered: false, lm });
+          if (def.enterable) {
+            chunk.pickups.push({ type: 'caveEnter', mesh: null, idx: 0, x: model.position.x, y: model.position.y + 1.3, z: model.position.z + 2.2, gathered: false, lm });
+            if (type === 'cave' && hash2(cx, cz, SEED ^ 0xba7) % 2 === 0) for (let bi2 = 0; bi2 < 2; bi2++) new Bat(lm.x + (rng() - 0.5) * 5, model.position.y + 4 + rng() * 3, lm.z + (rng() - 0.5) * 5, null, key);   // v6.9 the mouth's sentries
+          }
           const lmSolids = def.solid || model.userData.solid || null;
           if (lmSolids) {
             const cR = Math.cos(ry), sR = Math.sin(ry);
@@ -513,6 +515,116 @@ function genChunk(cx, cz) {
     for (const bk in BIOME_CONFIG) pMg += 0.045 * (s3.w[bk] || 0) * BIOME_CONFIG[bk].magic;
     if (rng() < pMg) {
       pkSets.magicShroom.push({ x, y: s3.h - 0.04, z, ry: rng() * 6.28, s: 1.0 + rng() * 0.4 });
+    }
+  }
+
+  /* ---- v6.9 MOUNTAIN FEATURES: cliff hangers, cliff falls, fuller caves, fish ---- */
+  {
+    /* the mountain biome is a thin band along the crests — one center sample misses it.
+       Sample a quincunx and take the strongest mountain reading the chunk touches. */
+    const mWpts = [[32, 32], [8, 8], [56, 8], [8, 56], [56, 56]];
+    let mW = 0;
+    for (const [px, pz] of mWpts) mW = Math.max(mW, sample(cx * CHUNK + px, cz * CHUNK + pz).w.mountain || 0);
+    /* CLIFF HANGERS: the chunk's own high point with a grand drop — the world's great views */
+    if (mW > 0.3 && hash2(cx, cz, SEED ^ 0x7155) % 3 === 0) {
+      let bi = 0, bh = -1;
+      for (let g2 = 0; g2 < heights.length; g2++) if (heights[g2] > bh) { bh = heights[g2]; bi = g2; }
+      if (bh >= 40) {
+        const gi = bi % N, gj = (bi / N) | 0;
+        const vx = cx * CHUNK + gi * step, vz = cz * CHUNK + gj * step;
+        let drop = 0;
+        for (const [di, dj] of [[3, 0], [-3, 0], [0, 3], [0, -3]]) {
+          const ii = Math.max(0, Math.min(SEG, gi + di)), jj = Math.max(0, Math.min(SEG, gj + dj));
+          drop = Math.max(drop, bh - heights[jj * N + ii]);
+        }
+        if (drop >= 8) {
+          const vmodel = LANDMARKS.vista.build(rng);
+          vmodel.position.set(vx, bh - 0.2, vz); vmodel.rotation.y = rng() * 6.28;
+          scene.add(vmodel);
+          const vlm = { type: 'vista', x: vx, z: vz, model: vmodel, chunkKey: key, found: false, tier: 'rare', label: LANDMARKS.vista.label };
+          landmarkList.push(vlm);
+          chunk.landmarks.push(vlm);
+          chunk.solids.push({ x: vx, z: vz, r: 1.1 });
+        }
+      }
+    }
+    /* FULLER CAVES: the ranges are riddled — one extra mouth in most mountain chunks */
+    if (mW > 0.35 && hash2(cx, cz, SEED ^ 0xcafe) % 6 < 3) {
+      for (let t2 = 0; t2 < 12; t2++) {
+        const kx = cx * CHUNK + 8 + rng() * (CHUNK - 16), kz = cz * CHUNK + 8 + rng() * (CHUNK - 16);
+        const ks = sample(kx, kz);
+        if (ks.h < 13 || ks.h > 95) continue;
+        const kn = [heightAt(kx + 2.5, kz), heightAt(kx - 2.5, kz), heightAt(kx, kz + 2.5), heightAt(kx, kz - 2.5)];
+        if (Math.max(...kn) - Math.min(...kn) > 10.5) continue;   // no mouth on an overhang
+        if (landmarkList.some(l => Math.hypot(l.x - kx, l.z - kz) < 24)) continue;   // never two mouths in one hillside
+        const kdef = LANDMARKS.cave;
+        const kmodel = kdef.build(rng);
+        kmodel.position.set(kx, ks.h - 0.25, kz); kmodel.rotation.y = rng() * 6.28;
+        scene.add(kmodel);
+        const klm = { type: 'cave', x: kx, z: kz, model: kmodel, chunkKey: key, found: false, tier: 'common', label: kdef.label };
+        landmarkList.push(klm);
+        chunk.landmarks.push(klm);
+        chunk.pickups.push({ type: 'caveEnter', mesh: null, idx: 0, x: kx, y: ks.h + 1.3, z: kz + 2.2, gathered: false, lm: klm });
+        chunk.solids.push({ x: kx, z: kz, r: 2.6 });
+        for (let bi2 = 0; bi2 < 2; bi2++) new Bat(kx + (rng() - 0.5) * 5, ks.h + 4 + rng() * 3, kz + (rng() - 0.5) * 5, null, key);   // the mouth's sentries
+        break;
+      }
+    }
+    /* CLIFF FALLS: where the new peaks drop straight into water — the fountains that feed rivers and lakes */
+    if (mW > 0.12 && hash2(cx, cz, SEED ^ 0xfa11) % 2 === 0) {
+      let placed = false;
+      for (let j = 2; j < SEG - 2 && !placed; j++) {
+        for (let i = 2; i < SEG - 2 && !placed; i++) {
+          const hh = heights[j * N + i];
+          if (hh < WATER_Y + 10) continue;
+          const dirs = [[2, 0], [-2, 0], [0, 2], [0, -2]];
+          for (const [di, dj] of dirs) {
+            const wh = heights[(j + dj) * N + (i + di)];
+            if (wh > WATER_Y - 0.3) continue;
+            const fx = cx * CHUNK + (i + di * 0.5) * step, fz = cz * CHUNK + (j + dj * 0.5) * step;
+            const drop = hh - WATER_Y;
+            if (drop < 6 || drop > 75) continue;
+            if (mW < 0.15) continue;   // the fall belongs to the range, not any shore
+            const g = new THREE.Group();
+            const fmat = new THREE.MeshStandardMaterial({ color: 0xcfe9f4, transparent: true, opacity: 0.72, roughness: 0.2, side: THREE.DoubleSide });
+            for (let k = 0; k < 3; k++) {
+              const veil = new THREE.Mesh(new THREE.PlaneGeometry(1.1 + k * 0.55, drop), fmat);
+              veil.position.set((k - 1) * 0.8, WATER_Y + drop / 2, 0.3 + k * 0.15);
+              g.add(veil);
+            }
+            const foam = new THREE.Mesh(new THREE.CircleGeometry(2.4 + drop * 0.05, 14), new THREE.MeshStandardMaterial({ color: 0xeaf6fb, transparent: true, opacity: 0.55, depthWrite: false }));
+            foam.rotation.x = -Math.PI / 2; foam.position.y = WATER_Y + 0.05; g.add(foam);
+            g.position.set(fx, 0, fz);
+            g.rotation.y = Math.atan2(di * step, dj * step);
+            scene.add(g);
+            const flm = { type: 'waterfall', x: fx, z: fz, model: g, chunkKey: key, found: false, tier: 'rare', label: 'Cliff Fall' };
+            landmarkList.push(flm);
+            chunk.landmarks.push(flm);
+            placed = true;
+            break;
+          }
+        }
+      }
+    }
+    /* FISH: any real body of water in the chunk gets its school */
+    {
+      let deepCells = 0;
+      for (let j = 0; j < N; j += 2) for (let i = 0; i < N; i += 2) if (heights[j * N + i] < WATER_Y - 1.0) deepCells++;
+      if (deepCells >= 6) {
+        chunk.fish = [];
+        let dI = 0, dH = 99;
+        for (let g2 = 0; g2 < heights.length; g2++) if (heights[g2] < dH) { dH = heights[g2]; dI = g2; }
+        const dx2 = cx * CHUNK + (dI % N) * step, dz2 = cz * CHUNK + ((dI / N) | 0) * step;
+        const nF = 3 + (rng() * 3 | 0);
+        for (let f2 = 0; f2 < nF; f2++) {
+          let fx2 = dx2, fz2 = dz2;
+          for (let t3 = 0; t3 < 14; t3++) {
+            const gi = (rng() * N) | 0, gj = (rng() * N) | 0;
+            if (heights[gj * N + gi] < WATER_Y - 1.0) { fx2 = cx * CHUNK + gi * step; fz2 = cz * CHUNK + gj * step; break; }
+          }
+          chunk.fish.push(new Fish(fx2, fz2, chunk));
+        }
+      }
     }
   }
 
@@ -605,6 +717,8 @@ function disposeChunk(chunk) {
   for (const pr of chunk.predators) if (!(pr instanceof Boss)) pr.dispose();
   chunk.predators.length = 0;
   for (const lm of chunk.landmarks) { scene.remove(lm.model); const i = landmarkList.indexOf(lm); if (i >= 0) landmarkList.splice(i, 1); }
+  if (chunk.fish) for (const fsh of chunk.fish) { fsh.dead = true; scene.remove(fsh.model); }   // v6.9
+  cullBats(b => b.chunkKey === chunk.key);   // v6.9 the mouth sentries go with their chunk
   chunk.landmarks.length = 0;
   chunks.delete(chunk.key);
 }
@@ -1482,6 +1596,130 @@ function caveFloorAt(x, z) {
   y += ss(caveState.R * 0.62, caveState.R * 0.98, dc) * (caveState.R * 0.34);   // walls rise at the rim
   return y;
 }
+/* ================= v6.9 CAVE BATS: defensive swoopers, never chasers ================= */
+const bats = [];
+class Bat {
+  constructor(x, y, z, homeGroup, chunkKey) {
+    this.rx = x; this.ry = y; this.rz = z;          // the roost it defends and returns to
+    this.pos = V3(x, y, z);
+    this.state = 'roost';
+    this.cd = 2 + Math.random() * 4;
+    this.phase = Math.random() * 9;
+    this.dead = false;
+    this.inCave = !!homeGroup;   // cave-interior bats live in the cave group
+    this.chunkKey = chunkKey || null;
+    const g = new THREE.Group();
+    const bm = new THREE.MeshStandardMaterial({ color: 0x2e2632, roughness: 1, side: THREE.DoubleSide });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 5), bm);
+    body.scale.set(1, 0.7, 1.3); g.add(body);
+    this.wL = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.32), bm); this.wL.position.x = -0.31;
+    this.wR = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.32), bm); this.wR.position.x = 0.31;
+    g.add(this.wL); g.add(this.wR);
+    this.model = g;
+    (homeGroup || scene).add(g);
+    bats.push(this);
+  }
+  update(dt, tSec) {
+    if (this.dead) return;
+    const dx = wolf.pos.x - this.pos.x, dz = wolf.pos.z - this.pos.z, dy = (wolf.pos.y + 0.8) - this.pos.y;
+    const d = Math.hypot(dx, dz, dy) || 0.001;
+    this.cd -= dt;
+    const flap = Math.sin(tSec * (this.state === 'roost' ? 7 : 26) + this.phase) * 0.75;
+    this.wL.rotation.y = flap; this.wR.rotation.y = -flap;
+    const dh = Math.hypot(dx, dz);   // the roost looks DOWN — a wanderer below is seen whatever the perch height
+    if (this.state === 'roost') {
+      this.pos.y = this.ry + Math.sin(tSec * 2 + this.phase) * 0.12;
+      this.model.position.copy(this.pos);
+      if (dh < 3.4 && dy < 1.5 && dy > -9 && this.cd <= 0) { this.state = 'swoop'; audio.whoosh(); }
+      return;
+    }
+    if (this.state === 'swoop') {          // ONE pass at the intruder — a bat never chases
+      const sp = 9;
+      this.pos.x += dx / d * sp * dt; this.pos.y += dy / d * sp * dt; this.pos.z += dz / d * sp * dt;
+      this.model.rotation.y = Math.atan2(dx, dz);
+      if (d < 1.1) {
+        wolfTakeDamage(2, this.pos, 'a Cave Bat', '🦇', 0.25);
+        this.state = 'home';
+      } else if (Math.hypot(this.rx - this.pos.x, this.ry - this.pos.y, this.rz - this.pos.z) > 13) this.state = 'home';
+    } else {                               // 'home': back to the roost
+      const hx = this.rx - this.pos.x, hy = this.ry - this.pos.y, hz = this.rz - this.pos.z;
+      const hl = Math.hypot(hx, hy, hz) || 0.001, sp = 7;
+      this.pos.x += hx / hl * sp * dt; this.pos.y += hy / hl * sp * dt; this.pos.z += hz / hl * sp * dt;
+      this.model.rotation.y = Math.atan2(hx, hz);
+      if (hl < 0.7) { this.state = 'roost'; this.cd = 6 + Math.random() * 5; }
+    }
+    this.model.position.copy(this.pos);
+  }
+}
+function updateBats(dt, tSec) { for (const b of bats) b.update(dt, tSec); }
+function cullBats(pred) {
+  for (let i = bats.length - 1; i >= 0; i--) {
+    const b = bats[i];
+    if (pred(b)) { b.dead = true; if (b.model.parent) b.model.parent.remove(b.model); bats.splice(i, 1); }
+  }
+}
+
+/* ================= v6.9 FISH: the lakes' jumpers — huntable from the water ================= */
+class Fish {
+  constructor(x, z, chunk) {
+    this.pos = V3(x, WATER_Y - 0.35, z);
+    this.heading = Math.random() * 6.28;
+    this.chunk = chunk;
+    this.jumpT = 4 + Math.random() * 8;
+    this.vy = 0; this.jumping = false;
+    this.phase = Math.random() * 9;
+    this.dead = false;
+    this.sp = { label: 'Fish', meat: 1, pelt: 0, scale: 0.4, hp: 1 };
+    const g = new THREE.Group();
+    const fm = new THREE.MeshStandardMaterial({ color: 0x9fc4d4, roughness: 0.35, metalness: 0.25 });
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 7, 5), fm);
+    body.scale.set(1, 0.55, 0.36); body.castShadow = true; g.add(body);
+    const tail = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.24), new THREE.MeshStandardMaterial({ color: 0x8fb8ca, side: THREE.DoubleSide }));
+    tail.position.z = -0.38; g.add(tail);
+    g.rotation.y = this.heading;
+    this.model = g; scene.add(g);
+  }
+  update(dt) {
+    if (this.dead) return;
+    this.phase += dt;
+    if (!this.jumping) {
+      this.heading += Math.sin(this.phase * 0.7) * 0.6 * dt;
+      const nx = this.pos.x + Math.sin(this.heading) * 1.1 * dt, nz = this.pos.z + Math.cos(this.heading) * 1.1 * dt;
+      if (heightAt(nx, nz) < WATER_Y - 0.55) { this.pos.x = nx; this.pos.z = nz; }
+      else this.heading += Math.PI * 0.5;
+      this.pos.y = WATER_Y - 0.35 + Math.sin(this.phase * 2.2) * 0.06;
+      this.jumpT -= dt;
+      if (this.jumpT <= 0) {           // the leap
+        this.jumping = true; this.vy = 4.6 + Math.random() * 1.3;
+        pool.burst(V3(this.pos.x, WATER_Y + 0.1, this.pos.z), 8, 0xd8ecf5, 0.8, 1.6, 1.4);
+      }
+    } else {
+      this.vy -= 11 * dt;
+      this.pos.x += Math.sin(this.heading) * 2.4 * dt;
+      this.pos.z += Math.cos(this.heading) * 2.4 * dt;
+      this.pos.y += this.vy * dt;
+      if (this.pos.y < WATER_Y - 0.4 && this.vy < 0) {   // splashdown
+        this.jumping = false; this.jumpT = 5 + Math.random() * 7;
+        this.pos.y = WATER_Y - 0.35;
+        pool.burst(V3(this.pos.x, WATER_Y + 0.1, this.pos.z), 10, 0xe4f2f8, 0.9, 1.8, 1.5);
+      }
+    }
+    this.model.position.copy(this.pos);
+    this.model.rotation.y = this.heading;
+    this.model.rotation.z = this.jumping ? clamp(-this.vy * 0.18, -0.9, 0.9) : Math.sin(this.phase * 6) * 0.12;
+  }
+  hit() {                              // caught by the wolf's strike from the water
+    this.dead = true;
+    scene.remove(this.model);
+    const i = this.chunk.fish.indexOf(this); if (i >= 0) this.chunk.fish.splice(i, 1);
+    inv.meat++;
+    addXp(6);
+    toast('🐟 Caught a fish! +1 meat');
+    questEvent('kill', { species: 'fish', pos: { x: this.pos.x, z: this.pos.z } });
+    pool.burst(V3(this.pos.x, WATER_Y + 0.2, this.pos.z), 12, 0xcfe4f0, 0.8, 1.6, 1.6);
+  }
+}
+
 function enterCave(lm) {
   if (caveState.in || caveState.reentryCd > 0 || !lm) return;
   for (const q of QUESTS.active) if (q.kind === 'survive' && q.days && q.have > 0) { q.have = 0; q.prog0 = dayCount; toast('🌗 You den in a cave — the sky-survival count begins again'); questHudDirty = true; }
@@ -1496,6 +1734,15 @@ function enterCave(lm) {
   caveState.pickups = []; caveState.predators = []; caveState.lights = []; caveState.solids = [];
   caveState.discovered = false;
   buildCave(rng);
+  /* v6.9 the cave's bats wake as you slip in */
+  {
+    const nb = 4 + (rng() * 3 | 0);
+    for (let i = 0; i < nb; i++) {
+      const a = rng() * 6.28, rr = 4 + rng() * (caveState.R * 0.65);
+      const bx = caveState.cx + Math.sin(a) * rr, bz = caveState.cz + Math.cos(a) * rr;
+      new Bat(bx, caveFloorAt(bx, bz) + 3.2 + rng() * 3.2, bz, caveState.group);
+    }
+  }
   for (const ch of chunks.values()) ch.group.visible = false;   // the surface waits, unseen
   wolf.pos.x = lm.x; wolf.pos.z = lm.z + caveState.R * 0.45;
   wolf.pos.y = caveFloorAt(wolf.pos.x, wolf.pos.z) + 0.2;
@@ -1519,6 +1766,7 @@ function exitCave() {
   toast('☀️ Back under the open sky.');
 }
 function disposeCave() {
+  cullBats(b => b.inCave);   // v6.9 the cave's flight leaves with the cave
   caveState.solids = [];
   for (const ch of chunks.values()) ch.group.visible = true;
   if (caveState.group) {
@@ -3931,6 +4179,23 @@ function drawMapOverlays(ctx, S, range, opts) {
     ctx.beginPath(); ctx.arc(mx, my, pulse + 2.5, 0, 6.29); ctx.stroke();
     ctx.fillStyle = m.color; ctx.beginPath(); ctx.arc(mx, my, 2.6, 0, 6.29); ctx.fill();
   }
+  // ---- v6.9 POI: cliff hangers & waterfalls — the world's great sights, always marked ----
+  {
+    ctx.save();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const lm of landmarkList) {
+      if (lm.type !== 'vista' && lm.type !== 'waterfall') continue;
+      const [mx, my] = toMap(lm.x, lm.z);
+      if (Math.abs(mx - half) > half + 12 || Math.abs(my - half) > half + 12) continue;
+      const R = opts.big ? 9 : 7;
+      ctx.fillStyle = 'rgba(8,14,22,0.55)';
+      ctx.beginPath(); ctx.arc(mx, my, R, 0, 6.29); ctx.fill();
+      if (!lm.found) { ctx.strokeStyle = 'rgba(190,225,255,0.55)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(mx, my, R + 2, 0, 6.29); ctx.stroke(); }
+      ctx.font = (opts.big ? 12 : 10) + 'px system-ui';
+      ctx.fillText(lm.type === 'vista' ? '\u{1F3D4}\u{FE0F}' : '\u{1F4A7}', mx, my + 1);
+    }
+    ctx.restore();
+  }
   // ---- quest waypoint: where the deed calls you ----
   for (const q of QUESTS.active) {
     if (q.kind !== 'explore' || !q.lmType) continue;
@@ -5286,6 +5551,7 @@ function tick() {
     for (const ch of chunks.values()) {
       for (const a of ch.animals) a.update(adt, tSec);
       for (const pr of ch.predators) pr.update(adt, tSec);
+      if (ch.fish) for (const fsh of ch.fish) fsh.update(dt);   // v6.9 the lakes' jumpers
     }
     // ---- 🦅 the golden eagle: a rare sighting, daylight only ----
     eagleSpawnT -= adt;
@@ -5301,6 +5567,7 @@ function tick() {
   }
   updateWeather(dt);
   updateAtmosphere(dt);
+  updateBats(dt, tSec);   // v6.9 cave bats: defensive swoopers
   updateSense(dt);
   updateMagicGlow(dt);
   const adt = Math.max(dt, 0.0001);
@@ -5416,3 +5683,5 @@ window.addEventListener('error', e => {
   if (d) { d.style.display = 'block'; d.textContent = '⚠ ' + (e.message || 'error'); }
 });
 tick();
+
+/* ============================================================

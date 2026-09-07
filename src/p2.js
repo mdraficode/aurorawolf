@@ -1,4 +1,3 @@
-/* ================================================================
    Part 2 — scene, sky, particles, vegetation library
    ================================================================ */
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -853,3 +852,5 @@ function makeInstanced(geom, mat, items, shadow, cull) {
   }
   return m;
 }
+
+/* ================================================================

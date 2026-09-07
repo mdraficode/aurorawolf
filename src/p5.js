@@ -1,4 +1,3 @@
-/* ============================================================
    🏆 THE CAMPAIGN — progressive quest chain · legend hierarchy
    · infinite trophy speedrun (M46 major update)
    The open world stays free; progression is a controlled state
@@ -734,3 +733,5 @@ try {
   const ov = document.getElementById('overlay');
   if (ov && ov.dataset.mode === 'start' && !ov.classList.contains('hidden') && window.CAMP.onMenuRefresh) window.CAMP.onMenuRefresh();
 } catch (e) { }
+
+/* ============================================================

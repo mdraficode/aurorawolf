@@ -1,4 +1,3 @@
-/* ================================================================
    Part 3 — the wolf & the animals
    ================================================================ */
 /* ============================================================
@@ -11,6 +10,28 @@ function lmRock(w, h, d, col, x, y, z, ry) {
   m.castShadow = true; return m;
 }
 const LANDMARKS = {
+  vista: {
+    label: 'Cliff Hanger', icon: '🏔️', tier: 'rare', biomes: { mountain: 1.0 },
+    solid: [[0, 0, 1.1]],
+    resources(pk, rng, x, z) {},
+    build(rng) {
+      const g = new THREE.Group();
+      let y = 0;
+      for (let i = 0; i < 5; i++) {   // the cairn: stacked waystones
+        const rr = 0.95 - i * 0.15;
+        const st = new THREE.Mesh(new THREE.DodecahedronGeometry(rr, 0), matColor(i % 2 ? 0x8d9298 : 0x7d8288));
+        st.position.set((rng() - 0.5) * 0.2, y + rr * 0.62, (rng() - 0.5) * 0.2);
+        st.rotation.set(rng() * 3, rng() * 3, rng() * 3);
+        st.castShadow = true; g.add(st);
+        y += rr * 1.02;
+      }
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 2.7, 6), matColor(0x6a5a42));
+      post.position.set(1.6, 1.35, 0.35); post.rotation.z = 0.13; post.castShadow = true; g.add(post);
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.5), new THREE.MeshStandardMaterial({ color: 0xd8b24a, side: THREE.DoubleSide, roughness: 0.9 }));
+      flag.position.set(2.05, 2.42, 0.35); g.add(flag);
+      return g;
+    }
+  },
   ancientTree: {
     label: 'Elder Tree', icon: '🌳', biomes: { forest: 0.6, grove: 0.25, taiga: 0.15 },
     solid: [[0, 0, 1.7]],
@@ -844,6 +865,18 @@ class Wolf {
       for (const a of fightable) offer(a);
     }
     for (const a of legends) offer(a);
+    /* v6.9 FISH STRIKE: a wolf fishing — only from the water or the shallows */
+    if (this.swimming || heightAt(this.pos.x, this.pos.z) < WATER_Y + 0.35) {
+      let bf = null, bfd = 99;
+      for (const ch of chunks.values()) for (const fsh of (ch.fish || [])) {
+        if (fsh.dead) continue;
+        const dx = fsh.pos.x - this.pos.x, dz = fsh.pos.z - this.pos.z, d = Math.hypot(dx, dz) || 0.001;
+        if (d > 3.2 || Math.abs(fsh.pos.y - this.pos.y) > 2.4) continue;
+        if ((dx * fx + dz * fz) / d < 0.2) continue;
+        if (d < bfd) { bfd = d; bf = fsh; }
+      }
+      if (bf && (!best || bfd < bestD)) { best = bf; bestD = bfd; }
+    }
     pool.burst(V3(this.pos.x + fx * 1.5, this.pos.y + 0.9, this.pos.z + fz * 1.5), 0, 0xfff2c8, 0.9, 1.6, 3.2);   // (dust removed — the strike shows in the body now)
     if (best) {
       // where does the bite land? behind · flank · face
@@ -2400,3 +2433,5 @@ class SkyEagle {
     this.model.position.copy(this.pos);
   }
 }
+
+/* ================================================================

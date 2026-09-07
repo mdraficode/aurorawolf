@@ -1,6 +1,3 @@
-'use strict';
-/* ================================================================
-   REVONTULET — Aurora Wolf · an infinite procedural wilderness
    Part 1 — math, noise, terrain & biome functions
    ================================================================ */
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -131,12 +128,28 @@ function riverBandAt(x, z) {
   const v = Math.abs(fbm(nRiver, x * 0.0016 + warp * 0.7, z * 0.0016 - warp * 0.6, 3) - 0.5);
   return 1 - ss(0.012, 0.052, v);   // 1 inside the channel, fading to 0
 }
+function fjordBandAt(x, z) {
+  /* v6.9 FJORDS: contour lines of a very-low-frequency field = long winding sea
+     arms. The narrow ss() band gives near-vertical walls at the 2 m terrain grid. */
+  const warp = fbm(nD, x * 0.0011 + 12.7, z * 0.0011 - 8.2, 2);
+  const v = Math.abs(fbm(nRiver, x * 0.00085 + warp * 0.8 + 203, z * 0.00085 - warp * 0.6 - 131, 3) - 0.5);
+  return 1 - ss(0.004, 0.017, v);
+}
 function heightAt(x, z) {
   const c     = fbm(nH, x * 0.0013, z * 0.0013, 4);
   const hills = fbm(nD, x * 0.009,  z * 0.009,  3);
   const mm    = ss(0.02, 0.5, fbm(nM, x * 0.0015 + 37.7, z * 0.0015 - 11.3, 3));
   const r     = ridged(nR, x * 0.0042, z * 0.0042, 4);
-  let h = 8 + c * 13 + hills * 3.2 + mm * r * r * 56;
+  let h = 8 + c * 13 + hills * 3.2 + mm * r * r * (56 + 62 * mm);   // v6.9 SKY PEAKS: the high mask feeds itself — crest lines past 100 m, snow-capped by the existing snowline
+  // v6.9 fjords: steep-walled sea arms carved through the mountain masks
+  if (mm > 0.34) {
+    const fj = fjordBandAt(x, z);
+    if (fj > 0.02) {
+      const wall = ss(0.12, 0.8, fj);
+      const bed = WATER_Y - 2.4 - nVar(x * 0.02, z * 0.02) * 1.5;
+      h = h * (1 - wall) + bed * wall;
+    }
+  }
   // rivers: carve only through lowlands so mountains stay intact
   const low = ss(14, 8, h) * ss(-1.5, 0.8, h);
   if (low > 0.001 && h < 14) {
@@ -213,3 +226,5 @@ function biomeInfoAt(x, z, h) {
   for (const k in w) if (w[k] > bv) { bv = w[k]; best = k; }
   return BIOME_INFO[best];
 }
+
+/* ================================================================
