@@ -827,28 +827,28 @@ if (!webglAvailable()) {
     '⬇ <b>Download index.html</b> and open it in Chrome, Edge or Firefox —<br>the entire game lives inside that one file, no internet needed.</div>';
   throw new Error('WebGL unavailable');
 }
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, QUALITY === 'low' ? 1 : 1.75));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = QUALITY !== 'low';
+renderer.shadowMap.enabled = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.toneMappingExposure = 1;
 document.body.appendChild(renderer.domElement);
 renderer.domElement.id = 'game';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87b7d9);
-scene.fog = new THREE.Fog(0x87b7d9, 70, 165);
+scene.fog = null;
 
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 2500);
 
 const hemi = new THREE.HemisphereLight(0xbcd8ee, 0x59503e, 0.6);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2d8, 1.1);
-sun.castShadow = QUALITY !== 'low';
-sun.shadow.mapSize.set(2048, 2048);
+sun.castShadow = false;
+sun.shadow.mapSize.set(256, 256);
 sun.shadow.camera.left = -62; sun.shadow.camera.right = 62;
 sun.shadow.camera.top = 62; sun.shadow.camera.bottom = -62;
 sun.shadow.camera.near = 1; sun.shadow.camera.far = 420;
