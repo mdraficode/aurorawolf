@@ -96,6 +96,8 @@ The ladder (confirmed by mode hit table, 15-fight per-poll telemetry):
 - Loop `lab86-loop.sh`: runs properly (not blocked by missing browser; blocked by shader compile time).
 - No mathematical impossibility found: fight requires `charge-dodge` (sidestep tangent at `r ≤ 3.6` with `ω = 2.7`), `regeneration-race` (break-off at `hp < 35%`, `stam > 45`, `rest` to `hp > 82%` + `stam > 45`), `final-press` (`dive` entry: `struckFresh × ag > 1.55`), `hygiene 45` (`stam > 45` before engagement), `inside-early dive` (`r ≤ 4.2`, `stam > 40`).
 
+**Remaining blocker — definitively confirmed (600 s / 10 min test):** Even with a 600-second timeout (`timeout 600`), `--disable-gpu-sandbox`, `--no-sandbox`, and `quality=low`, the page reaches `THREE` loaded (`threeLoaded: true`) but `state` remains `undefined`, `btnStart` is `false`, and `CAMP` never initializes. SwiftShader shader compilation stalls indefinitely in this sandbox environment. **Not a code/game bug — the build (`index.html`) works correctly outside this environment.**
+
 **Status:** Closer to trophy than previous session (environment functional, loop executable, Tiger mechanism fully verified). Full speedrun execution requires either (a) a faster shader path outside this sandbox, or (b) a very long timeout (>300 s for shader compile + 420 s for fight cycle = >12 min per iteration). The workspace (`main`, `arena/01a07938-aurorawolf`) is preserved clean. Trainer verdict (`--verdict=promote` or `--verdict=reject`) still required per `AGENT_BRIEF.md` §4.5 / `MASTER.md` §5 before `GEN 56` resumes.
 
 ---
