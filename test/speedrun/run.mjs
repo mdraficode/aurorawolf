@@ -221,6 +221,16 @@ async function fightLoop(e0) {
     if (lastDist !== null) { const dStep = Math.max(0, f.w.dist - lastDist); if (dStep > 0.05 && dStep < 12) travel = travel * 0.7 + dStep * 0.3; }
     lastDist = f.w.dist;
 
+    /* parklab90 DEATH-RACE GUARD: the wolf-death check MUST run before the boss re-arm
+       check below. onDeath() (src/p5.js) despawns the boss and resets stage to 'awaken'
+       for a full retry the instant the wolf falls — a poll landing in that ~0.3-0.7 s
+       window used to see a live boss (still despawning) with wolf hp 0, re-arm a brand
+       new zero-effort 'fight' against it, then the NEXT poll saw the empty (despawned,
+       not slain) boss list and reported a false 'slain' — a real Tiger fight never
+       happened but the loop's grep for '"res":"slain"' declared TIGER/TROPHY anyway
+       (tigerlab89/90 caught this: ghost fight, 0 bites, 0.4 s, wolfHp 0 at boss-start). */
+    if (f.w.deadT > 0 || f.w.hp <= 0) { await H.releaseAll(); await sleep(700); if (fight) fight.mode = 'dead'; return 'dead'; }
+
     if (f.bosses.length && (!fight || fight.name !== (f.bosses[0] && f.bosses[0].n))) {   /* parklab85 kill-boundary: when the boss DIED the empty list re-armed a ghost '?' fight with zeroed counters and the router's boss-end printed the ghost instead of the kill record. Empty list + open fight = the kill — fall through to the 'slain' exit with the REAL fight intact */
       const b0 = f.bosses.sort((a, c) => (a.clone ? 1 : 0) - (c.clone ? 1 : 0))[0];
       fight = { name: b0 ? b0.n : '?', t0: f.t, sim0: f.clock, hp0: f.w.hp, bites: 0, swings: 0, hits: 0, dmgTaken: 0,
@@ -560,7 +570,22 @@ async function fightLoop(e0) {
       await H.move({ f: true, sprint: f.w.stam > 12 });
       await cadence(f.clock); continue;
     }
-    if (b.charging || b.tac > 0) {
+    if (b.charging) {   /* parklab90: this generic branch used to run BEFORE the tuned
+      parklab88 charge-dodge law ever got a chance (that law lives inside the 'park'
+      tactic block below, gated on FIGHT_TAC — a fight never reached it because THIS
+      branch always intercepted b.charging first). grep across 12 real Tiger fights
+      (tigerlab89-91) found "chdodge" fired ZERO times and the naive perpendicular
+      aim here ('dodge' mode) still ate 1-4 hits per Tiger lunge (hits climbing 2->3,
+      4->5, 7->10, 9->13 inside a single 4s telemetry window) — the fix: use the SAME
+      pure-tangent-sprint geometry parklab88 designed for this exact lunge (0.62 s @
+      19 m/s, locks its line at cast — the wolf must not try to out-run it, only
+      side-step its fixed line at ω=2.7-4.0, letting the charge overshoot). */
+      F.mode = 'chdodge';
+      await H.aimFast(toB + side * 1.57, f.cam);   /* pure tangent (matches the park-tactic parklab88 geometry: cut = PI/2-1.57 -> moveDir = toB + side*1.57) */
+      await H.move({ f: true, sprint: f.w.stam > 5 && !f.w.exh });
+      await cadence(f.clock); continue;
+    }
+    if (b.tac > 0) {
       F.mode = 'dodge';
       await H.aimFast(toB + side * Math.PI / 2, f.cam);
       await H.move({ f: true, sprint: f.w.stam > 10 });

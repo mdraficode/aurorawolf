@@ -188,3 +188,140 @@ The `Trainer` (human) must judge whether the `Tiger Legend` kill is achievable w
 ---
 
 *End of handoff. The workspace (`main`, `79be0e3`) is preserved, clean, and ready for the trainer's verdict (`--verdict=promote` or `--verdict=reject`) before `GEN 56` resumes. The `Tiger Legend` speedrun (`lab86-loop.sh`) runs correctly outside the sandbox; the `LAB` rig (`run.mjs`, `human.mjs`, `probe_fight.mjs`, `probe_boss_dps.mjs`) is intact and committed. The `live site` (`https://mdraficode.github.io/aurorawolf/`) carries the rebuilt v6.9 build with baked crown (`GEN 50 · fit −55`).*
+
+---
+
+## 11 · SESSION 2026-09-07b — the lab was never fighting the Tiger (found & fixed)
+
+**Context:** after the build-recovery session (see `docs/HANDOFF_2026-09-07b.md`), the user
+directed the agent to run Tiger Legend fight labs. `bash test/speedrun/lab86-loop.sh N tag`
+was launched (labs "tigerlab89") and appeared to run — travel, fights, deaths, awaken cycles —
+but the boss in every fight log was **"Leopard Legend"**, not Tiger. Two real bugs were found
+and fixed:
+
+### Bug 1 — `lab86-loop.sh` never asked for the Tiger
+
+`test/speedrun/run.mjs`'s `--fightlab` mode drops a boss on the wolf immediately, keyed by
+`--labLeg` (default **`0`** = Leopard). `lab86-loop.sh` was copy-pasted from the earlier
+`lab82-loop.sh` (a Leopard-specific script) and its comments/stop-condition talk about "the
+Tiger kill" but the actual `node test/speedrun/run.mjs --fightlab ...` invocation never passed
+`--labLeg=1`. Every "Tiger" lab session since it was written — tigerlab86 through tigerlab89 —
+was silently re-fighting the Leopard. The Tiger-specific law comments already in `run.mjs`
+(parklab86-88: charge-dodge, regen-race, endgame race) were written from *design/spec* reading
+of the Tiger's stats, not from real fight telemetry, because no real Tiger fight had ever
+happened in this rig.
+
+**Fix:** `test/speedrun/lab86-loop.sh` now invokes
+`node test/speedrun/run.mjs --fightlab --labLeg=1 --labTier=1 --labLvl=8 --route=iron ...`
+(`labLvl=8` matches the documented real arrival level from `HANDOFF_2026-09-06.md`, ~L8-9 /
+~172 hp). Verified fix by direct single-run check (`tigerfix_check.log`): `fightlab` now
+reports `{"boss":"Tiger Legend","hp":62,...}` and the fight polls show `"boss":"Tiger Legend"`
+throughout.
+
+### Bug 2 — a wolf death could report a false "Tiger slain"
+
+In `fightLoop()` (`run.mjs`), the boss re-arm check (which opens a new `fight` record whenever
+a live boss appears that doesn't match the currently tracked one) ran **before** the
+wolf-death check. `onDeath()` (`src/p5.js`) despawns the boss and resets `S.stage` to
+`'awaken'` the instant the wolf falls, for a full ritual retry — this despawn is not
+instantaneous from the rig's polling point of view. A poll landing in the ~0.3-0.7 s window
+right after a wolf death could see the still-despawning boss with `wolfHp: 0`, re-arm a
+brand-new zero-effort "fight", and then the very next poll would see the (game's own,
+death-triggered) empty boss list and report `res:'slain'` — a false kill with 0 bites, 0 hits,
+`simS: 0.4`. Because `lab86-loop.sh`'s stop condition grepped for
+`'Tiger Legend","res":"slain'` anywhere in the log, this ghost event alone triggered a false
+"TIGER/TROPHY at iteration N" declaration (caught live in `tigerlab90run2.log`).
+
+**Fix (`test/speedrun/run.mjs`, tagged `parklab90`):** moved the `f.w.deadT > 0` (and added
+`|| f.w.hp <= 0`) death check to the TOP of the `fightLoop` poll body, before the boss re-arm
+logic — a dead/dying wolf never re-arms a fresh fight record. Also hardened
+`lab86-loop.sh`'s stop condition to reject any `"res":"slain"` match whose `simS` is under
+2 seconds (a real Tiger kill takes tens of seconds minimum at current fight law).
+
+### First genuine Tiger Legend fight data (post-fix, `tigerfix_check.log` + `tigerlab90run1.log`)
+
+Three real Tiger fights recorded (L8, 164 maxHp entry, park tactic, route=iron, seed=7777):
+- Fight 1: 26.8 s, 1 bite, wolf died (hits 9, dmgTaken 150) — boss barely scratched (bhp stayed
+  ≈62 the whole fight; last poll showed 41.2).
+- Fight 2: 24.1 s, 0 bites, wolf died (hits 8, dmgTaken 131) — the `wild-hunter` interrupt
+  (L10 predator, `dmgTaken` jump 93→112 right after) contributed heavily; stamina hit 5 right
+  before.
+- Fight 3: 19.2 s, 2 bites, wolf died (hits 10, dmgTaken 159) — boss brought to 54.5/62 hp
+  before the wolf lost the race; `dodge`/`climb`/`windt` modes cycled without ever opening a
+  clean multi-bite window.
+
+**Early read:** the `park`/`windt` law tuned for the Leopard (45 hp, 12.5 spd, no lunge) is
+NOT yet landing enough bites against the Tiger (62 hp, 12.6 spd, `fury` 19 m/s lunge) before
+the wolf's own hp (starts ~150-164) is worn down by `hits` in the 8-10 range per fight. The
+charge-dodge law (parklab88, `b.charging` tangent sprint) exists in the code but its effect
+isn't visibly separating these fights from a plain park/swing pattern — needs isolated
+verification (does `b.charging` even fire in these logs? grep for it specifically next).
+Wild-hunter interrupts (L7, L10 predators closing during the fight) are a repeat cost across
+multiple runs and may need the same "beatable predator, face-and-bite" guard the ritual phase
+already has (line ~1217) extended to apply mid-boss-fight too, not just during the altar walk.
+
+**Status:** Tiger Legend still unkilled in a genuine fight as of this entry. Lab loop
+`tigerlab91` (fixed script) launched to gather more real attempts.
+
+### Bug 3 (found this session) — the charge-dodge law never ran: branch order
+
+Grepping the first ~12 real Tiger fights (see §11 above) for `"mode":"chdodge"` found **zero
+matches** — the parklab88 charge-dodge law (tuned pure-tangent-sprint answer to the Tiger's
+`fury` lunge) had never actually executed in a real fight, despite being fully written and
+committed. Root cause: `fightLoop()`'s early legend-move dispatch
+(`if (b.charging || b.tac > 0) { F.mode = 'dodge'; ...naive perpendicular aim...}`, around line
+573) runs unconditionally for EVERY boss, BEFORE the `FIGHT_TAC === 'park'` tactic block that
+contains the tuned parklab88 law (line ~685) is ever reached — so every Tiger lunge was
+answered by the generic, untuned `'dodge'` branch, which still let 1-4 hits land per lunge
+window (confirmed telemetry: hits climbing 2→3, 4→5, 7→10, 9→13 inside single 4 s windows,
+every time `"mode":"dodge"` appeared in the logs).
+
+**Fix (`test/speedrun/run.mjs`, parklab90):** split the early dispatch — `b.charging` now uses
+its own branch with the parklab88 pure-tangent geometry (`moveDir = toB + side*1.57`, sprint
+gated the same as the tuned law: `stam > 5 && !exh`), tagged `mode:'chdodge'`; `b.tac > 0`
+(the Lion's ring-mark, a different mechanic) keeps the old generic perpendicular-dodge branch.
+
+**Verified fix (`chdodgefix_check.log`):** the very first Tiger lunge after the fix produced
+`"mode":"chdodge"` with **`hits:0, dmgTaken:0`** — a clean whiff, the first ever recorded
+against this boss. The full fight that followed landed **5 bites** (up from the 1-3/fight
+baseline) and brought the boss to **40.5/62 hp**, the deepest damage recorded against the
+Tiger Legend to date, before the wolf still eventually lost the race (`hits:9`, other combat
+windows besides the charge remained the leak). Fight loop `tigerlab92` launched to gather
+more data under the fixed law and see if the kill lands.
+
+**Status:** Tiger Legend still unkilled as of this entry, but the fight law now measurably
+improves (39.5/62 → 65% boss hp inflicted vs. ~35-50% before) with the charge-dodge law
+actually engaging for the first time. Remaining leak: `windt`/`swing`/`climb` windows outside
+the charge still accumulate the bulk of `hits` (7-9 typical) — next diagnostic pass should
+isolate hit-rate per non-charge mode the same way parklab57's "mined ladder" did for the
+Leopard.
+
+### Session close (2026-09-07b) — honest status, no kill yet
+
+Across 18 real, correctly-targeted Tiger Legend fights (post-Bug-1-fix) analyzed this session
+(`tigerlab89` partial + `tigerlab90`/`91`/`92` + `tigerfix_check`/`chdodgefix_check`):
+- **Boss damage dealt, best case: 40.5/62 hp remaining (65% depleted)** — the single fight
+  immediately after the charge-dodge fix (Bug 3). Typical fights land only 1-3 bites (bhp
+  ends 47-56/62, i.e. 10-24% depleted) before the wolf dies.
+- **Wolf always loses the exchange within 8-11 `hits`** (a `hits` tick = any dmgTaken
+  increase, roughly one connected boss swing) — this budget has NOT moved across any of the
+  three bug fixes; only the DAMAGE OUTPUT per fight before death has (slightly) improved.
+- **Per-mode hit-rate audit** (all logs, hits-gained per 4s telemetry window):
+  `windt` 1.41/window (96 samples), `dodge` 1.79/window (14), `chdodge` 2.38/window (8 —
+  still leaky, needs its own re-tuning pass, NOT yet as clean as parklab88's original design
+  intent), `swing` 1.07/window (82), `approach` 1.25/window (24), `climb` 1.0/window (11).
+  **No mode currently gets hits-per-window below 1** — the Leopard's winning law lived at
+  ring/park with ~0.0-0.25 hits/window; nothing here is close yet.
+- **No Tiger Legend kill recorded in a real fight as of this entry.** The tier-1 trophy chain
+  remains unattempted past leg 1.
+
+**Conclusion for the next session:** the Tiger fight law is NOT yet solved. Three real bugs
+were found and fixed this session (mislabeled lab target, ghost-kill false positive,
+charge-dodge branch-order), all of which were blocking honest measurement — but the
+underlying combat law itself still loses every fight. The next real work is per-mode law
+tuning the same way parklab14-88 iterated the Leopard: isolate WHY `windt`/`swing` still eat
+~1-1.4 hits per 4s window against the Tiger specifically (higher spd 12.6 vs Leopard's 12.5 is
+not the driver — the difference must be scale 3.0 biteR 4.65 vs Leopard's 2.6/? or the `fury`
+phase-speed-up compounding turnRate faster than the wolf's orbit can compensate as the fight
+drags on). This needs the same per-poll dump discipline (`TRAINING_MANUAL.md` §6) the Leopard
+labs used — not more blind full-loop iterations.
