@@ -295,19 +295,3 @@ window.PACK = (() => {
   return { onHowl, tick, memberTick, memberDown, intercept, status, onQuestDone, onPackGone, pack: () => bonded };
 })();
 
-/* ============ 🤖 AI PLAY — the wolf plays itself (in-game watch mode) ============
-   RAFZZER v1.0 — The Neural AI. The v7 "True Hunter" reflex ladder survives underneath
-   as the BRAINSTEM (water escape, anti-stuck, corridor executor, quest discipline — the
-   things a wolf must never mislearn). Above it grows a neural cortex: 18 senses →
-   10 tanh hidden → 6 sigmoid urges that shape temperament — when to flee, rest, drink,
-   yield ground, how patiently to stalk, how freely to sprint. Weights are born from the
-   baked champion RAFZZER_SEED and evolve ONLY through gated generations: every death is
-   scored, and a mutant may carry its learnings forward solely if it passed the human
-   verification gate (training/rafzzer_gens.mjs). Deaths also write SCARS — lineage memory
-   that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1.
-   M46 v6.5 (crown bake): build.py injects the lineage champion (training/rafzzer_champion.json)
-   into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT, so the shipped 🧠 button plays the current crown
-   (GEN 50, fit −55 at the time of writing); a browser's own rafzzer_best may only play if it
-   outscored the champion. src/autopilot.js keeps the wild mind as the dev fallback. */
-(function () {
-  const URL_ON = /[?&]autopilot=1/.test(location.search);

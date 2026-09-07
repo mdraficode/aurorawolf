@@ -5,7 +5,13 @@
 the project identity, the codebase map, the neural-training system, the CURRENT progress state,
 and the road ahead. **Rule: whenever a session changes the law, the brain architecture, the
 features, or the lineage state, update this file in the same commit.** It is the memory of the
-project. Last updated: **2026-09-06** (park fight labs 14–63: the Leopard geometry SETTLED —
+project. Last updated: **2026-09-07b** (WORKSPACE RECOVERY: the previous morning session's source
+recovery had left `src/p1.js` missing its opening `/*` and `src/p6.js` carrying a stray duplicated
+tail — together these made the whole game a syntax error, misdiagnosed as a "SwiftShader stall".
+Fixed both, plus a `src/p2.js` fog/shadow regression (restored from `src/p2.js.bak`, now deleted).
+`npm test` 27/27 PASS again, `test/v69_features.test.mjs` PASS, the speedrun rig boots and plays —
+see `docs/HANDOFF_2026-09-07b.md` for the full autopsy and exact next actions). Previous: 2026-09-06
+(park fight labs 14–63: the Leopard geometry SETTLED —
 plant lunge, ~1 s cadence, the treadmill, the dive-in door, the mode hit table; the duel is a
 close race, lab60 boss 45→37.5 — `docs/HANDOFF_2026-09-06.md`). Previous headers: 2026-09-05
 (workspace recovery), 2026-09-03

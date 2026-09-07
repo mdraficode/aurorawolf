@@ -9,7 +9,24 @@ a fresh agent can act immediately without asking the user anything.
 `README.md` (player-facing). `MASTER.md` and `AGENT_BRIEF.md` must BOTH be updated in the same
 commit whenever project state, law, architecture, or instructions change.
 
-**Snapshot:** 2026-09-06 evening (**THE TIER-1 FRONTIER IS BROKEN**: Leopard Legend SLAIN — lab85 run 5, 49.1 s, wolf alive ~42 hp, L5→8; second career kill 30.8 s verified; trophy + full law lineage in `TRAINING_MANUAL.md` §5.9, `PLAYLOG.md` labs 64–85. The press engine: inside-first dive + THE PLANT PRESS — nose gate at the cone edge 1.36, fired mid-plant when the boss neck is 0.4 and the gap rides the windt climb; 6–9 presses/fight at 4.4–7.5 dmg. Labs 86 = the SPEED SESSIONS, user-directed: profiled the headless sim (per-tick compute 1.5–17 ms — the scheduler and Chromium's input pipeline were the thieves, not the game), boost scheduler unlocked for travel (~2.5×, `__boost.setMode` restores the exact fight arithmetic), the 14–18 s mouse-move stalls found (3% of long moves block in CDP input) and fixed with a held-drag camera + 12 px/120 px aim law — fight pace 0.21 → 0.65×. Kill-attribution bug fixed (ghost '?' boss-end). Frontier: the leg-1 TIGER LEGEND (62 hp/16 dmg/biteR 4.65) → tier-1 trophy; loop = `test/speedrun/lab86-loop.sh`. Game/champion otherwise unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) · Game/champion otherwise unchanged since §4.5e) · original repo `github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
+**Snapshot:** 2026-09-07 (**WORKSPACE RECOVERED — the build was BROKEN, not the environment.** The
+2026-09-07 morning session's source recovery had left `src/p1.js` missing its opening `/*` and
+`src/p6.js` carrying a stray duplicated/truncated tail — together these made the ENTIRE inline
+`<script>` a syntax error, so the game never ran a single line of its own code. That session
+misdiagnosed the resulting "`state` never reaches `'play'`" as a SwiftShader/environment stall and
+self-issued a promote verdict without ever completing a real fight attempt (see
+`docs/HANDOFF_2026-09-07b.md` for the full autopsy). This session (2026-09-07b) found and fixed both
+syntax breaks plus a real fog/shadow regression in `src/p2.js` (restored from the sibling
+`src/p2.js.bak`, which is now deleted). **Verified working**: `node test/browserlab/probe.mjs` → 0
+errors, `hasCAMP`/`hasRUN`: object; `npm test` → **27/27 PASS**; `test/v69_features.test.mjs` → PASS
+(previously reported as environment-blocked); a real `test/speedrun/run.mjs` run boots, accepts
+quests, advances campaign stage, and processes a Legend death correctly. The Leopard Legend kill
+(lab85, 49.1 s, L5→8) recorded in `TRAINING_MANUAL.md` §5.9 predates this breakage and its law set in
+`test/speedrun/run.mjs` is untouched and intact. **The Tiger Legend (leg 1, 62 hp/16 dmg/biteR 4.65)
+is the still-open frontier — genuinely unattempted in a real run since 2026-09-06 night**, because
+every attempt since then hit the broken build. Loop = `test/speedrun/lab86-loop.sh`; it can now
+actually complete iterations. Game/champion otherwise unchanged since §4.5e) · original repo
+`github.com/mdraficode/aurorawolf` (the ONLY repo now) ·
 duplicate repo `github.com/mdraficode/aurorawolf-v2` (exact copy, created 2026-09-01; **RETIRED by
 user directive — never work in, sync, or push to v2**).
 

@@ -579,6 +579,7 @@ body.touch #questTracker { display: none; }
 
 </script>
 <script>
+/* ================================================================
    Part 1 — math, noise, terrain & biome functions
    ================================================================ */
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -827,28 +828,28 @@ if (!webglAvailable()) {
     '⬇ <b>Download index.html</b> and open it in Chrome, Edge or Firefox —<br>the entire game lives inside that one file, no internet needed.</div>';
   throw new Error('WebGL unavailable');
 }
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, QUALITY === 'low' ? 1 : 1.75));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = false;
+renderer.shadowMap.enabled = QUALITY !== 'low';
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.toneMapping = THREE.NoToneMapping;
-renderer.toneMappingExposure = 1;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
 document.body.appendChild(renderer.domElement);
 renderer.domElement.id = 'game';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87b7d9);
-scene.fog = null;
+scene.fog = new THREE.Fog(0x87b7d9, 70, 165);
 
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 2500);
 
 const hemi = new THREE.HemisphereLight(0xbcd8ee, 0x59503e, 0.6);
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2d8, 1.1);
-sun.castShadow = false;
-sun.shadow.mapSize.set(256, 256);
+sun.castShadow = QUALITY !== 'low';
+sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.left = -62; sun.shadow.camera.right = 62;
 sun.shadow.camera.top = 62; sun.shadow.camera.bottom = -62;
 sun.shadow.camera.near = 1; sun.shadow.camera.far = 420;
@@ -10823,22 +10824,7 @@ window.PACK = (() => {
   return { onHowl, tick, memberTick, memberDown, intercept, status, onQuestDone, onPackGone, pack: () => bonded };
 })();
 
-/* ============ 🤖 AI PLAY — the wolf plays itself (in-game watch mode) ============
-   RAFZZER v1.0 — The Neural AI. The v7 "True Hunter" reflex ladder survives underneath
-   as the BRAINSTEM (water escape, anti-stuck, corridor executor, quest discipline — the
-   things a wolf must never mislearn). Above it grows a neural cortex: 18 senses →
-   10 tanh hidden → 6 sigmoid urges that shape temperament — when to flee, rest, drink,
-   yield ground, how patiently to stalk, how freely to sprint. Weights are born from the
-   baked champion RAFZZER_SEED and evolve ONLY through gated generations: every death is
-   scored, and a mutant may carry its learnings forward solely if it passed the human
-   verification gate (training/rafzzer_gens.mjs). Deaths also write SCARS — lineage memory
-   that heightens the senses which failed. In-game: tap the 🧠 button. Headless: ?autopilot=1.
-   M46 v6.5 (crown bake): build.py injects the lineage champion (training/rafzzer_champion.json)
-   into RAFZZER_SEED + RAFZZER_CHAMP_GEN/FIT, so the shipped 🧠 button plays the current crown
-   (GEN 50, fit −55 at the time of writing); a browser's own rafzzer_best may only play if it
-   outscored the champion. src/autopilot.js keeps the wild mind as the dev fallback. */
-(function () {
-  const URL_ON = /[?&]autopilot=1/.test(location.search);
+
 /* ============ 🤖 AI PLAY — the wolf plays itself (in-game watch mode) ============
    RAFZZER v1.0 — The Neural AI. The v7 "True Hunter" reflex ladder survives underneath
    as the BRAINSTEM (water escape, anti-stuck, corridor executor, quest discipline — the
